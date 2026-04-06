@@ -7,7 +7,7 @@ allowed-tools: Bash(python3:*), Bash(qmd:*), Read, Write, Edit, Glob, Grep, WebF
 
 # Snowiki — Unified LLM Wiki Skill
 
-A persistent wiki that compounds knowledge like a snowball, with integrated recall and session sync. 
+A persistent wiki that compounds knowledge like a snowball, with integrated recall and session sync. Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
 ## Core Loop
 
@@ -32,9 +32,9 @@ Read `SCHEMA.md` at the start of every ingest or lint operation.
 
 | Type | Directory | Purpose | Example |
 |------|-----------|---------|---------|
-| summary | `wiki/summaries/` | 1:1 with source. The compilation step. | `source-title.md` |
+| summary | `wiki/summaries/` | 1:1 with source. The compilation step. | `karpathy-llm-wiki.md` |
 | concept | `wiki/concepts/` | Single idea. "What is X?" | `rag.md`, `bm25.md` |
-| entity | `wiki/entities/` | Person, tool, org, project. | `qmd.md`, `person-name.md` |
+| entity | `wiki/entities/` | Person, tool, org, project. | `qmd.md`, `karpathy.md` |
 | topic | `wiki/topics/` | Cross-cutting theme. | `korean-nlp.md` |
 | comparison | `wiki/comparisons/` | Side-by-side with table. | `rag-vs-wiki.md` |
 | question | `wiki/questions/` | Filed query answer. | `2026-04-07-why-wiki-beats-rag.md` |

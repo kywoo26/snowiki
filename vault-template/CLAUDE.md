@@ -3,6 +3,7 @@
 This vault is an LLM-maintained wiki that compounds knowledge like a snowball.
 You (the LLM) are the wiki maintainer. The human curates sources and directs. You handle all the bookkeeping.
 
+Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
 ## Three Layers
 
@@ -13,22 +14,28 @@ You (the LLM) are the wiki maintainer. The human curates sources and directs. Yo
 ## Vault Layout
 
 ```
-sources/
-  articles/     → web clips, papers, PDFs
-  sessions/     → cc session exports (auto-synced via hook)
-  notes/        → manual notes, meeting logs
+sources/            → immutable raw material (NEVER modify after saving)
+  articles/         → web clips, papers, PDFs
+  notes/            → manual notes, meeting logs
 
-wiki/
-  index.md      → page catalog (auto-update on every ingest)
-  log.md        → append-only changelog
-  overview.md   → evolving thesis (singleton, narrative not list)
-  summaries/    → one per source (the compilation step — mandatory)
-  concepts/     → single ideas ("what is X?")
-  entities/     → people, tools, orgs, projects (graph hubs)
-  topics/       → cross-cutting themes (graph bridges)
-  comparisons/  → side-by-side with tables
-  questions/    → filed query answers (compounding loop)
+sessions/           → cc session exports (auto-synced, "live" while session active)
+                      NOT in sources/ — sessions are mutable until session ends
+
+wiki/               → compiled knowledge (LLM owns this)
+  index.md          → page catalog (auto-update on every ingest)
+  log.md            → append-only changelog
+  overview.md       → evolving thesis (singleton, narrative not list)
+  summaries/        → one per source (the compilation step — mandatory)
+  concepts/         → single ideas ("what is X?")
+  entities/         → people, tools, orgs, projects (graph hubs)
+  topics/           → cross-cutting themes (graph bridges)
+  comparisons/      → side-by-side with tables
+  questions/        → filed query answers (compounding loop)
+
+CLAUDE.md           → this file (the schema)
 ```
+
+Note: `sessions/` is separate from `sources/` because sessions are "live" — they grow as the conversation continues. Once a session ends, it's effectively frozen. When ingesting session knowledge into wiki, reference the session file but understand it may have grown since.
 
 ## Page Frontmatter
 
