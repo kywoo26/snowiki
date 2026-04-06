@@ -1,43 +1,46 @@
 # Snowiki — LLM Wiki Schema
 
-This vault is an LLM-maintained wiki. You (the LLM) are the wiki maintainer. The human curates sources and asks questions. You handle all the bookkeeping.
+This vault is an LLM-maintained wiki that compounds knowledge like a snowball.
+You (the LLM) are the wiki maintainer. The human curates sources and directs. You handle all the bookkeeping.
+
+Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
 ## Three Layers
 
-1. **sources/** — immutable raw documents. You read from here but NEVER modify.
-2. **wiki/** — your compiled knowledge. You own this. Create, update, cross-reference.
-3. **This file (CLAUDE.md)** — the schema. Rules, conventions, workflows. Co-evolved with the human.
+1. **sources/** — immutable raw documents. Read from here but NEVER modify.
+2. **wiki/** — compiled knowledge. You own this. Create, update, cross-reference.
+3. **This file (CLAUDE.md)** — the schema. Rules, conventions, workflows. Co-evolved over time.
 
 ## Vault Layout
 
 ```
-sources/           → immutable inputs
-  articles/        → web clips, papers
-  sessions/        → cc session exports
-  notes/           → manual notes
+sources/
+  articles/     → web clips, papers, PDFs
+  sessions/     → cc session exports (auto-synced via hook)
+  notes/        → manual notes, meeting logs
 
-wiki/              → compiled output (you own this)
-  index.md         → page catalog with counts and dates
-  log.md           → append-only changelog
-  overview.md      → evolving synthesis (the thesis)
-  summaries/       → one per source (the compilation step)
-  concepts/        → single ideas ("what is X?")
-  entities/        → people, tools, orgs, projects
-  topics/          → cross-cutting themes
-  comparisons/     → side-by-side with tables
-  questions/       → filed query answers
+wiki/
+  index.md      → page catalog (auto-update on every ingest)
+  log.md        → append-only changelog
+  overview.md   → evolving thesis (singleton, narrative not list)
+  summaries/    → one per source (the compilation step — mandatory)
+  concepts/     → single ideas ("what is X?")
+  entities/     → people, tools, orgs, projects (graph hubs)
+  topics/       → cross-cutting themes (graph bridges)
+  comparisons/  → side-by-side with tables
+  questions/    → filed query answers (compounding loop)
 ```
 
 ## Page Frontmatter
 
-Every wiki page:
+Every wiki page requires:
 ```yaml
 ---
-title: "..."
+title: "Page Title"
 type: summary | concept | entity | topic | comparison | question
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
-sources: []     # paths to sources/ files
+sources: []     # paths to sources/ files that informed this page
 related: []     # paths to other wiki/ pages
 tags: []
 ---
@@ -45,54 +48,90 @@ tags: []
 
 Entity pages add: `entity_type: tool | person | org | project`
 
-## Operations
+## Ingest
 
-### Ingest
 When told to ingest a source:
-1. Save raw source to sources/ (immutable from this point)
-2. Read and discuss key takeaways with human
-3. Write summary page in wiki/summaries/ (mandatory for every source)
-4. Create or update concept pages, entity pages, topic pages as warranted
-5. Create comparison pages when source compares things
-6. Flag contradictions with `> [!warning] Contradiction` (never silently overwrite)
-7. Update overview.md (narrative, not list)
-8. Update index.md (add pages, update counts)
-9. Append to log.md
+
+1. **Acquire**: save raw source to sources/ with frontmatter. Immutable from this point.
+2. **Extract**: read source. Separate facts (directly stated) from inferences (derived). Identify what's new vs already in wiki. Flag contradictions.
+3. **Discuss**: present key takeaways to human. Note connections to existing pages. Ask what to emphasize. (Skip if human says "just file it".)
+4. **Compile**:
+   - Summary page in wiki/summaries/ (mandatory, always)
+   - Create or update concept pages (append, never delete)
+   - Create or update entity pages (these are graph hubs — link generously)
+   - Create or update topic pages (these bridge concept clusters)
+   - Create comparison pages when source compares things (always include table)
+   - Flag contradictions with `> [!warning] Contradiction` on affected pages
+5. **Synthesize**: update overview.md — narrative, not list. This is the evolving thesis.
+6. **Index**: update index.md — add pages with counts and dates.
+7. **Log**: append to log.md — source, created pages, updated pages, one-line summary.
 
 Target: 5-15 pages touched per source.
 
-### Query
-When asked a question:
-1. Read index.md to find relevant pages
-2. Search via qmd if available (lex for speed, lex+vec for depth)
-3. Read relevant pages, synthesize answer with [[wikilinks]]
-4. If answer is valuable: offer to file as wiki/questions/YYYY-MM-DD-slug.md
+## Query
 
-### Lint
-When asked to health-check:
-- Orphan pages (no inbound links)
-- Broken wikilinks
-- Sources without summary pages
-- Contradictions across pages
-- Stale content (30+ days)
-- Missing cross-references
-- Gaps to fill with new sources
+1. Read index.md for navigation. Search via qmd if available.
+2. Read relevant pages, synthesize answer with `[[wikilinks]]` citations.
+3. Flag information not yet in wiki: "> ⚠️ Not in wiki"
+4. If answer synthesizes ideas in a new way → offer to file as wiki/questions/YYYY-MM-DD-slug.md (the compounding loop).
+
+## Lint
+
+Periodic health-check. Two levels:
+
+**Structural** (fast, script-based): missing frontmatter, broken links, orphan pages, sources without summaries, pages missing from index.
+
+**Semantic** (LLM-based, deeper): cross-page contradictions, stale claims superseded by newer sources, missing concepts mentioned but lacking pages, consolidation candidates, gap analysis (suggest sources to seek), counter-arguments missing.
+
+When lint finds and fixes an issue → update this CLAUDE.md if the fix reveals a new rule. The schema self-improves.
 
 ## Rules
 
 - sources/ is immutable. Never modify.
-- Wiki pages: append/update. Never delete content.
-- Use [[wiki/path/to/page]] wikilinks for Obsidian graph
-- Contradictions: flag, don't resolve silently
-- Entity pages are graph hubs — link generously
-- overview.md is narrative, not a list
-- One ingest at a time, stay involved with human
+- Wiki pages: append/update only. Never delete existing content.
+- Use `[[wiki/path/to/page]]` wikilinks for Obsidian graph connectivity.
+- Entity pages are graph hubs — link generously from other pages.
+- Contradictions: flag with `> [!warning]`, never smooth over silently.
+- Human insights marked with `> [!insight]` — never modify these blocks.
+- overview.md is narrative prose, not a bullet list.
+- One source ingested at a time, stay involved with human.
+- Facts and inferences separated in summary pages.
+- Every claim in wiki should trace to a source via `sources:` frontmatter.
 
 ## Search Strategy (qmd)
 
-| Need | qmd params |
-|------|-----------|
-| Quick keyword | `lex` only, `rerank: false` |
-| Broad search | `lex` + `vec`, `rerank: false` |
-| Best quality | `lex` + `vec`, `rerank: true` |
-| CPU-only | `lex` only (vec/rerank too slow) |
+Choose based on context:
+
+| Need | Strategy | Speed |
+|------|----------|-------|
+| Quick keyword lookup | `lex` only, `rerank: false` | instant |
+| Broad exploration | `lex` + `vec`, `rerank: false` | ~3s (GPU) |
+| Best quality answer | `lex` + `vec`, `rerank: true` | ~5s (GPU) |
+| CPU-only environment | `lex` only, `rerank: false` | instant |
+
+Search `collections: ["wiki"]` first. Fall back to `collections: ["sources"]` for raw detail.
+
+## Log Format
+
+```markdown
+## [YYYY-MM-DD] ingest | Source Title
+- source: sources/articles/YYYY-MM-DD-slug.md
+- created: summaries/slug.md, concepts/x.md, entities/y.md
+- updated: overview.md, topics/z.md, index.md
+- summary: One-line of what was learned.
+```
+
+## Index Format
+
+```markdown
+# Wiki Index
+> N pages across M categories. K sources ingested.
+> Last: [YYYY-MM-DD] action | title
+
+## Start Here
+- [Overview](overview.md) — evolving synthesis
+
+## Summaries (N)
+- [Title](summaries/slug.md) — one-line `#tag` (date)
+...
+```
