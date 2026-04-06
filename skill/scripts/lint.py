@@ -18,6 +18,7 @@ from pathlib import Path
 
 REQUIRED_FIELDS = {"title", "type", "created"}
 WIKILINK_RE = re.compile(r'\[\[([^\]]+)\]\]')
+MDLINK_RE = re.compile(r'\[([^\]]*)\]\(([^)]+\.md[^)]*)\)')
 CONTRADICTION_RE = re.compile(r'⚠️\s*[Cc]ontradiction')
 
 
@@ -55,7 +56,11 @@ def collect_wikilinks(path: Path) -> list[str]:
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return []
-    return WIKILINK_RE.findall(text)
+    links = WIKILINK_RE.findall(text)
+    # Also collect markdown-style links to .md files
+    for _, href in MDLINK_RE.findall(text):
+        links.append(href.split("#")[0].strip())
+    return links
 
 
 def count_contradictions(path: Path) -> int:
@@ -137,8 +142,12 @@ def run_lint(vault: Path) -> list[dict]:
             link_clean = link.split("|")[0].split("#")[0].strip()
             if not link_clean:
                 continue
+            # Try resolving relative to vault root
             target = vault / link_clean
-            if not target.exists() and not target.with_suffix(".md").exists():
+            # Also try resolving relative to the page's directory
+            target_rel = page.parent / link_clean
+            if (not target.exists() and not target.with_suffix(".md").exists()
+                    and not target_rel.exists() and not target_rel.with_suffix(".md").exists()):
                 findings.append({"code": "S004", "severity": "ERROR",
                                  "message": f"Broken link: [[{link}]]",
                                  "path": str(page.relative_to(vault))})
