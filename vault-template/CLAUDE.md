@@ -3,7 +3,6 @@
 This vault is an LLM-maintained wiki that compounds knowledge like a snowball.
 You (the LLM) are the wiki maintainer. The human curates sources and directs. You handle all the bookkeeping.
 
-Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 
 ## Three Layers
 

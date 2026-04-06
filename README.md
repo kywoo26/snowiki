@@ -2,12 +2,13 @@
 
 A personal wiki that compounds knowledge like a snowball.
 
-Inspired by [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). Instead of re-deriving knowledge on every query (RAG), the LLM incrementally builds and maintains a persistent, interlinked wiki. Knowledge compounds.
+Instead of re-deriving knowledge on every query, the LLM incrementally builds and maintains a persistent, interlinked wiki. Every source ingested makes it richer. Knowledge compounds.
 
 ## Three Layers
 
 ```
-sources/        → immutable raw documents (articles, sessions, notes)
+sources/        → immutable raw documents (articles, notes)
+sessions/       → cc session exports (live while active, frozen after)
 wiki/           → LLM-compiled knowledge (summaries, concepts, entities, topics)
 CLAUDE.md       → the schema (rules, conventions, workflows)
 ```
@@ -26,32 +27,34 @@ cp -r vault-template/ ~/vault/
 mkdir -p ~/.claude/skills
 cp -r skill/ ~/.claude/skills/wiki/
 
-# 3. Start using
+# 3. Set up qmd for search
+bun install -g @tobilu/qmd
+qmd collection add ~/vault/wiki --name wiki
+qmd collection add ~/vault/sources --name sources
+qmd collection add ~/vault/sessions --name sessions
+qmd update && qmd embed
+
+# 4. Start using
 /wiki ingest https://example.com/article
 /wiki query "What do I know about X?"
+/wiki recall yesterday
 /wiki lint
-/wiki status
 ```
 
-## How Ingest Works
+## Unified Skill — 8 Modes
 
-```
-You drop a source
-    ↓
-LLM reads it, discusses key takeaways
-    ↓
-Creates summary page (wiki/summaries/)
-Updates concept pages, entity pages, topic pages
-Flags contradictions, adds cross-references
-Updates overview.md (the evolving thesis)
-Updates index.md, appends to log.md
-    ↓
-5-15 pages touched per source
-    ↓
-Snowball grows
-```
+| Command | What it does |
+|---------|-------------|
+| `/wiki ingest <source>` | Compile source → 5-15 wiki pages |
+| `/wiki query <question>` | Search wiki → synthesize → file back |
+| `/wiki recall <date/topic>` | Session history (temporal, topic, graph) |
+| `/wiki sync` | Export sessions to Obsidian markdown |
+| `/wiki edit <page>` | Lightweight page modification |
+| `/wiki merge <p1> <p2>` | Consolidate overlapping pages |
+| `/wiki lint` | Structural + semantic health check |
+| `/wiki status` | Dashboard: pages, sources, health |
 
-## Search Strategy (with qmd)
+## Search Strategy (qmd)
 
 | Need | Strategy |
 |------|----------|
@@ -62,14 +65,33 @@ Snowball grows
 
 ## Obsidian Integration
 
-- All cross-references use `[[wikilinks]]` for graph connectivity
-- Entity pages become hub nodes with many inbound links
-- Topic pages bridge concept clusters
-- overview.md is the central synthesis node
-- Graph view reveals knowledge structure
+- `[[wikilinks]]` everywhere for graph connectivity
+- Entity pages = hub nodes (many inbound links)
+- Topic pages = bridges between concept clusters
+- overview.md = central synthesis node
+- Graph view reveals natural knowledge structure
+
+## Lint Codes
+
+| Code | Severity | Check |
+|------|----------|-------|
+| L001 | ERROR | Missing/incomplete frontmatter |
+| L002 | ERROR | Broken wikilinks |
+| L003 | WARN | Orphan pages (no inbound links) |
+| L004 | WARN | Source without summary page |
+| L005 | ERROR | Page missing from index.md |
+| L006 | INFO | Stale pages (30+ days) |
+
+## Design Principles
+
+1. **Compilation, not storage** — sources are compiled into structured, interlinked wiki pages
+2. **Epistemic integrity** — every claim traces to a source, contradictions flagged not smoothed
+3. **Graph-first** — every design decision considers Obsidian graph view
+4. **Search-strategic** — context-aware qmd usage (lex for speed, vec for depth)
+5. **Progressive growth** — start simple, structure emerges from content
+6. **Human insight preserved** — `[!insight]` callouts never modified by LLM
 
 ## Related
 
-- [Karpathy's LLM Wiki Gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
-- [qmd-system](https://github.com/kywoo26/qmd-system) — infrastructure (qmd + Claude Code + Obsidian setup)
+- [qmd-system](https://github.com/kywoo26/qmd-system) — infrastructure setup (qmd + Claude Code + Obsidian)
 - [qmd](https://github.com/tobi/qmd) — local markdown search engine

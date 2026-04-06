@@ -220,7 +220,7 @@ Or manually:
 Pages:     42 (summaries: 12, concepts: 8, entities: 10, topics: 5, comparisons: 3, questions: 4)
 Sources:   28 (articles: 12, sessions: 14, notes: 2)
 Overview:  Last updated 2026-04-07
-Last:      [2026-04-07] ingest | Karpathy LLM Wiki
+Last:      [2026-04-07] ingest | Source Title
 Health:    0 errors, 2 warnings
 qmd:       42 docs indexed, 28 embedded, GPU: cuda
 ```
