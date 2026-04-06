@@ -1,143 +1,238 @@
 # Snowiki Workflow
 
+## Step 0: Bootstrap
+
+On first use or when entering a new vault:
+1. Read `SCHEMA.md` — understand structure and rules
+2. Check if `wiki/overview.md`, `wiki/index.md`, `wiki/log.md` exist — create if missing
+3. Verify directories: `wiki/{summaries,concepts,entities,topics,comparisons,questions}`, `sources/{articles,sessions,notes}`
+
 ## Step 1: Classify Command
 
 Parse input after `/wiki`:
 
-- **ingest** → Step 2A
-- **query** → Step 2B
-- **lint** → Step 2C
-- **status** → Step 2D
+| Input | Route |
+|-------|-------|
+| `ingest <URL/path/text>` | Step 2 |
+| `query <question>` | Step 3 |
+| `lint` | Step 4 |
+| `status` | Step 5 |
 
-## Step 2A: Ingest
+## Step 2: Ingest
 
-Read a source and integrate it into the wiki.
+One source → 5-15 wiki pages touched. This is the core compilation step.
 
-### 2A.1: Acquire Source
+### 2.1: Acquire Source
 
 | Input | Action |
 |-------|--------|
-| URL | WebFetch content. Save to `sources/articles/YYYY-MM-DD-title.md` |
-| File path | Read file. If already in sources/, use as-is |
-| Inline text | Save to `sources/notes/YYYY-MM-DD-topic.md` |
-| Session ref | Reference existing `sources/sessions/*.md` |
+| URL | WebFetch → save to `sources/articles/YYYY-MM-DD-slug.md` |
+| File path | Read file. If not in sources/, copy it there |
+| Inline text | Save to `sources/notes/YYYY-MM-DD-slug.md` |
+| "yesterday's session about X" | Use recall or ls sources/sessions/ to find, confirm with user |
 
-Source file frontmatter:
+Add frontmatter to source:
 ```yaml
 ---
 type: source
 source_type: article | session | note
 title: "Source Title"
-url: "https://..."
-ingested: 2026-04-07
+url: "https://..." # if applicable
+ingested: YYYY-MM-DD
 ---
 ```
 
-### 2A.2: Discuss with User
+Source is now immutable. Never modify it again.
 
-Present key takeaways from the source:
-- "3 key points from this source: ..."
-- "Related to existing wiki page X"
-- "New concept Y — should I create a page?"
+### 2.2: Discuss
 
-Proceed after user feedback.
+Read the source. Present to user:
+- 3-5 key takeaways
+- Connections to existing wiki pages (search via qmd `lex`)
+- New concepts/entities that warrant pages
+- Potential contradictions with existing knowledge
 
-### 2A.3: Update Wiki
+If user says "just file it" — skip to 2.3 with reasonable defaults.
 
-1. **Read SCHEMA.md** — review rules
-2. **Search related pages via qmd** — find connection points
-3. **Create/update pages**:
-   - New concept → `wiki/concepts/`
-   - Related to existing → append to that page (never delete)
-   - Decision recorded → `wiki/decisions/YYYY-MM-DD-topic.md`
-4. **Add cross-references** — `[[wiki/concepts/topic]]` wikilinks
-5. **Update index.md** — add new pages, update summaries
-6. **Append to log.md** — date, source, pages created/modified
+### 2.3: Compile (the core step)
 
-### 2A.4: Report
+Read SCHEMA.md for rules. Then:
+
+**A. Create summary page** (mandatory, always):
+- `wiki/summaries/<slug>.md`
+- Key Claims, Notable Details, Open Questions
+- Link to all concept/entity pages this source informed
+
+**B. Create or update concept pages**:
+- For each significant concept: check if `wiki/concepts/<name>.md` exists
+  - Exists → append new information. Never delete existing content.
+  - New → create with Definition, How It Works, Strengths, Limitations
+- Use `[[wiki/concepts/<name>]]` wikilinks in body text
+
+**C. Create or update entity pages**:
+- For people, tools, orgs, projects mentioned substantively
+- `wiki/entities/<name>.md` with `entity_type: tool | person | org | project`
+- Entity pages become graph hubs — link generously
+
+**D. Create or update topic pages**:
+- If source contributes to a cross-cutting theme
+- `wiki/topics/<theme>.md` — links to relevant concepts and entities
+
+**E. Create comparison pages** (when applicable):
+- If source explicitly compares things, or new info makes comparison useful
+- `wiki/comparisons/<a>-vs-<b>.md` — always include a markdown table
+
+**F. Flag contradictions**:
+- If new info contradicts existing wiki content:
+  ```markdown
+  > [!warning] Contradiction
+  > This page says X (from source A), but [[wiki/concepts/Y]] says Z (from source B).
+  > Needs resolution.
+  ```
+- Never silently overwrite — always flag.
+
+**G. Update overview.md**:
+- Add or revise the relevant section
+- Should read as coherent narrative, not a list
+- This is the "evolving thesis"
+
+**H. Update index.md**:
+- Add new pages to correct category
+- Include counts, dates, source counts
+- Maintain "Start Here → overview.md"
+
+**I. Append to log.md**:
+```markdown
+## [YYYY-MM-DD] ingest | Source Title
+- source: sources/articles/YYYY-MM-DD-slug.md
+- created: summaries/slug.md, concepts/x.md, entities/y.md
+- updated: overview.md, topics/z.md, index.md
+- summary: One-line of what was learned.
+```
+
+### 2.4: Report
 
 ```
 ✅ Ingested: "Source Title"
-   Created: concepts/bm25.md, topics/korean-search.md
-   Updated: tools/qmd.md, index.md
-   Log: [2026-04-07] ingest | Source Title
+   Created: 4 pages (summaries/slug.md, concepts/x.md, entities/y.md, comparisons/a-vs-b.md)
+   Updated: 3 pages (overview.md, topics/z.md, index.md)
+   Total pages touched: 7
 ```
 
-## Step 2B: Query
+### 2.5: Post-ingest
 
-Search the wiki and synthesize an answer.
+Run `qmd update && qmd embed` to index new/updated pages for future queries.
 
-### 2B.1: Search
+## Step 3: Query
 
-1. qmd MCP: `type:'lex'` + `type:'vec'` across wiki collection
-2. Get top 3-5 relevant pages in full
-3. Supplementary search in sources/ collection
+Search the wiki, synthesize an answer. Good answers compound back into the wiki.
 
-### 2B.2: Synthesize
+### 3.1: Search Strategy
 
-- Generate answer based on wiki pages
-- Cite sources with `[[page]]` wikilinks
-- Flag information not yet in wiki: "⚠️ Not in wiki"
+Choose strategy based on context:
 
-### 2B.3: Feedback Loop
-
-If the answer is valuable, suggest:
-- "File this as wiki/topics/X.md?"
-- On approval → run 2A.3~2A.4
-
-## Step 2C: Lint
-
-Health-check per SCHEMA.md lint rules.
-
-### 2C.1: Checks
-
-| Code | Severity | Check |
-|------|----------|-------|
-| S001 | WARN | Orphan pages (no inbound links) |
-| S002 | INFO | Sources not referenced by any wiki page |
-| S003 | ERROR | Incomplete frontmatter (missing required fields) |
-| S004 | ERROR | Broken wikilinks |
-| S005 | WARN | Excessive contradictions (3+ per page) |
-| S006 | INFO | Stale pages (not updated in 30+ days) |
-
-Run via script: `python3 ~/.claude/skills/wiki/scripts/lint.py`
-
-### 2C.2: Report Format
-
+**Quick lookup** (user knows the term):
 ```
-🔍 Snowiki Lint Report
-
-S001 ⚠️  Orphan page: no inbound links
-       → wiki/concepts/orphan.md
-
-S003 ❌  Missing frontmatter: title, type
-       → wiki/tools/fzf.md
-
-Summary: 1 error, 1 warning, 0 info
+qmd query: [{type: "lex", query: "exact term"}], rerank: false
 ```
 
-### 2C.3: Auto-fix Suggestions
+**Broad search** (user exploring):
+```
+qmd query: [{type: "lex", query: "keywords"}, {type: "vec", query: "natural language question"}], rerank: false
+```
 
-Suggest fixes for each finding. Apply on user approval only.
+**Deep search** (complex question, GPU available):
+```
+qmd query: [{type: "lex", query: "keywords"}, {type: "vec", query: "question"}], rerank: true
+```
 
-## Step 2D: Status
+Always search `collections: ["wiki"]` first. Fall back to `collections: ["sources"]` for raw detail.
 
-Wiki overview at a glance.
+If qmd unavailable: read `wiki/index.md`, identify relevant pages by scanning, read them directly.
 
+### 3.2: Synthesize
+
+- Read top 3-5 matching pages in full via `qmd get`
+- Generate answer with inline `[[wikilinks]]`
+- Flag gaps: "> ⚠️ Not in wiki — consider ingesting a source about X"
+
+### 3.3: File Back (the compounding step)
+
+After answering, assess:
+- Is this answer valuable beyond this conversation?
+- Does it synthesize multiple pages in a new way?
+- Would it be useful to find again?
+
+If yes: "This answer could become `wiki/questions/YYYY-MM-DD-slug.md`. File it?"
+
+On approval:
+1. Create question page with frontmatter (sources consulted, related pages)
+2. Update related pages' `related:` arrays
+3. Update index.md under Questions
+4. Append to log.md
+5. Run qmd update
+
+## Step 4: Lint
+
+Health-check per SCHEMA.md rules.
+
+### 4.1: Structural Checks (script-based)
+
+Run `python3 ~/.claude/skills/wiki/scripts/lint.py --vault $VAULT_DIR`
+
+Catches: L001-L009 (missing frontmatter, broken links, orphans, missing summaries, stale pages).
+
+### 4.2: Semantic Checks (LLM-based)
+
+After structural lint, the LLM reads flagged pages and checks:
+- Cross-page contradictions (claims that conflict between pages)
+- Overlapping pages that should be merged
+- Concepts mentioned but lacking their own page
+- Stale claims superseded by newer sources
+- Missing connections that should be linked
+
+### 4.3: Gap Analysis
+
+Suggest new sources to seek:
+- "No wiki pages about X, but it's mentioned in 3 places — consider ingesting a source"
+- "Topic Y has only 1 source — more depth needed"
+
+### 4.4: Report and Fix
+
+Present findings. For auto-fixable issues (missing from index, stale overview), offer to fix.
+For semantic issues, present the contradiction and let user decide.
+
+Append to log.md:
+```markdown
+## [YYYY-MM-DD] lint | Health check
+- errors: N, warnings: N
+- actions: description of fixes applied
+```
+
+## Step 5: Status
+
+Quick overview. Run `python3 ~/.claude/skills/wiki/scripts/status.py --vault $VAULT_DIR`
+
+Or manually:
 ```
 📊 Snowiki Status
 
-Pages:     42 (concepts: 15, topics: 8, decisions: 5, tools: 10, guides: 4)
+Pages:     42 (summaries: 12, concepts: 8, entities: 10, topics: 5, comparisons: 3, questions: 4)
 Sources:   28 (articles: 12, sessions: 14, notes: 2)
-Last:      [2026-04-07] ingest | CUDA Toolkit Setup
-Health:    ✅ 0 errors, 2 warnings (run /wiki lint)
-qmd:       12 docs indexed, last embed 2h ago
+Overview:  Last updated 2026-04-07
+Last:      [2026-04-07] ingest | Karpathy LLM Wiki
+Health:    0 errors, 2 warnings
+qmd:       42 docs indexed, 28 embedded, GPU: cuda
 ```
 
 ## Notes
 
-- Ingest one source at a time (quality over speed)
-- Always discuss with user before wiki updates (no silent writes)
+- One source at a time for ingest (quality > speed)
+- Always discuss before writing (unless user says "just file it")
 - sources/ is immutable — never modify
-- On contradiction: mark with `> ⚠️ Contradiction:` callout, don't delete
-- Good query answers should be filed back into wiki (compound effect)
+- Wiki pages: append/update only — never delete content
+- Contradictions: flag, don't resolve silently
+- Good query answers → file back → snowball compounds
+- Use `[[wikilinks]]` everywhere for Obsidian graph connectivity
+- Entity pages are graph hubs — they should have many inbound links
+- The overview.md is the thesis — keep it narrative, not a list
