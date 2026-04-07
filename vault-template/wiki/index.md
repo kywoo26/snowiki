@@ -2,14 +2,16 @@
 
 Knowledge catalog. Auto-updated on every ingest.
 
-## Concepts
+## Summaries
 
 _No pages yet. Run `/wiki ingest` to start building._
 
+## Concepts
+
+## Entities
+
 ## Topics
 
-## Decisions
+## Comparisons
 
-## Tools
-
-## Guides
+## Questions

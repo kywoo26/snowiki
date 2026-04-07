@@ -5,9 +5,9 @@ All 8 modes routed from a single entry point.
 ## Step 0: Bootstrap
 
 On first use or when entering a new vault:
-1. Read `SCHEMA.md` — understand structure and rules
+1. Read `CLAUDE.md` — understand structure and rules
 2. Check if `wiki/overview.md`, `wiki/index.md`, `wiki/log.md` exist — create if missing
-3. Verify directories: `wiki/{summaries,concepts,entities,topics,comparisons,questions}`, `sources/{articles,sessions,notes}`
+3. Verify directories: `wiki/{summaries,concepts,entities,topics,comparisons,questions}`, `sources/{articles,notes}`, `sessions/`
 4. Detect environment:
    - `VAULT_DIR`: `git rev-parse --show-toplevel 2>/dev/null || pwd`
    - `TZ`: system timezone via `date +%Z` (used for temporal recall and sync timestamps)
@@ -73,7 +73,7 @@ If user says "just file it" — skip to 2.3 with reasonable defaults.
 
 ### 2.3: Compile (the core step)
 
-Read SCHEMA.md for rules. Then:
+Read CLAUDE.md for rules. Then:
 
 **A. Create summary page** (mandatory, always):
 - `wiki/summaries/<slug>.md`
@@ -259,12 +259,12 @@ BM25 is keyword-based — it only finds exact word matches. The user's recall of
 qmd search "VARIANT_1" -c sessions -n 5
 qmd search "VARIANT_2" -c sessions -n 5
 qmd search "VARIANT_3" -c sessions -n 5
-qmd search "VARIANT_1" -c notes -n 5
-qmd search "VARIANT_2" -c notes -n 5
-qmd search "VARIANT_1" -c daily -n 3
+qmd search "VARIANT_1" -c sources -n 5
+qmd search "VARIANT_2" -c sources -n 5
+qmd search "VARIANT_1" -c sessions -n 3
 ```
 
-Run sessions variants in parallel. Notes/daily can use fewer variants (prioritize sessions for recall).
+Run sessions variants in parallel. Sources/sessions can use fewer variants (prioritize sessions for recall).
 
 **Step 4.3.3: Deduplicate results** by document path. If same doc appears in multiple searches, keep the highest score. Present top 5 unique results.
 
@@ -307,12 +307,9 @@ Use the paths returned from Step 4.3 searches. The `-l 50` flag limits to 50 lin
 - Key dates and decisions
 - Current status or next steps
 
-**Notes**
+**Sources**
 - Relevant research findings
 - Plans or proposals
-
-**Daily**
-- Recent daily log entries mentioning this topic
 
 Keep this concise — it is context loading, not a full report.
 
@@ -603,13 +600,13 @@ Merged: wiki/concepts/okapi-bm25.md -> wiki/concepts/bm25.md
 
 ## Step 8: Lint
 
-Health-check per SCHEMA.md rules.
+Health-check per CLAUDE.md rules.
 
 ### 8.1: Structural Checks (script-based)
 
 Run `python3 ~/.claude/skills/wiki/scripts/lint.py --vault $VAULT_DIR`
 
-Catches: L001-L009 (missing frontmatter, broken links, orphans, missing summaries, stale pages).
+Catches: L001-L006 (L001=Missing frontmatter ERROR, L002=Broken links ERROR, L003=Orphan pages WARN, L004=Source without summary WARN, L005=Page missing from index ERROR, L006=Stale pages 30+ days INFO).
 
 ### 8.2: Semantic Checks (LLM-based)
 
@@ -669,7 +666,8 @@ Include session stats (from Claude-Sessions/) in the status output to reflect th
 
 - One source at a time for ingest (quality > speed)
 - Always discuss before writing (unless user says "just file it")
-- sources/ is immutable — never modify (except sessions/ which are "live" while active)
+- sources/ is immutable — never modify
+- sessions/ are "live" while active, frozen after session ends
 - Wiki pages: append/update only — never delete content
 - Contradictions: flag, do not resolve silently
 - Good query answers -> file back -> snowball compounds

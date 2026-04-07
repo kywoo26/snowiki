@@ -7,7 +7,7 @@ allowed-tools: Bash(python3:*), Bash(qmd:*), Read, Write, Edit, Glob, Grep, WebF
 
 # Snowiki — Unified LLM Wiki Skill
 
-A persistent wiki that compounds knowledge like a snowball, with integrated recall and session sync. Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
+A persistent wiki that compounds knowledge like a snowball, with integrated recall and session sync.
 
 ## Core Loop
 
@@ -22,11 +22,12 @@ Sessions -> Recall loads context -> Sync exports to Obsidian -> Sessions become 
 ## Architecture
 
 Three layers:
-1. **sources/** — immutable raw material (articles, sessions, notes). Never modified (except sessions/ which are "live" while active).
-2. **wiki/** — LLM-owned compiled knowledge (summaries, concepts, entities, topics, comparisons, questions, overview).
-3. **SCHEMA.md** — rules for structure, conventions, workflows.
+1. **sources/** — immutable raw material (articles, notes). Never modified.
+2. **sessions/** — cc session exports (live while active, frozen after). Separate from sources/.
+3. **wiki/** — LLM-owned compiled knowledge (summaries, concepts, entities, topics, comparisons, questions, overview).
+4. **CLAUDE.md** — rules for structure, conventions, workflows.
 
-Read `SCHEMA.md` at the start of every ingest or lint operation.
+Read `CLAUDE.md` at the start of every ingest or lint operation.
 
 ## Page Types
 
