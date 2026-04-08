@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.coverage
+.coverage.*
+.hypothesis/
+.mypy_cache/
+.nox/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.venv/
+build/
+dist/
+htmlcov/
+pip-wheel-metadata/
+site/
+
+# uv
+.uv/
+# Keep uv.lock committed for this application project.
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific generated data
+raw/
+normalized/
+compiled/
+index/
+
+# Generated artifacts
+coverage.xml
+snowiki.egg-info/
