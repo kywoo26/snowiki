@@ -1,0 +1,5 @@
+{"type":"session","session_id":"claude-resumed","started_at":"2026-04-08T12:40:00Z","workspace":"/home/k/local/snowiki","resumed_from_session_id":"claude-basic","metadata":{"fixture_family":"claude"}}
+{"type":"message","session_id":"claude-resumed","message_id":"claude-resumed-m1","role":"user","created_at":"2026-04-08T12:40:05Z","content":[{"type":"text","text":"Continue the benchmark follow-up from the prior Claude fixture session."}]}
+{"type":"message","session_id":"claude-resumed","message_id":"claude-resumed-m2","role":"assistant","created_at":"2026-04-08T12:40:10Z","parent_message_id":"claude-resumed-m1","content":[{"type":"text","text":"I will resume from the earlier session and finish the benchmark coverage notes."}]}
+{"type":"resume","session_id":"claude-resumed","created_at":"2026-04-08T12:40:12Z","previous_session_id":"claude-basic","reason":"Resuming the earlier benchmark fixture review."}
+{"type":"session_end","session_id":"claude-resumed","ended_at":"2026-04-08T12:40:20Z","status":"closed"}
