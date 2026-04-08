@@ -1,0 +1,104 @@
+[build-system]
+requires = ["uv_build>=0.11.3,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "snowiki"
+version = "0.1.0"
+description = "Snowiki V2 CLI-first operational surface"
+requires-python = ">=3.12"
+dependencies = [
+  "click>=8.1,<9",
+  "pydantic>=2,<3",
+]
+
+[project.scripts]
+snowiki = "snowiki.cli.main:app"
+
+[dependency-groups]
+dev = [
+  "basedpyright>=1.31.4",
+  "pre-commit>=4.3.0",
+  "pytest>=8.4.2",
+  "pytest-cov>=7.0.0",
+  "ruff>=0.14.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.uv.workspace]
+members = []
+
+[tool.uv.build-backend]
+module-name = "snowiki"
+module-root = ""
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["snowiki", "tests"]
+extend-exclude = [
+  ".venv",
+  ".pytest_cache",
+  ".ruff_cache",
+  "compiled",
+  "dist",
+  "index",
+  "raw",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.basedpyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+include = ["snowiki"]
+exclude = [
+  "**/__pycache__",
+  ".git",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".venv",
+  "compiled",
+  "dist",
+  "index",
+  "raw",
+]
+extraPaths = [".", "./snowiki"]
+reportMissingTypeStubs = false
+reportPrivateUsage = false
+reportUnknownArgumentType = false
+reportUnknownLambdaType = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnnecessaryComparison = false
+reportUnnecessaryIsInstance = false
+reportUnusedFunction = false
+reportUnusedImport = false
+reportUnusedVariable = false
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --cov=snowiki --cov-report=term-missing --cov-report=xml"
+pythonpath = [".", "snowiki"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["snowiki"]
+omit = [
+  "tests/*",
+  "snowiki/__main__.py",
+]

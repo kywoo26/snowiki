@@ -4,6 +4,8 @@ __pycache__/
 *.pyo
 *.pyd
 *.so
+
+# Coverage & Test artifacts
 .coverage
 .coverage.*
 .hypothesis/
@@ -12,12 +14,13 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .tox/
-.venv/
-build/
-dist/
 htmlcov/
+coverage.xml
 pip-wheel-metadata/
 site/
+
+# Virtual environments
+.venv/
 
 # uv
 .uv/
@@ -31,12 +34,25 @@ site/
 .DS_Store
 Thumbs.db
 
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
 # Project-specific generated data
 raw/
 normalized/
 compiled/
 index/
 
-# Generated artifacts
-coverage.xml
-snowiki.egg-info/
+# Fixtures - generated files
+fixtures/**/*.db
+fixtures/**/*.db-journal
+
+# Environment
+.env
+.env.local
+
+# Session management (OMO/Sisyphus)
+.sisyphus/*
+!.sisyphus/rules/
