@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -14,7 +15,9 @@ def test_verify_rebuild_integrity_restores_compiled_and_index_layers() -> None:
     runner = CliRunner()
     fixture = ROOT / "fixtures" / "claude" / "basic.jsonl"
 
-    with runner.isolated_filesystem():
+    with runner.isolated_filesystem() as isolated_dir:
+        os.environ["SNOWIKI_ROOT"] = isolated_dir
+
         ingest = runner.invoke(
             app,
             ["ingest", str(fixture), "--source", "claude", "--output", "json"],
