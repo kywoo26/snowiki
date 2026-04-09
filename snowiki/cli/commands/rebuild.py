@@ -8,6 +8,7 @@ import click
 from snowiki.cli.commands.query import build_search_index
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.engine import CompilerEngine
+from snowiki.config import get_snowiki_root
 from snowiki.storage.zones import StoragePaths, atomic_write_json
 
 
@@ -59,11 +60,17 @@ def run_rebuild(root: Path) -> dict[str, Any]:
     default="human",
     show_default=True,
 )
-def command(output: str) -> None:
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def command(output: str, root: Path | None) -> None:
     output_mode = _normalize_output_mode(output)
     result: dict[str, Any] | None = None
     try:
-        result = run_rebuild(Path.cwd())
+        result = run_rebuild(root if root else get_snowiki_root())
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="rebuild_failed")
     if result is None:

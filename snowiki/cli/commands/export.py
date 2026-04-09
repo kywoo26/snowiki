@@ -7,6 +7,7 @@ from typing import Any
 import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.config import get_snowiki_root
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
@@ -59,11 +60,17 @@ def _render_export_human(payload: dict[str, Any]) -> str:
     default="human",
     show_default=True,
 )
-def command(export_format: str, output: str) -> None:
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def command(export_format: str, output: str, root: Path | None) -> None:
     output_mode = _normalize_output_mode(output)
     result: dict[str, Any] | None = None
     try:
-        result = run_export(Path.cwd(), export_format)
+        result = run_export(root if root else get_snowiki_root(), export_format)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="export_failed")
     if result is None:

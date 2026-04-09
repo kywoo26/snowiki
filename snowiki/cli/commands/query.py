@@ -9,6 +9,7 @@ import click
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.compiler.taxonomy import CompiledPage, PageSection
+from snowiki.config import get_snowiki_root
 from snowiki.search import (
     InvertedIndex,
     SearchHit,
@@ -156,17 +157,24 @@ def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
 )
 @click.option("--top-k", type=click.IntRange(min=1), default=5, show_default=True)
 @click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+@click.option(
     "--output",
     type=click.Choice(["human", "json"], case_sensitive=False),
     default="human",
     show_default=True,
 )
-def command(query: str, mode: str, top_k: int, output: str) -> None:
+def command(query: str, mode: str, top_k: int, root: Path | None, output: str) -> None:
     """Run the query CLI command."""
     output_mode = _normalize_output_mode(output)
-    result: QueryResult | None = None
     try:
-        result = run_query(Path.cwd(), query, mode=mode, top_k=top_k)
+        result = run_query(
+            root if root else get_snowiki_root(), query, mode=mode, top_k=top_k
+        )
     except Exception as exc:
         emit_error(
             str(exc),
@@ -174,8 +182,6 @@ def command(query: str, mode: str, top_k: int, output: str) -> None:
             code="query_failed",
             details={"query": query, "mode": mode, "top_k": top_k},
         )
-    if result is None:
-        raise RuntimeError("query did not produce a result")
     emit_result(
         {"ok": True, "command": "query", "result": result},
         output=output_mode,

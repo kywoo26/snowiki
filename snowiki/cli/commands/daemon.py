@@ -9,6 +9,7 @@ from typing import Any
 
 import click
 
+from snowiki.config import get_snowiki_root
 from snowiki.daemon.fallback import DaemonUnavailableError, daemon_request
 
 DEFAULT_HOST = "127.0.0.1"
@@ -18,7 +19,7 @@ DEFAULT_PORT = 8765
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="snowiki daemon")
     parser.add_argument("action", choices=("start", "stop", "status"))
-    parser.add_argument("--root", default=".", help="Snowiki storage root")
+    parser.add_argument("--root", default=None, help="Snowiki storage root")
     parser.add_argument("--host", default=DEFAULT_HOST, help="Daemon bind host")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Daemon port")
     parser.add_argument(
@@ -40,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def start_command(args: argparse.Namespace) -> int:
-    root = Path(args.root).resolve()
+    root = Path(args.root).resolve() if args.root else get_snowiki_root()
     if _health(args.host, args.port) is not None:
         return 0
 
@@ -117,7 +118,12 @@ if __name__ == "__main__":
 
 @click.command("daemon")
 @click.argument("action", type=click.Choice(("start", "stop", "status")))
-@click.option("--root", default=".", help="Snowiki storage root")
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
 @click.option("--host", default=DEFAULT_HOST, help="Daemon bind host")
 @click.option("--port", type=int, default=DEFAULT_PORT, help="Daemon port")
 @click.option(
@@ -126,11 +132,11 @@ if __name__ == "__main__":
     default=30.0,
     help="Query cache TTL in seconds",
 )
-def command(action: str, root: str, host: str, port: int, cache_ttl: float) -> None:
+def command(
+    action: str, root: Path | None, host: str, port: int, cache_ttl: float
+) -> None:
     argv = [
         action,
-        "--root",
-        root,
         "--host",
         host,
         "--port",
@@ -138,4 +144,6 @@ def command(action: str, root: str, host: str, port: int, cache_ttl: float) -> N
         "--cache-ttl",
         str(cache_ttl),
     ]
+    if root is not None:
+        argv[1:1] = ["--root", str(root)]
     raise SystemExit(main(argv))

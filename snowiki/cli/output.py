@@ -32,15 +32,16 @@ def emit_error(
     details: dict[str, Any] | None = None,
     exit_code: int = 1,
 ) -> NoReturn:
-    payload: dict[str, Any] = {
-        "ok": False,
-        "error": {
-            "code": code,
-            "message": message,
-        },
+    error_payload: dict[str, object] = {
+        "code": code,
+        "message": message,
     }
     if details:
-        payload["error"]["details"] = details
+        error_payload["details"] = details
+    payload: dict[str, object] = {
+        "ok": False,
+        "error": error_payload,
+    }
     if output == "json":
         click.echo(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True))
     else:

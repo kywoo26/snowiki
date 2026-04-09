@@ -8,6 +8,7 @@ import click
 
 from snowiki.cli.commands.query import build_search_index
 from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.config import get_snowiki_root
 from snowiki.search import known_item_lookup, temporal_recall, topical_recall
 
 
@@ -87,11 +88,17 @@ def run_recall(root: Path, target: str) -> dict[str, Any]:
     default="human",
     show_default=True,
 )
-def command(target: str, output: str) -> None:
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def command(target: str, output: str, root: Path | None) -> None:
     output_mode = _normalize_output_mode(output)
     result: dict[str, Any] | None = None
     try:
-        result = run_recall(Path.cwd(), target)
+        result = run_recall(root if root else get_snowiki_root(), target)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="recall_failed")
     if result is None:

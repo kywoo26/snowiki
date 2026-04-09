@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 
 from snowiki.cli.output import emit_error
+from snowiki.config import get_snowiki_root
 
 _BENCH = import_module("snowiki.bench")
 generate_report = _BENCH.generate_report
@@ -33,11 +34,17 @@ PRESET_NAMES = tuple(preset.name for preset in list_presets())
     show_default=True,
     help="Enable the V2.1 semantic slots benchmark stub for the V2 baseline.",
 )
-def command(preset: str, output: Path, semantic_slots: bool) -> None:
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def command(preset: str, output: Path, semantic_slots: bool, root: Path | None) -> None:
     report: dict[str, object] | None = None
     try:
         report = generate_report(
-            Path.cwd(),
+            root if root else get_snowiki_root(),
             preset_name=preset,
             semantic_slots_enabled=semantic_slots,
         )

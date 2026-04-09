@@ -10,6 +10,7 @@ import click
 from snowiki.adapters import normalize_claude_session_file
 from snowiki.adapters.opencode import load_opencode_session
 from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.config import get_snowiki_root
 from snowiki.privacy import PrivacyGate
 from snowiki.storage.normalized import NormalizedStorage
 from snowiki.storage.raw import RawStorage
@@ -433,14 +434,20 @@ def _store_opencode_session(
     required=True,
 )
 @click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+@click.option(
     "--output",
     type=click.Choice(["human", "json"], case_sensitive=False),
     default="human",
     show_default=True,
 )
-def command(path: Path, source: str, output: str) -> None:
+def command(path: Path, source: str, root: Path | None, output: str) -> None:
     output_mode = _normalize_output_mode(output)
-    root = Path.cwd()
+    root = root if root else get_snowiki_root()
     result: dict[str, Any] | None = None
     try:
         result = (

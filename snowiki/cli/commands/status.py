@@ -7,6 +7,7 @@ from typing import Any
 import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.config import get_snowiki_root
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
@@ -58,11 +59,17 @@ def _render_status_human(payload: dict[str, Any]) -> str:
     default="human",
     show_default=True,
 )
-def command(output: str) -> None:
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def command(output: str, root: Path | None) -> None:
     output_mode = _normalize_output_mode(output)
     result: dict[str, Any] | None = None
     try:
-        result = run_status(Path.cwd())
+        result = run_status(root if root else get_snowiki_root())
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="status_failed")
     if result is None:
