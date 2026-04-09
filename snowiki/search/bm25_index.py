@@ -4,13 +4,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import bm25s
-import numpy as np
 
 from .kiwi_tokenizer import KoreanTokenizer
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from datetime import datetime
-    from collections.abc import Iterable, Sequence
 
 
 @dataclass(frozen=True)

@@ -75,9 +75,12 @@ class KoreanTokenizer:
                         and t.tag in self.target_tags
                     ):
                         result.append(str(t.form))
-            elif hasattr(token, "tag") and hasattr(token, "form"):
-                if token.tag in self.target_tags:
-                    result.append(str(token.form))
+            elif (
+                hasattr(token, "tag")
+                and hasattr(token, "form")
+                and token.tag in self.target_tags
+            ):
+                result.append(str(token.form))
 
         return tuple(result)
 
