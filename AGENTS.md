@@ -1,127 +1,129 @@
-# AGENTS.md
+# Snowiki V2
 
-## Project overview
+Personal wiki that compounds knowledge like a snowball.
 
-Snowiki V2 is a CLI-first Python project for ingesting LLM session logs (Claude Code, OMO/OpenCode), compiling personal wiki knowledge, and exposing query interfaces (CLI, MCP, optional daemon).
+## Stack
 
-**Key Philosophy (Karpathy-style)**:
-- Centralized storage at `~/.snowiki` - ALL sessions across ALL projects compound in one place
-- 3-layer architecture: raw → normalized → compiled
-- Rebuildable from raw sources at any time
-- Bilingual lexical-first retrieval (Korean + English)
+- **Python**: 3.14+
+- **Package Manager**: uv (always use `uv run`, never direct python)
+- **Type Checker**: ty (primary)
+- **Linter/Formatter**: ruff (E, F, I, N, W, UP, B, C4, SIM rules)
+- **CLI Framework**: Click
+- **Data Validation**: Pydantic v2
+- **Testing**: pytest with coverage
 
-## Storage
-
-Snowiki uses centralized storage at `~/.snowiki` (configurable via `SNOWIKI_ROOT` environment variable).
-
-Directory structure:
-- `~/.snowiki/raw/` — immutable raw sources (Claude JSONL, OMO SQLite)
-- `~/.snowiki/normalized/` — canonical records (sessions, events, messages, parts)
-- `~/.snowiki/compiled/` — generated wiki pages (markdown)
-- `~/.snowiki/index/` — search indexes
-- `~/.snowiki/quarantine/` — corrupted/blocked sources
-
-Override locations:
-- Environment: `export SNOWIKI_ROOT=/custom/path`
-- CLI flag: `snowiki --root /custom/path ingest ...`
-
-## Directory structure
-
-- `snowiki/` — application package
-  - `cli/` — Click entrypoints and command wiring
-  - `adapters/` — Claude and OpenCode ingestion adapters
-  - `compiler/` — wiki compilation and link generation
-  - `search/` — indexing, tokenization, retrieval, reranking
-  - `storage/` — raw, normalized, compiled, provenance, dedupe layers
-  - `mcp/` — MCP server, tools, and resources
-  - `daemon/`, `lint/`, `privacy/`, `rebuild/`, `schema/` — supporting subsystems
-- `tests/` — pytest suite, generally mirroring package areas
-- `fixtures/` — test fixtures and sample inputs
-- `vault-template/` — starter vault layout for downstream wiki usage
-- `benchmarks/` — benchmark data and judgments
-
-## Code style
-
-- Use Python 3.14+ syntax.
-- Keep imports sorted and grouped consistently with Ruff.
-- Ruff lint rules enabled: `E`, `F`, `I`, `N`, `W`, `UP`, `B`, `C4`, `SIM`.
-- Ruff formatting is the canonical formatter.
-- Target line length is 88.
-- Prefer explicit types and straightforward control flow; simplify branches when possible to satisfy `SIM` and related rules.
-- Docstring convention is Google style when docstrings are added.
-
-## Type checking requirements
-
-- **ty** (Astral): Primary type checker - extremely fast Rust-based checker
-  - Run: `uv run ty check`
-  - Configuration: `[tool.ty]` in pyproject.toml
-  - Currently in beta but actively developed
-  
-- **basedpyright** (fallback): Strict mode type checking
-  - Run: `uv run basedpyright snowiki/`
-  - Configuration: `[tool.basedpyright]` in pyproject.toml
-  
-- Both must pass for CI. Prefer ty for local development speed.
-- New or modified code in `snowiki/` must type check without errors.
-- Avoid untyped helpers, implicit `Any`, and ambiguous return paths.
-- Use project-local imports that resolve from the repository root or `snowiki/` package root.
-
-## Testing requirements
-
-- Use `pytest` for all tests.
-- Add or update tests in `tests/` alongside the affected subsystem.
-- Default pytest configuration runs coverage for `snowiki`.
-- Before finishing work, run targeted tests when possible and at least the repo-standard verification commands.
-
-## Pre-commit hooks
-
-Pre-commit runs the following checks before commit:
-
-1. `ruff check --fix`
-2. `ruff format`
-3. `ty check` (Astral - fast Rust-based type checker)
-4. `basedpyright snowiki/` (fallback strict check)
-5. branch protection against direct commits to `main`
-
-Install hooks with:
+## Commands
 
 ```bash
-uv run pre-commit install
-```
-
-Run all hooks manually with:
-
-```bash
-uv run pre-commit run --all-files
-```
-
-## Common commands
-
-```bash
-# Sync dependencies
+# Dependencies
 uv sync --group dev
 
-# Run CLI
-uv run snowiki --help
+# Type checking
+uv run ty check
 
-# Code quality
+# Linting
 uv run ruff check snowiki tests
 uv run ruff format snowiki tests
 
-# Type checking (both)
-uv run ty check
-uv run basedpyright snowiki/
-
 # Testing
 uv run pytest
-uv run pytest tests/cli/test_query.py
+uv run pytest tests/cli/test_query.py -v
+
+# CLI usage
+uv run snowiki --help
+uv run snowiki ingest <file> --source {claude|opencode}
+uv run snowiki rebuild
+uv run snowiki query "search terms"
 
 # Verification
 python -m compileall snowiki/
 ```
 
-## CI expectations
+## Conventions
 
-- CI installs dependencies with `uv`.
-- CI must pass Ruff, ty, basedpyright, and pytest with coverage.
-- Keep local commands aligned with CI commands to avoid drift.
+### Python Style
+- Google style docstrings when documenting
+- Explicit type hints on all function signatures
+- Named exports, avoid `__all__` manipulation
+- Keep functions under 50 lines when possible
+
+### Example: Error Handling
+```python
+# Correct - explicit error types
+def load_session(path: Path) -> Session:
+    if not path.exists():
+        raise FileNotFoundError(f"Session not found: {path}")
+    return Session.parse_raw(path.read_text())
+
+# Wrong - bare except, no type hints
+def load_session(path):
+    try:
+        return Session.parse_raw(open(path).read())
+    except:  # never bare except
+        return None
+```
+
+### Example: CLI Command Pattern
+```python
+@click.command("ingest")
+@click.argument("path", type=click.Path(exists=True))
+def command(path: Path) -> None:
+    """Short description here."""
+    root = get_snowiki_root()
+    # implementation
+```
+
+## Storage Architecture
+
+- **Centralized storage**: `~/.snowiki` (configurable via `SNOWIKI_ROOT`)
+- **3-layer architecture**:
+  - `raw/` - immutable source files
+  - `normalized/` - canonical records (JSON)
+  - `compiled/` - generated markdown wiki
+  - `index/` - search indexes
+
+## Boundaries
+
+### ✅ Always
+- Run `uv run ruff check` before committing
+- Run `uv run pytest` for any logic changes
+- Use explicit types, avoid `Any`
+- Commit with descriptive messages
+
+### ⚠️ Ask First
+- Adding new dependencies to pyproject.toml
+- Modifying storage layer interfaces
+- Changing schema models
+- Major CLI command signature changes
+
+### 🚫 Never
+- Commit secrets, API keys, or credentials
+- Modify `~/.snowiki/raw/` directly (read-only)
+- Use `print()` for logging (use proper logging)
+- Skip tests for new features
+- Modify generated files in `compiled/` or `index/`
+
+## Key Files
+
+- `snowiki/config.py` - Centralized ~/.snowiki configuration
+- `snowiki/cli/main.py` - CLI entry point
+- `snowiki/storage/` - 4-zone storage implementation
+- `snowiki/adapters/` - Claude & OMO source adapters
+- `snowiki/search/` - Bilingual lexical retrieval
+
+## Testing Rules
+
+- Unit tests alongside source in `tests/`
+- Coverage target: 90%+
+- Mock external dependencies (DB, filesystem)
+- Use fixtures in `fixtures/` for test data
+- Run full suite before PR: `uv run pytest`
+
+## CI/Pre-commit
+
+Pre-commit runs:
+1. `ruff check --fix`
+2. `ruff format`
+3. `ty check`
+
+Install: `uv run pre-commit install`

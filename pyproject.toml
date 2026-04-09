@@ -8,8 +8,11 @@ version = "0.1.0"
 description = "Snowiki V2 CLI-first operational surface"
 requires-python = ">=3.14"
 dependencies = [
-  "click>=8.1,<9",
-  "pydantic>=2,<3",
+  "click>=8.1",
+  "pydantic>=2",
+  "kiwipiepy>=0.21.0",
+  "bm25s>=0.2.0",
+  "numpy>=1.24.0",
 ]
 
 [project.scripts]
@@ -17,7 +20,6 @@ snowiki = "snowiki.cli.main:app"
 
 [dependency-groups]
 dev = [
-  "basedpyright>=1.31.4",
   "pre-commit>=4.3.0",
   "pytest>=8.4.2",
   "pytest-cov>=7.0.0",
@@ -61,37 +63,9 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.ty]
-python-version = "3.14"
 
-[tool.basedpyright]
-typeCheckingMode = "strict"
-pythonVersion = "3.14"
-venvPath = "."
-venv = ".venv"
-include = ["snowiki"]
-exclude = [
-  "**/__pycache__",
-  ".git",
-  ".pytest_cache",
-  ".ruff_cache",
-  ".venv",
-  "compiled",
-  "dist",
-  "index",
-  "raw",
-]
-extraPaths = [".", "./snowiki"]
-reportMissingTypeStubs = false
-reportPrivateUsage = false
-reportUnknownArgumentType = false
-reportUnknownLambdaType = false
-reportUnknownMemberType = false
-reportUnknownVariableType = false
-reportUnnecessaryComparison = false
-reportUnnecessaryIsInstance = false
-reportUnusedFunction = false
-reportUnusedImport = false
-reportUnusedVariable = false
+[tool.ty.environment]
+python-version = "3.14"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
