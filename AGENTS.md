@@ -1,129 +1,68 @@
-# Snowiki V2
-
-Personal wiki that compounds knowledge like a snowball.
-
-## Stack
-
-- **Python**: 3.14+
-- **Package Manager**: uv (always use `uv run`, never direct python)
-- **Type Checker**: ty (primary)
-- **Linter/Formatter**: ruff (E, F, I, N, W, UP, B, C4, SIM rules)
-- **CLI Framework**: Click
-- **Data Validation**: Pydantic v2
-- **Testing**: pytest with coverage
+# Snowiki Agent Contract
 
 ## Commands
 
 ```bash
-# Dependencies
+# Setup & Dependencies
 uv sync --group dev
+uv run pre-commit install
 
-# Type checking
-uv run ty check
-
-# Linting
+# Quality Control
 uv run ruff check snowiki tests
 uv run ruff format snowiki tests
+uv run ty check
 
 # Testing
 uv run pytest
 uv run pytest tests/cli/test_query.py -v
 
-# CLI usage
-uv run snowiki --help
-uv run snowiki ingest <file> --source {claude|opencode}
-uv run snowiki rebuild
-uv run snowiki query "search terms"
-
 # Verification
-python -m compileall snowiki/
+uv run python -m compileall snowiki/
 ```
 
-## Conventions
+## Toolchain
 
-### Python Style
-- Google style docstrings when documenting
-- Explicit type hints on all function signatures
-- Named exports, avoid `__all__` manipulation
-- Keep functions under 50 lines when possible
+- **Runtime**: Python 3.14+ managed by `uv`
+- **Type System**: `ty` (primary type checker)
+- **Lint/Format**: `ruff` (E, F, I, N, W, UP, B, C4, SIM rules)
+- **Test Runner**: `pytest` with `pytest-cov`
+- **Repo Map**:
+  - `snowiki/` - Core implementation (CLI, storage, adapters)
+  - `tests/` - Unit and integration tests
+  - `pyproject.toml` - Centralized tool configuration
 
-### Example: Error Handling
-```python
-# Correct - explicit error types
-def load_session(path: Path) -> Session:
-    if not path.exists():
-        raise FileNotFoundError(f"Session not found: {path}")
-    return Session.parse_raw(path.read_text())
+## Always
 
-# Wrong - bare except, no type hints
-def load_session(path):
-    try:
-        return Session.parse_raw(open(path).read())
-    except:  # never bare except
-        return None
-```
+- Execute all tools via `uv run`.
+- Run `ruff check` and `ty check` before every commit.
+- Use explicit type hints for all function signatures.
+- Maintain 90%+ test coverage target for new logic.
+- Follow Google style docstrings.
+- Use `tmp_path` fixture for all tests that write to the filesystem.
 
-### Example: CLI Command Pattern
-```python
-@click.command("ingest")
-@click.argument("path", type=click.Path(exists=True))
-def command(path: Path) -> None:
-    """Short description here."""
-    root = get_snowiki_root()
-    # implementation
-```
+## Ask First
 
-## Storage Architecture
+- Adding or updating dependencies in `pyproject.toml`.
+- Modifying core storage interfaces, Pydantic models, or `SchemaVersion` (schema/versioning change boundary).
+- Changing CLI command signatures or arguments.
+- Updating `fixtures/` or `benchmarks/` (inventory sensitive).
 
-- **Centralized storage**: `~/.snowiki` (configurable via `SNOWIKI_ROOT`)
-- **3-layer architecture**:
-  - `raw/` - immutable source files
-  - `normalized/` - canonical records (JSON)
-  - `compiled/` - generated markdown wiki
-  - `index/` - search indexes
+## Never
 
-## Boundaries
+- Commit secrets, credentials, or `.env` files.
+- Use `print()` for logging (use `logging` or `click.echo`).
+- Skip verification steps (tests, lint, type check).
+- Modify raw source files in `SNOWIKI_ROOT/raw/` (runtime storage, not the repo).
+- Manually modify or delete files in `SNOWIKI_ROOT/quarantine/` (runtime storage zone).
+- Manually edit generated artifacts in `compiled/` or `index/` zones.
 
-### ✅ Always
-- Run `uv run ruff check` before committing
-- Run `uv run pytest` for any logic changes
-- Use explicit types, avoid `Any`
-- Commit with descriptive messages
+## Verification Matrix
 
-### ⚠️ Ask First
-- Adding new dependencies to pyproject.toml
-- Modifying storage layer interfaces
-- Changing schema models
-- Major CLI command signature changes
-
-### 🚫 Never
-- Commit secrets, API keys, or credentials
-- Modify `~/.snowiki/raw/` directly (read-only)
-- Use `print()` for logging (use proper logging)
-- Skip tests for new features
-- Modify generated files in `compiled/` or `index/`
-
-## Key Files
-
-- `snowiki/config.py` - Centralized ~/.snowiki configuration
-- `snowiki/cli/main.py` - CLI entry point
-- `snowiki/storage/` - 4-zone storage implementation
-- `snowiki/adapters/` - Claude & OMO source adapters
-- `snowiki/search/` - Bilingual lexical retrieval
-
-## Testing Rules
-
-- Unit tests alongside source in `tests/`
-- Coverage target: 90%+
-- Mock external dependencies (DB, filesystem)
-- Use fixtures in `fixtures/` for test data
-- Run full suite before PR: `uv run pytest`
-
-## CI/Pre-commit
-
-Pre-commit runs:
-1. `ruff check --fix`
-2. `ruff format`
-3. `ty check`
-
-Install: `uv run pre-commit install`
+| Scope | Verification Command |
+| :--- | :--- |
+| **Docs Only** | `uv run ruff check snowiki tests` |
+| **CLI / Help** | `uv run snowiki --help && uv run ruff check snowiki tests && uv run ty check` |
+| **Search / Compiler** | `uv run python -m compileall snowiki/ && uv run pytest tests/cli/test_query.py` |
+| **Storage / Schema / Config** | `uv run pytest && uv run ty check && uv run ruff check snowiki tests` |
+| **Tests / Fixtures** | `uv run pytest && uv run ruff check snowiki tests` |
+| **Perf Sensitive** | `uv run snowiki benchmark --help` (See benchmarks/README.md) |
