@@ -13,7 +13,7 @@ def test_build_parser_uses_expected_defaults() -> None:
     args = daemon_module.build_parser().parse_args(["status"])
 
     assert args.action == "status"
-    assert args.root == "."
+    assert args.root is None
     assert args.host == daemon_module.DEFAULT_HOST
     assert args.port == daemon_module.DEFAULT_PORT
     assert args.cache_ttl == 30.0
@@ -223,8 +223,6 @@ def test_click_command_forwards_args_into_main(
         daemon_module.command,
         [
             "start",
-            "--root",
-            "/tmp/wiki",
             "--host",
             "0.0.0.0",
             "--port",
@@ -236,15 +234,5 @@ def test_click_command_forwards_args_into_main(
 
     assert result.exit_code == 0
     assert captured == [
-        [
-            "start",
-            "--root",
-            "/tmp/wiki",
-            "--host",
-            "0.0.0.0",
-            "--port",
-            "9000",
-            "--cache-ttl",
-            "45.0",
-        ]
+        ["start", "--host", "0.0.0.0", "--port", "9000", "--cache-ttl", "45.0"]
     ]
