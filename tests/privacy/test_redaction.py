@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
 
 import pytest
 from snowiki.privacy.gate import PrivacyGate
@@ -32,15 +31,12 @@ def test_normalized_storage_redacts_sensitive_values_automatically(
     tmp_path: Path,
 ) -> None:
     storage = NormalizedStorage(tmp_path)
-    raw_ref = cast(
-        Any,
-        {
-            "sha256": "abc123",
-            "path": "raw/claude/ab/c123",
-            "size": 42,
-            "mtime": "2026-04-08T12:00:00Z",
-        },
-    )
+    raw_ref: dict[str, object] = {
+        "sha256": "abc123",
+        "path": "raw/claude/ab/c123",
+        "size": 42,
+        "mtime": "2026-04-08T12:00:00Z",
+    }
 
     result = storage.store_record(
         source_type="claude",
@@ -54,7 +50,7 @@ def test_normalized_storage_redacts_sensitive_values_automatically(
         recorded_at="2026-04-08T12:00:00Z",
     )
 
-    record = storage.read_record(cast(str, result["path"]))
+    record = storage.read_record(result["path"])
 
     assert record["password"] == REDACTED_VALUE
     assert "sk_live_1234567890" not in str(record["text"])

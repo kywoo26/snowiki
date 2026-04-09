@@ -64,7 +64,11 @@ def _read_json(path: str) -> object:
 def _require_list_of_dicts(data: object) -> list[dict[str, object]]:
     assert isinstance(data, list)
     assert all(isinstance(item, dict) for item in data)
-    return data
+    result: list[dict[str, object]] = []
+    for item in data:
+        assert isinstance(item, dict)
+        result.append({str(key): value for key, value in item.items()})
+    return result
 
 
 def load_search_api():
@@ -74,7 +78,12 @@ def load_search_api():
 @lru_cache(maxsize=1)
 def benchmark_queries() -> list[dict[str, object]]:
     data = _read_json("benchmarks/queries.json")
-    rows = _require_list_of_dicts(data["queries"] if isinstance(data, dict) else data)
+    if isinstance(data, dict):
+        data_map = {str(key): value for key, value in data.items()}
+        rows_data = data_map.get("queries")
+    else:
+        rows_data = data
+    rows = _require_list_of_dicts(rows_data)
     normalized_rows: list[dict[str, object]] = []
     for row in rows:
         query_id = str(row.get("id", ""))
@@ -88,7 +97,8 @@ def benchmark_queries() -> list[dict[str, object]]:
 def benchmark_judgments() -> dict[str, list[str]]:
     rows = _read_json("benchmarks/judgments.json")
     if isinstance(rows, dict):
-        judgments = rows["judgments"]
+        rows_map = {str(key): value for key, value in rows.items()}
+        judgments = rows_map.get("judgments")
         assert isinstance(judgments, dict)
         normalized: dict[str, list[str]] = {}
         for query_id, paths in judgments.items():

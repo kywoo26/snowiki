@@ -56,7 +56,10 @@ def test_health_endpoint_reports_ok_when_daemon_is_running(tmp_path: Path) -> No
         assert health["ok"] is True
         indexes = health["indexes"]
         assert isinstance(indexes, dict)
-        assert indexes["blended_size"] >= 1
+        indexes_dict = indexes
+        blended_size = indexes_dict.get("blended_size")  # type: ignore
+        assert isinstance(blended_size, int)
+        assert blended_size >= 1
     finally:
         _ = daemon_request(
             f"http://127.0.0.1:{port}",

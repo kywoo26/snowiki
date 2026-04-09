@@ -25,7 +25,17 @@ class ReadOnlyMCPTest(unittest.TestCase):
             with self.subTest(blocked_name=blocked_name):
                 result = server.call_tool(blocked_name, {})
                 self.assertTrue(result["isError"])
-                self.assertIn("read-only", result["content"][0]["text"])
+                content = result["content"]
+                self.assertIsInstance(content, list)
+                assert isinstance(content, list)
+                self.assertTrue(content)
+                first_item = content[0]
+                assert isinstance(first_item, dict)
+                first_item_dict = first_item  # type: ignore[assignment]
+                text = first_item_dict.get("text")  # type: ignore
+                self.assertIsInstance(text, str)
+                assert isinstance(text, str)
+                self.assertIn("read-only", text)
 
     def test_only_read_resources_are_listed(self) -> None:
         server = create_server(
@@ -37,7 +47,12 @@ class ReadOnlyMCPTest(unittest.TestCase):
             ],
         )
 
-        resource_uris = [resource["uri"] for resource in server.list_resources()]
+        resource_uris: list[str] = []
+        for resource in server.list_resources():
+            uri = resource["uri"]
+            self.assertIsInstance(uri, str)
+            assert isinstance(uri, str)
+            resource_uris.append(uri)
         self.assertEqual(
             resource_uris,
             ["graph://current", "session://session-1", "topic://topic-one"],
