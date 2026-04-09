@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import TypedDict
@@ -70,7 +71,7 @@ class NormalizedStorage:
         source_type: str,
         record_id: str,
         manifest: dict[str, object],
-        raw_ref: RawRef | list[RawRef],
+        raw_ref: RawRef | Sequence[RawRef],
         recorded_at: TimestampInput,
     ) -> StoreResult:
         """Store a normalized manifest record."""
@@ -89,7 +90,7 @@ class NormalizedStorage:
         source_type: str,
         record_id: str,
         event: dict[str, object],
-        raw_ref: RawRef | list[RawRef],
+        raw_ref: RawRef | Sequence[RawRef],
         recorded_at: TimestampInput,
     ) -> StoreResult:
         """Store a normalized event record."""
@@ -108,7 +109,7 @@ class NormalizedStorage:
         source_type: str,
         record_id: str,
         message: dict[str, object],
-        raw_ref: RawRef | list[RawRef],
+        raw_ref: RawRef | Sequence[RawRef],
         recorded_at: TimestampInput,
     ) -> StoreResult:
         """Store a normalized message record."""
@@ -127,7 +128,7 @@ class NormalizedStorage:
         source_type: str,
         record_id: str,
         part: dict[str, object],
-        raw_ref: RawRef | list[RawRef],
+        raw_ref: RawRef | Sequence[RawRef],
         recorded_at: TimestampInput,
     ) -> StoreResult:
         """Store a normalized part record."""
@@ -147,7 +148,7 @@ class NormalizedStorage:
         record_type: str,
         record_id: str,
         payload: dict[str, object],
-        raw_ref: RawRef | list[RawRef],
+        raw_ref: RawRef | Sequence[RawRef],
         recorded_at: TimestampInput,
     ) -> StoreResult:
         """Store a normalized record with attached provenance."""

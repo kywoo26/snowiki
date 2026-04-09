@@ -56,3 +56,4 @@ fixtures/**/*.db-journal
 # Session management (OMO/Sisyphus)
 .sisyphus/*
 !.sisyphus/rules/
+STATUS.md

@@ -50,6 +50,10 @@ class CompilerEngine:
         ):
             payload = json.loads(path.read_text(encoding="utf-8"))
             raw_refs = self.provenance.query_raw_sources(payload)
+            normalized_raw_refs = [
+                {str(key): value for key, value in raw_ref.items()}
+                for raw_ref in raw_refs
+            ]
             records.append(
                 NormalizedRecord(
                     id=str(payload.get("id", path.stem)),
@@ -58,7 +62,7 @@ class CompilerEngine:
                     record_type=str(payload.get("record_type", "record")),
                     recorded_at=str(payload.get("recorded_at", "1970-01-01T00:00:00Z")),
                     payload=payload,
-                    raw_refs=raw_refs,
+                    raw_refs=normalized_raw_refs,
                 )
             )
         return records

@@ -201,20 +201,27 @@ def normalize_taxonomy_items(
             normalized.append(TaxonomyItem(title=title, page_type=page_type))
             continue
 
-        if not isinstance(item, dict):
+        if not isinstance(item, Mapping):
             continue
 
+        item_mapping = {str(key): value for key, value in item.items()}
+
         title = str(
-            item.get("title") or item.get("name") or item.get("id") or ""
+            item_mapping.get("title")
+            or item_mapping.get("name")
+            or item_mapping.get("id")
+            or ""
         ).strip()
         if not title:
             continue
 
-        summary = str(item.get("summary") or item.get("description") or "").strip()
-        tags = normalize_string_values(item.get("tags"))
+        summary = str(
+            item_mapping.get("summary") or item_mapping.get("description") or ""
+        ).strip()
+        tags = normalize_string_values(item_mapping.get("tags"))
         metadata = {
             key: value
-            for key, value in item.items()
+            for key, value in item_mapping.items()
             if key not in {"title", "name", "id", "summary", "description", "tags"}
         }
         normalized.append(

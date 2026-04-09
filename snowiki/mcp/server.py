@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from urllib.parse import unquote, urlparse
@@ -60,8 +61,8 @@ class SnowikiReadOnlyFacade:
     def __init__(
         self,
         *,
-        session_records: list[MCPMapping] | tuple[MCPMapping, ...] = (),
-        compiled_pages: list[MCPMapping] | tuple[MCPMapping, ...] = (),
+        session_records: Sequence[MCPMapping] = (),
+        compiled_pages: Sequence[MCPMapping] = (),
         reference_time: datetime | None = None,
     ) -> None:
         self.session_records = tuple(dict(record) for record in session_records)
@@ -405,8 +406,10 @@ class ReadOnlyMCPServer:
             return None
 
         params = message.get("params")
-        if not isinstance(params, dict):
-            params = {}
+        if isinstance(params, dict):
+            params_map = {str(key): value for key, value in params.items()}
+        else:
+            params_map: dict[str, object] = {}
 
         if method == "initialize":
             return self._success_response(
@@ -425,23 +428,25 @@ class ReadOnlyMCPServer:
                 message.get("id"), {"tools": self.list_tools()}
             )
         if method == "tools/call":
-            name = params.get("name")
+            name = params_map.get("name")
             if not isinstance(name, str):
                 return self._error_response(
                     message.get("id"), code=-32602, text="Tool name is required."
                 )
-            arguments = params.get("arguments")
-            if not isinstance(arguments, dict):
-                arguments = {}
+            arguments = params_map.get("arguments")
+            if isinstance(arguments, dict):
+                argument_map = {str(key): value for key, value in arguments.items()}
+            else:
+                argument_map: MCPObject = {}
             return self._success_response(
-                message.get("id"), self.call_tool(name, arguments)
+                message.get("id"), self.call_tool(name, argument_map)
             )
         if method == "resources/list":
             return self._success_response(
                 message.get("id"), {"resources": self.list_resources()}
             )
         if method == "resources/read":
-            uri = params.get("uri")
+            uri = params_map.get("uri")
             if not isinstance(uri, str):
                 return self._error_response(
                     message.get("id"), code=-32602, text="Resource URI is required."
@@ -486,8 +491,8 @@ class ReadOnlyMCPServer:
 
 def create_server(
     *,
-    session_records: list[MCPMapping] | tuple[MCPMapping, ...] = (),
-    compiled_pages: list[MCPMapping] | tuple[MCPMapping, ...] = (),
+    session_records: Sequence[MCPMapping] = (),
+    compiled_pages: Sequence[MCPMapping] = (),
     reference_time: datetime | None = None,
 ) -> ReadOnlyMCPServer:
     """Create a read-only Snowiki MCP server instance."""
