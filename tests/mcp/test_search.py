@@ -5,7 +5,7 @@ import io
 import json
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -58,7 +58,7 @@ class MCPSearchSmokeTest(unittest.TestCase):
                 "updated_at": "2026-04-08T12:00:00Z",
             },
         )
-        reference_time = datetime(2026, 4, 8, 12, 0, tzinfo=timezone.utc)
+        reference_time = datetime(2026, 4, 8, 12, 0, tzinfo=UTC)
 
         requests = b"".join(
             (

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
-
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
 
 

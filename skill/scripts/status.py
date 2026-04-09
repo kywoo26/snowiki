@@ -58,8 +58,7 @@ def get_last_log_entry(vault: Path) -> str:
 def get_qmd_status() -> str:
     try:
         result = subprocess.run(
-            ["qmd", "status"],
-            capture_output=True, text=True, timeout=10
+            ["qmd", "status"], capture_output=True, text=True, timeout=10
         )
         for line in result.stdout.split("\n"):
             if "Documents" in line or "Total:" in line or "Vectors:" in line:
@@ -109,15 +108,23 @@ def main():
     qmd = get_qmd_status()
 
     if args.json:
-        json.dump({
-            "pages": dict(page_types), "total_pages": total_pages,
-            "sources": dict(source_types), "total_sources": total_sources,
-            "last_log": last_log, "qmd": qmd,
-        }, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(
+            {
+                "pages": dict(page_types),
+                "total_pages": total_pages,
+                "sources": dict(source_types),
+                "total_sources": total_sources,
+                "last_log": last_log,
+                "qmd": qmd,
+            },
+            sys.stdout,
+            ensure_ascii=False,
+            indent=2,
+        )
         print()
         return
 
-    print(f"📊 Snowiki Status\n")
+    print("📊 Snowiki Status\n")
     type_str = ", ".join(f"{k}: {v}" for k, v in sorted(page_types.items()))
     print(f"Pages:     {total_pages} ({type_str})")
     src_str = ", ".join(f"{k}: {v}" for k, v in sorted(source_types.items()))

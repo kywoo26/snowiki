@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from snowiki.storage.raw import RawStorage
@@ -28,7 +28,7 @@ def test_store_bytes_uses_sha_addressing(tmp_path: Path) -> None:
 def test_store_file_preserves_source_mtime_on_first_write(tmp_path: Path) -> None:
     source_path = tmp_path / "source.jsonl"
     _ = source_path.write_text("payload", encoding="utf-8")
-    captured_at = datetime(2026, 4, 8, 12, 0, tzinfo=timezone.utc)
+    captured_at = datetime(2026, 4, 8, 12, 0, tzinfo=UTC)
     timestamp = captured_at.timestamp()
     os.utime(source_path, (timestamp, timestamp))
 

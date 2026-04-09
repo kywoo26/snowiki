@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from snowiki.privacy.exclusions import explain_exclusion, is_excluded_path
 from snowiki.privacy.gate import PrivacyGate
 

@@ -4,7 +4,6 @@ import json
 from importlib import import_module
 from pathlib import Path
 
-
 pytest = import_module("pytest")
 
 

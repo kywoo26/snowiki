@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -124,9 +124,7 @@ def benchmark_judgments() -> dict[str, list[str]]:
 @lru_cache(maxsize=1)
 def normalized_records() -> tuple[dict[str, object], ...]:
     recorded_at = (
-        datetime(2026, 4, 8, 12, 0, tzinfo=timezone.utc)
-        .isoformat()
-        .replace("+00:00", "Z")
+        datetime(2026, 4, 8, 12, 0, tzinfo=UTC).isoformat().replace("+00:00", "Z")
     )
     return (
         {

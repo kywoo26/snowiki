@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
 import socket
 import sys
-from threading import Thread
 import time
+from pathlib import Path
+from threading import Thread
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:

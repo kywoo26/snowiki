@@ -9,8 +9,7 @@ This script generates:
 
 import json
 import sqlite3
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -221,7 +220,7 @@ def create_benchmarks():
         "english": en_queries,
         "mixed": mixed_queries,
         "metadata": {
-            "created": datetime.now(timezone.utc).isoformat(),
+            "created": datetime.now(UTC).isoformat(),
             "version": "1.0",
         },
     }
