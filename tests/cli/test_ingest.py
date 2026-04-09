@@ -9,30 +9,28 @@ from snowiki.cli.main import app
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_ingest_claude_writes_raw_and_normalized_records() -> None:
+def test_ingest_claude_writes_raw_and_normalized_records(tmp_path: Path) -> None:
     runner = CliRunner()
     fixture = ROOT / "fixtures" / "claude" / "basic.jsonl"
-    with runner.isolated_filesystem():
-        expected_root = Path.cwd() / ".snowiki"
-        result = runner.invoke(
-            app,
-            [
-                "ingest",
-                str(fixture),
-                "--source",
-                "claude",
-                "--output",
-                "json",
-            ],
-            env={"SNOWIKI_ROOT": str(expected_root)},
-        )
-        assert result.exit_code == 0, result.output
-        payload = json.loads(result.output)
-        assert payload["ok"] is True
-        assert payload["result"]["session_id"] == "claude-basic-session"
-        assert (expected_root / "raw").exists()
-        assert (expected_root / "normalized").exists()
-        assert list((expected_root / "normalized").rglob("*.json"))
+    result = runner.invoke(
+        app,
+        [
+            "ingest",
+            str(fixture),
+            "--source",
+            "claude",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is True
+    assert payload["result"]["session_id"] == "claude-basic-session"
+    assert (tmp_path / "raw").exists()
+    assert (tmp_path / "normalized").exists()
+    assert list((tmp_path / "normalized").rglob("*.json"))
 
 
 def test_ingest_reports_missing_file_with_non_zero_exit_code() -> None:
