@@ -4,7 +4,6 @@ from typing import Any
 
 import pytest
 from pydantic import BaseModel, ValidationError
-
 from snowiki.schema import (
     Artifact,
     Event,

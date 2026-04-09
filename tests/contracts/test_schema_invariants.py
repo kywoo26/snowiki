@@ -4,10 +4,9 @@ from typing import Any
 
 import pytest
 from pydantic import BaseModel
-
 from snowiki.schema import (
-    Artifact,
     CURRENT_SCHEMA_VERSION,
+    Artifact,
     Event,
     IngestStatus,
     Message,
@@ -137,10 +136,10 @@ def test_no_mutable_defaults(model_cls: SchemaModel) -> None:
 
 
 def test_valid_instances_default_to_current_schema_version(
-    valid_instances: dict[SchemaModel, BaseModel],
+    valid_instances: dict[SchemaModel, Any],
 ) -> None:
     assert all(
-        getattr(instance, "schema_version") == CURRENT_SCHEMA_VERSION
+        instance.schema_version == CURRENT_SCHEMA_VERSION
         for instance in valid_instances.values()
     )
 

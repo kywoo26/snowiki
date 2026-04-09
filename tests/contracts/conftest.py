@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import copy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TypeVar
 
 import pytest
 from pydantic import BaseModel
-
 from snowiki.schema import (
     Artifact,
     Event,
@@ -13,15 +13,23 @@ from snowiki.schema import (
     Message,
     Part,
     Provenance,
+    SchemaVersion,
     Session,
 )
 
 SchemaModel = type[BaseModel]
 
 
+class _SchemaBase(BaseModel):
+    schema_version: SchemaVersion
+
+
+SchemaInstance = TypeVar("SchemaInstance", bound=_SchemaBase)
+
+
 @pytest.fixture
 def base_timestamp() -> datetime:
-    return datetime(2026, 4, 8, 12, 0, tzinfo=timezone.utc)
+    return datetime(2026, 4, 8, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -183,7 +191,7 @@ def valid_payloads(
 @pytest.fixture
 def valid_instances(
     valid_payloads: dict[SchemaModel, dict[str, object]],
-) -> dict[SchemaModel, BaseModel]:
+):
     return {
         model_cls: model_cls.model_validate(copy.deepcopy(payload))
         for model_cls, payload in valid_payloads.items()
