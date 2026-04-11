@@ -54,18 +54,12 @@ def _benchmark_root_context(root: Path | None):
     help="Path to write the machine-readable benchmark JSON report.",
 )
 @click.option(
-    "--semantic-slots/--no-semantic-slots",
-    default=False,
-    show_default=True,
-    help="Enable the V2.1 semantic slots benchmark stub for the V2 baseline.",
-)
-@click.option(
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
     help="Snowiki storage root (defaults to an isolated temporary benchmark root)",
 )
-def command(preset: str, output: Path, semantic_slots: bool, root: Path | None) -> None:
+def command(preset: str, output: Path, root: Path | None) -> None:
     report: dict[str, object] | None = None
     try:
         with _benchmark_root_context(root) as benchmark_root:
@@ -73,7 +67,6 @@ def command(preset: str, output: Path, semantic_slots: bool, root: Path | None) 
             report = generate_report(
                 benchmark_root,
                 preset_name=preset,
-                semantic_slots_enabled=semantic_slots,
             )
     except Exception as exc:
         emit_error(str(exc), output="human", code="benchmark_failed")

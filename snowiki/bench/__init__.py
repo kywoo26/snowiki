@@ -28,8 +28,6 @@ from .report import (
     retrieval_threshold_failure_count,
     structural_failure_count,
 )
-from .semantic_slots import SemanticSlotsConfig
-from .token_reduction import TokenReductionSummary, compare_token_usage
 
 __all__ = [
     "BenchmarkFixture",
@@ -42,9 +40,6 @@ __all__ = [
     "PHASE_1_THRESHOLDS",
     "QualitySummary",
     "ReportEntry",
-    "SemanticSlotsConfig",
-    "TokenReductionSummary",
-    "compare_token_usage",
     "benchmark_exit_code",
     "seed_canonical_benchmark_root",
     "benchmark_verdict",

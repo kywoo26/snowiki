@@ -107,7 +107,6 @@ def _fake_report(
             "query_kinds": ["known-item", "topical"],
             "top_k": 5,
         },
-        "semantic_slots": {"enabled": False, "version": "v2.1", "mode": "stub"},
         "structural": {
             "ok": not structural_fail,
             "error_count": len(structural_failures),
@@ -171,7 +170,6 @@ def _fake_report(
                 "blended_documents": 16,
                 "queries_evaluated": 18,
             },
-            "semantic_slots": {"enabled": False, "version": "v2.1", "mode": "stub"},
             "baselines": {
                 "lexical": {
                     "quality": {
@@ -204,7 +202,6 @@ def _fake_report(
                     }
                 },
             },
-            "token_reduction": {},
         },
         "benchmark_verdict": {
             "verdict": (
@@ -286,6 +283,11 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     assert seeded_roots[0] != tmp_path / "root"
     assert seeded_roots[0].name.startswith("snowiki-benchmark-root-")
     payload = json.loads(report_path.read_text(encoding="utf-8"))
+    retrieval = payload["retrieval"]
+
+    assert "semantic_slots" not in payload
+    assert "semantic_slots" not in retrieval
+    assert "token_reduction" not in retrieval
     assert payload["performance"]["ingest"] == {"p50_ms": 12.0, "p95_ms": 18.0}
     assert payload["performance_thresholds"][-1]["verdict"] == "PASS"
     assert payload["benchmark_verdict"]["exit_code"] == 0

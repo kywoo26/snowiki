@@ -9,7 +9,6 @@ from .contract import PHASE_1_THRESHOLDS, MetricThreshold
 from .phase1_correctness import CheckIssue, ValidationResult, validate_phase1_workspace
 from .phase1_latency import run_phase1_latency_evaluation
 from .presets import get_preset
-from .semantic_slots import SemanticSlotsConfig, semantic_slots_status
 
 _PERFORMANCE_THRESHOLD_METRICS = {"p50_ms", "p95_ms"}
 _RETRIEVAL_THRESHOLD_METRICS = {"recall_at_k", "mrr", "ndcg_at_k"}
@@ -19,16 +18,11 @@ def generate_report(
     root: Path,
     *,
     preset_name: str,
-    semantic_slots_enabled: bool = False,
 ) -> dict[str, object]:
     preset = get_preset(preset_name)
     structural = _structural_validation_summary(validate_phase1_workspace(root))
     performance = run_phase1_latency_evaluation(root, preset=preset)
-    retrieval = run_baseline_comparison(
-        root,
-        preset,
-        semantic_slots=SemanticSlotsConfig(enabled=semantic_slots_enabled),
-    )
+    retrieval = run_baseline_comparison(root, preset)
     report: dict[str, object] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "report_version": "1.2",
@@ -38,9 +32,6 @@ def generate_report(
             "query_kinds": list(preset.query_kinds),
             "top_k": preset.top_k,
         },
-        "semantic_slots": semantic_slots_status(
-            SemanticSlotsConfig(enabled=semantic_slots_enabled)
-        ),
         "structural": structural,
         "performance": performance["performance"],
         "performance_threshold_policy": _performance_threshold_policy(),
@@ -350,7 +341,6 @@ def render_report_text(report: dict[str, object]) -> str:
     preset = cast(dict[str, object], report["preset"])
     corpus = cast(dict[str, object], report["corpus"])
     protocol = cast(dict[str, object], report["protocol"])
-    semantic_slots = cast(dict[str, object], report["semantic_slots"])
     structural = cast(dict[str, object], report.get("structural", {}))
     retrieval = cast(dict[str, object], report["retrieval"])
     performance = cast(dict[str, dict[str, float]], report["performance"])
@@ -368,7 +358,6 @@ def render_report_text(report: dict[str, object]) -> str:
         f"Description: {preset['description']}",
         f"Queries evaluated: {corpus['queries_evaluated']}",
         f"Canonical fixtures: {corpus['fixtures_indexed']}",
-        f"Semantic slots: {'enabled' if semantic_slots['enabled'] else 'disabled'} ({semantic_slots['version']} {semantic_slots['mode']})",
         (
             "Protocol: "
             f"isolated_root={protocol['isolated_root']}, "

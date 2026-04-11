@@ -25,7 +25,7 @@ _PRESETS = {
     ),
     "full": BenchmarkPreset(
         name="full",
-        description="Full benchmark coverage including temporal queries and optional semantic slots.",
+        description="Full benchmark coverage including temporal queries.",
         query_kinds=("known-item", "topical", "temporal"),
     ),
 }
