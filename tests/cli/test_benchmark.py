@@ -47,54 +47,54 @@ def _fake_report(
             "gate": "ingest",
             "metric": "p50_ms",
             "value": 12.0,
-            "delta": 488.0,
+            "delta": 5938.0,
             "verdict": "PASS",
-            "threshold": 500.0,
+            "threshold": 5950.0,
             "warnings": [],
         },
         {
             "gate": "ingest",
             "metric": "p95_ms",
             "value": 18.0,
-            "delta": 1982.0,
+            "delta": 6282.0,
             "verdict": "PASS",
-            "threshold": 2000.0,
+            "threshold": 6300.0,
             "warnings": [],
         },
         {
             "gate": "rebuild",
             "metric": "p50_ms",
             "value": 30.0,
-            "delta": 470.0,
+            "delta": 5920.0,
             "verdict": "PASS",
-            "threshold": 500.0,
+            "threshold": 5950.0,
             "warnings": [],
         },
         {
             "gate": "rebuild",
             "metric": "p95_ms",
             "value": 45.0,
-            "delta": 1955.0,
+            "delta": 6255.0,
             "verdict": "PASS",
-            "threshold": 2000.0,
+            "threshold": 6300.0,
             "warnings": [],
         },
         {
             "gate": "query",
             "metric": "p50_ms",
             "value": 6.0,
-            "delta": 494.0,
+            "delta": 5944.0,
             "verdict": "PASS",
-            "threshold": 500.0,
+            "threshold": 5950.0,
             "warnings": [],
         },
         {
             "gate": "query",
             "metric": "p95_ms",
-            "value": 2400.0 if performance_fail else 9.0,
-            "delta": 400.0 if performance_fail else 1991.0,
+            "value": 6400.0 if performance_fail else 9.0,
+            "delta": 100.0 if performance_fail else 6291.0,
             "verdict": "FAIL" if performance_fail else "PASS",
-            "threshold": 2000.0,
+            "threshold": 6300.0,
             "warnings": [],
         },
     ]
@@ -131,19 +131,19 @@ def _fake_report(
         "performance": {
             "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
             "rebuild": {"p50_ms": 30.0, "p95_ms": 45.0},
-            "query": {"p50_ms": 6.0, "p95_ms": 2400.0 if performance_fail else 9.0},
+            "query": {"p50_ms": 6.0, "p95_ms": 6400.0 if performance_fail else 9.0},
         },
         "performance_threshold_policy": [
-            {"metric": "p50_ms", "value": 500.0, "operator": "<="},
-            {"metric": "p95_ms", "value": 2000.0, "operator": "<="},
+            {"metric": "p50_ms", "value": 5950.0, "operator": "<="},
+            {"metric": "p95_ms", "value": 6300.0, "operator": "<="},
         ],
         "performance_thresholds": performance_thresholds,
         "retrieval": {
             "threshold_policy": {
                 "overall": [
-                    {"metric": "recall_at_k", "value": 0.8, "operator": ">="},
+                    {"metric": "recall_at_k", "value": 0.72, "operator": ">="},
                     {"metric": "mrr", "value": 0.7, "operator": ">="},
-                    {"metric": "ndcg_at_k", "value": 0.75, "operator": ">="},
+                    {"metric": "ndcg_at_k", "value": 0.67, "operator": ">="},
                 ],
                 "slices": {
                     "known-item": [
@@ -151,8 +151,11 @@ def _fake_report(
                         {"metric": "mrr", "value": 0.6, "operator": ">="},
                     ],
                     "topical": [
-                        {"metric": "recall_at_k", "value": 0.6, "operator": ">="},
+                        {"metric": "recall_at_k", "value": 0.49, "operator": ">="},
                         {"metric": "ndcg_at_k", "value": 0.5, "operator": ">="},
+                    ],
+                    "temporal": [
+                        {"metric": "recall_at_k", "value": 0.47, "operator": ">="}
                     ],
                 },
             },
@@ -178,9 +181,9 @@ def _fake_report(
                                 "gate": "overall",
                                 "metric": "recall_at_k",
                                 "value": 0.82,
-                                "delta": 0.02,
+                                "delta": 0.1,
                                 "verdict": "PASS",
-                                "threshold": 0.8,
+                                "threshold": 0.72,
                                 "warnings": [],
                             }
                         ]
@@ -284,11 +287,30 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     assert seeded_roots[0].name.startswith("snowiki-benchmark-root-")
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     retrieval = payload["retrieval"]
-
     assert "semantic_slots" not in payload
     assert "semantic_slots" not in retrieval
     assert "token_reduction" not in retrieval
     assert payload["performance"]["ingest"] == {"p50_ms": 12.0, "p95_ms": 18.0}
+    assert payload["performance_threshold_policy"] == [
+        {"metric": "p50_ms", "value": 5950.0, "operator": "<="},
+        {"metric": "p95_ms", "value": 6300.0, "operator": "<="},
+    ]
+    assert retrieval["threshold_policy"]["overall"] == [
+        {"metric": "recall_at_k", "value": 0.72, "operator": ">="},
+        {"metric": "mrr", "value": 0.7, "operator": ">="},
+        {"metric": "ndcg_at_k", "value": 0.67, "operator": ">="},
+    ]
+    assert retrieval["threshold_policy"]["slices"] == {
+        "known-item": [
+            {"metric": "recall_at_k", "value": 0.7, "operator": ">="},
+            {"metric": "mrr", "value": 0.6, "operator": ">="},
+        ],
+        "topical": [
+            {"metric": "recall_at_k", "value": 0.49, "operator": ">="},
+            {"metric": "ndcg_at_k", "value": 0.5, "operator": ">="},
+        ],
+        "temporal": [{"metric": "recall_at_k", "value": 0.47, "operator": ">="}],
+    }
     assert payload["performance_thresholds"][-1]["verdict"] == "PASS"
     assert payload["benchmark_verdict"]["exit_code"] == 0
     assert "Structural verdict: PASS (0 failures, 1 warnings)" in result.output

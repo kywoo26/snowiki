@@ -44,7 +44,7 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
                 "rebuild": {"p50_ms": 30.0, "p95_ms": 45.0},
-                "query": {"p50_ms": 6.0, "p95_ms": 2400.0},
+                "query": {"p50_ms": 6.0, "p95_ms": 6400.0},
             },
             "corpus": {"fixtures_indexed": 12, "queries_evaluated": 18},
             "protocol": {
@@ -107,7 +107,7 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
 
     assert threshold_policy["overall"][0] == {
         "metric": "recall_at_k",
-        "value": 0.8,
+        "value": 0.72,
         "operator": ">=",
     }
     assert {entry["metric"] for entry in threshold_policy["overall"]} == {
@@ -115,9 +115,20 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
         "mrr",
         "ndcg_at_k",
     }
+    assert threshold_policy["slices"] == {
+        "known-item": [
+            {"metric": "recall_at_k", "value": 0.7, "operator": ">="},
+            {"metric": "mrr", "value": 0.6, "operator": ">="},
+        ],
+        "topical": [
+            {"metric": "recall_at_k", "value": 0.49, "operator": ">="},
+            {"metric": "ndcg_at_k", "value": 0.5, "operator": ">="},
+        ],
+        "temporal": [{"metric": "recall_at_k", "value": 0.47, "operator": ">="}],
+    }
     assert performance_policy == [
-        {"metric": "p50_ms", "value": 500.0, "operator": "<="},
-        {"metric": "p95_ms", "value": 2000.0, "operator": "<="},
+        {"metric": "p50_ms", "value": 5950.0, "operator": "<="},
+        {"metric": "p95_ms", "value": 6300.0, "operator": "<="},
     ]
     assert report["structural"]["warning_count"] == 1
     assert report["structural"]["error_count"] == 0
@@ -127,10 +138,10 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
     assert performance_thresholds[-1] == {
         "gate": "query",
         "metric": "p95_ms",
-        "value": 2400.0,
-        "delta": 400.0,
+        "value": 6400.0,
+        "delta": 100.0,
         "verdict": "FAIL",
-        "threshold": 2000.0,
+        "threshold": 6300.0,
         "warnings": [],
     }
     assert verdict["blocking_stage"] == "phase1_thresholds"
@@ -184,7 +195,7 @@ def test_generate_report_structural_failures_block_before_thresholds(
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
                 "rebuild": {"p50_ms": 30.0, "p95_ms": 45.0},
-                "query": {"p50_ms": 6.0, "p95_ms": 2400.0},
+                "query": {"p50_ms": 6.0, "p95_ms": 6400.0},
             },
             "corpus": {"fixtures_indexed": 12, "queries_evaluated": 18},
             "protocol": {
