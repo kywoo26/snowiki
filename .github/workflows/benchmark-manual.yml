@@ -1,0 +1,54 @@
+name: benchmark-manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: Benchmark preset to run
+        required: true
+        default: retrieval
+        type: choice
+        options:
+          - core
+          - retrieval
+          - full
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up uv with Python 3.14
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Run benchmark
+        run: |
+          mkdir -p reports
+          uv run snowiki benchmark --preset "${{ inputs.preset }}" --output "reports/${{ inputs.preset }}.json"
+
+      - name: Upload benchmark report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ inputs.preset }}-report
+          path: reports/${{ inputs.preset }}.json
+          if-no-files-found: error
+
+      - name: Append workflow summary
+        run: |
+          {
+            echo "## Manual benchmark run"
+            echo ""
+            echo "- Preset: \\`${{ inputs.preset }}\\`"
+            echo "- Report artifact: \\`benchmark-${{ inputs.preset }}-report\\`"
+            echo "- JSON path: \\`reports/${{ inputs.preset }}.json\\`"
+          } >> "$GITHUB_STEP_SUMMARY"

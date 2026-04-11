@@ -55,6 +55,16 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 uv run snowiki benchmark --preset full --output reports/full.json
 ```
 
+### GitHub Manual Workflow
+
+For shared, reproducible benchmark runs without turning benchmarks into a default PR hard gate, use the GitHub Actions workflow:
+
+- Workflow: `benchmark-manual`
+- Trigger: `workflow_dispatch`
+- Inputs: `preset` (`core`, `retrieval`, `full`)
+
+The workflow uploads the generated JSON report as an artifact so the result can be reviewed without relying on a local machine.
+
 ## Pass/Fail Semantics
 
 The benchmark command evaluates three primary gates. A failure in any blocking gate results in a non-zero exit code.
