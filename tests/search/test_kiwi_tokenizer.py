@@ -71,15 +71,17 @@ class TestKoreanTokenizer:
         assert result == ("자연어", "처리")
         assert fake_kiwi[1]["text"] == "자연어 처리는 재미있습니다"
 
-    def test_tokenize_empty_string(self) -> None:
+    def test_tokenize_empty_string(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = KoreanTokenizer()
         result = tokenizer.tokenize("")
         assert result == ()
+        assert fake_kiwi == [{"init_num_workers": None}]
 
-    def test_tokenize_whitespace_only(self) -> None:
+    def test_tokenize_whitespace_only(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = KoreanTokenizer()
         result = tokenizer.tokenize("   ")
         assert result == ()
+        assert fake_kiwi == [{"init_num_workers": None}]
 
     def test_callable(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = KoreanTokenizer()
@@ -93,10 +95,11 @@ class TestKoreanTokenizer:
         assert result == "될까요"
         assert fake_kiwi[1]["text"] == "될까욬ㅋㅋ"
 
-    def test_normalize_empty(self) -> None:
+    def test_normalize_empty(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = KoreanTokenizer()
         result = tokenizer.normalize("")
         assert result == ""
+        assert fake_kiwi == [{"init_num_workers": None}]
 
 
 class TestBilingualTokenizer:
