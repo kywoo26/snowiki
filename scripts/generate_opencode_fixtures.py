@@ -13,45 +13,158 @@ def create_opencode_fixtures():
     cursor = conn.cursor()
     cursor.executescript(
         """
-        CREATE TABLE sessions (
+        -- Session table (required)
+        CREATE TABLE session (
             id TEXT PRIMARY KEY,
-            created_at TIMESTAMP,
-            updated_at TIMESTAMP,
-            project_path TEXT
+            project_id TEXT,
+            workspace_id TEXT,
+            parent_id TEXT,
+            slug TEXT,
+            directory TEXT,
+            title TEXT,
+            version TEXT,
+            share_url TEXT,
+            summary_additions INTEGER,
+            summary_deletions INTEGER,
+            summary_files INTEGER,
+            summary_diffs TEXT,
+            permission TEXT,
+            time_created INTEGER,
+            time_updated INTEGER,
+            time_compacting INTEGER,
+            time_archived INTEGER
         );
-        CREATE TABLE messages (
+        
+        -- Message table (required)
+        CREATE TABLE message (
             id TEXT PRIMARY KEY,
             session_id TEXT,
-            created_at TIMESTAMP,
-            role TEXT,
-            FOREIGN KEY (session_id) REFERENCES sessions(id)
+            time_created INTEGER,
+            time_updated INTEGER,
+            data TEXT
         );
-        CREATE TABLE parts (
+        
+        -- Part table (required)
+        CREATE TABLE part (
             id TEXT PRIMARY KEY,
             message_id TEXT,
-            type TEXT,
+            session_id TEXT,
+            time_created INTEGER,
+            time_updated INTEGER,
+            data TEXT
+        );
+        
+        -- Project table (required)
+        CREATE TABLE project (
+            id TEXT PRIMARY KEY,
+            worktree TEXT,
+            vcs TEXT,
+            name TEXT,
+            icon_url TEXT,
+            icon_color TEXT,
+            sandboxes TEXT,
+            commands TEXT
+        );
+        
+        -- Todo table (required)
+        CREATE TABLE todo (
+            session_id TEXT,
             content TEXT,
-            FOREIGN KEY (message_id) REFERENCES messages(id)
+            status TEXT,
+            priority TEXT,
+            position INTEGER,
+            time_created INTEGER,
+            time_updated INTEGER
+        );
+        
+        -- Workspace table (required)
+        CREATE TABLE workspace (
+            id TEXT PRIMARY KEY,
+            branch TEXT,
+            project_id TEXT,
+            type TEXT,
+            name TEXT,
+            directory TEXT,
+            extra TEXT
         );
     """
     )
+
+    # Insert sample data
     cursor.execute(
-        "INSERT INTO sessions VALUES (?, ?, ?, ?)",
+        "INSERT INTO session VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
-            "session-001",
-            "2026-04-01T10:00:00Z",
-            "2026-04-01T10:05:00Z",
-            "/home/user/project",
+            "session-001",  # id
+            "project-001",  # project_id
+            None,  # workspace_id
+            None,  # parent_id
+            "test-session",  # slug
+            "/home/user/project",  # directory
+            "Test Session",  # title
+            "1.0",  # version
+            None,  # share_url
+            0,  # summary_additions
+            0,  # summary_deletions
+            0,  # summary_files
+            None,  # summary_diffs
+            None,  # permission
+            1711965600000,  # time_created (2024-04-01T10:00:00Z)
+            1711965900000,  # time_updated (2024-04-01T10:05:00Z)
+            None,  # time_compacting
+            None,  # time_archived
         ),
     )
+
     cursor.execute(
-        "INSERT INTO messages VALUES (?, ?, ?, ?)",
-        ("msg-001", "session-001", "2026-04-01T10:00:01Z", "user"),
+        "INSERT INTO message VALUES (?, ?, ?, ?, ?)",
+        (
+            "msg-001",
+            "session-001",
+            1711965601000,  # time_created
+            1711965601000,  # time_updated
+            '{"role": "user", "content": "Hello from OMO"}',
+        ),
     )
+
     cursor.execute(
-        "INSERT INTO parts VALUES (?, ?, ?, ?)",
-        ("part-001", "msg-001", "text", "Hello from OMO"),
+        "INSERT INTO part VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            "part-001",
+            "msg-001",
+            "session-001",
+            1711965601000,  # time_created
+            1711965601000,  # time_updated
+            '{"type": "text", "content": "Hello from OMO"}',
+        ),
     )
+
+    cursor.execute(
+        "INSERT INTO project VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            "project-001",
+            "/home/user/project",  # worktree
+            "git",  # vcs
+            "Test Project",  # name
+            None,  # icon_url
+            None,  # icon_color
+            "[]",  # sandboxes
+            None,  # commands
+        ),
+    )
+
+    cursor.execute(
+        "INSERT INTO workspace VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            "ws-001",
+            "main",  # branch
+            "project-001",  # project_id
+            "local",  # type
+            "Main Workspace",  # name
+            "/home/user/workspace",  # directory
+            "{}",  # extra
+        ),
+    )
+
     conn.commit()
     conn.close()
 

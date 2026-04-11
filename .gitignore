@@ -46,9 +46,8 @@ compiled/
 index/
 quarantine/
 
-# Fixtures - generated files
-fixtures/**/*.db
-fixtures/**/*.db-journal
+# Reports
+reports/
 
 # Environment
 .env
