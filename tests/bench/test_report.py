@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import sys
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
 
-def _load_report_symbols(repo_root: Path) -> tuple[Any, Any]:
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
+def _load_report_symbols() -> tuple[Any, Any]:
     report = import_module("snowiki.bench.report")
     benchmark_report = import_module("snowiki.bench.models").BenchmarkReport
     return report, benchmark_report
@@ -18,7 +14,7 @@ def _load_report_symbols(repo_root: Path) -> tuple[Any, Any]:
 def test_generate_report_exposes_unified_benchmark_gate(
     tmp_path: Path, monkeypatch, repo_root: Path
 ) -> None:
-    report_module, benchmark_report = _load_report_symbols(repo_root)
+    report_module, benchmark_report = _load_report_symbols()
     generate_report = report_module.generate_report
     render_report_text = report_module.render_report_text
     monkeypatch.setattr(
@@ -196,7 +192,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
 def test_generate_report_structural_failures_block_before_thresholds(
     tmp_path: Path, monkeypatch, repo_root: Path
 ) -> None:
-    report_module, _ = _load_report_symbols(repo_root)
+    report_module, _ = _load_report_symbols()
     generate_report = report_module.generate_report
     render_report_text = report_module.render_report_text
     monkeypatch.setattr(

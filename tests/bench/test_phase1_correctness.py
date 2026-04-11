@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import shutil
-import sys
 from collections.abc import Sequence
 from importlib import import_module
 from pathlib import Path
@@ -99,10 +98,7 @@ if TYPE_CHECKING:
         def validate_phase1_workspace(self, root: Path) -> ValidationResult: ...
 
 
-def _load_phase1_context(repo_root: Path) -> tuple[Phase1Module, Any]:
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
+def _load_phase1_context() -> tuple[Phase1Module, Any]:
     module = cast(object, import_module("snowiki.bench.phase1_correctness"))
     from snowiki.cli.main import app
 
@@ -176,7 +172,7 @@ def test_run_phase1_correctness_flow_uses_isolated_root_and_known_answers(
     tmp_path: Path,
     repo_root: Path,
 ) -> None:
-    phase1, _ = _load_phase1_context(repo_root)
+    phase1, _ = _load_phase1_context()
 
     result = phase1.run_phase1_correctness_flow(tmp_path)
 
@@ -229,7 +225,7 @@ def test_validate_phase1_workspace_reports_broken_provenance_and_missing_compile
     claude_basic_fixture: Path,
     opencode_basic_db_fixture: Path,
 ) -> None:
-    phase1, app = _load_phase1_context(repo_root)
+    phase1, app = _load_phase1_context()
     _seed_phase1_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
 
     normalized_path = _first_normalized_record(tmp_path)
@@ -282,7 +278,7 @@ def test_validate_phase1_workspace_reports_stale_compiled_links_and_structural_l
     claude_basic_fixture: Path,
     opencode_basic_db_fixture: Path,
 ) -> None:
-    phase1, app = _load_phase1_context(repo_root)
+    phase1, app = _load_phase1_context()
     _seed_phase1_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
 
     normalized_path = _first_normalized_record(tmp_path)
