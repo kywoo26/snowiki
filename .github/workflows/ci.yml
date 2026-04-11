@@ -32,3 +32,7 @@ jobs:
 
       - name: Pytest with coverage
         run: uv run pytest
+
+      - name: Governance advisory report
+        if: always()
+        run: uv run python scripts/check_governance.py --report

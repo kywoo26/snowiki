@@ -18,6 +18,7 @@ from snowiki.cli.commands.query import QueryResult, run_query
 from snowiki.cli.commands.rebuild import run_rebuild
 from snowiki.cli.commands.status import run_status
 from snowiki.compiler.engine import CompilerEngine
+from snowiki.config import resolve_repo_asset_path
 from snowiki.lint.integrity import check_layer_integrity
 
 
@@ -223,17 +224,16 @@ class ValidationResult(TypedDict):
     failures: list[FailureResult]
 
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
 _FIXTURES: tuple[FixtureSpec, ...] = (
     {
         "fixture_id": "claude_basic",
         "source": "claude",
-        "path": _REPO_ROOT / "fixtures" / "claude" / "basic.jsonl",
+        "path": resolve_repo_asset_path("fixtures/claude/basic.jsonl"),
     },
     {
         "fixture_id": "omo_basic",
         "source": "opencode",
-        "path": _REPO_ROOT / "fixtures" / "opencode" / "basic.db",
+        "path": resolve_repo_asset_path("fixtures/opencode/basic.db"),
     },
 )
 _PHASE_1_QUERY_IDS: tuple[str, ...] = ("en-001", "en-008")
@@ -244,7 +244,7 @@ def _load_json(path: Path) -> dict[str, object]:
 
 
 def _load_phase_1_queries() -> list[dict[str, object]]:
-    corpus_path = _REPO_ROOT / PHASE_1_CORPUS["queries"]
+    corpus_path = resolve_repo_asset_path(PHASE_1_CORPUS["queries"])
     payload = _load_json(corpus_path)
     entries = cast(list[dict[str, object]], payload["queries"])
     selected = [
@@ -255,7 +255,7 @@ def _load_phase_1_queries() -> list[dict[str, object]]:
 
 
 def _load_phase_1_judgments() -> dict[str, list[str]]:
-    corpus_path = _REPO_ROOT / PHASE_1_CORPUS["judgments"]
+    corpus_path = resolve_repo_asset_path(PHASE_1_CORPUS["judgments"])
     payload = _load_json(corpus_path)
     judgments = cast(dict[str, list[str]], payload["judgments"])
     return {query_id: list(judgments[query_id]) for query_id in _PHASE_1_QUERY_IDS}
