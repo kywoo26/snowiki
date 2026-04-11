@@ -230,6 +230,7 @@ def create_provenance_json(path, fixture_type):
     data = {
         "fixture_id": f"corrupt_opencode_{fixture_type}",
         "family": "opencode_sqlite",
+        "description": f"Corrupted fixture: {fixture_type}",
         "created": "2024-04-01T10:00:00Z",
         "updated": "2024-04-01T10:00:00Z",
         "sources": ["synthetic"],

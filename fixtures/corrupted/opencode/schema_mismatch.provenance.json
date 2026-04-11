@@ -1,6 +1,7 @@
 {
   "fixture_id": "corrupt_opencode_schema_mismatch",
   "family": "opencode_sqlite",
+  "description": "Corrupted fixture: schema_mismatch",
   "created": "2024-04-01T10:00:00Z",
   "updated": "2024-04-01T10:00:00Z",
   "sources": [
