@@ -9,7 +9,7 @@ class SurfacePolicy(TypedDict):
 
 
 GOVERNED_SURFACES: dict[str, SurfacePolicy] = {
-    "snowiki": {
+    "src/snowiki": {
         "owner": "root AGENTS.md",
         "required_children": ["config.py", "storage/zones.py", "bench"],
     },
@@ -21,7 +21,7 @@ GOVERNED_SURFACES: dict[str, SurfacePolicy] = {
         "owner": "root AGENTS.md",
         "required_children": [],
     },
-    "snowiki/bench": {
+    "src/snowiki/bench": {
         "owner": "root AGENTS.md",
         "required_children": [],
     },

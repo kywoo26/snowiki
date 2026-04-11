@@ -25,7 +25,7 @@ def repo_root() -> Path:
 
 @pytest.fixture(scope="session")
 def snowiki_dir(repo_root: Path) -> Path:
-    return repo_root / "snowiki"
+    return repo_root / "src" / "snowiki"
 
 
 @pytest.fixture(scope="session")
