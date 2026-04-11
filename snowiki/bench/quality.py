@@ -4,6 +4,8 @@ import math
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from .contract import MetricThreshold, ReportEntry
+
 
 def recall_at_k(relevant_ids: set[str], ranked_ids: list[str], k: int) -> float:
     if not relevant_ids or k <= 0:
@@ -63,6 +65,177 @@ class QualitySummary:
         payload = asdict(self)
         payload["per_query"] = [item.to_dict() for item in self.per_query]
         return payload
+
+
+@dataclass(frozen=True)
+class SlicedQualitySummary:
+    overall: QualitySummary
+    by_group: dict[str, QualitySummary]
+    by_kind: dict[str, QualitySummary]
+    threshold_report: tuple[ReportEntry, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "overall": self.overall.to_dict(),
+            "slices": {
+                "group": {
+                    name: summary.to_dict() for name, summary in self.by_group.items()
+                },
+                "kind": {
+                    name: summary.to_dict() for name, summary in self.by_kind.items()
+                },
+            },
+            "thresholds": [asdict(entry) for entry in self.threshold_report],
+        }
+
+
+def _evaluate_slice(
+    ranked_results: dict[str, list[str]],
+    judgments: dict[str, list[str]],
+    query_ids: list[str],
+    *,
+    top_k: int,
+) -> QualitySummary:
+    filtered_ranked_results = {
+        query_id: ranked_results.get(query_id, []) for query_id in query_ids
+    }
+    filtered_judgments = {
+        query_id: judgments[query_id] for query_id in query_ids if query_id in judgments
+    }
+    return evaluate_quality(filtered_ranked_results, filtered_judgments, top_k=top_k)
+
+
+def _ordered_labels(
+    labels_by_query: dict[str, str],
+    query_ids: list[str],
+    preferred: tuple[str, ...],
+) -> tuple[str, ...]:
+    seen = {
+        labels_by_query[query_id]
+        for query_id in query_ids
+        if query_id in labels_by_query
+    }
+    ordered = list(preferred)
+    ordered.extend(sorted(seen.difference(preferred)))
+    return tuple(ordered)
+
+
+def evaluate_sliced_quality(
+    ranked_results: dict[str, list[str]],
+    judgments: dict[str, list[str]],
+    *,
+    query_groups: dict[str, str],
+    query_kinds: dict[str, str],
+    top_k: int,
+    group_labels: tuple[str, ...] = ("ko", "en", "mixed"),
+    kind_labels: tuple[str, ...] = ("known-item", "topical", "temporal"),
+) -> SlicedQualitySummary:
+    query_ids = [
+        query_id
+        for query_id in judgments
+        if query_id in ranked_results or query_id in query_groups
+    ]
+    overall = _evaluate_slice(ranked_results, judgments, query_ids, top_k=top_k)
+
+    ordered_groups = _ordered_labels(query_groups, query_ids, group_labels)
+    ordered_kinds = _ordered_labels(query_kinds, query_ids, kind_labels)
+
+    by_group = {
+        group: _evaluate_slice(
+            ranked_results,
+            judgments,
+            [query_id for query_id in query_ids if query_groups.get(query_id) == group],
+            top_k=top_k,
+        )
+        for group in ordered_groups
+    }
+    by_kind = {
+        kind: _evaluate_slice(
+            ranked_results,
+            judgments,
+            [query_id for query_id in query_ids if query_kinds.get(query_id) == kind],
+            top_k=top_k,
+        )
+        for kind in ordered_kinds
+    }
+
+    return SlicedQualitySummary(overall=overall, by_group=by_group, by_kind=by_kind)
+
+
+def _metric_value(summary: QualitySummary, metric: str) -> float:
+    return float(getattr(summary, metric))
+
+
+def _evaluate_threshold(
+    *,
+    gate: str,
+    summary: QualitySummary,
+    threshold: MetricThreshold,
+) -> ReportEntry:
+    if summary.queries_evaluated == 0:
+        return ReportEntry(
+            gate=gate,
+            metric=threshold.metric,
+            value="n/a",
+            delta=None,
+            verdict="WARN",
+            threshold=threshold.value,
+            warnings=[f"gate '{gate}' was not evaluated"],
+        )
+
+    metric_value = round(_metric_value(summary, threshold.metric), 6)
+    if threshold.operator == ">=":
+        delta = round(metric_value - threshold.value, 6)
+        verdict = "PASS" if metric_value >= threshold.value else "FAIL"
+    else:
+        delta = round(threshold.value - metric_value, 6)
+        verdict = "PASS" if metric_value <= threshold.value else "FAIL"
+
+    return ReportEntry(
+        gate=gate,
+        metric=threshold.metric,
+        value=metric_value,
+        delta=delta,
+        verdict=verdict,
+        threshold=threshold.value,
+        warnings=[],
+    )
+
+
+def evaluate_quality_thresholds(
+    summary: SlicedQualitySummary,
+    *,
+    overall_thresholds: list[MetricThreshold],
+    slice_thresholds: dict[str, list[MetricThreshold]],
+) -> tuple[ReportEntry, ...]:
+    report: list[ReportEntry] = []
+    allowed_metrics = {"recall_at_k", "mrr", "ndcg_at_k"}
+
+    for threshold in overall_thresholds:
+        if threshold.metric not in allowed_metrics:
+            continue
+        report.append(
+            _evaluate_threshold(
+                gate="overall", summary=summary.overall, threshold=threshold
+            )
+        )
+
+    for kind, thresholds in slice_thresholds.items():
+        kind_summary = summary.by_kind.get(kind)
+        if kind_summary is None:
+            continue
+        for threshold in thresholds:
+            if threshold.metric not in allowed_metrics:
+                continue
+            report.append(
+                _evaluate_threshold(
+                    gate=f"kind:{kind}",
+                    summary=kind_summary,
+                    threshold=threshold,
+                )
+            )
+
+    return tuple(report)
 
 
 def evaluate_quality(

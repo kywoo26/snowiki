@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -8,19 +10,22 @@ from typing import Any
 from snowiki.cli.commands.query import build_search_index, load_normalized_records
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.compiler.taxonomy import CompiledPage, PageSection
-from snowiki.search import build_lexical_index, topical_recall
+from snowiki.search import BM25SearchDocument, BM25SearchIndex, build_lexical_index
 from snowiki.search.indexer import InvertedIndex, SearchDocument, SearchHit
 
+from .contract import PHASE_1_THRESHOLDS
+from .corpus import CANONICAL_BENCHMARK_FIXTURE_PATHS
 from .latency import measure_latency
 from .presets import BenchmarkPreset
-from .quality import evaluate_quality
-from .semantic_slots import (
-    SemanticSlotsConfig,
-    expand_query_variants,
-    semantic_slots_status,
+from .quality import (
+    SlicedQualitySummary,
+    evaluate_quality_thresholds,
+    evaluate_sliced_quality,
 )
+from .semantic_slots import SemanticSlotsConfig, semantic_slots_status
 from .token_reduction import compare_token_usage, summarize_token_usage
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 @dataclass(frozen=True)
 class BenchmarkQuery:
@@ -43,25 +48,25 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
-    payload = _load_json(root / "benchmarks" / "queries.json")
+    del root
+    payload = _load_json(_REPO_ROOT / "benchmarks" / "queries.json")
     rows = payload.get("queries", payload)
     if not isinstance(rows, list):
         raise ValueError("benchmarks/queries.json must contain a 'queries' list")
-    queries: list[BenchmarkQuery] = []
-    for row in rows:
-        queries.append(
-            BenchmarkQuery(
-                query_id=str(row["id"]),
-                text=str(row["text"]),
-                group=str(row.get("group", "default")),
-                kind=str(row.get("kind", "known-item")),
-            )
+    return tuple(
+        BenchmarkQuery(
+            query_id=str(row["id"]),
+            text=str(row["text"]),
+            group=str(row.get("group", "default")),
+            kind=str(row.get("kind", "known-item")),
         )
-    return tuple(queries)
+        for row in rows
+    )
 
 
 def _load_judgments(root: Path) -> dict[str, list[str]]:
-    payload = _load_json(root / "benchmarks" / "judgments.json")
+    del root
+    payload = _load_json(_REPO_ROOT / "benchmarks" / "judgments.json")
     rows = payload.get("judgments", payload)
     if isinstance(rows, dict):
         return {str(key): [str(item) for item in value] for key, value in rows.items()}
@@ -148,53 +153,169 @@ def _match_judgment(hit: SearchHit, relevant_ids: list[str]) -> str:
     return _hit_identifier(hit)
 
 
+def _benchmark_fixture_sources() -> dict[str, str]:
+    return {
+        (_REPO_ROOT / relative_path).resolve().as_posix(): fixture_id
+        for fixture_id, relative_path in CANONICAL_BENCHMARK_FIXTURE_PATHS.items()
+    }
+
+
+def _benchmark_fixture_digests() -> dict[str, str]:
+    return {
+        hashlib.sha256(
+            (_REPO_ROOT / relative_path).read_bytes()
+        ).hexdigest(): fixture_id
+        for fixture_id, relative_path in CANONICAL_BENCHMARK_FIXTURE_PATHS.items()
+    }
+
+
+def _record_fixture_lookup(records: tuple[dict[str, Any], ...]) -> dict[str, str]:
+    fixture_sources = _benchmark_fixture_sources()
+    fixture_digests = _benchmark_fixture_digests()
+    relative_lookup = {
+        relative_path: fixture_id
+        for fixture_id, relative_path in CANONICAL_BENCHMARK_FIXTURE_PATHS.items()
+    }
+    lookup: dict[str, str] = {}
+    for payload in records:
+        record_id = payload.get("id")
+        if not isinstance(record_id, str):
+            continue
+
+        fixture_id: str | None = None
+        path = payload.get("path")
+        if isinstance(path, str):
+            fixture_id = relative_lookup.get(path)
+
+        metadata = payload.get("metadata")
+        if fixture_id is None and isinstance(metadata, dict):
+            source_path = metadata.get("source_path")
+            if isinstance(source_path, str):
+                fixture_id = fixture_sources.get(Path(source_path).resolve().as_posix())
+
+        raw_ref = payload.get("raw_ref")
+        if fixture_id is None and isinstance(raw_ref, dict):
+            sha256 = raw_ref.get("sha256")
+            if isinstance(sha256, str):
+                fixture_id = fixture_digests.get(sha256)
+
+        if fixture_id is not None:
+            lookup[record_id] = fixture_id
+            if isinstance(path, str):
+                lookup[path] = fixture_id
+    return lookup
+
+
+def _page_fixture_lookup(
+    pages: tuple[dict[str, Any], ...], record_lookup: dict[str, str]
+) -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for page in pages:
+        page_path = page.get("path")
+        record_ids = page.get("record_ids")
+        if not isinstance(page_path, str) or not isinstance(record_ids, list):
+            continue
+        fixture_ids = {
+            record_lookup[record_id]
+            for record_id in record_ids
+            if isinstance(record_id, str) and record_id in record_lookup
+        }
+        if len(fixture_ids) == 1:
+            lookup[page_path] = next(iter(fixture_ids))
+    return lookup
+
+
+def _benchmark_hit_lookup(corpus: CorpusBundle) -> dict[str, str]:
+    record_lookup = _record_fixture_lookup(corpus.records)
+    return {**record_lookup, **_page_fixture_lookup(corpus.pages, record_lookup)}
+
+
+def _match_benchmark_hit(
+    hit: SearchHit, relevant_ids: list[str], hit_lookup: dict[str, str]
+) -> str:
+    fixture_id = hit_lookup.get(hit.document.id) or hit_lookup.get(hit.document.path)
+    if fixture_id is not None:
+        return fixture_id
+    return _match_judgment(hit, relevant_ids)
+
+
 def _raw_context(hits: list[SearchHit]) -> str:
     return "\n\n".join(hit.document.content for hit in hits)
 
 
-def _current_context(hits: list[SearchHit]) -> str:
-    return "\n".join(
-        f"{hit.document.title}: {hit.document.summary}".strip() for hit in hits
-    )
-
-
-def _v2_context(hits: list[SearchHit]) -> str:
-    lines: list[str] = []
+def _ranked_fixture_ids(
+    hits: list[SearchHit],
+    relevant_ids: list[str],
+    *,
+    hit_lookup: dict[str, str],
+) -> list[str]:
+    ranked_ids: list[str] = []
     seen: set[str] = set()
     for hit in hits:
-        line = f"{hit.document.title} | {hit.document.path} | {hit.document.summary}".strip()
-        if line in seen:
+        fixture_id = _match_benchmark_hit(hit, relevant_ids, hit_lookup)
+        if fixture_id in seen:
             continue
-        seen.add(line)
-        lines.append(line)
-    return "\n".join(lines)
+        ranked_ids.append(fixture_id)
+        seen.add(fixture_id)
+    return ranked_ids
 
 
-def _run_raw(index: InvertedIndex, query: str, top_k: int) -> list[SearchHit]:
+def _run_lexical(index: InvertedIndex, query: str, top_k: int) -> list[SearchHit]:
     return index.search(query, limit=top_k)
 
 
-def _run_current(index: InvertedIndex, query: str, top_k: int) -> list[SearchHit]:
-    return topical_recall(index, query, limit=top_k)
-
-
-def _run_v2(
-    index: InvertedIndex,
-    query: str,
-    top_k: int,
-    semantic_slots: SemanticSlotsConfig,
-) -> list[SearchHit]:
-    merged: dict[str, SearchHit] = {}
-    for variant in expand_query_variants(query, semantic_slots):
-        for hit in topical_recall(index, variant, limit=max(top_k * 2, top_k)):
-            existing = merged.get(hit.document.id)
-            if existing is None or hit.score > existing.score:
-                merged[hit.document.id] = hit
-    ranked = sorted(
-        merged.values(),
-        key=lambda item: (-item.score, item.document.path, item.document.id),
+def _bm25_document_from_search(document: SearchDocument) -> BM25SearchDocument:
+    return BM25SearchDocument(
+        id=document.id,
+        path=document.path,
+        kind=document.kind,
+        title=document.title,
+        content=document.content,
+        summary=document.summary,
+        aliases=document.aliases,
+        recorded_at=document.recorded_at,
+        source_type=document.source_type,
     )
-    return ranked[:top_k]
+
+
+def _bm25_hit_to_search_hit(hit: Any) -> SearchHit:
+    return SearchHit(
+        document=SearchDocument(
+            id=hit.document.id,
+            path=hit.document.path,
+            kind=hit.document.kind,
+            title=hit.document.title,
+            content=hit.document.content,
+            summary=hit.document.summary,
+            aliases=hit.document.aliases,
+            recorded_at=hit.document.recorded_at,
+            source_type=hit.document.source_type,
+        ),
+        score=float(hit.score),
+        matched_terms=tuple(hit.matched_terms),
+    )
+
+
+def _build_bm25_index(
+    documents: tuple[SearchDocument, ...], *, use_kiwi_tokenizer: bool
+) -> BM25SearchIndex:
+    return BM25SearchIndex(
+        [_bm25_document_from_search(document) for document in documents],
+        use_kiwi_tokenizer=use_kiwi_tokenizer,
+    )
+
+
+def _attach_threshold_report(summary: SlicedQualitySummary) -> SlicedQualitySummary:
+    return SlicedQualitySummary(
+        overall=summary.overall,
+        by_group=summary.by_group,
+        by_kind=summary.by_kind,
+        threshold_report=evaluate_quality_thresholds(
+            summary,
+            overall_thresholds=PHASE_1_THRESHOLDS["overall"],
+            slice_thresholds=PHASE_1_THRESHOLDS["slices"],
+        ),
+    )
 
 
 def _evaluate_baseline(
@@ -202,9 +323,8 @@ def _evaluate_baseline(
     name: str,
     queries: tuple[BenchmarkQuery, ...],
     judgments: dict[str, list[str]],
-    search_fn: Any,
-    context_fn: Any,
-    semantic_slots: SemanticSlotsConfig,
+    search_fn: Callable[[str], list[SearchHit]],
+    hit_lookup: dict[str, str],
 ) -> dict[str, Any]:
     ranked_results: dict[str, list[str]] = {}
     query_contexts: list[str] = []
@@ -213,25 +333,31 @@ def _evaluate_baseline(
     for query in queries:
         hits = list(search_fn(query.text))
         hits_by_query[query.query_id] = hits
-        ranked_results[query.query_id] = [
-            _match_judgment(hit, judgments.get(query.query_id, [])) for hit in hits
-        ]
-        query_contexts.append(context_fn(hits))
+        ranked_results[query.query_id] = _ranked_fixture_ids(
+            hits,
+            judgments.get(query.query_id, []),
+            hit_lookup=hit_lookup,
+        )
+        query_contexts.append(_raw_context(hits))
 
     latency = measure_latency(lambda item: search_fn(item.text), list(queries))
-    quality = evaluate_quality(
-        ranked_results,
-        judgments,
-        top_k=max((len(ranked) for ranked in ranked_results.values()), default=0) or 1,
+    quality = _attach_threshold_report(
+        evaluate_sliced_quality(
+            ranked_results,
+            judgments,
+            query_groups={query.query_id: query.group for query in queries},
+            query_kinds={query.query_id: query.kind for query in queries},
+            top_k=max((len(ranked) for ranked in ranked_results.values()), default=0)
+            or 1,
+        )
     )
+
     return {
         "name": name,
         "latency": latency.to_dict(),
         "quality": quality.to_dict(),
         "token_usage": summarize_token_usage(query_contexts),
-        "semantic_slots": semantic_slots_status(semantic_slots)
-        if name == "v2"
-        else semantic_slots_status(SemanticSlotsConfig(enabled=False)),
+        "semantic_slots": semantic_slots_status(SemanticSlotsConfig(enabled=False)),
         "queries": {
             query_id: [
                 {
@@ -261,42 +387,46 @@ def run_baseline_comparison(
     if not queries:
         raise ValueError(f"preset '{preset.name}' did not match any benchmark queries")
 
+    raw_documents = tuple(corpus.raw_index.documents.values())
+    hit_lookup = _benchmark_hit_lookup(corpus)
+    bm25_plain_index = _build_bm25_index(raw_documents, use_kiwi_tokenizer=False)
+    bm25_kiwi_index = _build_bm25_index(raw_documents, use_kiwi_tokenizer=True)
+
     results: dict[str, dict[str, Any]] = {}
     for baseline in preset.baselines:
-        if baseline == "raw":
+        if baseline == "lexical":
             results[baseline] = _evaluate_baseline(
                 name=baseline,
                 queries=queries,
                 judgments=judgments,
-                search_fn=lambda query_text: _run_raw(
+                search_fn=lambda query_text: _run_lexical(
                     corpus.raw_index, query_text, preset.top_k
                 ),
-                context_fn=_raw_context,
-                semantic_slots=SemanticSlotsConfig(enabled=False),
+                hit_lookup=hit_lookup,
             )
             continue
-        if baseline == "current":
+        if baseline == "bm25s":
             results[baseline] = _evaluate_baseline(
                 name=baseline,
                 queries=queries,
                 judgments=judgments,
-                search_fn=lambda query_text: _run_current(
-                    corpus.blended_index, query_text, preset.top_k
-                ),
-                context_fn=_current_context,
-                semantic_slots=SemanticSlotsConfig(enabled=False),
+                search_fn=lambda query_text: [
+                    _bm25_hit_to_search_hit(hit)
+                    for hit in bm25_plain_index.search(query_text, limit=preset.top_k)
+                ],
+                hit_lookup=hit_lookup,
             )
             continue
-        if baseline == "v2":
+        if baseline == "bm25s_kiwi":
             results[baseline] = _evaluate_baseline(
                 name=baseline,
                 queries=queries,
                 judgments=judgments,
-                search_fn=lambda query_text: _run_v2(
-                    corpus.blended_index, query_text, preset.top_k, semantic_slots
-                ),
-                context_fn=_v2_context,
-                semantic_slots=semantic_slots,
+                search_fn=lambda query_text: [
+                    _bm25_hit_to_search_hit(hit)
+                    for hit in bm25_kiwi_index.search(query_text, limit=preset.top_k)
+                ],
+                hit_lookup=hit_lookup,
             )
             continue
         raise ValueError(f"unsupported baseline: {baseline}")
@@ -304,15 +434,19 @@ def run_baseline_comparison(
     token_usage = {name: payload["token_usage"] for name, payload in results.items()}
     qualities = {
         name: {
-            "recall_at_k": payload["quality"]["recall_at_k"],
-            "mrr": payload["quality"]["mrr"],
-            "ndcg_at_k": payload["quality"]["ndcg_at_k"],
+            "recall_at_k": payload["quality"]["overall"]["recall_at_k"],
+            "mrr": payload["quality"]["overall"]["mrr"],
+            "ndcg_at_k": payload["quality"]["overall"]["ndcg_at_k"],
         }
         for name, payload in results.items()
     }
     token_reduction = {
         name: summary.to_dict()
-        for name, summary in compare_token_usage(token_usage, qualities).items()
+        for name, summary in compare_token_usage(
+            token_usage,
+            qualities,
+            reference_baseline="lexical",
+        ).items()
     }
     return {
         "preset": {

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import bm25s
 
@@ -50,7 +50,11 @@ class BM25SearchIndex:
         delta: BM25+ delta parameter (default: 0.5)
     """
 
-    BM25_METHODS = frozenset(["robertson", "atire", "bm25l", "bm25+", "lucene"])
+    BM25_METHODS: frozenset[str] = frozenset(
+        ["robertson", "atire", "bm25l", "bm25+", "lucene"]
+    )
+    _SHOW_PROGRESS = False
+    _LEAVE_PROGRESS = False
 
     def __init__(
         self,
@@ -59,19 +63,25 @@ class BM25SearchIndex:
         k1: float = 1.5,
         b: float = 0.75,
         delta: float = 0.5,
+        use_kiwi_tokenizer: bool = True,
     ) -> None:
         if method not in self.BM25_METHODS:
             raise ValueError(
                 f"Invalid method: {method}. Must be one of {self.BM25_METHODS}"
             )
 
-        self.documents = list(documents)
-        self.method = method
-        self.k1 = k1
-        self.b = b
-        self.delta = delta
+        self.documents: list[BM25SearchDocument] = list(documents)
+        self.method: str = method
+        self.k1: float = k1
+        self.b: float = b
+        self.delta: float = delta
+        self.use_kiwi_tokenizer: bool = use_kiwi_tokenizer
 
-        self.tokenizer = KoreanTokenizer()
+        self.tokenizer: KoreanTokenizer | None = (
+            KoreanTokenizer() if use_kiwi_tokenizer else None
+        )
+        self.corpus_tokens: list[list[str]] = []
+        self.bm25: Any
         self._build_index()
 
     def _build_index(self) -> None:
@@ -81,24 +91,34 @@ class BM25SearchIndex:
             self.bm25 = bm25s.BM25(method=self.method)
             return
 
-        corpus = []
+        corpus: list[str] = []
         for doc in self.documents:
             text = f"{doc.title}\n{doc.content}\n{doc.summary}"
             corpus.append(text)
 
-        corpus_tokens = bm25s.tokenize(
-            corpus,
-            stopwords="en",
-            return_ids=False,
+        corpus_tokens = cast(
+            list[list[str]],
+            bm25s.tokenize(
+                corpus,
+                stopwords="en",
+                return_ids=False,
+                show_progress=self._SHOW_PROGRESS,
+                leave=self._LEAVE_PROGRESS,
+            ),
         )
 
-        for i, tokens in enumerate(corpus_tokens):
-            korean_tokens = self.tokenizer(corpus[i])
-            tokens.extend(korean_tokens)
+        if self.tokenizer is not None:
+            for i, tokens in enumerate(corpus_tokens):
+                korean_tokens = self.tokenizer(corpus[i])
+                tokens.extend(korean_tokens)
 
         self.corpus_tokens = corpus_tokens
         self.bm25 = bm25s.BM25(method=self.method, k1=self.k1, b=self.b)
-        self.bm25.index(corpus_tokens)
+        self.bm25.index(
+            corpus_tokens,
+            show_progress=self._SHOW_PROGRESS,
+            leave_progress=self._LEAVE_PROGRESS,
+        )
 
     def search(
         self,
@@ -109,9 +129,19 @@ class BM25SearchIndex:
         if not self.documents:
             return []
 
-        tokenized = bm25s.tokenize(query, stopwords="en", return_ids=False)
-        query_tokens_nested = [list(tokenized[0])]
-        query_tokens_nested[0].extend(self.tokenizer(query))
+        tokenized = cast(
+            list[list[str]],
+            bm25s.tokenize(
+                query,
+                stopwords="en",
+                return_ids=False,
+                show_progress=self._SHOW_PROGRESS,
+                leave=self._LEAVE_PROGRESS,
+            ),
+        )
+        query_tokens_nested: list[list[str]] = [list(tokenized[0])]
+        if self.tokenizer is not None:
+            query_tokens_nested[0].extend(self.tokenizer(query))
 
         if not query_tokens_nested[0]:
             return []
@@ -119,6 +149,8 @@ class BM25SearchIndex:
         results = self.bm25.retrieve(
             query_tokens_nested,
             k=min(limit, len(self.documents)),
+            show_progress=self._SHOW_PROGRESS,
+            leave_progress=self._LEAVE_PROGRESS,
         )
 
         hits = []
@@ -149,6 +181,11 @@ class BM25SearchIndex:
         """Load index from disk."""
         instance = cls.__new__(cls)
         instance.documents = list(documents)
+        instance.method = "lucene"
+        instance.k1 = 1.5
+        instance.b = 0.75
+        instance.delta = 0.5
+        instance.use_kiwi_tokenizer = True
         instance.tokenizer = KoreanTokenizer()
         instance.bm25 = bm25s.BM25.load(path, load_corpus=True)
         return instance
