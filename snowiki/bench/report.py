@@ -1,3 +1,9 @@
+"""Build and render benchmark reports for the Snowiki bench suite.
+
+This module assembles the phase 1 validation results, threshold policies, and
+human-readable summaries used by benchmark reporting commands.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -19,6 +25,15 @@ def generate_report(
     *,
     preset_name: str,
 ) -> dict[str, object]:
+    """Generate a structured benchmark report.
+
+    Args:
+        root: Workspace root directory to benchmark (Path).
+        preset_name: Benchmark preset name to load (str).
+
+    Returns:
+        dict[str, object]: Structured benchmark report payload.
+    """
     preset = get_preset(preset_name)
     structural = _structural_validation_summary(validate_phase1_workspace(root))
     performance = run_phase1_latency_evaluation(root, preset=preset)
@@ -196,6 +211,14 @@ def _render_thresholds(thresholds: object) -> str:
 
 
 def structural_failure_count(report: dict[str, object]) -> int:
+    """Count structural validation failures in a report.
+
+    Args:
+        report: Benchmark report mapping (dict[str, object]).
+
+    Returns:
+        int: Number of structural failures.
+    """
     structural = cast(dict[str, object], report.get("structural", {}))
     failures = structural.get("failures", [])
     if not isinstance(failures, list):
@@ -204,6 +227,14 @@ def structural_failure_count(report: dict[str, object]) -> int:
 
 
 def informational_warning_count(report: dict[str, object]) -> int:
+    """Count informational structural warnings in a report.
+
+    Args:
+        report: Benchmark report mapping (dict[str, object]).
+
+    Returns:
+        int: Number of informational warnings.
+    """
     structural = cast(dict[str, object], report.get("structural", {}))
     warnings = structural.get("warnings", [])
     if not isinstance(warnings, list):
@@ -220,6 +251,14 @@ def _entry_verdict(entry: object) -> str | None:
 
 
 def retrieval_threshold_failure_count(report: dict[str, object]) -> int:
+    """Count failed retrieval threshold entries in a report.
+
+    Args:
+        report: Benchmark report mapping (dict[str, object]).
+
+    Returns:
+        int: Number of retrieval threshold failures.
+    """
     return sum(
         1
         for _, entry in _retrieval_threshold_entries(report)
@@ -228,6 +267,14 @@ def retrieval_threshold_failure_count(report: dict[str, object]) -> int:
 
 
 def performance_threshold_failure_count(report: dict[str, object]) -> int:
+    """Count failed performance threshold entries in a report.
+
+    Args:
+        report: Benchmark report mapping (dict[str, object]).
+
+    Returns:
+        int: Number of performance threshold failures.
+    """
     entries = cast(list[object], report.get("performance_thresholds", []))
     if not isinstance(entries, list):
         return 0
@@ -235,6 +282,15 @@ def performance_threshold_failure_count(report: dict[str, object]) -> int:
 
 
 def benchmark_verdict(report: dict[str, object]) -> dict[str, object]:
+    """Compute the unified benchmark verdict.
+
+    Args:
+        report: Benchmark report mapping (dict[str, object]).
+
+    Returns:
+        dict[str, object]: Unified verdict, exit code, blocking stage,
+            evaluation order, and stage summaries.
+    """
     structural_failures = structural_failure_count(report)
     retrieval_failures = retrieval_threshold_failure_count(report)
     performance_failures = performance_threshold_failure_count(report)
@@ -292,6 +348,14 @@ def benchmark_verdict(report: dict[str, object]) -> dict[str, object]:
 
 
 def benchmark_exit_code(report: dict[str, object]) -> int:
+    """Return the benchmark process exit code.
+
+    Args:
+        report: Benchmark report mapping (dict[str, object]).
+
+    Returns:
+        int: Exit code extracted from the benchmark verdict, or 0.
+    """
     verdict = cast(dict[str, object], report.get("benchmark_verdict", {}))
     exit_code = verdict.get("exit_code")
     if isinstance(exit_code, bool):
@@ -338,6 +402,14 @@ def _format_performance_threshold_entry(entry: dict[str, object]) -> str:
 
 
 def render_report_text(report: dict[str, object]) -> str:
+    """Render a human-readable benchmark report.
+
+    Args:
+        report: Benchmark report mapping (dict[str, object]).
+
+    Returns:
+        str: Multiline plain-text benchmark summary.
+    """
     preset = cast(dict[str, object], report["preset"])
     corpus = cast(dict[str, object], report["corpus"])
     protocol = cast(dict[str, object], report["protocol"])
