@@ -1,10 +1,9 @@
 {
   "fixture_id": "corrupt_opencode_locked",
   "family": "opencode_sqlite",
-  "created": "2026-04-08",
-  "updated": "2026-04-08",
+  "created": "2024-04-01T10:00:00Z",
+  "updated": "2024-04-01T10:00:00Z",
   "sources": [
-    "synthetic://snowiki-v2/opencode/corrupted/locked"
-  ],
-  "description": "Corrupted OpenCode fixture for locked."
+    "synthetic"
+  ]
 }
