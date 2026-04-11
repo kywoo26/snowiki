@@ -1,3 +1,9 @@
+"""Phase 1 correctness validation helpers for benchmark runs.
+
+This module ingests benchmark fixtures, validates the workspace, and checks a
+small set of canonical queries against expected fixture matches.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -16,33 +22,81 @@ from snowiki.lint.integrity import check_layer_integrity
 
 
 class FixtureSpec(TypedDict):
+    """Specification for a benchmark fixture.
+
+    Attributes:
+        fixture_id: Stable identifier for the fixture.
+        source: Source system label for the fixture.
+        path: Filesystem path to the fixture file.
+    """
+
     fixture_id: str
     source: str
     path: Path
 
 
 class FixtureResult(TypedDict):
+    """Result entry recorded after ingesting a fixture.
+
+    Attributes:
+        fixture_id: Stable identifier for the fixture.
+        source: Source system label for the fixture.
+        root: Workspace root as a string path.
+    """
+
     fixture_id: str
     source: str
     root: str
 
 
 class ZonesResult(TypedDict):
+    """Counts for normalized and compiled zones.
+
+    Attributes:
+        normalized: Number of normalized records.
+        compiled: Number of compiled records.
+    """
+
     normalized: int
     compiled: int
 
 
 class IndexManifestResult(TypedDict, total=False):
+    """Optional index-manifest fields produced by a status check.
+
+    Attributes:
+        compiled_paths: Compiled paths listed in the manifest.
+    """
+
     compiled_paths: list[str]
 
 
 class StatusResult(TypedDict):
+    """Typed status payload returned by the status command.
+
+    Attributes:
+        root: Workspace root as a string path.
+        zones: Zone counts from the status command.
+        index_manifest: Optional compiled-path manifest.
+    """
+
     root: str
     zones: ZonesResult
     index_manifest: IndexManifestResult | None
 
 
 class RebuildResult(TypedDict):
+    """Typed rebuild payload returned by the rebuild command.
+
+    Attributes:
+        root: Workspace root as a string path.
+        compiled_count: Number of compiled items.
+        compiled_paths: Compiled paths returned by rebuild.
+        index_manifest: Path to the generated index manifest.
+        records_indexed: Number of indexed records.
+        pages_indexed: Number of indexed pages.
+    """
+
     root: str
     compiled_count: int
     compiled_paths: list[str]
@@ -52,6 +106,15 @@ class RebuildResult(TypedDict):
 
 
 class FailureResult(TypedDict):
+    """Flattened failure entry used by phase 1 validation.
+
+    Attributes:
+        stage: Validation stage name.
+        code: Failure code.
+        path: Related path or query identifier.
+        message: Human-readable failure message.
+    """
+
     stage: str
     code: str
     path: str
@@ -59,6 +122,16 @@ class FailureResult(TypedDict):
 
 
 class QueryExpectation(TypedDict):
+    """Expected query outcome for the phase 1 correctness flow.
+
+    Attributes:
+        query_id: Query identifier.
+        text: Query text.
+        expected_ids: Expected fixture IDs.
+        matched_ids: Fixture IDs matched by the query.
+        ok: Whether the match set is correct.
+    """
+
     query_id: str
     text: str
     expected_ids: list[str]
@@ -67,6 +140,15 @@ class QueryExpectation(TypedDict):
 
 
 class BaseCheckIssue(TypedDict):
+    """Common fields for lint and integrity issues.
+
+    Attributes:
+        code: Issue code.
+        severity: Issue severity string.
+        path: Related filesystem path.
+        message: Human-readable description.
+    """
+
     code: str
     severity: str
     path: str
@@ -74,16 +156,44 @@ class BaseCheckIssue(TypedDict):
 
 
 class CheckIssue(BaseCheckIssue, total=False):
+    """Lint or integrity issue with an optional target field.
+
+    Attributes:
+        target: Optional target path or identifier associated with the issue.
+    """
+
     target: str
 
 
 class CheckResult(TypedDict):
+    """Typed result for lint or integrity checks.
+
+    Attributes:
+        root: Workspace root as a string path.
+        issues: Issues returned by the check.
+        error_count: Number of error-severity issues.
+    """
+
     root: str
     issues: list[CheckIssue]
     error_count: int
 
 
 class Phase1FlowResult(TypedDict):
+    """Complete result payload for the phase 1 correctness flow.
+
+    Attributes:
+        ok: Whether the entire flow passed.
+        root: Workspace root as a string path.
+        fixtures: Ingest results for each fixture.
+        rebuild: Rebuild result payload.
+        status: Status result payload.
+        lint: Lint check result payload.
+        integrity: Integrity check result payload.
+        queries: Query expectations and matches.
+        failures: Flattened failure list.
+    """
+
     ok: bool
     root: str
     fixtures: list[FixtureResult]
@@ -96,6 +206,16 @@ class Phase1FlowResult(TypedDict):
 
 
 class ValidationResult(TypedDict):
+    """Validation-only result payload for a benchmark workspace.
+
+    Attributes:
+        ok: Whether validation passed.
+        status: Status result payload.
+        lint: Lint check result payload.
+        integrity: Integrity check result payload.
+        failures: Flattened failure list.
+    """
+
     ok: bool
     status: StatusResult
     lint: CheckResult
@@ -276,6 +396,14 @@ def _run_phase_1_queries(root: Path) -> list[QueryExpectation]:
 
 
 def validate_phase1_workspace(root: Path) -> ValidationResult:
+    """Validate the phase 1 benchmark workspace.
+
+    Args:
+        root: Workspace root as a filesystem path.
+
+    Returns:
+        A validation result containing status, lint, integrity, and failures.
+    """
     status = cast(StatusResult, cast(object, run_status(root)))
     lint = cast(CheckResult, cast(object, run_lint(root)))
     integrity = cast(CheckResult, cast(object, check_layer_integrity(root)))
@@ -293,6 +421,14 @@ def validate_phase1_workspace(root: Path) -> ValidationResult:
 
 
 def run_phase1_correctness_flow(root: Path) -> Phase1FlowResult:
+    """Run the full phase 1 correctness flow.
+
+    Args:
+        root: Workspace root as a filesystem path.
+
+    Returns:
+        A complete phase 1 correctness result payload.
+    """
     fixtures: list[FixtureResult] = []
     for fixture in _FIXTURES:
         _ = run_ingest(fixture["path"], source=fixture["source"], root=root)
