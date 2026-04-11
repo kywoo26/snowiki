@@ -6,10 +6,10 @@ from typing import Any
 
 import click
 
-from snowiki.cli.commands.query import build_search_index
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.config import get_snowiki_root
 from snowiki.search import known_item_lookup, temporal_recall, topical_recall
+from snowiki.search.workspace import build_search_index
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
