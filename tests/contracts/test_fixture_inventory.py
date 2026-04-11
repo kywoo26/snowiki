@@ -5,14 +5,6 @@ import sqlite3
 from pathlib import Path
 from typing import Any, cast
 
-ROOT = Path(__file__).resolve().parents[2]
-FIXTURES = ROOT / "fixtures"
-CLAUDE = FIXTURES / "claude"
-CORRUPTED_CLAUDE = FIXTURES / "corrupted" / "claude"
-OPENCODE = FIXTURES / "opencode"
-CORRUPTED_OPENCODE = FIXTURES / "corrupted" / "opencode"
-BENCHMARKS = ROOT / "benchmarks"
-
 EXPECTED_CLAUDE = {
     "basic.jsonl": "claude_basic",
     "with_tools.jsonl": "claude_tools",
@@ -61,20 +53,28 @@ def _read_jsonl(path: Path) -> list[JSONDict]:
     ]
 
 
-def test_expected_fixture_directories_exist() -> None:
-    assert CLAUDE.is_dir()
-    assert OPENCODE.is_dir()
-    assert CORRUPTED_CLAUDE.is_dir()
-    assert CORRUPTED_OPENCODE.is_dir()
-    assert BENCHMARKS.is_dir()
+def test_expected_fixture_directories_exist(
+    claude_fixtures_dir: Path,
+    opencode_fixtures_dir: Path,
+    corrupted_claude_fixtures_dir: Path,
+    corrupted_opencode_fixtures_dir: Path,
+    benchmarks_dir: Path,
+) -> None:
+    assert claude_fixtures_dir.is_dir()
+    assert opencode_fixtures_dir.is_dir()
+    assert corrupted_claude_fixtures_dir.is_dir()
+    assert corrupted_opencode_fixtures_dir.is_dir()
+    assert benchmarks_dir.is_dir()
 
 
-def test_claude_fixture_inventory_and_provenance() -> None:
-    actual = {path.name for path in CLAUDE.glob("*.jsonl")}
+def test_claude_fixture_inventory_and_provenance(
+    claude_fixtures_dir: Path,
+) -> None:
+    actual = {path.name for path in claude_fixtures_dir.glob("*.jsonl")}
     assert actual == set(EXPECTED_CLAUDE)
 
     for filename, expected_id in EXPECTED_CLAUDE.items():
-        records = _read_jsonl(CLAUDE / filename)
+        records = _read_jsonl(claude_fixtures_dir / filename)
         assert records, filename
         provenance = records[0]
         if provenance["type"] == "system":
@@ -92,30 +92,40 @@ def test_claude_fixture_inventory_and_provenance() -> None:
         metadata = cast(JSONDict, provenance["metadata"])
         assert metadata["fixture_family"] == "claude"
 
-    large_output = CLAUDE / "large_output.jsonl"
+    large_output = claude_fixtures_dir / "large_output.jsonl"
     assert large_output.stat().st_size >= 10_000
 
-    secret_text = (CLAUDE / "secret_bearing.jsonl").read_text(encoding="utf-8")
+    secret_text = (claude_fixtures_dir / "secret_bearing.jsonl").read_text(
+        encoding="utf-8"
+    )
     assert "sk-test-" in secret_text
     assert "ghp_" in secret_text
     assert "password" in secret_text.lower()
 
 
-def test_corrupted_claude_inventory() -> None:
-    actual = {path.name for path in CORRUPTED_CLAUDE.glob("*.jsonl")}
+def test_corrupted_claude_inventory(
+    corrupted_claude_fixtures_dir: Path,
+) -> None:
+    actual = {path.name for path in corrupted_claude_fixtures_dir.glob("*.jsonl")}
     assert actual == EXPECTED_CORRUPTED_CLAUDE
 
-    missing_fields_records = _read_jsonl(CORRUPTED_CLAUDE / "missing_fields.jsonl")
+    missing_fields_records = _read_jsonl(
+        corrupted_claude_fixtures_dir / "missing_fields.jsonl"
+    )
     assert (
         missing_fields_records[0]["fixture"]["fixture_id"]
         == "corrupt_claude_missing_fields"
     )
 
-    invalid_text = (CORRUPTED_CLAUDE / "invalid_json.jsonl").read_text(encoding="utf-8")
+    invalid_text = (corrupted_claude_fixtures_dir / "invalid_json.jsonl").read_text(
+        encoding="utf-8"
+    )
     assert invalid_text.count("\n") == 2
     assert invalid_text.rstrip().endswith('"This line is intentionally broken"')
 
-    unknown_records = _read_jsonl(CORRUPTED_CLAUDE / "unknown_event_type.jsonl")
+    unknown_records = _read_jsonl(
+        corrupted_claude_fixtures_dir / "unknown_event_type.jsonl"
+    )
     assert unknown_records[-1]["type"] == "teleport"
 
 
@@ -142,12 +152,14 @@ def _fetch_fixture_provenance(path: Path) -> tuple[str, str]:
     return row[0], row[1]
 
 
-def test_opencode_fixture_inventory_and_structure() -> None:
-    actual = {path.name for path in OPENCODE.glob("*.db")}
+def test_opencode_fixture_inventory_and_structure(
+    opencode_fixtures_dir: Path,
+) -> None:
+    actual = {path.name for path in opencode_fixtures_dir.glob("*.db")}
     assert actual == set(EXPECTED_OPENCODE)
 
     for filename, expected_id in EXPECTED_OPENCODE.items():
-        path = OPENCODE / filename
+        path = opencode_fixtures_dir / filename
         tables = _fetch_sqlite_tables(path)
         assert {"project", "session", "message", "part", "fixture_provenance"}.issubset(
             tables
@@ -156,14 +168,14 @@ def test_opencode_fixture_inventory_and_structure() -> None:
         assert fixture_id == expected_id
         assert family == "opencode_sqlite"
 
-    conn = sqlite3.connect(OPENCODE / "with_todos.db")
+    conn = sqlite3.connect(opencode_fixtures_dir / "with_todos.db")
     try:
         todo_count = conn.execute("SELECT COUNT(*) FROM todo").fetchone()[0]
     finally:
         conn.close()
     assert todo_count > 0
 
-    conn = sqlite3.connect(OPENCODE / "with_diffs.db")
+    conn = sqlite3.connect(opencode_fixtures_dir / "with_diffs.db")
     try:
         diff_rows = conn.execute(
             'SELECT COUNT(*) FROM part WHERE data LIKE \'%"type": "diff"%\' OR data LIKE \'%"type":"diff"%\''
@@ -172,7 +184,7 @@ def test_opencode_fixture_inventory_and_structure() -> None:
         conn.close()
     assert diff_rows > 0
 
-    conn = sqlite3.connect(OPENCODE / "with_reasoning.db")
+    conn = sqlite3.connect(opencode_fixtures_dir / "with_reasoning.db")
     try:
         reasoning_rows = conn.execute(
             "SELECT COUNT(*) FROM part WHERE data LIKE '%reasoning%'"
@@ -181,7 +193,7 @@ def test_opencode_fixture_inventory_and_structure() -> None:
         conn.close()
     assert reasoning_rows > 0
 
-    conn = sqlite3.connect(OPENCODE / "with_compaction.db")
+    conn = sqlite3.connect(opencode_fixtures_dir / "with_compaction.db")
     try:
         compacting = conn.execute(
             "SELECT time_compacting FROM session LIMIT 1"
@@ -191,12 +203,14 @@ def test_opencode_fixture_inventory_and_structure() -> None:
     assert compacting is not None
 
 
-def test_corrupted_opencode_inventory() -> None:
-    actual = {path.name for path in CORRUPTED_OPENCODE.glob("*.db")}
+def test_corrupted_opencode_inventory(
+    corrupted_opencode_fixtures_dir: Path,
+) -> None:
+    actual = {path.name for path in corrupted_opencode_fixtures_dir.glob("*.db")}
     assert actual == EXPECTED_CORRUPTED_OPENCODE
 
     for stem in ["locked", "partial_rows", "schema_mismatch"]:
-        provenance = CORRUPTED_OPENCODE / f"{stem}.provenance.json"
+        provenance = corrupted_opencode_fixtures_dir / f"{stem}.provenance.json"
         assert provenance.exists()
         data = _read_json(provenance)
         assert data["created"]
@@ -204,9 +218,12 @@ def test_corrupted_opencode_inventory() -> None:
         assert data["sources"]
 
 
-def test_benchmark_query_and_judgment_inventory() -> None:
-    queries = _read_json(BENCHMARKS / "queries.json")
-    judgments = _read_json(BENCHMARKS / "judgments.json")
+def test_benchmark_query_and_judgment_inventory(
+    benchmark_queries_path: Path,
+    benchmark_judgments_path: Path,
+) -> None:
+    queries = _read_json(benchmark_queries_path)
+    judgments = _read_json(benchmark_judgments_path)
 
     for payload in (queries, judgments):
         metadata = payload["metadata"]

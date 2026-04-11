@@ -6,18 +6,23 @@ from click.testing import CliRunner
 from snowiki.cli.main import app
 from snowiki.rebuild.integrity import verify_rebuild_integrity
 
-ROOT = Path(__file__).resolve().parents[2]
-
 
 def test_verify_rebuild_integrity_restores_compiled_and_index_layers(
     tmp_path: Path,
+    claude_basic_fixture: Path,
 ) -> None:
     runner = CliRunner()
-    fixture = ROOT / "fixtures" / "claude" / "basic.jsonl"
 
     ingest = runner.invoke(
         app,
-        ["ingest", str(fixture), "--source", "claude", "--output", "json"],
+        [
+            "ingest",
+            str(claude_basic_fixture),
+            "--source",
+            "claude",
+            "--output",
+            "json",
+        ],
         env={"SNOWIKI_ROOT": str(tmp_path)},
     )
     assert ingest.exit_code == 0, ingest.output
