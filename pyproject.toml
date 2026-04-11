@@ -69,8 +69,11 @@ python-version = "3.14"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra --cov=snowiki --cov-report=term-missing --cov-report=xml"
+addopts = "-ra -m 'not integration'"
 testpaths = ["tests"]
+markers = [
+  "integration: tests that exercise real heavy integrations and are excluded from the default fast unit test loop",
+]
 
 [tool.coverage.run]
 branch = true

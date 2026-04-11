@@ -16,7 +16,10 @@ uv run ty check
 
 # Testing
 uv run pytest
+uv run pytest -m integration
+uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml
 uv run pytest tests/cli/test_query.py -v
+uv run pytest --durations=10
 
 # Verification
 uv run python -m compileall snowiki/
@@ -28,7 +31,7 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 - **Runtime**: Python 3.14+ managed by `uv`
 - **Type System**: `ty` (primary type checker)
 - **Lint/Format**: `ruff` (E, F, I, N, W, UP, B, C4, SIM rules)
-- **Test Runner**: `pytest` with `pytest-cov`
+- **Test Runner**: `pytest` (`pytest-cov` for CI and explicit coverage runs)
 
 ## Always
 
@@ -36,6 +39,9 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 - Run `ruff check` and `ty check` before every commit.
 - Use explicit type hints for all function signatures.
 - Maintain 90%+ test coverage target for new logic.
+- Keep default local test loops fast; use explicit coverage runs locally or rely on CI coverage reporting.
+- Treat `uv run pytest` as the fast unit-test loop; run integration tests explicitly before opening a PR.
+- Use integration tests for real heavy engines, subprocess/thread/server lifecycle, benchmark-sized fixtures, real DB/index builds, or timing-sensitive behavior.
 - Follow Google style docstrings.
 - Use `tmp_path` fixture for all tests that write to the filesystem.
 - Ensure child AGENTS are delta-only and inherit root policy.
@@ -65,6 +71,10 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 | **Search / Compiler** | `uv run python -m compileall snowiki/ && uv run pytest tests/cli/test_query.py` |
 | **Storage / Schema / Config** | `uv run pytest && uv run ty check && uv run ruff check snowiki tests` |
 | **Tests / Fixtures** | `uv run pytest && uv run ruff check snowiki tests` |
+| **PR Preflight** | `uv run pytest && uv run pytest -m integration && uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml` |
+| **Coverage Check** | `uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml` |
+| **Integration Check** | `uv run pytest -m integration` |
+| **Slow Test Diagnosis** | `uv run pytest --durations=10` |
 | **Perf Sensitive** | `uv run snowiki benchmark --preset retrieval --output reports/retrieval.json` |
 
 ## Ownership

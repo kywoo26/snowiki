@@ -8,6 +8,8 @@ from typing import cast
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 
 def _load_benchmark_modules(repo_root: Path):
     if str(repo_root) not in sys.path:
