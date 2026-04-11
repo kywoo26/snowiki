@@ -35,12 +35,12 @@ members = []
 
 [tool.uv.build-backend]
 module-name = "snowiki"
-module-root = ""
+module-root = "src"
 
 [tool.ruff]
 line-length = 88
 target-version = "py314"
-src = ["snowiki", "tests"]
+src = ["src", "tests"]
 extend-exclude = [
   ".venv",
   ".pytest_cache",
@@ -80,5 +80,5 @@ branch = true
 source = ["snowiki"]
 omit = [
   "tests/*",
-  "snowiki/__main__.py",
+  "src/snowiki/__main__.py",
 ]
