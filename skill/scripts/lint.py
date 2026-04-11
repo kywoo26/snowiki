@@ -17,9 +17,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 REQUIRED_FIELDS = {"title", "type", "created"}
-WIKILINK_RE = re.compile(r'\[\[([^\]]+)\]\]')
-MDLINK_RE = re.compile(r'\[([^\]]*)\]\(([^)]+\.md[^)]*)\)')
-CONTRADICTION_RE = re.compile(r'⚠️\s*[Cc]ontradiction')
+WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+MDLINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]+\.md[^)]*)\)")
+CONTRADICTION_RE = re.compile(r"⚠️\s*[Cc]ontradiction")
 
 
 def detect_vault():
@@ -77,11 +77,19 @@ def run_lint(vault: Path) -> list[dict]:
     sources_dir = vault / "sources"
 
     if not wiki_dir.is_dir():
-        findings.append({"code": "S003", "severity": "ERROR",
-                         "message": "wiki/ directory not found", "path": str(wiki_dir)})
+        findings.append(
+            {
+                "code": "S003",
+                "severity": "ERROR",
+                "message": "wiki/ directory not found",
+                "path": str(wiki_dir),
+            }
+        )
         return findings
 
-    wiki_pages = [p for p in wiki_dir.rglob("*.md") if p.name not in ("index.md", "log.md")]
+    wiki_pages = [
+        p for p in wiki_dir.rglob("*.md") if p.name not in ("index.md", "log.md")
+    ]
 
     # Collect all inbound links
     all_links = set()
@@ -105,9 +113,14 @@ def run_lint(vault: Path) -> list[dict]:
             for link in all_links
         )
         if not is_linked:
-            findings.append({"code": "S001", "severity": "WARN",
-                             "message": "Orphan page: no inbound links",
-                             "path": str(rel)})
+            findings.append(
+                {
+                    "code": "S001",
+                    "severity": "WARN",
+                    "message": "Orphan page: no inbound links",
+                    "path": str(rel),
+                }
+            )
 
     # S002: Unreferenced sources
     if sources_dir.is_dir():
@@ -121,20 +134,32 @@ def run_lint(vault: Path) -> list[dict]:
         for src_file in sources_dir.rglob("*.md"):
             src_rel = str(src_file.relative_to(vault))
             src_stem = src_file.stem
-            referenced = any(src_stem in ref or src_rel in ref for ref in all_sources_refs)
+            referenced = any(
+                src_stem in ref or src_rel in ref for ref in all_sources_refs
+            )
             if not referenced:
-                findings.append({"code": "S002", "severity": "INFO",
-                                 "message": "Source not referenced by any wiki page",
-                                 "path": src_rel})
+                findings.append(
+                    {
+                        "code": "S002",
+                        "severity": "INFO",
+                        "message": "Source not referenced by any wiki page",
+                        "path": src_rel,
+                    }
+                )
 
     # S003: Incomplete frontmatter
     for page in wiki_pages:
         fm = parse_frontmatter(page)
         missing = REQUIRED_FIELDS - set(fm.keys())
         if missing:
-            findings.append({"code": "S003", "severity": "ERROR",
-                             "message": f"Missing frontmatter: {', '.join(sorted(missing))}",
-                             "path": str(page.relative_to(vault))})
+            findings.append(
+                {
+                    "code": "S003",
+                    "severity": "ERROR",
+                    "message": f"Missing frontmatter: {', '.join(sorted(missing))}",
+                    "path": str(page.relative_to(vault)),
+                }
+            )
 
     # S004: Broken wikilinks
     for page, links in all_links_by_page.items():
@@ -146,19 +171,33 @@ def run_lint(vault: Path) -> list[dict]:
             target = vault / link_clean
             # Also try resolving relative to the page's directory
             target_rel = page.parent / link_clean
-            if (not target.exists() and not target.with_suffix(".md").exists()
-                    and not target_rel.exists() and not target_rel.with_suffix(".md").exists()):
-                findings.append({"code": "S004", "severity": "ERROR",
-                                 "message": f"Broken link: [[{link}]]",
-                                 "path": str(page.relative_to(vault))})
+            if (
+                not target.exists()
+                and not target.with_suffix(".md").exists()
+                and not target_rel.exists()
+                and not target_rel.with_suffix(".md").exists()
+            ):
+                findings.append(
+                    {
+                        "code": "S004",
+                        "severity": "ERROR",
+                        "message": f"Broken link: [[{link}]]",
+                        "path": str(page.relative_to(vault)),
+                    }
+                )
 
     # S005: Excessive contradictions
     for page in wiki_pages:
         count = count_contradictions(page)
         if count >= 3:
-            findings.append({"code": "S005", "severity": "WARN",
-                             "message": f"{count} contradiction markers",
-                             "path": str(page.relative_to(vault))})
+            findings.append(
+                {
+                    "code": "S005",
+                    "severity": "WARN",
+                    "message": f"{count} contradiction markers",
+                    "path": str(page.relative_to(vault)),
+                }
+            )
 
     # S006: Stale pages
     cutoff = datetime.now() - timedelta(days=30)
@@ -169,9 +208,14 @@ def run_lint(vault: Path) -> list[dict]:
             try:
                 dt = datetime.fromisoformat(updated)
                 if dt < cutoff:
-                    findings.append({"code": "S006", "severity": "INFO",
-                                     "message": f"Not updated since {updated}",
-                                     "path": str(page.relative_to(vault))})
+                    findings.append(
+                        {
+                            "code": "S006",
+                            "severity": "INFO",
+                            "message": f"Not updated since {updated}",
+                            "path": str(page.relative_to(vault)),
+                        }
+                    )
             except ValueError:
                 pass
 
@@ -192,7 +236,12 @@ def main():
         findings = [f for f in findings if f["severity"] == "ERROR"]
 
     if args.json:
-        json.dump({"findings": findings, "total": len(findings)}, sys.stdout, ensure_ascii=False, indent=2)
+        json.dump(
+            {"findings": findings, "total": len(findings)},
+            sys.stdout,
+            ensure_ascii=False,
+            indent=2,
+        )
         print()
         return
 
@@ -205,7 +254,9 @@ def main():
         return
 
     print("🔍 Snowiki Lint Report\n")
-    for f in sorted(findings, key=lambda x: ["ERROR", "WARN", "INFO"].index(x["severity"])):
+    for f in sorted(
+        findings, key=lambda x: ["ERROR", "WARN", "INFO"].index(x["severity"])
+    ):
         sev = {"ERROR": "❌", "WARN": "⚠️", "INFO": "ℹ️"}[f["severity"]]
         print(f"  {f['code']} {sev}  {f['message']}")
         if f.get("path"):

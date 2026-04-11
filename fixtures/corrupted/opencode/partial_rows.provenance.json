@@ -1,0 +1,10 @@
+{
+  "fixture_id": "corrupt_opencode_partial_rows",
+  "family": "opencode_sqlite",
+  "description": "Corrupted fixture: partial_rows",
+  "created": "2024-04-01T10:00:00Z",
+  "updated": "2024-04-01T10:00:00Z",
+  "sources": [
+    "synthetic"
+  ]
+}

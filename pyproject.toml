@@ -1,0 +1,82 @@
+[build-system]
+requires = ["uv_build>=0.11.3,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "snowiki"
+version = "0.1.0"
+description = "Snowiki V2 CLI-first operational surface"
+requires-python = ">=3.14"
+dependencies = [
+  "click>=8.1",
+  "pydantic>=2",
+  "kiwipiepy>=0.21.0",
+  "bm25s>=0.2.0",
+  "numpy>=1.24.0",
+]
+
+[project.scripts]
+snowiki = "snowiki.cli.main:app"
+
+[dependency-groups]
+dev = [
+  "pre-commit>=4.3.0",
+  "pytest>=8.4.2",
+  "pytest-cov>=7.0.0",
+  "ruff>=0.14.0",
+  "ty>=0.0.29",
+]
+
+[tool.uv]
+package = true
+
+[tool.uv.workspace]
+members = []
+
+[tool.uv.build-backend]
+module-name = "snowiki"
+module-root = ""
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+src = ["snowiki", "tests"]
+extend-exclude = [
+  ".venv",
+  ".pytest_cache",
+  ".ruff_cache",
+  "compiled",
+  "dist",
+  "index",
+  "raw",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ty]
+
+[tool.ty.environment]
+python-version = "3.14"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --cov=snowiki --cov-report=term-missing --cov-report=xml"
+pythonpath = [".", "snowiki"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["snowiki"]
+omit = [
+  "tests/*",
+  "snowiki/__main__.py",
+]

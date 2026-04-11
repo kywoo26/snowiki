@@ -1,0 +1,2 @@
+{"type": "system", "subtype": "fixture_provenance", "timestamp": "2026-04-08T12:30:00Z", "sessionId": "claude-corrupt-missing-fields", "fixture": {"fixture_id": "corrupt_claude_missing_fields", "family": "claude_jsonl", "created": "2026-04-08", "updated": "2026-04-08", "sources": ["synthetic://snowiki-v2/contracts/missing-fields"], "description": "Claude fixture with intentionally missing required fields.", "sensitivity": "normal"}}
+{"type": "message", "session_id": "claude-corrupt-missing-fields", "message_id": "bad-msg-1"}

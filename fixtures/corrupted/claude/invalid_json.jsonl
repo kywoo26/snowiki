@@ -1,0 +1,3 @@
+{"type": "system", "subtype": "fixture_provenance", "timestamp": "2026-04-08T12:31:00Z", "sessionId": "claude-corrupt-invalid-json", "fixture": {"fixture_id": "corrupt_claude_invalid_json", "family": "claude_jsonl", "created": "2026-04-08", "updated": "2026-04-08", "sources": ["synthetic://snowiki-v2/contracts/invalid-json"], "description": "Claude fixture with an intentionally broken JSON line.", "sensitivity": "normal"}}
+{"type": "session", "session_id": "claude-corrupt-invalid-json", "started_at": "2026-04-08T12:31:05Z"}
+{"type":"message","text":"This line is intentionally broken"

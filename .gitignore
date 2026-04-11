@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Coverage & Test artifacts
+.coverage
+.coverage.*
+.hypothesis/
+.mypy_cache/
+.nox/
+.pytest_cache/
+.ruff_cache/
+.tox/
+htmlcov/
+coverage.xml
+pip-wheel-metadata/
+site/
+
+# Virtual environments
+.venv/
+
+# uv
+.uv/
+# Keep uv.lock committed for this application project.
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Project-specific generated data
+raw/
+normalized/
+compiled/
+index/
+quarantine/
+
+# Reports
+reports/
+
+# Environment
+.env
+.env.local
+
+# Session management (OMO/Sisyphus)
+.sisyphus/*
+!.sisyphus/rules/
+STATUS.md
