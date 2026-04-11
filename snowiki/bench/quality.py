@@ -1,3 +1,9 @@
+"""Quality metrics and threshold evaluation for benchmark runs.
+
+This module computes retrieval quality scores, assembles per-query summaries,
+and evaluates benchmark thresholds for phase 1 reporting.
+"""
+
 from __future__ import annotations
 
 import math
@@ -8,6 +14,16 @@ from .contract import MetricThreshold, ReportEntry
 
 
 def recall_at_k(relevant_ids: set[str], ranked_ids: list[str], k: int) -> float:
+    """Compute recall@k for a single query.
+
+    Args:
+        relevant_ids: Relevant document IDs as a set of strings.
+        ranked_ids: Ranked result IDs in descending score order.
+        k: Cutoff rank as an integer.
+
+    Returns:
+        The recall@k score as a float in the range [0.0, 1.0].
+    """
     if not relevant_ids or k <= 0:
         return 0.0
     hits = len(relevant_ids.intersection(ranked_ids[:k]))
@@ -15,6 +31,15 @@ def recall_at_k(relevant_ids: set[str], ranked_ids: list[str], k: int) -> float:
 
 
 def reciprocal_rank(relevant_ids: set[str], ranked_ids: list[str]) -> float:
+    """Compute reciprocal rank for a ranked result list.
+
+    Args:
+        relevant_ids: Relevant document IDs as a set of strings.
+        ranked_ids: Ranked result IDs in descending score order.
+
+    Returns:
+        The reciprocal rank as a float in the range [0.0, 1.0].
+    """
     for index, item in enumerate(ranked_ids, start=1):
         if item in relevant_ids:
             return 1.0 / index
@@ -22,6 +47,16 @@ def reciprocal_rank(relevant_ids: set[str], ranked_ids: list[str]) -> float:
 
 
 def ndcg_at_k(relevant_ids: set[str], ranked_ids: list[str], k: int) -> float:
+    """Compute normalized discounted cumulative gain at k.
+
+    Args:
+        relevant_ids: Relevant document IDs as a set of strings.
+        ranked_ids: Ranked result IDs in descending score order.
+        k: Cutoff rank as an integer.
+
+    Returns:
+        The nDCG@k score as a float in the range [0.0, 1.0].
+    """
     if not relevant_ids or k <= 0:
         return 0.0
     discounted_gain = 0.0
@@ -41,6 +76,17 @@ def ndcg_at_k(relevant_ids: set[str], ranked_ids: list[str], k: int) -> float:
 
 @dataclass(frozen=True)
 class QueryQualityResult:
+    """Per-query quality metrics for a benchmark evaluation.
+
+    Attributes:
+        query_id: Query identifier as a string.
+        ranked_ids: Ranked result IDs truncated to the evaluation cutoff.
+        relevant_ids: Sorted relevant IDs recorded for the query.
+        recall_at_k: Recall@k score as a float.
+        reciprocal_rank: Reciprocal rank as a float.
+        ndcg_at_k: nDCG@k score as a float.
+    """
+
     query_id: str
     ranked_ids: tuple[str, ...]
     relevant_ids: tuple[str, ...]
@@ -49,11 +95,28 @@ class QueryQualityResult:
     ndcg_at_k: float
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the result to a JSON-friendly dictionary.
+
+        Returns:
+            A dictionary containing the query ID, ranked IDs, relevant IDs,
+            and metric values.
+        """
         return asdict(self)
 
 
 @dataclass(frozen=True)
 class QualitySummary:
+    """Aggregate quality metrics across evaluated queries.
+
+    Attributes:
+        queries_evaluated: Number of queries included in the summary.
+        top_k: Evaluation cutoff used for ranked results.
+        recall_at_k: Mean recall@k across queries.
+        mrr: Mean reciprocal rank across queries.
+        ndcg_at_k: Mean nDCG@k across queries.
+        per_query: Per-query metric details.
+    """
+
     queries_evaluated: int
     top_k: int
     recall_at_k: float
@@ -62,6 +125,12 @@ class QualitySummary:
     per_query: tuple[QueryQualityResult, ...]
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the summary to a JSON-friendly dictionary.
+
+        Returns:
+            A dictionary representation with ``per_query`` converted to a list
+            of dictionaries.
+        """
         payload = asdict(self)
         payload["per_query"] = [item.to_dict() for item in self.per_query]
         return payload
@@ -69,12 +138,27 @@ class QualitySummary:
 
 @dataclass(frozen=True)
 class SlicedQualitySummary:
+    """Quality summary broken down by query group and query kind.
+
+    Attributes:
+        overall: Overall quality summary across all evaluated queries.
+        by_group: Quality summaries keyed by query group.
+        by_kind: Quality summaries keyed by query kind.
+        threshold_report: Threshold evaluation entries for the slice.
+    """
+
     overall: QualitySummary
     by_group: dict[str, QualitySummary]
     by_kind: dict[str, QualitySummary]
     threshold_report: tuple[ReportEntry, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the sliced summary to a JSON-friendly dictionary.
+
+        Returns:
+            A dictionary with the overall summary, grouped slices, and
+            threshold entries.
+        """
         return {
             "overall": self.overall.to_dict(),
             "slices": {
@@ -130,6 +214,20 @@ def evaluate_sliced_quality(
     group_labels: tuple[str, ...] = ("ko", "en", "mixed"),
     kind_labels: tuple[str, ...] = ("known-item", "topical", "temporal"),
 ) -> SlicedQualitySummary:
+    """Evaluate retrieval quality overall and by query slice.
+
+    Args:
+        ranked_results: Mapping of query ID to ranked result IDs.
+        judgments: Mapping of query ID to relevant IDs.
+        query_groups: Mapping of query ID to group label.
+        query_kinds: Mapping of query ID to kind label.
+        top_k: Cutoff rank used for all quality metrics.
+        group_labels: Preferred ordering for query groups.
+        kind_labels: Preferred ordering for query kinds.
+
+    Returns:
+        A sliced quality summary containing overall, group, and kind results.
+    """
     query_ids = [
         query_id
         for query_id in judgments
@@ -208,6 +306,16 @@ def evaluate_quality_thresholds(
     overall_thresholds: list[MetricThreshold],
     slice_thresholds: dict[str, list[MetricThreshold]],
 ) -> tuple[ReportEntry, ...]:
+    """Evaluate configured quality thresholds for a sliced summary.
+
+    Args:
+        summary: The sliced quality summary to evaluate.
+        overall_thresholds: Thresholds applied to the overall summary.
+        slice_thresholds: Thresholds applied to per-kind slices.
+
+    Returns:
+        Threshold report entries for all supported metrics.
+    """
     report: list[ReportEntry] = []
     allowed_metrics = {"recall_at_k", "mrr", "ndcg_at_k"}
 
@@ -244,6 +352,16 @@ def evaluate_quality(
     *,
     top_k: int,
 ) -> QualitySummary:
+    """Evaluate retrieval quality for all judged queries.
+
+    Args:
+        ranked_results: Mapping of query ID to ranked result IDs.
+        judgments: Mapping of query ID to relevant IDs.
+        top_k: Cutoff rank used for all quality metrics.
+
+    Returns:
+        An aggregate quality summary with per-query details.
+    """
     per_query: list[QueryQualityResult] = []
     recall_total = 0.0
     reciprocal_rank_total = 0.0

@@ -1,3 +1,9 @@
+"""Phase 1 latency benchmarking helpers.
+
+This module measures ingest, rebuild, and query latency using the canonical
+benchmark corpus and configured phase 1 presets.
+"""
+
 from __future__ import annotations
 
 import json
@@ -24,6 +30,13 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class FixtureSpec(TypedDict):
+    """Specification for a benchmark fixture used in latency runs.
+
+    Attributes:
+        source: Source system label for the fixture.
+        path: Filesystem path to the fixture file.
+    """
+
     source: str
     path: Path
 
@@ -100,6 +113,16 @@ def run_phase1_latency_evaluation(
     *,
     preset: BenchmarkPreset,
 ) -> dict[str, object]:
+    """Measure phase 1 latency for ingest, rebuild, and query flows.
+
+    Args:
+        root: Workspace root as a filesystem path.
+        preset: Benchmark preset controlling query selection and top-k.
+
+    Returns:
+        A JSON-serializable dictionary containing corpus, protocol, and
+        performance measurements.
+    """
     fixtures = _canonical_fixtures()
     queries = _load_queries_for_preset(preset)
     temp_parent = root.parent if root.parent.exists() else None
