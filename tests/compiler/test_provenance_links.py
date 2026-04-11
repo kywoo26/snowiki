@@ -1,17 +1,9 @@
 from __future__ import annotations
 
-import importlib
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-CompilerEngine = importlib.import_module("snowiki.compiler.engine").CompilerEngine
-NormalizedStorage = importlib.import_module(
-    "snowiki.storage.normalized"
-).NormalizedStorage
+from snowiki.compiler.engine import CompilerEngine
+from snowiki.storage.normalized import NormalizedStorage
 
 
 def test_compiled_pages_preserve_provenance_backlinks(tmp_path: Path) -> None:

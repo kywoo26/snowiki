@@ -65,7 +65,11 @@ def safe_connect_sqlite(path: Path | None = None) -> tuple[Path, sqlite3.Connect
             db_path, "OpenCode database path does not exist"
         )
     connection = connect_sqlite(db_path)
-    ensure_required_tables(connection, db_path)
+    try:
+        ensure_required_tables(connection, db_path)
+    except Exception:
+        connection.close()
+        raise
     return db_path, connection
 
 

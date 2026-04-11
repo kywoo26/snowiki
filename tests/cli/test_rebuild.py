@@ -6,12 +6,12 @@ from pathlib import Path
 from click.testing import CliRunner
 from snowiki.cli.main import app
 
-ROOT = Path(__file__).resolve().parents[2]
 
-
-def test_rebuild_generates_compiled_outputs_and_index_manifest(tmp_path: Path) -> None:
+def test_rebuild_generates_compiled_outputs_and_index_manifest(
+    tmp_path: Path, claude_basic_fixture: Path
+) -> None:
     runner = CliRunner()
-    fixture = ROOT / "fixtures" / "claude" / "basic.jsonl"
+    fixture = claude_basic_fixture
     ingest = runner.invoke(
         app,
         ["ingest", str(fixture), "--source", "claude", "--output", "json"],

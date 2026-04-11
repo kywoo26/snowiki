@@ -1,24 +1,25 @@
 from __future__ import annotations
 
 import socket
-import sys
 import time
 from pathlib import Path
 from threading import Thread
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+import pytest
 
-from snowiki.daemon.fallback import (  # noqa: E402
-    DaemonUnavailableError,
-    daemon_request,
-    execute_with_fallback,
-)
-from snowiki.daemon.server import SnowikiDaemon  # noqa: E402
+
+@pytest.fixture(autouse=True)
+def _add_repo_root_to_sys_path(repo_root: Path) -> None:
+    import sys
+
+    root = str(repo_root)
+    if root not in sys.path:
+        sys.path.insert(0, root)
 
 
 def test_execute_with_fallback_uses_fallback_when_daemon_is_unavailable() -> None:
+    from snowiki.daemon.fallback import DaemonUnavailableError, execute_with_fallback
+
     def daemon_call() -> object:
         raise DaemonUnavailableError("connection refused")
 
@@ -34,6 +35,8 @@ def test_execute_with_fallback_uses_fallback_when_daemon_is_unavailable() -> Non
 
 
 def test_execute_with_fallback_prefers_daemon_result_when_available() -> None:
+    from snowiki.daemon.fallback import execute_with_fallback
+
     result = execute_with_fallback(
         lambda: {"answer": "daemon-result"},
         lambda: {"answer": "local-cli-result"},
@@ -46,6 +49,9 @@ def test_execute_with_fallback_prefers_daemon_result_when_available() -> None:
 
 
 def test_health_endpoint_reports_ok_when_daemon_is_running(tmp_path: Path) -> None:
+    from snowiki.daemon.fallback import daemon_request
+    from snowiki.daemon.server import SnowikiDaemon
+
     port = _reserve_port()
     daemon = SnowikiDaemon(tmp_path, host="127.0.0.1", port=port)
     thread = Thread(target=daemon.serve_forever, daemon=True)
@@ -77,6 +83,8 @@ def _reserve_port() -> int:
 
 
 def _wait_for_health(port: int) -> dict[str, object]:
+    from snowiki.daemon.fallback import DaemonUnavailableError, daemon_request
+
     deadline = time.monotonic() + 5.0
     while time.monotonic() < deadline:
         try:

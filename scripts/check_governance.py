@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import cast
 
 import click
+from snowiki.config import get_repo_root
 
 INHERITANCE_MARKER = (
     "Root `AGENTS.md` is inherited; this file defines local deltas only."
@@ -185,8 +186,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     _ = parser.add_argument(
         "--root",
         type=Path,
-        default=Path.cwd(),
-        help="repository root to inspect (defaults to current working directory)",
+        default=get_repo_root(),
+        help="repository root to inspect (defaults to the repository root)",
     )
     mode = parser.add_mutually_exclusive_group()
     _ = mode.add_argument(

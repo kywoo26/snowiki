@@ -30,8 +30,8 @@ class GovernanceModule(Protocol):
     def main(self, argv: list[str]) -> int: ...
 
 
-def _load_module() -> GovernanceModule:
-    module_path = Path(__file__).resolve().parents[2] / "scripts/check_governance.py"
+def _load_module(repo_root: Path) -> GovernanceModule:
+    module_path = repo_root / "scripts/check_governance.py"
     spec = importlib.util.spec_from_file_location("check_governance", module_path)
     assert spec is not None
     assert spec.loader is not None
@@ -47,8 +47,7 @@ def _write(tmp_path: Path, relative_path: str, content: str) -> None:
     _ = path.write_text(content, encoding="utf-8")
 
 
-def _seed_valid_repo(tmp_path: Path) -> None:
-    module = _load_module()
+def _seed_valid_repo(tmp_path: Path, module: GovernanceModule) -> None:
     root_agents = """# Root Governance
 
 ## Commands
@@ -69,9 +68,12 @@ uv run pytest
     _write(tmp_path, "skill/SKILL.md", "# Skill\n")
 
 
-def test_collect_findings_is_clean_for_valid_repo(tmp_path: Path) -> None:
-    module = _load_module()
-    _seed_valid_repo(tmp_path)
+def test_collect_findings_is_clean_for_valid_repo(
+    tmp_path: Path,
+    repo_root: Path,
+) -> None:
+    module = _load_module(repo_root)
+    _seed_valid_repo(tmp_path, module)
 
     findings = module.collect_findings(tmp_path)
 
@@ -83,9 +85,12 @@ def test_collect_findings_is_clean_for_valid_repo(tmp_path: Path) -> None:
     ]
 
 
-def test_collect_findings_reports_missing_and_drift_cases(tmp_path: Path) -> None:
-    module = _load_module()
-    _seed_valid_repo(tmp_path)
+def test_collect_findings_reports_missing_and_drift_cases(
+    tmp_path: Path,
+    repo_root: Path,
+) -> None:
+    module = _load_module(repo_root)
+    _seed_valid_repo(tmp_path, module)
 
     _write(
         tmp_path,
@@ -109,10 +114,11 @@ def test_collect_findings_reports_missing_and_drift_cases(tmp_path: Path) -> Non
 
 def test_main_is_advisory_by_default_and_blocking_in_strict_mode(
     tmp_path: Path,
+    repo_root: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    module = _load_module()
-    _seed_valid_repo(tmp_path)
+    module = _load_module(repo_root)
+    _seed_valid_repo(tmp_path, module)
     (tmp_path / "benchmarks/README.md").unlink()
 
     report_exit_code = module.main(["--report", "--root", str(tmp_path)])
@@ -130,10 +136,11 @@ def test_main_is_advisory_by_default_and_blocking_in_strict_mode(
 
 def test_main_uses_click_echo_for_output(
     tmp_path: Path,
+    repo_root: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _load_module()
-    _seed_valid_repo(tmp_path)
+    module = _load_module(repo_root)
+    _seed_valid_repo(tmp_path, module)
 
     emitted: list[str] = []
 

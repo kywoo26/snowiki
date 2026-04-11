@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import importlib
 import json
-import sys
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import cast
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+import pytest
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
 
 
 BENCHMARK_DOC_PATHS = {
@@ -56,8 +58,8 @@ SUPPORTED_BENCHMARK_QUERY_IDS = frozenset(
 )
 
 
-def _read_json(path: str) -> object:
-    data = json.loads((ROOT / path).read_text(encoding="utf-8"))
+def _read_json(path: Path) -> object:
+    data = json.loads(path.read_text(encoding="utf-8"))
     return data
 
 
@@ -75,9 +77,47 @@ def load_search_api():
     return importlib.import_module("snowiki.search")
 
 
+@pytest.fixture(scope="session")
+def search_api_module():
+    return load_search_api()
+
+
+@pytest.fixture(scope="session")
+def benchmark_queries_data(benchmark_queries_path: Path) -> list[dict[str, object]]:
+    return benchmark_queries_from_path(benchmark_queries_path)
+
+
+@pytest.fixture(scope="session")
+def benchmark_judgments_data(benchmark_judgments_path: Path) -> dict[str, list[str]]:
+    return benchmark_judgments_from_path(benchmark_judgments_path)
+
+
+@pytest.fixture(scope="session")
+def normalized_records_data() -> tuple[dict[str, object], ...]:
+    return normalized_records()
+
+
+@pytest.fixture(scope="session")
+def compiled_pages_data() -> tuple[dict[str, object], ...]:
+    return compiled_pages()
+
+
+@pytest.fixture(scope="session")
+def blended_index_data(search_api_module, normalized_records_data, compiled_pages_data):
+    search = search_api_module
+    lexical_index = search.build_lexical_index(normalized_records_data)
+    wiki_index = search.build_wiki_index(compiled_pages_data)
+    return search.build_blended_index(lexical_index.documents, wiki_index.documents)
+
+
 @lru_cache(maxsize=1)
 def benchmark_queries() -> list[dict[str, object]]:
-    data = _read_json("benchmarks/queries.json")
+    return benchmark_queries_from_path(_repo_root() / "benchmarks" / "queries.json")
+
+
+@lru_cache(maxsize=1)
+def benchmark_queries_from_path(path: Path) -> list[dict[str, object]]:
+    data = _read_json(path)
     if isinstance(data, dict):
         data_map = {str(key): value for key, value in data.items()}
         rows_data = data_map.get("queries")
@@ -95,10 +135,16 @@ def benchmark_queries() -> list[dict[str, object]]:
 
 @lru_cache(maxsize=1)
 def benchmark_judgments() -> dict[str, list[str]]:
-    rows = _read_json("benchmarks/judgments.json")
+    return benchmark_judgments_from_path(_repo_root() / "benchmarks" / "judgments.json")
+
+
+@lru_cache(maxsize=1)
+def benchmark_judgments_from_path(path: Path) -> dict[str, list[str]]:
+    rows = _read_json(path)
     if isinstance(rows, dict):
         rows_map = {str(key): value for key, value in rows.items()}
-        judgments = rows_map.get("judgments")
+        judgments_data = rows_map.get("judgments")
+        judgments = cast(dict[str, list[str]], judgments_data)
         assert isinstance(judgments, dict)
         normalized: dict[str, list[str]] = {}
         for query_id, paths in judgments.items():

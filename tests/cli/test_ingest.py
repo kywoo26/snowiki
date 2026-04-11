@@ -6,17 +6,17 @@ from pathlib import Path
 from click.testing import CliRunner
 from snowiki.cli.main import app
 
-ROOT = Path(__file__).resolve().parents[2]
 
-
-def test_ingest_claude_writes_raw_and_normalized_records(tmp_path: Path) -> None:
+def test_ingest_claude_writes_raw_and_normalized_records(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+) -> None:
     runner = CliRunner()
-    fixture = ROOT / "fixtures" / "claude" / "basic.jsonl"
     result = runner.invoke(
         app,
         [
             "ingest",
-            str(fixture),
+            str(claude_basic_fixture),
             "--source",
             "claude",
             "--output",

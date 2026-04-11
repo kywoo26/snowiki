@@ -70,7 +70,6 @@ python-version = "3.14"
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra --cov=snowiki --cov-report=term-missing --cov-report=xml"
-pythonpath = [".", "snowiki"]
 testpaths = ["tests"]
 
 [tool.coverage.run]
