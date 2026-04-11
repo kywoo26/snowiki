@@ -59,7 +59,7 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
     monkeypatch.setattr(
         _REPORT,
         "run_baseline_comparison",
-        lambda root, preset, semantic_slots: {
+        lambda root, preset: {
             "preset": {
                 "name": "retrieval",
                 "description": "Known-item and topical retrieval benchmark coverage.",
@@ -74,7 +74,6 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
                 "blended_documents": 16,
                 "queries_evaluated": 18,
             },
-            "semantic_slots": {"enabled": False, "version": "v2.1", "mode": "stub"},
             "baselines": {
                 "bm25s": {
                     "quality": {
@@ -92,7 +91,6 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
                     }
                 }
             },
-            "token_reduction": {},
         },
     )
 
@@ -123,6 +121,9 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
     ]
     assert report["structural"]["warning_count"] == 1
     assert report["structural"]["error_count"] == 0
+    assert "semantic_slots" not in report
+    assert "semantic_slots" not in retrieval
+    assert "token_reduction" not in retrieval
     assert performance_thresholds[-1] == {
         "gate": "query",
         "metric": "p95_ms",
@@ -198,10 +199,9 @@ def test_generate_report_structural_failures_block_before_thresholds(
     monkeypatch.setattr(
         _REPORT,
         "run_baseline_comparison",
-        lambda root, preset, semantic_slots: {
+        lambda root, preset: {
             "preset": {},
             "corpus": {},
-            "semantic_slots": {"enabled": False, "version": "v2.1", "mode": "stub"},
             "baselines": {
                 "bm25s": {
                     "quality": {
@@ -219,11 +219,14 @@ def test_generate_report_structural_failures_block_before_thresholds(
                     }
                 }
             },
-            "token_reduction": {},
         },
     )
 
     report = cast(dict[str, Any], generate_report(tmp_path, preset_name="retrieval"))
+
+    assert "semantic_slots" not in report
+    assert "semantic_slots" not in cast(dict[str, Any], report["retrieval"])
+    assert "token_reduction" not in cast(dict[str, Any], report["retrieval"])
 
     assert report["benchmark_verdict"] == {
         "verdict": "FAIL",
