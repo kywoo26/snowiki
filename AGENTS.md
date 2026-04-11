@@ -10,8 +10,8 @@ uv sync --group dev
 uv run pre-commit install
 
 # Quality Control
-uv run ruff check snowiki tests
-uv run ruff format snowiki tests
+uv run ruff check src/snowiki tests
+uv run ruff format src/snowiki tests
 uv run ty check
 
 # Testing
@@ -22,7 +22,7 @@ uv run pytest tests/cli/test_query.py -v
 uv run pytest --durations=10
 
 # Verification
-uv run python -m compileall snowiki/
+uv run python -m compileall src/snowiki/
 uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 ```
 
@@ -66,11 +66,11 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 
 | Scope | Verification Command |
 | :--- | :--- |
-| **Docs Only** | `uv run ruff check snowiki tests` |
-| **CLI / Help** | `uv run snowiki --help && uv run ruff check snowiki tests && uv run ty check` |
-| **Search / Compiler** | `uv run python -m compileall snowiki/ && uv run pytest tests/cli/test_query.py` |
-| **Storage / Schema / Config** | `uv run pytest && uv run ty check && uv run ruff check snowiki tests` |
-| **Tests / Fixtures** | `uv run pytest && uv run ruff check snowiki tests` |
+| **Docs Only** | `uv run ruff check src/snowiki tests` |
+| **CLI / Help** | `uv run snowiki --help && uv run ruff check src/snowiki tests && uv run ty check` |
+| **Search / Compiler** | `uv run python -m compileall src/snowiki/ && uv run pytest tests/cli/test_query.py` |
+| **Storage / Schema / Config** | `uv run pytest && uv run ty check && uv run ruff check src/snowiki tests` |
+| **Tests / Fixtures** | `uv run pytest && uv run ruff check src/snowiki tests` |
 | **PR Preflight** | `uv run pytest && uv run pytest -m integration && uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml` |
 | **Coverage Check** | `uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml` |
 | **Integration Check** | `uv run pytest -m integration` |
@@ -81,7 +81,7 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 
 | Path | Role | Governance Owner |
 | :--- | :--- | :--- |
-| `snowiki/` | Runtime code | Root `AGENTS.md` |
+| `src/snowiki/` | Runtime code | Root `AGENTS.md` |
 | `tests/` | Verification | Root `AGENTS.md` |
 | `scripts/` | Repo automation | Root `AGENTS.md` |
 | `benchmarks/` | Benchmark assets/reports/docs | `benchmarks/AGENTS.md` |
@@ -91,7 +91,7 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 
 ## Path Contract
 
-- Access to repository assets (benchmarks, fixtures) must flow through approved helpers in `snowiki/config.py` and `snowiki/storage/zones.py`.
+- Access to repository assets (benchmarks, fixtures) must flow through approved helpers in `src/snowiki/config.py` and `src/snowiki/storage/zones.py`.
 - Avoid direct repo-root derivations or raw `cwd` coupling in production code.
 
 ## PR Discipline

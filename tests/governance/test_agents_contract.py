@@ -53,10 +53,10 @@ def test_root_agents_contract_commands(repo_root):
     required_commands = [
         "uv sync --group dev",
         "uv run pre-commit install",
-        "uv run ruff check snowiki tests",
+        "uv run ruff check src/snowiki tests",
         "uv run ty check",
         "uv run pytest",
-        "uv run python -m compileall snowiki/",
+        "uv run python -m compileall src/snowiki/",
         "uv run snowiki benchmark",
     ]
 
@@ -68,7 +68,7 @@ def test_root_agents_contract_ownership(repo_root):
     content = (repo_root / "AGENTS.md").read_text()
 
     required_paths = [
-        "snowiki/",
+        "src/snowiki/",
         "tests/",
         "scripts/",
         "benchmarks/",
@@ -125,7 +125,7 @@ def test_child_agents_no_command_duplication(repo_root):
         sample_commands = [
             "uv sync --group dev",
             "uv run pre-commit install",
-            "uv run ruff check snowiki tests",
+            "uv run ruff check src/snowiki tests",
         ]
 
         for path in module.CHILD_AGENT_FILES:
