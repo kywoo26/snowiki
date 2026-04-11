@@ -426,6 +426,14 @@ def _store_opencode_session(
     }
 
 
+def run_ingest(path: Path, *, source: str, root: Path) -> dict[str, Any]:
+    return (
+        _store_claude_session(path, root=root)
+        if source == "claude"
+        else _store_opencode_session(path, root=root)
+    )
+
+
 @click.command("ingest")
 @click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option(
@@ -450,11 +458,7 @@ def command(path: Path, source: str, root: Path | None, output: str) -> None:
     root = root if root else get_snowiki_root()
     result: dict[str, Any] | None = None
     try:
-        result = (
-            _store_claude_session(path, root=root)
-            if source == "claude"
-            else _store_opencode_session(path, root=root)
-        )
+        result = run_ingest(path, source=source, root=root)
     except click.ClickException as exc:
         emit_error(
             str(exc),

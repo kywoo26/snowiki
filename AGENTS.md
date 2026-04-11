@@ -65,4 +65,4 @@ uv run python -m compileall snowiki/
 | **Search / Compiler** | `uv run python -m compileall snowiki/ && uv run pytest tests/cli/test_query.py` |
 | **Storage / Schema / Config** | `uv run pytest && uv run ty check && uv run ruff check snowiki tests` |
 | **Tests / Fixtures** | `uv run pytest && uv run ruff check snowiki tests` |
-| **Perf Sensitive** | `uv run snowiki benchmark --help` (See benchmarks/README.md) |
+| **Perf Sensitive** | `uv run snowiki benchmark --preset retrieval --output reports/retrieval.json` (See benchmarks/README.md) |
