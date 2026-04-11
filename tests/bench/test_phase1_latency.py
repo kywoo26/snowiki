@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+
 from snowiki.bench import phase1_latency
 from snowiki.bench.presets import get_preset
 

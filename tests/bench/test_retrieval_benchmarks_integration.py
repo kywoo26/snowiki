@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
 from importlib import import_module
 from pathlib import Path
 from typing import cast
@@ -11,21 +10,15 @@ import pytest
 pytestmark = pytest.mark.integration
 
 
-def _load_benchmark_modules(repo_root: Path):
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
+def _load_benchmark_modules():
     baselines = import_module("snowiki.bench.baselines")
     models = import_module("snowiki.bench.models")
     presets = import_module("snowiki.bench.presets")
     return baselines, models, presets
 
 
-def _load_retrieval_fixtures(repo_root: Path):
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
-    conftest_path = repo_root / "tests" / "retrieval" / "conftest.py"
+def _load_retrieval_fixtures():
+    conftest_path = Path(__file__).resolve().parent.parent / "retrieval" / "conftest.py"
     spec = importlib.util.spec_from_file_location("retrieval_conftest", conftest_path)
     assert spec is not None and spec.loader is not None
     retrieval_fixtures = importlib.util.module_from_spec(spec)
@@ -37,8 +30,8 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
     monkeypatch, benchmarks_dir: Path
 ) -> None:
     repo_root = benchmarks_dir.parent
-    baselines, models, presets = _load_benchmark_modules(repo_root)
-    retrieval_fixtures = _load_retrieval_fixtures(repo_root)
+    baselines, models, presets = _load_benchmark_modules()
+    retrieval_fixtures = _load_retrieval_fixtures()
 
     search = retrieval_fixtures.load_search_api()
     records = retrieval_fixtures.normalized_records()
@@ -111,7 +104,7 @@ def test_loaders_fail_fast_on_malformed_top_level_fixture_shapes(
     monkeypatch, benchmarks_dir: Path
 ) -> None:
     repo_root = benchmarks_dir.parent
-    baselines, _, _ = _load_benchmark_modules(repo_root)
+    baselines, _, _ = _load_benchmark_modules()
     monkeypatch.setattr(baselines, "_load_json", lambda path: {"queries": {"bad": []}})
 
     with pytest.raises(ValueError, match="queries"):
@@ -126,7 +119,7 @@ def test_loaders_fail_fast_on_malformed_top_level_fixture_shapes(
 def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring(
     repo_root: Path,
 ) -> None:
-    baselines, _, _ = _load_benchmark_modules(repo_root)
+    baselines, _, _ = _load_benchmark_modules()
     from snowiki.search.indexer import SearchDocument, SearchHit
 
     hits = [

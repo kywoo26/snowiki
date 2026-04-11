@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from snowiki.search.kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
 
 pytestmark = pytest.mark.integration

@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import sys
 from importlib import import_module
 from pathlib import Path
 from typing import Any
 
 
-def _load_quality_symbols(repo_root: Path) -> tuple[Any, Any]:
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
+def _load_quality_symbols() -> tuple[Any, Any]:
     quality = import_module("snowiki.bench.quality")
     contract = import_module("snowiki.bench.contract")
     return quality, contract
 
 
 def test_quality_metrics_compute_expected_scores(repo_root: Path) -> None:
-    quality, _ = _load_quality_symbols(repo_root)
+    quality, _ = _load_quality_symbols()
     recall_at_k = quality.recall_at_k
     reciprocal_rank = quality.reciprocal_rank
     ndcg_at_k = quality.ndcg_at_k
@@ -30,7 +26,7 @@ def test_quality_metrics_compute_expected_scores(repo_root: Path) -> None:
 
 
 def test_evaluate_quality_aggregates_query_results(repo_root: Path) -> None:
-    quality, _ = _load_quality_symbols(repo_root)
+    quality, _ = _load_quality_symbols()
     evaluate_quality = quality.evaluate_quality
 
     ranked_results = {
@@ -55,7 +51,7 @@ def test_evaluate_quality_aggregates_query_results(repo_root: Path) -> None:
 def test_evaluate_sliced_quality_emits_overall_and_slice_metrics(
     repo_root: Path,
 ) -> None:
-    quality, _ = _load_quality_symbols(repo_root)
+    quality, _ = _load_quality_symbols()
     evaluate_sliced_quality = quality.evaluate_sliced_quality
 
     ranked_results = {
@@ -93,7 +89,7 @@ def test_evaluate_sliced_quality_emits_overall_and_slice_metrics(
 def test_evaluate_quality_thresholds_marks_regressions_as_failures(
     repo_root: Path,
 ) -> None:
-    quality, contract = _load_quality_symbols(repo_root)
+    quality, contract = _load_quality_symbols()
     evaluate_sliced_quality = quality.evaluate_sliced_quality
     evaluate_quality_thresholds = quality.evaluate_quality_thresholds
     phase_1_thresholds = contract.PHASE_1_THRESHOLDS

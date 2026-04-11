@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from pathlib import Path
 
 from snowiki.storage.zones import StoragePaths
 
 DEFAULT_SNOWIKI_ROOT = Path("~/.snowiki")
 SNOWIKI_ROOT_ENV_VAR = "SNOWIKI_ROOT"
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _discover_repo_root(start: Path) -> Path:
+    """Best-effort repository root discovery for repo-owned assets."""
+
+    resolved_start = start.resolve()
+    for candidate in (resolved_start, *resolved_start.parents):
+        if (candidate / "pyproject.toml").is_file():
+            return candidate
+    return resolved_start
 
 
 def _prepare_root(root: Path) -> Path:
@@ -27,8 +37,9 @@ def resolve_snowiki_root(root: Path | None) -> Path:
     return _prepare_root(root)
 
 
+@lru_cache(maxsize=1)
 def get_repo_root() -> Path:
-    return _REPO_ROOT
+    return _discover_repo_root(Path(__file__).resolve().parent)
 
 
 def resolve_repo_asset_path(relative_path: str | Path) -> Path:

@@ -25,7 +25,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Ruff check
-        run: uv run ruff check snowiki/
+        run: uv run ruff check src/snowiki tests
 
       - name: Type check (ty)
         run: uv run ty check

@@ -17,10 +17,10 @@ def test_runtime_benchmark_modules_use_approved_repo_asset_helpers(
     repo_root,
 ) -> None:
     target_files = (
-        repo_root / "snowiki/bench/corpus.py",
-        repo_root / "snowiki/bench/baselines.py",
-        repo_root / "snowiki/bench/phase1_latency.py",
-        repo_root / "snowiki/bench/phase1_correctness.py",
+        repo_root / "src/snowiki/bench/corpus.py",
+        repo_root / "src/snowiki/bench/baselines.py",
+        repo_root / "src/snowiki/bench/phase1_latency.py",
+        repo_root / "src/snowiki/bench/phase1_correctness.py",
     )
 
     for path in target_files:

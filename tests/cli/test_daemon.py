@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+
 from snowiki.cli.commands import daemon as daemon_module
 
 

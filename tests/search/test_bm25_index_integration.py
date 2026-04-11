@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
 
 pytestmark = pytest.mark.integration

@@ -1,18 +1,8 @@
 from __future__ import annotations
 
 import importlib
-import sys
 from pathlib import Path
 from typing import Any
-
-import pytest
-
-
-@pytest.fixture(autouse=True)
-def _add_repo_root_to_sys_path(repo_root: Path) -> None:
-    root = str(repo_root)
-    if root not in sys.path:
-        sys.path.insert(0, root)
 
 
 def _load_snowiki_modules() -> tuple[Any, Any, Any, Any, Any]:

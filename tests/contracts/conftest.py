@@ -6,6 +6,7 @@ from typing import TypeVar
 
 import pytest
 from pydantic import BaseModel
+
 from snowiki.schema import (
     Artifact,
     Event,
