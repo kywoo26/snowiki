@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TypedDict
-
-ROOT = Path(__file__).resolve().parents[2]
 
 
 class SurfacePolicy(TypedDict):
@@ -49,9 +46,9 @@ NON_CANONICAL_STATUS_SURFACES = {
 }
 
 
-def test_governed_surfaces_exist_with_expected_owners() -> None:
+def test_governed_surfaces_exist_with_expected_owners(repo_root) -> None:
     for relative_path, policy in GOVERNED_SURFACES.items():
-        surface = ROOT / relative_path
+        surface = repo_root / relative_path
         assert surface.exists(), relative_path
         assert policy["owner"]
 
@@ -65,8 +62,8 @@ def test_governed_surface_policy_includes_child_owned_instruction_hotspots() -> 
     assert GOVERNED_SURFACES["skill"]["owner"] == "skill/AGENTS.md"
 
 
-def test_status_md_is_not_a_canonical_repo_surface() -> None:
-    assert not (ROOT / "STATUS.md").exists()
+def test_status_md_is_not_a_canonical_repo_surface(repo_root) -> None:
+    assert not (repo_root / "STATUS.md").exists()
 
     for relative_path in NON_CANONICAL_STATUS_SURFACES:
-        assert (ROOT / relative_path).exists(), relative_path
+        assert (repo_root / relative_path).exists(), relative_path

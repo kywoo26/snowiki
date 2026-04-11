@@ -11,8 +11,8 @@ class GovernanceModule(Protocol):
     CHILD_AGENT_FILES: tuple[Path, ...]
 
 
-def _load_module() -> GovernanceModule:
-    module_path = Path(__file__).resolve().parents[2] / "scripts/check_governance.py"
+def _load_module(repo_root: Path) -> GovernanceModule:
+    module_path = repo_root / "scripts/check_governance.py"
     spec = importlib.util.spec_from_file_location(
         "check_governance_agents", module_path
     )
@@ -24,12 +24,12 @@ def _load_module() -> GovernanceModule:
     return cast(GovernanceModule, cast(object, module))
 
 
-def test_root_agents_contract_exists():
-    assert Path("AGENTS.md").exists()
+def test_root_agents_contract_exists(repo_root):
+    assert (repo_root / "AGENTS.md").exists()
 
 
-def test_root_agents_contract_sections():
-    content = Path("AGENTS.md").read_text()
+def test_root_agents_contract_sections(repo_root):
+    content = (repo_root / "AGENTS.md").read_text()
 
     required_sections = [
         "## Commands",
@@ -47,8 +47,8 @@ def test_root_agents_contract_sections():
         assert section in content, f"Missing required section: {section}"
 
 
-def test_root_agents_contract_commands():
-    content = Path("AGENTS.md").read_text()
+def test_root_agents_contract_commands(repo_root):
+    content = (repo_root / "AGENTS.md").read_text()
 
     required_commands = [
         "uv sync --group dev",
@@ -64,8 +64,8 @@ def test_root_agents_contract_commands():
         assert command in content, f"Missing required command: {command}"
 
 
-def test_root_agents_contract_ownership():
-    content = Path("AGENTS.md").read_text()
+def test_root_agents_contract_ownership(repo_root):
+    content = (repo_root / "AGENTS.md").read_text()
 
     required_paths = [
         "snowiki/",
@@ -84,8 +84,8 @@ def test_root_agents_contract_ownership():
         assert path in ownership_section, f"Missing path in ownership table: {path}"
 
 
-def test_root_agents_contract_policies():
-    content = Path("AGENTS.md").read_text()
+def test_root_agents_contract_policies(repo_root):
+    content = (repo_root / "AGENTS.md").read_text()
 
     content_no_backticks = content.replace("`", "")
 
@@ -101,15 +101,15 @@ def test_root_agents_contract_policies():
         )
 
 
-def test_child_agents_exist():
-    module = _load_module()
+def test_child_agents_exist(repo_root):
+    module = _load_module(repo_root)
 
     for path in module.CHILD_AGENT_FILES:
         assert path.exists(), f"Missing child AGENTS file: {path.as_posix()}"
 
 
-def test_child_agents_inheritance_statement():
-    module = _load_module()
+def test_child_agents_inheritance_statement(repo_root):
+    module = _load_module(repo_root)
 
     for path in module.CHILD_AGENT_FILES:
         content = path.read_text()
@@ -118,9 +118,9 @@ def test_child_agents_inheritance_statement():
         )
 
 
-def test_child_agents_no_command_duplication():
-    module = _load_module()
-    root_content = Path("AGENTS.md").read_text()
+def test_child_agents_no_command_duplication(repo_root):
+    module = _load_module(repo_root)
+    root_content = (repo_root / "AGENTS.md").read_text()
     if "## Commands" in root_content:
         sample_commands = [
             "uv sync --group dev",
@@ -136,8 +136,8 @@ def test_child_agents_no_command_duplication():
                 )
 
 
-def test_child_agents_conciseness():
-    module = _load_module()
+def test_child_agents_conciseness(repo_root):
+    module = _load_module(repo_root)
 
     for path in module.CHILD_AGENT_FILES:
         lines = path.read_text().splitlines()
