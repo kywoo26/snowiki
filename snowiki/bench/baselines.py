@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, cast
 
 from snowiki.cli.commands.query import build_search_index, load_normalized_records
 from snowiki.compiler.engine import CompilerEngine
@@ -15,15 +16,74 @@ from snowiki.search.indexer import InvertedIndex, SearchDocument, SearchHit
 
 from .contract import PHASE_1_THRESHOLDS
 from .corpus import CANONICAL_BENCHMARK_FIXTURE_PATHS
-from .latency import measure_latency
+from .latency import LatencySummary, measure_latency
+from .models import (
+    PAGE_LIST_ADAPTER,
+    RECORD_LIST_ADAPTER,
+    BaselineResult,
+    BenchmarkHit,
+    BenchmarkReport,
+    CorpusSummary,
+    LatencyMetrics,
+    PageModel,
+    PerQueryQuality,
+    PresetSummary,
+    QualityMetrics,
+    QualityReport,
+    QualitySlices,
+    QueryResult,
+    RecordModel,
+    ThresholdResult,
+)
 from .presets import BenchmarkPreset
 from .quality import (
+    QualitySummary,
     SlicedQualitySummary,
     evaluate_quality_thresholds,
     evaluate_sliced_quality,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+class _Bm25DocumentLike(Protocol):
+    @property
+    def id(self) -> str: ...
+
+    @property
+    def path(self) -> str: ...
+
+    @property
+    def kind(self) -> str: ...
+
+    @property
+    def title(self) -> str: ...
+
+    @property
+    def content(self) -> str: ...
+
+    @property
+    def summary(self) -> str: ...
+
+    @property
+    def aliases(self) -> tuple[str, ...]: ...
+
+    @property
+    def recorded_at(self) -> datetime | None: ...
+
+    @property
+    def source_type(self) -> str: ...
+
+
+class _Bm25HitLike(Protocol):
+    @property
+    def document(self) -> _Bm25DocumentLike: ...
+
+    @property
+    def score(self) -> float: ...
+
+    @property
+    def matched_terms(self) -> tuple[str, ...]: ...
 
 
 @dataclass(frozen=True)
@@ -36,22 +96,44 @@ class BenchmarkQuery:
 
 @dataclass(frozen=True)
 class CorpusBundle:
-    records: tuple[dict[str, Any], ...]
-    pages: tuple[dict[str, Any], ...]
+    records: tuple[RecordModel, ...]
+    pages: tuple[PageModel, ...]
     raw_index: InvertedIndex
     blended_index: InvertedIndex
 
 
-def _load_json(path: Path) -> dict[str, Any]:
+def _load_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _mapping_rows(payload: object, key: str) -> object:
+    if isinstance(payload, dict):
+        payload_map = cast(dict[str, object], payload)
+        return payload_map.get(key, payload)
+    return payload
+
+
+def _require_mapping_rows(rows: object, *, label: str) -> list[Mapping[str, object]]:
+    if not isinstance(rows, list):
+        raise ValueError(label)
+    if not all(isinstance(row, Mapping) for row in rows):
+        raise ValueError(label)
+    return [cast(Mapping[str, object], row) for row in rows]
+
+
+def _string_list(value: object, *, label: str) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError(label)
+    return [str(item) for item in value]
 
 
 def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
     del root
     payload = _load_json(_REPO_ROOT / "benchmarks" / "queries.json")
-    rows = payload.get("queries", payload)
-    if not isinstance(rows, list):
-        raise ValueError("benchmarks/queries.json must contain a 'queries' list")
+    rows = _require_mapping_rows(
+        _mapping_rows(payload, "queries"),
+        label="benchmarks/queries.json must contain a 'queries' list",
+    )
     return tuple(
         BenchmarkQuery(
             query_id=str(row["id"]),
@@ -66,13 +148,32 @@ def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
 def _load_judgments(root: Path) -> dict[str, list[str]]:
     del root
     payload = _load_json(_REPO_ROOT / "benchmarks" / "judgments.json")
-    rows = payload.get("judgments", payload)
-    if isinstance(rows, dict):
-        return {str(key): [str(item) for item in value] for key, value in rows.items()}
-    if isinstance(rows, list):
+    rows = _mapping_rows(payload, "judgments")
+    if isinstance(rows, Mapping):
         return {
-            str(row["query_id"]): [str(item) for item in row.get("relevant_paths", [])]
-            for row in rows
+            str(key): _string_list(
+                value,
+                label=(
+                    "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
+                ),
+            )
+            for key, value in rows.items()
+        }
+    if isinstance(rows, list):
+        mapping_rows = _require_mapping_rows(
+            rows,
+            label=(
+                "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
+            ),
+        )
+        return {
+            str(row["query_id"]): _string_list(
+                row.get("relevant_paths", []),
+                label=(
+                    "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
+                ),
+            )
+            for row in mapping_rows
         }
     raise ValueError(
         "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
@@ -83,7 +184,7 @@ def _page_body(sections: list[PageSection]) -> str:
     return "\n\n".join(f"{section.title}\n{section.body}" for section in sections)
 
 
-def _page_to_mapping(page: CompiledPage) -> dict[str, Any]:
+def _page_to_mapping(page: CompiledPage) -> dict[str, object]:
     return {
         "id": page.path,
         "path": page.path,
@@ -98,13 +199,19 @@ def _page_to_mapping(page: CompiledPage) -> dict[str, Any]:
 
 
 def _build_corpus(root: Path) -> CorpusBundle:
-    records = tuple(load_normalized_records(root))
+    records = tuple(RECORD_LIST_ADAPTER.validate_python(load_normalized_records(root)))
     pages = (
-        tuple(_page_to_mapping(page) for page in CompilerEngine(root).build_pages())
+        tuple(
+            PAGE_LIST_ADAPTER.validate_python(
+                [_page_to_mapping(page) for page in CompilerEngine(root).build_pages()]
+            )
+        )
         if records
         else ()
     )
-    raw = build_lexical_index(records).index
+    raw = build_lexical_index(
+        record.model_dump(mode="python") for record in records
+    ).index
     blended, _, _ = build_search_index(root)
     return CorpusBundle(
         records=records,
@@ -168,7 +275,7 @@ def _benchmark_fixture_digests() -> dict[str, str]:
     }
 
 
-def _record_fixture_lookup(records: tuple[dict[str, Any], ...]) -> dict[str, str]:
+def _record_fixture_lookup(records: tuple[RecordModel, ...]) -> dict[str, str]:
     fixture_sources = _benchmark_fixture_sources()
     fixture_digests = _benchmark_fixture_digests()
     relative_lookup = {
@@ -177,22 +284,19 @@ def _record_fixture_lookup(records: tuple[dict[str, Any], ...]) -> dict[str, str
     }
     lookup: dict[str, str] = {}
     for payload in records:
-        record_id = payload.get("id")
-        if not isinstance(record_id, str):
-            continue
-
+        record_id = payload.id
         fixture_id: str | None = None
-        path = payload.get("path")
-        if isinstance(path, str):
+        path = payload.path
+        if path is not None:
             fixture_id = relative_lookup.get(path)
 
-        metadata = payload.get("metadata")
-        if fixture_id is None and isinstance(metadata, dict):
+        metadata = payload.metadata
+        if fixture_id is None:
             source_path = metadata.get("source_path")
             if isinstance(source_path, str):
                 fixture_id = fixture_sources.get(Path(source_path).resolve().as_posix())
 
-        raw_ref = payload.get("raw_ref")
+        raw_ref = payload.raw_ref
         if fixture_id is None and isinstance(raw_ref, dict):
             sha256 = raw_ref.get("sha256")
             if isinstance(sha256, str):
@@ -206,21 +310,17 @@ def _record_fixture_lookup(records: tuple[dict[str, Any], ...]) -> dict[str, str
 
 
 def _page_fixture_lookup(
-    pages: tuple[dict[str, Any], ...], record_lookup: dict[str, str]
+    pages: tuple[PageModel, ...], record_lookup: dict[str, str]
 ) -> dict[str, str]:
     lookup: dict[str, str] = {}
     for page in pages:
-        page_path = page.get("path")
-        record_ids = page.get("record_ids")
-        if not isinstance(page_path, str) or not isinstance(record_ids, list):
-            continue
         fixture_ids = {
             record_lookup[record_id]
-            for record_id in record_ids
-            if isinstance(record_id, str) and record_id in record_lookup
+            for record_id in page.record_ids
+            if record_id in record_lookup
         }
         if len(fixture_ids) == 1:
-            lookup[page_path] = next(iter(fixture_ids))
+            lookup[page.path] = next(iter(fixture_ids))
     return lookup
 
 
@@ -320,7 +420,7 @@ def _evaluate_baseline(
     judgments: dict[str, list[str]],
     search_fn: Callable[[str], list[SearchHit]],
     hit_lookup: dict[str, str],
-) -> dict[str, Any]:
+) -> BaselineResult:
     ranked_results: dict[str, list[str]] = {}
     hits_by_query: dict[str, list[SearchHit]] = {}
 
@@ -345,29 +445,94 @@ def _evaluate_baseline(
         )
     )
 
-    return {
-        "name": name,
-        "latency": latency.to_dict(),
-        "quality": quality.to_dict(),
-        "queries": {
-            query_id: [
-                {
-                    "id": _hit_identifier(hit),
-                    "path": hit.document.path,
-                    "title": hit.document.title,
-                    "score": round(hit.score, 6),
-                }
-                for hit in hits
-            ]
-            for query_id, hits in hits_by_query.items()
-        },
-    }
+    return BaselineResult.model_construct(
+        name=name,
+        latency=_latency_metrics(latency),
+        quality=_quality_report(quality),
+        queries=[
+            _query_result(query_id, hits) for query_id, hits in hits_by_query.items()
+        ],
+    )
+
+
+def _latency_metrics(summary: LatencySummary) -> LatencyMetrics:
+    return LatencyMetrics.model_construct(
+        p50_ms=summary.p50_ms,
+        p95_ms=summary.p95_ms,
+        mean_ms=summary.mean_ms,
+        min_ms=summary.min_ms,
+        max_ms=summary.max_ms,
+    )
+
+
+def _quality_metrics(summary: QualitySummary) -> QualityMetrics:
+    return QualityMetrics.model_construct(
+        recall_at_k=summary.recall_at_k,
+        mrr=summary.mrr,
+        ndcg_at_k=summary.ndcg_at_k,
+        top_k=summary.top_k,
+        queries_evaluated=summary.queries_evaluated,
+        per_query=[
+            PerQueryQuality.model_construct(
+                query_id=item.query_id,
+                ranked_ids=list(item.ranked_ids),
+                relevant_ids=list(item.relevant_ids),
+                recall_at_k=item.recall_at_k,
+                reciprocal_rank=item.reciprocal_rank,
+                ndcg_at_k=item.ndcg_at_k,
+            )
+            for item in summary.per_query
+        ],
+    )
+
+
+def _quality_report(summary: SlicedQualitySummary) -> QualityReport:
+    return QualityReport.model_construct(
+        overall=_quality_metrics(summary.overall),
+        slices=QualitySlices.model_construct(
+            group={
+                name: _quality_metrics(metrics)
+                for name, metrics in summary.by_group.items()
+            },
+            kind={
+                name: _quality_metrics(metrics)
+                for name, metrics in summary.by_kind.items()
+            },
+        ),
+        thresholds=[
+            ThresholdResult.model_construct(
+                gate=entry.gate,
+                metric=entry.metric,
+                value=entry.value,
+                delta=entry.delta,
+                verdict=entry.verdict,
+                threshold=entry.threshold,
+                warnings=list(entry.warnings),
+            )
+            for entry in summary.threshold_report
+        ],
+    )
+
+
+def _query_result(query_id: str, hits: list[SearchHit]) -> QueryResult:
+    return QueryResult.model_construct(
+        query_id=query_id,
+        hits=[
+            BenchmarkHit.model_construct(
+                id=_hit_identifier(hit),
+                path=hit.document.path,
+                title=hit.document.title,
+                score=round(hit.score, 6),
+            )
+            for hit in hits
+        ],
+    )
 
 
 def run_baseline_comparison(
     root: Path,
     preset: BenchmarkPreset,
-) -> dict[str, Any]:
+) -> BenchmarkReport:
     corpus = _build_corpus(root)
     judgments = _load_judgments(root)
     queries = tuple(
@@ -381,7 +546,7 @@ def run_baseline_comparison(
     bm25_plain_index = _build_bm25_index(raw_documents, use_kiwi_tokenizer=False)
     bm25_kiwi_index = _build_bm25_index(raw_documents, use_kiwi_tokenizer=True)
 
-    results: dict[str, dict[str, Any]] = {}
+    results: dict[str, BaselineResult] = {}
     for baseline in preset.baselines:
         if baseline == "lexical":
             results[baseline] = _evaluate_baseline(
@@ -420,20 +585,20 @@ def run_baseline_comparison(
             continue
         raise ValueError(f"unsupported baseline: {baseline}")
 
-    return {
-        "preset": {
-            "name": preset.name,
-            "description": preset.description,
-            "query_kinds": list(preset.query_kinds),
-            "top_k": preset.top_k,
-            "baselines": list(preset.baselines),
-        },
-        "corpus": {
-            "records_indexed": len(corpus.records),
-            "pages_indexed": len(corpus.pages),
-            "raw_documents": corpus.raw_index.size,
-            "blended_documents": corpus.blended_index.size,
-            "queries_evaluated": len(queries),
-        },
-        "baselines": results,
-    }
+    return BenchmarkReport.model_construct(
+        preset=PresetSummary.model_construct(
+            name=preset.name,
+            description=preset.description,
+            query_kinds=list(preset.query_kinds),
+            top_k=preset.top_k,
+            baselines=list(preset.baselines),
+        ),
+        corpus=CorpusSummary.model_construct(
+            records_indexed=len(corpus.records),
+            pages_indexed=len(corpus.pages),
+            raw_documents=corpus.raw_index.size,
+            blended_documents=corpus.blended_index.size,
+            queries_evaluated=len(queries),
+        ),
+        baselines=results,
+    )

@@ -5,6 +5,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from snowiki.bench.models import BenchmarkReport
+
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -59,39 +61,59 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
     monkeypatch.setattr(
         _REPORT,
         "run_baseline_comparison",
-        lambda root, preset: {
-            "preset": {
-                "name": "retrieval",
-                "description": "Known-item and topical retrieval benchmark coverage.",
-                "query_kinds": ["known-item", "topical"],
-                "top_k": 5,
-                "baselines": ["lexical", "bm25s"],
-            },
-            "corpus": {
-                "records_indexed": 12,
-                "pages_indexed": 8,
-                "raw_documents": 14,
-                "blended_documents": 16,
-                "queries_evaluated": 18,
-            },
-            "baselines": {
-                "bm25s": {
-                    "quality": {
-                        "thresholds": [
-                            {
-                                "gate": "overall",
-                                "metric": "mrr",
-                                "value": 0.68,
-                                "delta": 0.02,
-                                "verdict": "FAIL",
-                                "threshold": 0.7,
-                                "warnings": [],
-                            }
-                        ]
+        lambda root, preset: BenchmarkReport.model_validate(
+            {
+                "preset": {
+                    "name": "retrieval",
+                    "description": "Known-item and topical retrieval benchmark coverage.",
+                    "query_kinds": ["known-item", "topical"],
+                    "top_k": 5,
+                    "baselines": ["lexical", "bm25s"],
+                },
+                "corpus": {
+                    "records_indexed": 12,
+                    "pages_indexed": 8,
+                    "raw_documents": 14,
+                    "blended_documents": 16,
+                    "queries_evaluated": 18,
+                },
+                "baselines": {
+                    "bm25s": {
+                        "name": "bm25s",
+                        "latency": {
+                            "p50_ms": 1.0,
+                            "p95_ms": 2.0,
+                            "mean_ms": 1.5,
+                            "min_ms": 1.0,
+                            "max_ms": 2.0,
+                        },
+                        "quality": {
+                            "overall": {
+                                "recall_at_k": 0.82,
+                                "mrr": 0.68,
+                                "ndcg_at_k": 0.75,
+                                "top_k": 5,
+                                "queries_evaluated": 18,
+                                "per_query": [],
+                            },
+                            "slices": {"group": {}, "kind": {}},
+                            "thresholds": [
+                                {
+                                    "gate": "overall",
+                                    "metric": "mrr",
+                                    "value": 0.68,
+                                    "delta": 0.02,
+                                    "verdict": "FAIL",
+                                    "threshold": 0.7,
+                                    "warnings": [],
+                                }
+                            ],
+                        },
+                        "queries": [],
                     }
-                }
-            },
-        },
+                },
+            }
+        ),
     )
 
     report = cast(dict[str, Any], generate_report(tmp_path, preset_name="retrieval"))

@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from statistics import fmean
 
 
 def percentile(values: list[float], value: float) -> float:
@@ -24,6 +25,9 @@ def percentile(values: list[float], value: float) -> float:
 class LatencySummary:
     p50_ms: float
     p95_ms: float
+    mean_ms: float
+    min_ms: float
+    max_ms: float
 
     def to_dict(self) -> dict[str, float]:
         return asdict(self)
@@ -35,10 +39,16 @@ def summarize_latencies(durations_ms: list[float]) -> LatencySummary:
         return LatencySummary(
             p50_ms=0.0,
             p95_ms=0.0,
+            mean_ms=0.0,
+            min_ms=0.0,
+            max_ms=0.0,
         )
     return LatencySummary(
         p50_ms=round(percentile(normalized, 50), 6),
         p95_ms=round(percentile(normalized, 95), 6),
+        mean_ms=round(fmean(normalized), 6),
+        min_ms=round(min(normalized), 6),
+        max_ms=round(max(normalized), 6),
     )
 
 

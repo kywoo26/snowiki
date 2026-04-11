@@ -27,7 +27,16 @@ def test_summarize_latencies_returns_p50_and_p95() -> None:
 
     assert summary.p50_ms == 12.5
     assert summary.p95_ms == 19.25
-    assert summary.to_dict() == {"p50_ms": 12.5, "p95_ms": 19.25}
+    assert summary.mean_ms == 12.5
+    assert summary.min_ms == 5.0
+    assert summary.max_ms == 20.0
+    assert summary.to_dict() == {
+        "p50_ms": 12.5,
+        "p95_ms": 19.25,
+        "mean_ms": 12.5,
+        "min_ms": 5.0,
+        "max_ms": 20.0,
+    }
 
 
 def test_measure_operation_excludes_warmups_from_summary() -> None:
@@ -47,6 +56,9 @@ def test_measure_operation_excludes_warmups_from_summary() -> None:
     assert calls == ["run", "run", "run"]
     assert summary.p50_ms == 2000.0
     assert summary.p95_ms == 2900.0
+    assert summary.mean_ms == 2000.0
+    assert summary.min_ms == 1000.0
+    assert summary.max_ms == 3000.0
 
 
 def test_measure_latency_executes_callable_for_each_input() -> None:
@@ -60,6 +72,8 @@ def test_measure_latency_executes_callable_for_each_input() -> None:
     assert seen == [1, 2, 3]
     assert summary.p50_ms >= 0.0
     assert summary.p95_ms >= summary.p50_ms
+    assert summary.mean_ms >= summary.min_ms
+    assert summary.max_ms >= summary.p95_ms
 
 
 def test_measure_latency_excludes_warmups_per_input() -> None:
@@ -80,3 +94,6 @@ def test_measure_latency_excludes_warmups_per_input() -> None:
     assert seen == [1, 1, 1, 2, 2, 2]
     assert summary.p50_ms == 2500.0
     assert summary.p95_ms == 3850.0
+    assert summary.mean_ms == 2500.0
+    assert summary.min_ms == 1000.0
+    assert summary.max_ms == 4000.0
