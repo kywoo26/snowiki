@@ -3,24 +3,44 @@ from __future__ import annotations
 import importlib
 import sys
 from pathlib import Path
+from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+import pytest
 
-CompilerEngine = importlib.import_module("snowiki.compiler.engine").CompilerEngine
-TTLQueryCache = importlib.import_module("snowiki.daemon.cache").TTLQueryCache
-CacheInvalidationManager = importlib.import_module(
-    "snowiki.daemon.invalidation"
-).CacheInvalidationManager
-WarmIndexManager = importlib.import_module("snowiki.daemon.warm_index").WarmIndexManager
-NormalizedStorage = importlib.import_module(
-    "snowiki.storage.normalized"
-).NormalizedStorage
-known_item_lookup = importlib.import_module("snowiki.search").known_item_lookup
+
+@pytest.fixture(autouse=True)
+def _add_repo_root_to_sys_path(repo_root: Path) -> None:
+    root = str(repo_root)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
+def _load_snowiki_modules() -> tuple[Any, Any, Any, Any, Any]:
+    ttl_query_cache = importlib.import_module("snowiki.daemon.cache").TTLQueryCache
+    cache_invalidation_manager = importlib.import_module(
+        "snowiki.daemon.invalidation"
+    ).CacheInvalidationManager
+    warm_index_manager = importlib.import_module(
+        "snowiki.daemon.warm_index"
+    ).WarmIndexManager
+    normalized_storage = importlib.import_module(
+        "snowiki.storage.normalized"
+    ).NormalizedStorage
+    known_item_lookup = importlib.import_module("snowiki.search").known_item_lookup
+    return (
+        ttl_query_cache,
+        cache_invalidation_manager,
+        warm_index_manager,
+        normalized_storage,
+        known_item_lookup,
+    )
 
 
 def test_warm_index_manager_keeps_indexes_loaded_and_searchable(tmp_path: Path) -> None:
+    _, _, WarmIndexManager, NormalizedStorage, known_item_lookup = (
+        _load_snowiki_modules()
+    )
+
     storage = NormalizedStorage(tmp_path)
     storage.store_record(
         source_type="claude",
@@ -52,6 +72,14 @@ def test_warm_index_manager_keeps_indexes_loaded_and_searchable(tmp_path: Path) 
 
 
 def test_invalidation_clears_cache_and_reloads_generation(tmp_path: Path) -> None:
+    (
+        TTLQueryCache,
+        CacheInvalidationManager,
+        WarmIndexManager,
+        NormalizedStorage,
+        known_item_lookup,
+    ) = _load_snowiki_modules()
+
     storage = NormalizedStorage(tmp_path)
     storage.store_record(
         source_type="claude",
