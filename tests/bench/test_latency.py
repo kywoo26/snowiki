@@ -2,27 +2,33 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from snowiki.bench.latency import (  # noqa: E402
-    measure_latency,
-    measure_operation,
-    percentile,
-    summarize_latencies,
-)
+from typing import Any
 
 
-def test_percentile_uses_linear_interpolation() -> None:
+def _load_latency_symbols(repo_root: Path) -> tuple[Any, Any, Any, Any]:
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from snowiki.bench.latency import (
+        measure_latency,
+        measure_operation,
+        percentile,
+        summarize_latencies,
+    )
+
+    return measure_latency, measure_operation, percentile, summarize_latencies
+
+
+def test_percentile_uses_linear_interpolation(repo_root: Path) -> None:
+    _, _, percentile, _ = _load_latency_symbols(repo_root)
     values = [10.0, 20.0, 30.0, 40.0]
 
     assert percentile(values, 50) == 25.0
     assert percentile(values, 95) == 38.5
 
 
-def test_summarize_latencies_returns_p50_and_p95() -> None:
+def test_summarize_latencies_returns_p50_and_p95(repo_root: Path) -> None:
+    _, _, _, summarize_latencies = _load_latency_symbols(repo_root)
     summary = summarize_latencies([5.0, 10.0, 15.0, 20.0])
 
     assert summary.p50_ms == 12.5
@@ -39,7 +45,8 @@ def test_summarize_latencies_returns_p50_and_p95() -> None:
     }
 
 
-def test_measure_operation_excludes_warmups_from_summary() -> None:
+def test_measure_operation_excludes_warmups_from_summary(repo_root: Path) -> None:
+    _, measure_operation, _, _ = _load_latency_symbols(repo_root)
     calls: list[str] = []
     ticks = iter([0.0, 1.0, 10.0, 13.0])
 
@@ -61,7 +68,8 @@ def test_measure_operation_excludes_warmups_from_summary() -> None:
     assert summary.max_ms == 3000.0
 
 
-def test_measure_latency_executes_callable_for_each_input() -> None:
+def test_measure_latency_executes_callable_for_each_input(repo_root: Path) -> None:
+    measure_latency, _, _, _ = _load_latency_symbols(repo_root)
     seen: list[int] = []
 
     def record(value: int) -> None:
@@ -76,7 +84,8 @@ def test_measure_latency_executes_callable_for_each_input() -> None:
     assert summary.max_ms >= summary.p95_ms
 
 
-def test_measure_latency_excludes_warmups_per_input() -> None:
+def test_measure_latency_excludes_warmups_per_input(repo_root: Path) -> None:
+    measure_latency, _, _, _ = _load_latency_symbols(repo_root)
     seen: list[int] = []
     ticks = iter([0.0, 1.0, 10.0, 12.0, 20.0, 23.0, 30.0, 34.0])
 

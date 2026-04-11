@@ -5,20 +5,24 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
-from snowiki.bench.models import BenchmarkReport
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+def _load_report_symbols(repo_root: Path) -> tuple[Any, Any]:
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
 
-_REPORT = import_module("snowiki.bench.report")
-generate_report = _REPORT.generate_report
-render_report_text = _REPORT.render_report_text
+    report = import_module("snowiki.bench.report")
+    benchmark_report = import_module("snowiki.bench.models").BenchmarkReport
+    return report, benchmark_report
 
 
-def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -> None:
+def test_generate_report_exposes_unified_benchmark_gate(
+    tmp_path: Path, monkeypatch, repo_root: Path
+) -> None:
+    report_module, benchmark_report = _load_report_symbols(repo_root)
+    generate_report = report_module.generate_report
+    render_report_text = report_module.render_report_text
     monkeypatch.setattr(
-        _REPORT,
+        report_module,
         "validate_phase1_workspace",
         lambda root: {
             "ok": True,
@@ -40,7 +44,7 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
         },
     )
     monkeypatch.setattr(
-        _REPORT,
+        report_module,
         "run_phase1_latency_evaluation",
         lambda root, preset: {
             "performance": {
@@ -59,9 +63,9 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
         },
     )
     monkeypatch.setattr(
-        _REPORT,
+        report_module,
         "run_baseline_comparison",
-        lambda root, preset: BenchmarkReport.model_validate(
+        lambda root, preset: benchmark_report.model_validate(
             {
                 "preset": {
                     "name": "retrieval",
@@ -190,10 +194,13 @@ def test_generate_report_exposes_unified_benchmark_gate(tmp_path, monkeypatch) -
 
 
 def test_generate_report_structural_failures_block_before_thresholds(
-    tmp_path, monkeypatch
+    tmp_path: Path, monkeypatch, repo_root: Path
 ) -> None:
+    report_module, _ = _load_report_symbols(repo_root)
+    generate_report = report_module.generate_report
+    render_report_text = report_module.render_report_text
     monkeypatch.setattr(
-        _REPORT,
+        report_module,
         "validate_phase1_workspace",
         lambda root: {
             "ok": False,
@@ -211,7 +218,7 @@ def test_generate_report_structural_failures_block_before_thresholds(
         },
     )
     monkeypatch.setattr(
-        _REPORT,
+        report_module,
         "run_phase1_latency_evaluation",
         lambda root, preset: {
             "performance": {
@@ -230,7 +237,7 @@ def test_generate_report_structural_failures_block_before_thresholds(
         },
     )
     monkeypatch.setattr(
-        _REPORT,
+        report_module,
         "run_baseline_comparison",
         lambda root, preset: {
             "preset": {},

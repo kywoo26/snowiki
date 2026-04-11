@@ -6,15 +6,9 @@ import sys
 from collections.abc import Sequence
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, TypedDict, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypedDict, cast
 
 from click.testing import CliRunner
-from snowiki.cli.main import app
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 
 JSONScalar = None | bool | int | float | str
 JSONValue = JSONScalar | list["JSONValue"] | dict[str, "JSONValue"]
@@ -105,24 +99,35 @@ if TYPE_CHECKING:
         def validate_phase1_workspace(self, root: Path) -> ValidationResult: ...
 
 
-def _load_phase1_module() -> Phase1Module:
+def _load_phase1_context(repo_root: Path) -> tuple[Phase1Module, Any]:
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
     module = cast(object, import_module("snowiki.bench.phase1_correctness"))
-    return cast("Phase1Module", module)
+    from snowiki.cli.main import app
+
+    return cast("Phase1Module", module), app
 
 
-def _invoke_json(root: Path, args: Sequence[str]) -> JSONObject:
+def _invoke_json(app: Any, root: Path, args: Sequence[str]) -> JSONObject:
     runner = CliRunner()
     result = runner.invoke(app, args, env={"SNOWIKI_ROOT": str(root)})
     assert result.exit_code == 0, result.output
     return cast(JSONObject, json.loads(result.output))
 
 
-def _seed_phase1_root(root: Path) -> None:
+def _seed_phase1_root(
+    app: object,
+    root: Path,
+    claude_basic_fixture: Path,
+    opencode_basic_db_fixture: Path,
+) -> None:
     _ = _invoke_json(
+        app,
         root,
         [
             "ingest",
-            str(ROOT / "fixtures" / "claude" / "basic.jsonl"),
+            str(claude_basic_fixture),
             "--source",
             "claude",
             "--output",
@@ -130,17 +135,18 @@ def _seed_phase1_root(root: Path) -> None:
         ],
     )
     _ = _invoke_json(
+        app,
         root,
         [
             "ingest",
-            str(ROOT / "fixtures" / "opencode" / "basic.db"),
+            str(opencode_basic_db_fixture),
             "--source",
             "opencode",
             "--output",
             "json",
         ],
     )
-    _ = _invoke_json(root, ["rebuild", "--output", "json"])
+    _ = _invoke_json(app, root, ["rebuild", "--output", "json"])
 
 
 def _read_json(path: Path) -> JSONObject:
@@ -168,8 +174,9 @@ def _first_compiled_page(root: Path) -> Path:
 
 def test_run_phase1_correctness_flow_uses_isolated_root_and_known_answers(
     tmp_path: Path,
+    repo_root: Path,
 ) -> None:
-    phase1 = _load_phase1_module()
+    phase1, _ = _load_phase1_context(repo_root)
 
     result = phase1.run_phase1_correctness_flow(tmp_path)
 
@@ -218,9 +225,12 @@ def test_run_phase1_correctness_flow_uses_isolated_root_and_known_answers(
 
 def test_validate_phase1_workspace_reports_broken_provenance_and_missing_compiled_layer(
     tmp_path: Path,
+    repo_root: Path,
+    claude_basic_fixture: Path,
+    opencode_basic_db_fixture: Path,
 ) -> None:
-    phase1 = _load_phase1_module()
-    _seed_phase1_root(tmp_path)
+    phase1, app = _load_phase1_context(repo_root)
+    _seed_phase1_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
 
     normalized_path = _first_normalized_record(tmp_path)
     payload = _read_json(normalized_path)
@@ -268,9 +278,12 @@ def test_validate_phase1_workspace_reports_broken_provenance_and_missing_compile
 
 def test_validate_phase1_workspace_reports_stale_compiled_links_and_structural_lint_failures(
     tmp_path: Path,
+    repo_root: Path,
+    claude_basic_fixture: Path,
+    opencode_basic_db_fixture: Path,
 ) -> None:
-    phase1 = _load_phase1_module()
-    _seed_phase1_root(tmp_path)
+    phase1, app = _load_phase1_context(repo_root)
+    _seed_phase1_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
 
     normalized_path = _first_normalized_record(tmp_path)
     normalized_payload = _read_json(normalized_path)

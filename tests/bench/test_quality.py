@@ -3,23 +3,24 @@ from __future__ import annotations
 import sys
 from importlib import import_module
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-_QUALITY = import_module("snowiki.bench.quality")
-_CONTRACT = import_module("snowiki.bench.contract")
-evaluate_quality = _QUALITY.evaluate_quality
-evaluate_quality_thresholds = _QUALITY.evaluate_quality_thresholds
-evaluate_sliced_quality = _QUALITY.evaluate_sliced_quality
-ndcg_at_k = _QUALITY.ndcg_at_k
-PHASE_1_THRESHOLDS = _CONTRACT.PHASE_1_THRESHOLDS
-recall_at_k = _QUALITY.recall_at_k
-reciprocal_rank = _QUALITY.reciprocal_rank
+from typing import Any
 
 
-def test_quality_metrics_compute_expected_scores() -> None:
+def _load_quality_symbols(repo_root: Path) -> tuple[Any, Any]:
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    quality = import_module("snowiki.bench.quality")
+    contract = import_module("snowiki.bench.contract")
+    return quality, contract
+
+
+def test_quality_metrics_compute_expected_scores(repo_root: Path) -> None:
+    quality, _ = _load_quality_symbols(repo_root)
+    recall_at_k = quality.recall_at_k
+    reciprocal_rank = quality.reciprocal_rank
+    ndcg_at_k = quality.ndcg_at_k
+
     relevant_ids = {"a", "b"}
     ranked_ids = ["x", "a", "b"]
 
@@ -28,7 +29,10 @@ def test_quality_metrics_compute_expected_scores() -> None:
     assert round(ndcg_at_k(relevant_ids, ranked_ids, 3), 6) == 0.693426
 
 
-def test_evaluate_quality_aggregates_query_results() -> None:
+def test_evaluate_quality_aggregates_query_results(repo_root: Path) -> None:
+    quality, _ = _load_quality_symbols(repo_root)
+    evaluate_quality = quality.evaluate_quality
+
     ranked_results = {
         "q1": ["a", "x", "b"],
         "q2": ["z", "y", "x"],
@@ -48,7 +52,12 @@ def test_evaluate_quality_aggregates_query_results() -> None:
     assert [item.query_id for item in summary.per_query] == ["q1", "q2"]
 
 
-def test_evaluate_sliced_quality_emits_overall_and_slice_metrics() -> None:
+def test_evaluate_sliced_quality_emits_overall_and_slice_metrics(
+    repo_root: Path,
+) -> None:
+    quality, _ = _load_quality_symbols(repo_root)
+    evaluate_sliced_quality = quality.evaluate_sliced_quality
+
     ranked_results = {
         "ko-001": ["a", "x", "b"],
         "en-001": ["d", "c", "y"],
@@ -81,7 +90,14 @@ def test_evaluate_sliced_quality_emits_overall_and_slice_metrics() -> None:
     assert summary.by_kind["temporal"].ndcg_at_k == 0.63093
 
 
-def test_evaluate_quality_thresholds_marks_regressions_as_failures() -> None:
+def test_evaluate_quality_thresholds_marks_regressions_as_failures(
+    repo_root: Path,
+) -> None:
+    quality, contract = _load_quality_symbols(repo_root)
+    evaluate_sliced_quality = quality.evaluate_sliced_quality
+    evaluate_quality_thresholds = quality.evaluate_quality_thresholds
+    phase_1_thresholds = contract.PHASE_1_THRESHOLDS
+
     summary = evaluate_sliced_quality(
         {"q1": ["miss"], "q2": ["x", "z", "w"]},
         {"q1": ["gold"], "q2": ["y"]},
@@ -92,8 +108,8 @@ def test_evaluate_quality_thresholds_marks_regressions_as_failures() -> None:
 
     report = evaluate_quality_thresholds(
         summary,
-        overall_thresholds=PHASE_1_THRESHOLDS["overall"],
-        slice_thresholds=PHASE_1_THRESHOLDS["slices"],
+        overall_thresholds=phase_1_thresholds["overall"],
+        slice_thresholds=phase_1_thresholds["slices"],
     )
 
     verdicts = {(entry.gate, entry.metric): entry for entry in report}

@@ -7,34 +7,46 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from snowiki.search.indexer import SearchDocument, SearchHit
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-_BASELINES = import_module("snowiki.bench.baselines")
-_MODELS = import_module("snowiki.bench.models")
-_PRESETS = import_module("snowiki.bench.presets")
-
-THIS_DIR = ROOT / "tests" / "retrieval"
-CONFTST_PATH = THIS_DIR / "conftest.py"
-SPEC = importlib.util.spec_from_file_location("retrieval_conftest", CONFTST_PATH)
-assert SPEC is not None and SPEC.loader is not None
-retrieval_fixtures = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(retrieval_fixtures)
 
 
-def test_run_baseline_comparison_emits_phase1_retrieval_metrics(monkeypatch) -> None:
+def _load_benchmark_modules(repo_root: Path):
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    baselines = import_module("snowiki.bench.baselines")
+    models = import_module("snowiki.bench.models")
+    presets = import_module("snowiki.bench.presets")
+    return baselines, models, presets
+
+
+def _load_retrieval_fixtures(repo_root: Path):
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    conftest_path = repo_root / "tests" / "retrieval" / "conftest.py"
+    spec = importlib.util.spec_from_file_location("retrieval_conftest", conftest_path)
+    assert spec is not None and spec.loader is not None
+    retrieval_fixtures = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(retrieval_fixtures)
+    return retrieval_fixtures
+
+
+def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
+    monkeypatch, benchmarks_dir: Path
+) -> None:
+    repo_root = benchmarks_dir.parent
+    baselines, models, presets = _load_benchmark_modules(repo_root)
+    retrieval_fixtures = _load_retrieval_fixtures(repo_root)
+
     search = retrieval_fixtures.load_search_api()
     records = retrieval_fixtures.normalized_records()
     pages = retrieval_fixtures.compiled_pages()
     lexical_index = search.build_lexical_index(records)
     wiki_index = search.build_wiki_index(pages)
-    corpus = _BASELINES.CorpusBundle(
-        records=tuple(_MODELS.validate_record_dict(item) for item in records),
+    corpus = baselines.CorpusBundle(
+        records=tuple(models.validate_record_dict(item) for item in records),
         pages=tuple(
-            _MODELS.validate_page_dict(
+            models.validate_page_dict(
                 {
                     "id": page["id"],
                     "path": page["path"],
@@ -53,11 +65,11 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(monkeypatch) -> 
         ),
     )
 
-    monkeypatch.setattr(_BASELINES, "_build_corpus", lambda root: corpus)
+    monkeypatch.setattr(baselines, "_build_corpus", lambda root: corpus)
 
-    report = _BASELINES.run_baseline_comparison(
-        ROOT,
-        _PRESETS.get_preset("full"),
+    report = baselines.run_baseline_comparison(
+        repo_root,
+        presets.get_preset("full"),
     )
     legacy = report.to_legacy_dict()
     legacy_baselines = cast(dict[str, object], legacy["baselines"])
@@ -93,19 +105,28 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(monkeypatch) -> 
         assert "token_usage" not in payload.to_legacy_dict()
 
 
-def test_loaders_fail_fast_on_malformed_top_level_fixture_shapes(monkeypatch) -> None:
-    monkeypatch.setattr(_BASELINES, "_load_json", lambda path: {"queries": {"bad": []}})
+def test_loaders_fail_fast_on_malformed_top_level_fixture_shapes(
+    monkeypatch, benchmarks_dir: Path
+) -> None:
+    repo_root = benchmarks_dir.parent
+    baselines, _, _ = _load_benchmark_modules(repo_root)
+    monkeypatch.setattr(baselines, "_load_json", lambda path: {"queries": {"bad": []}})
 
     with pytest.raises(ValueError, match="queries"):
-        _BASELINES._load_queries(ROOT)
+        baselines._load_queries(repo_root)
 
-    monkeypatch.setattr(_BASELINES, "_load_json", lambda path: {"judgments": "bad"})
+    monkeypatch.setattr(baselines, "_load_json", lambda path: {"judgments": "bad"})
 
     with pytest.raises(ValueError, match="judgments"):
-        _BASELINES._load_judgments(ROOT)
+        baselines._load_judgments(repo_root)
 
 
-def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring() -> None:
+def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring(
+    repo_root: Path,
+) -> None:
+    baselines, _, _ = _load_benchmark_modules(repo_root)
+    from snowiki.search.indexer import SearchDocument, SearchHit
+
     hits = [
         SearchHit(
             document=SearchDocument(
@@ -142,7 +163,7 @@ def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring() -> None:
         ),
     ]
 
-    ranked_ids = _BASELINES._ranked_fixture_ids(
+    ranked_ids = baselines._ranked_fixture_ids(
         hits,
         ["fixture-a", "fixture-b"],
         hit_lookup={
@@ -154,7 +175,7 @@ def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring() -> None:
 
     assert ranked_ids == ["fixture-a", "fixture-b"]
     assert (
-        _BASELINES.evaluate_sliced_quality(
+        baselines.evaluate_sliced_quality(
             {"q1": ranked_ids},
             {"q1": ["fixture-a", "fixture-b"]},
             query_groups={"q1": "en"},
