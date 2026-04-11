@@ -22,10 +22,9 @@ from .quality import (
     evaluate_quality_thresholds,
     evaluate_sliced_quality,
 )
-from .semantic_slots import SemanticSlotsConfig, semantic_slots_status
-from .token_reduction import compare_token_usage, summarize_token_usage
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 @dataclass(frozen=True)
 class BenchmarkQuery:
@@ -239,10 +238,6 @@ def _match_benchmark_hit(
     return _match_judgment(hit, relevant_ids)
 
 
-def _raw_context(hits: list[SearchHit]) -> str:
-    return "\n\n".join(hit.document.content for hit in hits)
-
-
 def _ranked_fixture_ids(
     hits: list[SearchHit],
     relevant_ids: list[str],
@@ -327,7 +322,6 @@ def _evaluate_baseline(
     hit_lookup: dict[str, str],
 ) -> dict[str, Any]:
     ranked_results: dict[str, list[str]] = {}
-    query_contexts: list[str] = []
     hits_by_query: dict[str, list[SearchHit]] = {}
 
     for query in queries:
@@ -338,7 +332,6 @@ def _evaluate_baseline(
             judgments.get(query.query_id, []),
             hit_lookup=hit_lookup,
         )
-        query_contexts.append(_raw_context(hits))
 
     latency = measure_latency(lambda item: search_fn(item.text), list(queries))
     quality = _attach_threshold_report(
@@ -356,8 +349,6 @@ def _evaluate_baseline(
         "name": name,
         "latency": latency.to_dict(),
         "quality": quality.to_dict(),
-        "token_usage": summarize_token_usage(query_contexts),
-        "semantic_slots": semantic_slots_status(SemanticSlotsConfig(enabled=False)),
         "queries": {
             query_id: [
                 {
@@ -376,8 +367,6 @@ def _evaluate_baseline(
 def run_baseline_comparison(
     root: Path,
     preset: BenchmarkPreset,
-    *,
-    semantic_slots: SemanticSlotsConfig,
 ) -> dict[str, Any]:
     corpus = _build_corpus(root)
     judgments = _load_judgments(root)
@@ -431,23 +420,6 @@ def run_baseline_comparison(
             continue
         raise ValueError(f"unsupported baseline: {baseline}")
 
-    token_usage = {name: payload["token_usage"] for name, payload in results.items()}
-    qualities = {
-        name: {
-            "recall_at_k": payload["quality"]["overall"]["recall_at_k"],
-            "mrr": payload["quality"]["overall"]["mrr"],
-            "ndcg_at_k": payload["quality"]["overall"]["ndcg_at_k"],
-        }
-        for name, payload in results.items()
-    }
-    token_reduction = {
-        name: summary.to_dict()
-        for name, summary in compare_token_usage(
-            token_usage,
-            qualities,
-            reference_baseline="lexical",
-        ).items()
-    }
     return {
         "preset": {
             "name": preset.name,
@@ -463,7 +435,5 @@ def run_baseline_comparison(
             "blended_documents": corpus.blended_index.size,
             "queries_evaluated": len(queries),
         },
-        "semantic_slots": semantic_slots_status(semantic_slots),
         "baselines": results,
-        "token_reduction": token_reduction,
     }

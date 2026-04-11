@@ -43,11 +43,12 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(monkeypatch) -> 
     report = _BASELINES.run_baseline_comparison(
         ROOT,
         _PRESETS.get_preset("full"),
-        semantic_slots=_BASELINES.SemanticSlotsConfig(enabled=False),
     )
 
     assert list(report["baselines"]) == ["lexical", "bm25s", "bm25s_kiwi"]
     assert report["corpus"]["queries_evaluated"] == 60
+    assert "semantic_slots" not in report
+    assert "token_reduction" not in report
 
     for baseline_name, payload in report["baselines"].items():
         quality = payload["quality"]
@@ -66,6 +67,8 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(monkeypatch) -> 
         }
         assert quality["overall"]["top_k"] == 5
         assert payload["name"] == baseline_name
+        assert "semantic_slots" not in payload
+        assert "token_usage" not in payload
 
 
 def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring() -> None:
@@ -116,10 +119,13 @@ def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring() -> None:
     )
 
     assert ranked_ids == ["fixture-a", "fixture-b"]
-    assert _BASELINES.evaluate_sliced_quality(
-        {"q1": ranked_ids},
-        {"q1": ["fixture-a", "fixture-b"]},
-        query_groups={"q1": "en"},
-        query_kinds={"q1": "known-item"},
-        top_k=5,
-    ).overall.ndcg_at_k == 1.0
+    assert (
+        _BASELINES.evaluate_sliced_quality(
+            {"q1": ranked_ids},
+            {"q1": ["fixture-a", "fixture-b"]},
+            query_groups={"q1": "en"},
+            query_kinds={"q1": "known-item"},
+            top_k=5,
+        ).overall.ndcg_at_k
+        == 1.0
+    )
