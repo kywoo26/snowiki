@@ -6,8 +6,7 @@ from typing import TypedDict
 
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.rebuild import run_rebuild
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+from snowiki.config import resolve_repo_asset_path
 
 CANONICAL_BENCHMARK_FIXTURE_PATHS: dict[str, str] = {
     "claude_basic": "fixtures/claude/basic.jsonl",
@@ -42,8 +41,8 @@ def canonical_benchmark_fixtures() -> tuple[BenchmarkFixture, ...]:
     return tuple(
         BenchmarkFixture(
             fixture_id=fixture_id,
-            source="claude" if relative_path.endswith('.jsonl') else "opencode",
-            path=_REPO_ROOT / relative_path,
+            source="claude" if relative_path.endswith(".jsonl") else "opencode",
+            path=resolve_repo_asset_path(relative_path),
         )
         for fixture_id, relative_path in CANONICAL_BENCHMARK_FIXTURE_PATHS.items()
     )

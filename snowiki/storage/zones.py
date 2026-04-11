@@ -80,6 +80,13 @@ def relative_to_root(root: Path, path: Path) -> str:
     return path.relative_to(root).as_posix()
 
 
+def relative_to_root_or_posix(root: Path, path: Path) -> str:
+    try:
+        return relative_to_root(root, path)
+    except ValueError:
+        return path.as_posix()
+
+
 def read_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default

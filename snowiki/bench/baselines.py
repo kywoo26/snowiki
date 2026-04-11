@@ -11,6 +11,7 @@ from typing import Any, Protocol, cast
 from snowiki.cli.commands.query import build_search_index, load_normalized_records
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.compiler.taxonomy import CompiledPage, PageSection
+from snowiki.config import resolve_repo_asset_path
 from snowiki.search import BM25SearchDocument, BM25SearchIndex, build_lexical_index
 from snowiki.search.indexer import InvertedIndex, SearchDocument, SearchHit
 
@@ -42,8 +43,6 @@ from .quality import (
     evaluate_quality_thresholds,
     evaluate_sliced_quality,
 )
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class _Bm25DocumentLike(Protocol):
@@ -129,7 +128,7 @@ def _string_list(value: object, *, label: str) -> list[str]:
 
 def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
     del root
-    payload = _load_json(_REPO_ROOT / "benchmarks" / "queries.json")
+    payload = _load_json(resolve_repo_asset_path("benchmarks/queries.json"))
     rows = _require_mapping_rows(
         _mapping_rows(payload, "queries"),
         label="benchmarks/queries.json must contain a 'queries' list",
@@ -147,7 +146,7 @@ def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
 
 def _load_judgments(root: Path) -> dict[str, list[str]]:
     del root
-    payload = _load_json(_REPO_ROOT / "benchmarks" / "judgments.json")
+    payload = _load_json(resolve_repo_asset_path("benchmarks/judgments.json"))
     rows = _mapping_rows(payload, "judgments")
     if isinstance(rows, Mapping):
         return {
@@ -261,7 +260,7 @@ def _match_judgment(hit: SearchHit, relevant_ids: list[str]) -> str:
 
 def _benchmark_fixture_sources() -> dict[str, str]:
     return {
-        (_REPO_ROOT / relative_path).resolve().as_posix(): fixture_id
+        resolve_repo_asset_path(relative_path).resolve().as_posix(): fixture_id
         for fixture_id, relative_path in CANONICAL_BENCHMARK_FIXTURE_PATHS.items()
     }
 
@@ -269,7 +268,7 @@ def _benchmark_fixture_sources() -> dict[str, str]:
 def _benchmark_fixture_digests() -> dict[str, str]:
     return {
         hashlib.sha256(
-            (_REPO_ROOT / relative_path).read_bytes()
+            resolve_repo_asset_path(relative_path).read_bytes()
         ).hexdigest(): fixture_id
         for fixture_id, relative_path in CANONICAL_BENCHMARK_FIXTURE_PATHS.items()
     }

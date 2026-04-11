@@ -17,6 +17,8 @@ from snowiki.bench.contract import PHASE_1_CORPUS
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.query import run_query
 from snowiki.cli.commands.rebuild import run_rebuild
+from snowiki.config import get_repo_root, resolve_repo_asset_path
+from snowiki.storage.zones import relative_to_root_or_posix
 
 from .corpus import canonical_benchmark_fixtures
 from .latency import summarize_latencies
@@ -25,8 +27,6 @@ from .presets import BenchmarkPreset
 PHASE_1_WARMUPS = 1
 PHASE_1_REPETITIONS = 5
 PHASE_1_QUERY_MODE = "lexical"
-
-_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class FixtureSpec(TypedDict):
@@ -53,7 +53,7 @@ def _canonical_fixtures() -> tuple[FixtureSpec, ...]:
 
 
 def _load_queries_for_preset(preset: BenchmarkPreset) -> tuple[str, ...]:
-    payload = _load_json(_REPO_ROOT / PHASE_1_CORPUS["queries"])
+    payload = _load_json(resolve_repo_asset_path(PHASE_1_CORPUS["queries"]))
     rows = cast(list[dict[str, object]], payload["queries"])
     return tuple(
         str(row["text"])
@@ -63,10 +63,7 @@ def _load_queries_for_preset(preset: BenchmarkPreset) -> tuple[str, ...]:
 
 
 def _fixture_report_path(path: Path) -> str:
-    try:
-        return path.relative_to(_REPO_ROOT).as_posix()
-    except ValueError:
-        return path.as_posix()
+    return relative_to_root_or_posix(get_repo_root(), path)
 
 
 def _run_ingest_flow(root: Path) -> None:
