@@ -1,23 +1,16 @@
 from __future__ import annotations
 
-import json
+from functools import lru_cache
 from pathlib import Path
 from typing import TypedDict, cast
 
 import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.compiler.engine import CompilerEngine
-from snowiki.compiler.taxonomy import CompiledPage, PageSection
 from snowiki.config import get_snowiki_root
-from snowiki.search import (
-    InvertedIndex,
-    SearchHit,
-    build_blended_index,
-    build_lexical_index,
-    build_wiki_index,
-)
+from snowiki.search import InvertedIndex, SearchHit
 from snowiki.search.queries.topical import topical_recall
+from snowiki.search.workspace import build_search_index as build_workspace_search_index
 
 
 class QueryHitPayload(TypedDict):
@@ -57,49 +50,44 @@ def _normalize_output_mode(value: str) -> OutputMode:
     return "json" if value == "json" else "human"
 
 
-def load_normalized_records(root: Path) -> list[dict[str, object]]:
-    """Load normalized JSON records from the storage tree."""
-    records: list[dict[str, object]] = []
-    normalized_root = root / "normalized"
-    if not normalized_root.exists():
-        return records
-    for path in sorted(
-        normalized_root.rglob("*.json"), key=lambda item: item.as_posix()
-    ):
-        records.append(json.loads(path.read_text(encoding="utf-8")))
-    return records
+def _tree_signature(root: Path) -> tuple[int, int]:
+    if not root.exists():
+        return (0, 0)
+    latest_mtime = root.stat().st_mtime_ns
+    file_count = 0
+    for path in root.rglob("*"):
+        try:
+            stat = path.stat()
+        except FileNotFoundError:
+            continue
+        latest_mtime = max(latest_mtime, stat.st_mtime_ns)
+        if path.is_file():
+            file_count += 1
+    return (latest_mtime, file_count)
 
 
-def _page_body(sections: list[PageSection]) -> str:
-    """Render compiled sections into a plain-text body for indexing."""
-    return "\n\n".join(f"{section.title}\n{section.body}" for section in sections)
+def _search_index_cache_key(root: Path) -> tuple[str, tuple[int, int], tuple[int, int]]:
+    resolved_root = root.resolve()
+    return (
+        str(resolved_root),
+        _tree_signature(resolved_root / "normalized"),
+        _tree_signature(resolved_root / "compiled"),
+    )
 
 
-def _page_to_mapping(page: CompiledPage) -> dict[str, object]:
-    return {
-        "id": page.path,
-        "path": page.path,
-        "title": page.title,
-        "summary": page.summary,
-        "body": _page_body(page.sections),
-        "tags": page.tags,
-        "related": page.related,
-        "record_ids": page.record_ids,
-        "updated_at": page.updated,
-    }
+@lru_cache(maxsize=8)
+def _build_search_index_cached(
+    cache_key: tuple[str, tuple[int, int], tuple[int, int]],
+) -> tuple[InvertedIndex, int, int]:
+    return build_workspace_search_index(Path(cache_key[0]))
+
+
+def clear_query_search_index_cache() -> None:
+    _build_search_index_cached.cache_clear()
 
 
 def build_search_index(root: Path) -> tuple[InvertedIndex, int, int]:
-    """Build the blended query index for the current workspace."""
-    records = load_normalized_records(root)
-    pages = CompilerEngine(root).build_pages() if records else []
-    lexical = build_lexical_index(records)
-    wiki = build_wiki_index(_page_to_mapping(page) for page in pages)
-    return (
-        build_blended_index(lexical.documents, wiki.documents),
-        len(records),
-        len(pages),
-    )
+    return _build_search_index_cached(_search_index_cache_key(root))
 
 
 def _hit_to_payload(hit: SearchHit) -> QueryHitPayload:
@@ -119,7 +107,7 @@ def _render_query_human(payload: object) -> str:
     """Render a query result payload for human-readable CLI output."""
     if not isinstance(payload, dict):
         raise TypeError("query renderer expected a dictionary payload")
-    result = cast(QueryCommandPayload, payload)["result"]
+    result = cast(QueryCommandPayload, cast(object, payload))["result"]
     lines = [
         f"Query mode: {result['mode']}",
         f"records indexed: {result['records_indexed']}",

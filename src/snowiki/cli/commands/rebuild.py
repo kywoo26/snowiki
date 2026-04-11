@@ -5,10 +5,11 @@ from typing import Any
 
 import click
 
-from snowiki.cli.commands.query import build_search_index
+from snowiki.cli.commands.query import clear_query_search_index_cache
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.config import get_snowiki_root
+from snowiki.search.workspace import build_search_index
 from snowiki.storage.zones import StoragePaths, atomic_write_json
 
 
@@ -31,6 +32,7 @@ def _render_rebuild_human(payload: dict[str, Any]) -> str:
 def run_rebuild(root: Path) -> dict[str, Any]:
     engine = CompilerEngine(root)
     compiled_paths = engine.rebuild()
+    clear_query_search_index_cache()
     index, record_count, page_count = build_search_index(root)
     storage_paths = StoragePaths(root)
     manifest_path = storage_paths.index / "manifest.json"

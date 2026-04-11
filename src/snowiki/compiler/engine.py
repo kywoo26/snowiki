@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from collections.abc import Sequence
 from pathlib import Path
 
 from snowiki.storage.provenance import ProvenanceTracker
@@ -67,15 +68,19 @@ class CompilerEngine:
             )
         return records
 
-    def build_pages(self) -> list[CompiledPage]:
+    def build_pages(
+        self, records: Sequence[NormalizedRecord] | None = None
+    ) -> list[CompiledPage]:
         """Build compiled wiki pages from normalized records."""
-        records = self.load_normalized_records()
+        resolved_records = (
+            list(records) if records is not None else self.load_normalized_records()
+        )
         pages: list[CompiledPage] = []
-        pages.extend(generate_summary_pages(records))
-        pages.extend(generate_concept_pages(records))
-        pages.extend(generate_question_pages(records))
-        pages.extend(generate_session_pages(records))
-        pages.append(generate_overview_page(records, pages))
+        pages.extend(generate_summary_pages(resolved_records))
+        pages.extend(generate_concept_pages(resolved_records))
+        pages.extend(generate_question_pages(resolved_records))
+        pages.extend(generate_session_pages(resolved_records))
+        pages.append(generate_overview_page(resolved_records, pages))
         return apply_backlinks(pages)
 
     def rebuild(self) -> list[str]:

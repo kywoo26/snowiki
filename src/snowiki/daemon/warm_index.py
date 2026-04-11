@@ -3,9 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
-from typing import Any
 
-from snowiki.compiler import CompiledPage, CompilerEngine, NormalizedRecord
+from snowiki.compiler import CompilerEngine
 from snowiki.search import (
     InvertedIndex,
     LexicalIndex,
@@ -13,6 +12,10 @@ from snowiki.search import (
     build_blended_index,
     build_lexical_index,
     build_wiki_index,
+)
+from snowiki.search.workspace import (
+    compiled_page_to_search_mapping,
+    normalized_record_to_search_mapping,
 )
 from snowiki.storage.zones import isoformat_utc
 
@@ -65,12 +68,12 @@ class WarmIndexManager:
     def _build_snapshot_locked(self) -> WarmIndexes:
         compiler = self._compiler_factory(self.root)
         records = compiler.load_normalized_records()
-        pages = compiler.build_pages()
+        pages = compiler.build_pages(records)
 
         lexical = build_lexical_index(
-            self._normalized_record_payload(record) for record in records
+            normalized_record_to_search_mapping(record) for record in records
         )
-        wiki = build_wiki_index(self._compiled_page_payload(page) for page in pages)
+        wiki = build_wiki_index(compiled_page_to_search_mapping(page) for page in pages)
         blended = build_blended_index(lexical.documents, wiki.documents)
 
         self._generation += 1
@@ -83,37 +86,3 @@ class WarmIndexManager:
             normalized_count=len(records),
             compiled_count=len(pages),
         )
-
-    def _normalized_record_payload(self, record: NormalizedRecord) -> dict[str, Any]:
-        metadata = record.payload.get("metadata")
-        title = ""
-        if isinstance(metadata, dict):
-            title = str(metadata.get("title") or metadata.get("name") or "").strip()
-        title = title or str(record.payload.get("title") or record.id)
-        return {
-            **record.payload,
-            "id": record.id,
-            "path": record.path,
-            "title": title,
-            "record_type": record.record_type,
-            "recorded_at": record.recorded_at,
-        }
-
-    def _compiled_page_payload(self, page: CompiledPage) -> dict[str, Any]:
-        rendered_sections = "\n\n".join(
-            f"## {section.title}\n{section.body}" for section in page.sections
-        )
-        return {
-            "id": page.path,
-            "path": page.path,
-            "title": page.title,
-            "kind": page.page_type.value,
-            "summary": page.summary,
-            "body": rendered_sections,
-            "content": rendered_sections,
-            "tags": page.tags,
-            "updated_at": page.updated,
-            "created_at": page.created,
-            "sources": page.sources,
-            "record_ids": page.record_ids,
-        }
