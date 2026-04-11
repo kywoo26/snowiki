@@ -31,7 +31,7 @@ jobs:
         run: uv run ty check
 
       - name: Pytest with coverage
-        run: uv run pytest
+        run: uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml
 
       - name: Governance advisory report
         if: always()

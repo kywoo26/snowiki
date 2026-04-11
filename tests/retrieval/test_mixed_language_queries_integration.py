@@ -5,12 +5,16 @@ import unittest
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 THIS_DIR = Path(__file__).resolve().parent
 CONFTST_PATH = THIS_DIR / "conftest.py"
 SPEC = importlib.util.spec_from_file_location("retrieval_conftest", CONFTST_PATH)
 assert SPEC is not None and SPEC.loader is not None
 retrieval_fixtures = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(retrieval_fixtures)
+
+pytestmark = pytest.mark.integration
 
 
 class MixedLanguageRetrievalTest(unittest.TestCase):
