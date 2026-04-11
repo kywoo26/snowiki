@@ -8,12 +8,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, cast
 
-from snowiki.cli.commands.query import build_search_index, load_normalized_records
 from snowiki.compiler.engine import CompilerEngine
-from snowiki.compiler.taxonomy import CompiledPage, PageSection
 from snowiki.config import resolve_repo_asset_path
 from snowiki.search import BM25SearchDocument, BM25SearchIndex, build_lexical_index
 from snowiki.search.indexer import InvertedIndex, SearchDocument, SearchHit
+from snowiki.search.workspace import (
+    build_search_index,
+    compiled_page_to_search_mapping,
+    load_normalized_records,
+)
 
 from .contract import PHASE_1_THRESHOLDS
 from .corpus import CANONICAL_BENCHMARK_FIXTURE_PATHS
@@ -179,30 +182,15 @@ def _load_judgments(root: Path) -> dict[str, list[str]]:
     )
 
 
-def _page_body(sections: list[PageSection]) -> str:
-    return "\n\n".join(f"{section.title}\n{section.body}" for section in sections)
-
-
-def _page_to_mapping(page: CompiledPage) -> dict[str, object]:
-    return {
-        "id": page.path,
-        "path": page.path,
-        "title": page.title,
-        "summary": page.summary,
-        "body": _page_body(page.sections),
-        "tags": page.tags,
-        "related": page.related,
-        "record_ids": page.record_ids,
-        "updated_at": page.updated,
-    }
-
-
 def _build_corpus(root: Path) -> CorpusBundle:
     records = tuple(RECORD_LIST_ADAPTER.validate_python(load_normalized_records(root)))
     pages = (
         tuple(
             PAGE_LIST_ADAPTER.validate_python(
-                [_page_to_mapping(page) for page in CompilerEngine(root).build_pages()]
+                [
+                    compiled_page_to_search_mapping(page)
+                    for page in CompilerEngine(root).build_pages()
+                ]
             )
         )
         if records

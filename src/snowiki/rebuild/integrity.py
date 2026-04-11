@@ -4,8 +4,8 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from snowiki.cli.commands.query import build_search_index
 from snowiki.compiler.engine import CompilerEngine
+from snowiki.search.workspace import build_search_index
 from snowiki.storage.zones import StoragePaths, atomic_write_json
 
 

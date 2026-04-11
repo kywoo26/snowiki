@@ -9,6 +9,7 @@ import click
 
 from snowiki.adapters import normalize_claude_session_file
 from snowiki.adapters.opencode import load_opencode_session
+from snowiki.cli.commands.query import clear_query_search_index_cache
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.config import get_snowiki_root
 from snowiki.privacy import PrivacyGate
@@ -427,11 +428,13 @@ def _store_opencode_session(
 
 
 def run_ingest(path: Path, *, source: str, root: Path) -> dict[str, Any]:
-    return (
+    result = (
         _store_claude_session(path, root=root)
         if source == "claude"
         else _store_opencode_session(path, root=root)
     )
+    clear_query_search_index_cache()
+    return result
 
 
 @click.command("ingest")
