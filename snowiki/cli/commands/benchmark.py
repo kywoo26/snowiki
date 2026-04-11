@@ -1,21 +1,46 @@
 from __future__ import annotations
 
 import json
+import tempfile
+from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
 
 import click
 
 from snowiki.cli.output import emit_error
-from snowiki.config import get_snowiki_root
 
 _BENCH = import_module("snowiki.bench")
+benchmark_exit_code = _BENCH.benchmark_exit_code
 generate_report = _BENCH.generate_report
 list_presets = _BENCH.list_presets
+seed_canonical_benchmark_root = _BENCH.seed_canonical_benchmark_root
 render_report_text = _BENCH.render_report_text
 
 
 PRESET_NAMES = tuple(preset.name for preset in list_presets())
+
+
+def _has_seeded_corpus(root: Path) -> bool:
+    normalized_root = root / "normalized"
+    return normalized_root.exists() and any(normalized_root.rglob("*.json"))
+
+
+def _ensure_seeded_root(root: Path) -> None:
+    if _has_seeded_corpus(root):
+        return
+    _ = seed_canonical_benchmark_root(root)
+
+
+@contextmanager
+def _benchmark_root_context(root: Path | None):
+    if root is not None:
+        yield root
+        return
+    with tempfile.TemporaryDirectory(
+        prefix="snowiki-benchmark-root-"
+    ) as temporary_root:
+        yield Path(temporary_root)
 
 
 @click.command("benchmark")
@@ -38,24 +63,29 @@ PRESET_NAMES = tuple(preset.name for preset in list_presets())
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
+    help="Snowiki storage root (defaults to an isolated temporary benchmark root)",
 )
 def command(preset: str, output: Path, semantic_slots: bool, root: Path | None) -> None:
     report: dict[str, object] | None = None
     try:
-        report = generate_report(
-            root if root else get_snowiki_root(),
-            preset_name=preset,
-            semantic_slots_enabled=semantic_slots,
-        )
+        with _benchmark_root_context(root) as benchmark_root:
+            _ensure_seeded_root(benchmark_root)
+            report = generate_report(
+                benchmark_root,
+                preset_name=preset,
+                semantic_slots_enabled=semantic_slots,
+            )
     except Exception as exc:
         emit_error(str(exc), output="human", code="benchmark_failed")
     if report is None:
         raise RuntimeError("benchmark did not produce a report")
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
+    _ = output.write_text(
         json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True),
         encoding="utf-8",
     )
     click.echo(render_report_text(report))
     click.echo(f"JSON report written to {output}")
+    exit_code = benchmark_exit_code(report)
+    if exit_code:
+        raise click.exceptions.Exit(exit_code)

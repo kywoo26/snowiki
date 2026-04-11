@@ -9,7 +9,7 @@ class BenchmarkPreset:
     description: str
     query_kinds: tuple[str, ...]
     top_k: int = 5
-    baselines: tuple[str, ...] = ("raw", "current", "v2")
+    baselines: tuple[str, ...] = ("lexical", "bm25s", "bm25s_kiwi")
 
 
 _PRESETS = {
