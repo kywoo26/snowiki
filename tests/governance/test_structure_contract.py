@@ -40,15 +40,9 @@ GOVERNED_SURFACES: dict[str, SurfacePolicy] = {
         "owner": "skill/AGENTS.md",
         "required_children": ["SKILL.md", "scripts", "workflows"],
     },
-    ".sisyphus": {
-        "owner": "root AGENTS.md",
-        "required_children": ["plans", "evidence", "notepads"],
-    },
 }
 
 NON_CANONICAL_STATUS_SURFACES = {
-    ".sisyphus/plans",
-    ".sisyphus/evidence",
     "AGENTS.md",
     "pyproject.toml",
     "tests/governance/test_structure_contract.py",
@@ -69,17 +63,6 @@ def test_governed_surface_policy_includes_child_owned_instruction_hotspots() -> 
     assert GOVERNED_SURFACES["benchmarks"]["owner"] == "benchmarks/AGENTS.md"
     assert GOVERNED_SURFACES["vault-template"]["owner"] == "vault-template/AGENTS.md"
     assert GOVERNED_SURFACES["skill"]["owner"] == "skill/AGENTS.md"
-
-
-def test_sisyphus_is_planning_and_evidence_only() -> None:
-    sisyphus_policy = GOVERNED_SURFACES[".sisyphus"]
-
-    assert sisyphus_policy["owner"] == "root AGENTS.md"
-    assert all(
-        (ROOT / ".sisyphus" / child).exists()
-        for child in sisyphus_policy["required_children"]
-    )
-    assert not (ROOT / ".sisyphus" / "STATUS.md").exists()
 
 
 def test_status_md_is_not_a_canonical_repo_surface() -> None:
