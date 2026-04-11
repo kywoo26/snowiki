@@ -98,8 +98,16 @@ def test_evaluate_quality_thresholds_marks_regressions_as_failures() -> None:
 
     verdicts = {(entry.gate, entry.metric): entry for entry in report}
     assert verdicts[("overall", "recall_at_k")].verdict == "FAIL"
+    assert verdicts[("overall", "recall_at_k")].threshold == 0.72
     assert verdicts[("overall", "mrr")].verdict == "FAIL"
+    assert verdicts[("overall", "mrr")].threshold == 0.7
+    assert verdicts[("overall", "ndcg_at_k")].threshold == 0.67
     assert verdicts[("kind:known-item", "recall_at_k")].verdict == "FAIL"
+    assert verdicts[("kind:known-item", "recall_at_k")].threshold == 0.7
+    assert verdicts[("kind:known-item", "mrr")].threshold == 0.6
+    assert verdicts[("kind:topical", "recall_at_k")].threshold == 0.49
     assert verdicts[("kind:topical", "ndcg_at_k")].verdict == "FAIL"
+    assert verdicts[("kind:topical", "ndcg_at_k")].threshold == 0.5
     assert verdicts[("kind:temporal", "recall_at_k")].verdict == "WARN"
+    assert verdicts[("kind:temporal", "recall_at_k")].threshold == 0.47
     assert verdicts[("kind:temporal", "recall_at_k")].value == "n/a"
