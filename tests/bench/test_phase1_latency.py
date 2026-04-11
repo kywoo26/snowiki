@@ -82,9 +82,27 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
     assert corpus["fixtures_indexed"] == 2
     assert corpus["queries_evaluated"] == 2
     assert set(performance) == {"ingest", "rebuild", "query"}
-    assert performance["ingest"] == {"p50_ms": 2000.0, "p95_ms": 2900.0}
-    assert performance["rebuild"] == {"p50_ms": 2500.0, "p95_ms": 3850.0}
-    assert performance["query"] == {"p50_ms": 3000.0, "p95_ms": 4800.0}
+    assert performance["ingest"] == {
+        "p50_ms": 2000.0,
+        "p95_ms": 2900.0,
+        "mean_ms": 2000.0,
+        "min_ms": 1000.0,
+        "max_ms": 3000.0,
+    }
+    assert performance["rebuild"] == {
+        "p50_ms": 2500.0,
+        "p95_ms": 3850.0,
+        "mean_ms": 2500.0,
+        "min_ms": 1000.0,
+        "max_ms": 4000.0,
+    }
+    assert performance["query"] == {
+        "p50_ms": 3000.0,
+        "p95_ms": 4800.0,
+        "mean_ms": 3000.0,
+        "min_ms": 1000.0,
+        "max_ms": 5000.0,
+    }
 
     unique_ingest_roots = {path.as_posix() for path in ingest_roots}
     unique_rebuild_roots = {path.as_posix() for path in rebuild_roots}
