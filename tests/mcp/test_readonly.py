@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 from snowiki.mcp import create_server
 
 
@@ -17,8 +19,7 @@ def test_only_read_tools_are_exposed_and_write_tools_are_rejected() -> None:
         content = result["content"]
         assert isinstance(content, list)
         assert content
-        first_item = content[0]
-        assert isinstance(first_item, dict)
+        first_item = cast(dict[str, object], content[0])
         text = first_item.get("text")
         assert isinstance(text, str)
         assert "read-only" in text

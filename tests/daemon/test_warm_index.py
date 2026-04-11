@@ -37,11 +37,11 @@ def _load_snowiki_modules() -> tuple[Any, Any, Any, Any, Any]:
 
 
 def test_warm_index_manager_keeps_indexes_loaded_and_searchable(tmp_path: Path) -> None:
-    _, _, WarmIndexManager, NormalizedStorage, known_item_lookup = (
+    _, _, warm_index_manager_cls, normalized_storage_cls, known_item_lookup = (
         _load_snowiki_modules()
     )
 
-    storage = NormalizedStorage(tmp_path)
+    storage = normalized_storage_cls(tmp_path)
     storage.store_record(
         source_type="claude",
         record_type="session",
@@ -61,7 +61,7 @@ def test_warm_index_manager_keeps_indexes_loaded_and_searchable(tmp_path: Path) 
         recorded_at="2026-04-08T12:00:00Z",
     )
 
-    manager = WarmIndexManager(tmp_path)
+    manager = warm_index_manager_cls(tmp_path)
     snapshot = manager.get()
     hits = known_item_lookup(snapshot.blended, "warm index session", limit=3)
 
@@ -73,14 +73,14 @@ def test_warm_index_manager_keeps_indexes_loaded_and_searchable(tmp_path: Path) 
 
 def test_invalidation_clears_cache_and_reloads_generation(tmp_path: Path) -> None:
     (
-        TTLQueryCache,
-        CacheInvalidationManager,
-        WarmIndexManager,
-        NormalizedStorage,
+        ttl_query_cache_cls,
+        cache_invalidation_manager_cls,
+        warm_index_manager_cls,
+        normalized_storage_cls,
         known_item_lookup,
     ) = _load_snowiki_modules()
 
-    storage = NormalizedStorage(tmp_path)
+    storage = normalized_storage_cls(tmp_path)
     storage.store_record(
         source_type="claude",
         record_type="session",
@@ -98,9 +98,9 @@ def test_invalidation_clears_cache_and_reloads_generation(tmp_path: Path) -> Non
         recorded_at="2026-04-08T12:00:00Z",
     )
 
-    manager = WarmIndexManager(tmp_path)
+    manager = warm_index_manager_cls(tmp_path)
     first_snapshot = manager.get()
-    cache = TTLQueryCache(ttl_seconds=30.0)
+    cache = ttl_query_cache_cls(ttl_seconds=30.0)
     cache.set("query:first", {"ok": True})
 
     storage.store_record(
@@ -120,7 +120,7 @@ def test_invalidation_clears_cache_and_reloads_generation(tmp_path: Path) -> Non
         recorded_at="2026-04-08T12:05:00Z",
     )
 
-    invalidator = CacheInvalidationManager(manager, cache)
+    invalidator = cache_invalidation_manager_cls(manager, cache)
     result = invalidator.on_ingest(reason="new normalized record")
     second_snapshot = manager.get()
     hits = known_item_lookup(second_snapshot.blended, "second session", limit=3)
