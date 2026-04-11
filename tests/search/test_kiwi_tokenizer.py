@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+
 from snowiki.search.kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
 
 

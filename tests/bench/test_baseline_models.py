@@ -4,6 +4,7 @@ from typing import cast
 
 import pytest
 from pydantic import ValidationError
+
 from snowiki.bench.models import (
     PAGE_LIST_ADAPTER,
     RECORD_LIST_ADAPTER,

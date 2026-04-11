@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+
 from snowiki.privacy.gate import PrivacyGate
 from snowiki.privacy.redaction import REDACTED_VALUE, redact_secrets
 from snowiki.storage.normalized import NormalizedStorage

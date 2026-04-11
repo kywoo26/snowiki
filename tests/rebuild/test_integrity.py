@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from click.testing import CliRunner
+
 from snowiki.cli.main import app
 from snowiki.rebuild.integrity import verify_rebuild_integrity
 

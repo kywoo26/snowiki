@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from typing import cast
 
 import pytest
+
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
 
 
