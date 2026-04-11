@@ -1,4 +1,6 @@
-# Snowiki Agent Contract
+# Root AGENTS.md
+
+This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGENTS.md` files inherit these rules and define local deltas only.
 
 ## Commands
 
@@ -18,6 +20,7 @@ uv run pytest tests/cli/test_query.py -v
 
 # Verification
 uv run python -m compileall snowiki/
+uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 ```
 
 ## Toolchain
@@ -26,10 +29,6 @@ uv run python -m compileall snowiki/
 - **Type System**: `ty` (primary type checker)
 - **Lint/Format**: `ruff` (E, F, I, N, W, UP, B, C4, SIM rules)
 - **Test Runner**: `pytest` with `pytest-cov`
-- **Repo Map**:
-  - `snowiki/` - Core implementation (CLI, storage, adapters)
-  - `tests/` - Unit and integration tests
-  - `pyproject.toml` - Centralized tool configuration
 
 ## Always
 
@@ -39,11 +38,12 @@ uv run python -m compileall snowiki/
 - Maintain 90%+ test coverage target for new logic.
 - Follow Google style docstrings.
 - Use `tmp_path` fixture for all tests that write to the filesystem.
+- Ensure child AGENTS are delta-only and inherit root policy.
 
 ## Ask First
 
 - Adding or updating dependencies in `pyproject.toml`.
-- Modifying core storage interfaces, Pydantic models, or `SchemaVersion` (schema/versioning change boundary).
+- Modifying core storage interfaces, Pydantic models, or `SchemaVersion`.
 - Changing CLI command signatures or arguments.
 - Updating `fixtures/` or `benchmarks/` (inventory sensitive).
 
@@ -52,8 +52,8 @@ uv run python -m compileall snowiki/
 - Commit secrets, credentials, or `.env` files.
 - Use `print()` for logging (use `logging` or `click.echo`).
 - Skip verification steps (tests, lint, type check).
-- Modify raw source files in `SNOWIKI_ROOT/raw/` (runtime storage, not the repo).
-- Manually modify or delete files in `SNOWIKI_ROOT/quarantine/` (runtime storage zone).
+- Modify raw source files in `SNOWIKI_ROOT/raw/`.
+- Manually modify or delete files in `SNOWIKI_ROOT/quarantine/`.
 - Manually edit generated artifacts in `compiled/` or `index/` zones.
 
 ## Verification Matrix
@@ -65,4 +65,27 @@ uv run python -m compileall snowiki/
 | **Search / Compiler** | `uv run python -m compileall snowiki/ && uv run pytest tests/cli/test_query.py` |
 | **Storage / Schema / Config** | `uv run pytest && uv run ty check && uv run ruff check snowiki tests` |
 | **Tests / Fixtures** | `uv run pytest && uv run ruff check snowiki tests` |
-| **Perf Sensitive** | `uv run snowiki benchmark --preset retrieval --output reports/retrieval.json` (See benchmarks/README.md) |
+| **Perf Sensitive** | `uv run snowiki benchmark --preset retrieval --output reports/retrieval.json` |
+
+## Ownership
+
+| Path | Role | Governance Owner |
+| :--- | :--- | :--- |
+| `snowiki/` | Runtime code | Root `AGENTS.md` |
+| `tests/` | Verification | Root `AGENTS.md` |
+| `scripts/` | Repo automation | Root `AGENTS.md` |
+| `benchmarks/` | Benchmark assets/reports/docs | `benchmarks/AGENTS.md` |
+| `vault-template/` | Distributable vault schema | `vault-template/AGENTS.md` |
+| `skill/` | Distributable skill package | `skill/AGENTS.md` |
+| `fixtures/` | Shared asset surface | Root `AGENTS.md` |
+
+## Path Contract
+
+- Access to repository assets (benchmarks, fixtures) must flow through approved helpers in `snowiki/config.py` and `snowiki/storage/zones.py`.
+- Avoid direct repo-root derivations or raw `cwd` coupling in production code.
+
+## PR Discipline
+
+- One canonical owner per fact; mirrors must be updated in the same PR.
+- Root AGENTS changes must be intentional; do not silently rewrite child AGENTS.
+- Maintain atomic commits by concern.
