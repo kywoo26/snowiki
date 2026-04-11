@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from .baselines import run_baseline_comparison
+from .models import BenchmarkReport
 from .phase1_correctness import CheckIssue, ValidationResult, validate_phase1_workspace
 from .phase1_latency import run_phase1_latency_evaluation
 from .presets import get_preset
@@ -38,6 +39,14 @@ class _RetrievalThresholdPolicy(Protocol):
     def __call__(self) -> dict[str, object]: ...
 
 
+def _legacy_retrieval_payload(
+    retrieval: BenchmarkReport | dict[str, object],
+) -> dict[str, object]:
+    if isinstance(retrieval, BenchmarkReport):
+        return retrieval.to_legacy_dict()
+    return retrieval
+
+
 render_report_text = cast(_RenderReportText, _RENDER.render_report_text)
 benchmark_verdict = cast(_ReportToDict, _VERDICT.benchmark_verdict)
 benchmark_exit_code = cast(_ReportToInt, _VERDICT.benchmark_exit_code)
@@ -68,7 +77,7 @@ def generate_report(
     preset = get_preset(preset_name)
     structural = _structural_validation_summary(validate_phase1_workspace(root))
     performance = run_phase1_latency_evaluation(root, preset=preset)
-    retrieval = run_baseline_comparison(root, preset)
+    retrieval = _legacy_retrieval_payload(run_baseline_comparison(root, preset))
     report: dict[str, object] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "report_version": "1.2",
