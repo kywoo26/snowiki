@@ -11,6 +11,7 @@ from .queries.topical import topical_recall
 from .rerank import NoOpReranker
 from .semantic_abstraction import DisabledSemanticBackend, SemanticBackend
 from .tokenizer import tokenize_text
+from .workspace import RetrievalService, RetrievalSnapshot
 
 __all__ = [
     "BM25SearchDocument",
@@ -22,6 +23,8 @@ __all__ = [
     "KoreanTokenizer",
     "LexicalIndex",
     "NoOpReranker",
+    "RetrievalService",
+    "RetrievalSnapshot",
     "SearchDocument",
     "SearchHit",
     "SemanticBackend",

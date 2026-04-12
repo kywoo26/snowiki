@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import lru_cache
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -8,9 +7,9 @@ import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.config import get_snowiki_root
-from snowiki.search import InvertedIndex, SearchHit
+from snowiki.search import SearchHit
 from snowiki.search.queries.topical import topical_recall
-from snowiki.search.workspace import build_search_index as build_workspace_search_index
+from snowiki.search.workspace import build_retrieval_snapshot
 
 
 class QueryHitPayload(TypedDict):
@@ -50,46 +49,6 @@ def _normalize_output_mode(value: str) -> OutputMode:
     return "json" if value == "json" else "human"
 
 
-def _tree_signature(root: Path) -> tuple[int, int]:
-    if not root.exists():
-        return (0, 0)
-    latest_mtime = root.stat().st_mtime_ns
-    file_count = 0
-    for path in root.rglob("*"):
-        try:
-            stat = path.stat()
-        except FileNotFoundError:
-            continue
-        latest_mtime = max(latest_mtime, stat.st_mtime_ns)
-        if path.is_file():
-            file_count += 1
-    return (latest_mtime, file_count)
-
-
-def _search_index_cache_key(root: Path) -> tuple[str, tuple[int, int], tuple[int, int]]:
-    resolved_root = root.resolve()
-    return (
-        str(resolved_root),
-        _tree_signature(resolved_root / "normalized"),
-        _tree_signature(resolved_root / "compiled"),
-    )
-
-
-@lru_cache(maxsize=8)
-def _build_search_index_cached(
-    cache_key: tuple[str, tuple[int, int], tuple[int, int]],
-) -> tuple[InvertedIndex, int, int]:
-    return build_workspace_search_index(Path(cache_key[0]))
-
-
-def clear_query_search_index_cache() -> None:
-    _build_search_index_cached.cache_clear()
-
-
-def build_search_index(root: Path) -> tuple[InvertedIndex, int, int]:
-    return _build_search_index_cached(_search_index_cache_key(root))
-
-
 def _hit_to_payload(hit: SearchHit) -> QueryHitPayload:
     return {
         "id": hit.document.id,
@@ -123,14 +82,14 @@ def _render_query_human(payload: object) -> str:
 
 def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
     """Execute a topical query against normalized and compiled content."""
-    index, record_count, page_count = build_search_index(root)
-    hits = topical_recall(index, query, limit=top_k)
+    snapshot = build_retrieval_snapshot(root)
+    hits = topical_recall(snapshot.index, query, limit=top_k)
     return {
         "query": query,
         "mode": mode,
         "semantic_backend": "disabled" if mode == "hybrid" else None,
-        "records_indexed": record_count,
-        "pages_indexed": page_count,
+        "records_indexed": snapshot.records_indexed,
+        "pages_indexed": snapshot.pages_indexed,
         "hits": [_hit_to_payload(hit) for hit in hits],
     }
 

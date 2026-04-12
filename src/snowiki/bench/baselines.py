@@ -13,7 +13,7 @@ from snowiki.config import resolve_repo_asset_path
 from snowiki.search import BM25SearchDocument, BM25SearchIndex, build_lexical_index
 from snowiki.search.indexer import InvertedIndex, SearchDocument, SearchHit
 from snowiki.search.workspace import (
-    build_search_index,
+    RetrievalService,
     compiled_page_to_search_mapping,
     load_normalized_records,
 )
@@ -199,12 +199,15 @@ def _build_corpus(root: Path) -> CorpusBundle:
     raw = build_lexical_index(
         record.model_dump(mode="python") for record in records
     ).index
-    blended, _, _ = build_search_index(root)
+    blended_snapshot = RetrievalService.from_records_and_pages(
+        records=[record.model_dump(mode="python") for record in records],
+        pages=[page.model_dump(mode="python") for page in pages],
+    )
     return CorpusBundle(
         records=records,
         pages=pages,
         raw_index=raw,
-        blended_index=blended,
+        blended_index=blended_snapshot.index,
     )
 
 

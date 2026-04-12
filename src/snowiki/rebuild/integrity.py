@@ -5,22 +5,26 @@ from pathlib import Path
 from typing import Any
 
 from snowiki.compiler.engine import CompilerEngine
-from snowiki.search.workspace import build_search_index
+from snowiki.search.workspace import (
+    build_retrieval_snapshot,
+    clear_query_search_index_cache,
+)
 from snowiki.storage.zones import StoragePaths, atomic_write_json
 
 
 def _run_rebuild(root: Path) -> dict[str, Any]:
     engine = CompilerEngine(root)
     compiled_paths = engine.rebuild()
-    index, record_count, page_count = build_search_index(root)
+    clear_query_search_index_cache()
+    snapshot = build_retrieval_snapshot(root)
     storage_paths = StoragePaths(root)
     manifest_path = storage_paths.index / "manifest.json"
     atomic_write_json(
         manifest_path,
         {
-            "records_indexed": record_count,
-            "pages_indexed": page_count,
-            "search_documents": index.size,
+            "records_indexed": snapshot.records_indexed,
+            "pages_indexed": snapshot.pages_indexed,
+            "search_documents": snapshot.index.size,
             "compiled_paths": compiled_paths,
         },
     )
@@ -28,8 +32,8 @@ def _run_rebuild(root: Path) -> dict[str, Any]:
         "compiled_count": len(compiled_paths),
         "compiled_paths": compiled_paths,
         "index_manifest": manifest_path.relative_to(root).as_posix(),
-        "pages_indexed": page_count,
-        "records_indexed": record_count,
+        "pages_indexed": snapshot.pages_indexed,
+        "records_indexed": snapshot.records_indexed,
     }
 
 
