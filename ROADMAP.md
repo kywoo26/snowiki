@@ -11,43 +11,50 @@ Recently completed foundation work:
 - governance and path-contract cleanup
 - test suite split into fast unit vs explicit integration paths
 - migration to standard `src/snowiki/` package layout
+- first retrieval performance deep dive
+- canonical retrieval service hardening
+- manual benchmark workflow ergonomics
 
 The repository is now in a better state to take on larger product and performance work without layout/policy churn.
 
 ## Near-Term
 
-### 1. Search and retrieval performance deep dive
-Profile and improve the current hot paths in indexing and query execution.
+### 1. Korean and mixed-language lexical benchmark
+Measure and improve Korean and mixed-language retrieval as a lexical/tokenization problem before escalating into semantic or hybrid retrieval.
 
 Why:
-- performance-sensitive wiki workloads will concentrate here first
-- the benchmark system already exists, but tuning and architecture work remain
+- Korean retrieval is still an unresolved lexical/tokenization question
+- mixed-language retrieval is likely to be one of Snowiki’s highest-value differentiators
+- lexical strategy should be exhausted before semantic escalation
 
 Likely scope:
-- identify dominant costs in BM25/tokenization/index build/query flows
-- reduce avoidable rebuild/query overhead
-- make performance regressions easier to diagnose from benchmark output
+- benchmark the current tokenizer against Kiwi-backed alternatives
+- compare noun-heavy vs broader morphology tradeoffs
+- produce a clear lexical strategy for Korean and mixed Korean-English retrieval
 
-### 2. Benchmark workflow ergonomics
-Add an on-demand GitHub workflow for benchmark execution without making benchmarks a default PR hard gate.
+### 2. Skill contract and agent interface design
+Rebuild the Snowiki skill layer as a first-class agent interface instead of letting old qmd-oriented workflow text drift away from the shipped runtime.
 
 Why:
-- benchmark command exists, but is currently local/manual only
-- perf-sensitive work would benefit from reproducible shared runs in GitHub Actions
+- the current install/use contract is now aligned, but the skill layer still needs first-class design work rather than patch-level cleanup
+- a good skill is not just usage text; it is an agent contract covering content selection, token budget, tool coupling, front matter, and workflow composability
+- Snowiki needs a clear answer for what belongs in the CLI, MCP, skill layer, or roadmap
 
 Deferred because:
-- the current priority is fixing the core lexical/query/index hot path itself, not workflow UX around benchmarking
-- benchmark automation should follow measured optimization work, not get mixed into the first performance deep dive
+- the immediate priority was fixing the current install/use contract mismatch so other sessions do not misunderstand the runtime
+- deeper skill redesign should follow deliberate research, not incremental patching
 
 Likely scope:
-- `workflow_dispatch` benchmark workflow
-- preset selection (`core`, `retrieval`, `full`)
-- artifact upload for JSON benchmark reports
+- Claude/OpenCode/OMO skill contract comparison
+- front matter / metadata / token-budget rules
+- directory structure and canonical-owner rules for skill docs
+- agent-facing output contracts and workflow semantics
+- runtime-truth vs deferred-work boundaries
 
 Pull-forward trigger:
-- perf-sensitive PRs become frequent
-- benchmark verification keeps happening manually and repeatedly
-- the team needs shared, reproducible benchmark runs outside local machines
+- skill docs and runtime drift again after the current alignment PR
+- multiple agent platforms need divergent wrappers over the same runtime
+- the team is ready to treat skill ergonomics as a first-class product surface
 
 ### 3. Coverage governance ratchet
 Move from report-only coverage visibility toward a non-regression model once a stable baseline is observed.
@@ -90,34 +97,31 @@ Pull-forward trigger:
 - integration behavior leaks back into unit files
 - profiling repeatedly points to misclassified tests rather than runtime code
 
-### 5. Skill contract and agent interface design
-Rebuild the Snowiki skill layer as a first-class agent interface instead of letting old qmd-oriented workflow text drift away from the shipped runtime.
+### 5. Benchmark workflow ergonomics (beyond the current manual trigger)
+Build on top of the current manual benchmark workflow without turning benchmarks into a default PR hard gate.
 
 Why:
-- the current skill and workflow docs still carry legacy qmd assumptions
-- a good skill is not just usage text; it is an agent contract covering content selection, token budget, tool coupling, front matter, and workflow composability
-- Snowiki needs a clear answer for what belongs in the CLI, MCP, skill layer, or roadmap
+- benchmark command exists and the first manual workflow is now in place
+- perf-sensitive work benefits from reproducible shared runs in GitHub Actions
 
 Deferred because:
-- the immediate priority is fixing the current install/use contract mismatch so other sessions do not misunderstand the runtime
-- deeper skill redesign should follow deliberate research, not incremental patching
+- current priority is still retrieval quality and architecture, not benchmark UX polish
+- broader benchmark automation should follow measured optimization work, not lead it
 
 Likely scope:
-- Claude/OpenCode/OMO skill contract comparison
-- front matter / metadata / token-budget rules
-- directory structure and canonical-owner rules for skill docs
-- agent-facing output contracts and workflow semantics
-- runtime-truth vs deferred-work boundaries
+- richer artifact/report ergonomics
+- better shared benchmark review flow
+- selective benchmark execution patterns beyond the current manual trigger
 
 Pull-forward trigger:
-- skill docs and runtime drift again after the current alignment PR
-- multiple agent platforms need divergent wrappers over the same runtime
-- the team is ready to treat skill ergonomics as a first-class product surface
+- perf-sensitive PRs become frequent
+- benchmark verification keeps happening manually and repeatedly
+- the team needs shared, reproducible benchmark runs outside local machines
 
 ## Mid-Term
 
-### 6. Search architecture hardening
-Clarify boundaries between tokenization, indexing, reranking, retrieval orchestration, and benchmark/evaluation surfaces.
+### 6. Search architecture hardening (next layer)
+Continue clarifying boundaries between tokenization, indexing, retrieval orchestration, and benchmark/evaluation surfaces after the first canonical retrieval hardening pass.
 
 Why:
 - easier profiling
@@ -125,8 +129,8 @@ Why:
 - less coupling between product behavior and benchmark code
 
 Deferred because:
-- the immediate next step is a profiling-first optimization pass, not a broad architecture rewrite
-- boundary changes should be driven by measured hotspots and concrete pressure points
+- the first canonical retrieval hardening pass is complete, so the next layer should only move when a new pressure point is clearly identified
+- boundary changes should continue to be driven by measured hotspots and concrete pressure points
 
 Pull-forward trigger:
 - hotspot analysis keeps landing on coupling between search layers rather than one isolated function
