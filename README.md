@@ -18,30 +18,54 @@ CLAUDE.md       → the schema (rules, conventions, workflows)
 
 ## Quick Start
 
+Snowiki’s current shipped runtime is **CLI-first**.
+
+The authoritative runtime contract is the installed `snowiki` command, not the older qmd-oriented `/wiki` workflow text.
+
 ```bash
-# 1. Copy vault template
-cp -r vault-template/ ~/vault/
-# (or merge CLAUDE.md + directories into existing vault)
+# 1. Install Snowiki from a checkout
+uv tool install --from . snowiki
 
-# 2. Install the wiki skill
-mkdir -p ~/.claude/skills
-cp -r skill/ ~/.claude/skills/wiki/
+# 2. Inspect the shipped command surface
+snowiki --help
 
-# 3. Set up qmd for search
-bun install -g @tobilu/qmd
-qmd collection add ~/vault/wiki --name wiki
-qmd collection add ~/vault/sources --name sources
-qmd collection add ~/vault/sessions --name sessions
-qmd update && qmd embed
-
-# 4. Start using
-/wiki ingest https://example.com/article
-/wiki query "What do I know about X?"
-/wiki recall yesterday
-/wiki lint
+# 3. Use the current runtime directly
+snowiki ingest /path/to/claude-export.jsonl --source claude
+snowiki rebuild
+snowiki query "What do I know about X?" --output json
+snowiki recall yesterday --output json
+snowiki lint
+snowiki status
 ```
 
-## Unified Skill — 8 Modes
+If you are working from a development checkout instead of a tool install, the equivalent commands are available via `uv run snowiki ...`.
+
+## Current shipped CLI surface
+
+The current runtime exposes these commands:
+
+- `snowiki ingest`
+- `snowiki rebuild`
+- `snowiki query`
+- `snowiki recall`
+- `snowiki status`
+- `snowiki lint`
+- `snowiki export`
+- `snowiki benchmark`
+- `snowiki daemon`
+- `snowiki mcp`
+
+## Workflow skill status
+
+The `skill/` package is currently best understood as a **workflow/reference layer**, not the canonical runtime contract.
+
+- It still contains legacy qmd-oriented guidance and broader aspirational wiki workflows.
+- The current shipped product truth is the Python `snowiki` CLI and its read-only MCP surface.
+- If you want a reliable machine-usable interface today, prefer `snowiki ... --output json` and `snowiki mcp`.
+
+## Historical workflow surface
+
+Earlier Snowiki workflow docs described a broader `/wiki` interface:
 
 | Command | What it does |
 |---------|-------------|
@@ -54,14 +78,7 @@ qmd update && qmd embed
 | `/wiki lint` | Structural + semantic health check |
 | `/wiki status` | Dashboard: pages, sources, health |
 
-## Search Strategy (qmd)
-
-| Need | Strategy |
-|------|----------|
-| Quick lookup | `lex` only, `rerank: false` — instant |
-| Broad search | `lex` + `vec`, `rerank: false` — ~3s (GPU) |
-| Best quality | `lex` + `vec`, `rerank: true` — ~5s (GPU) |
-| CPU-only | `lex` only — vec/rerank too slow |
+That workflow remains useful as lineage and future design context, but it is **not** the authoritative runtime contract for the current shipped CLI.
 
 ## Obsidian Integration
 
@@ -87,11 +104,11 @@ qmd update && qmd embed
 1. **Compilation, not storage** — sources are compiled into structured, interlinked wiki pages
 2. **Epistemic integrity** — every claim traces to a source, contradictions flagged not smoothed
 3. **Graph-first** — every design decision considers Obsidian graph view
-4. **Search-strategic** — context-aware qmd usage (lex for speed, vec for depth)
+4. **Search-strategic** — lexical-first retrieval now, with semantic/hybrid layers deferred until evidence promotes them
 5. **Progressive growth** — start simple, structure emerges from content
 6. **Human insight preserved** — `[!insight]` callouts never modified by LLM
 
 ## Related
 
 - [qmd-system](https://github.com/kywoo26/qmd-system) — infrastructure setup (qmd + Claude Code + Obsidian)
-- [qmd](https://github.com/tobi/qmd) — local markdown search engine
+- [qmd](https://github.com/tobi/qmd) — retrieval lineage reference, not the current Snowiki runtime

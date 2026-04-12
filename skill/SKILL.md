@@ -1,25 +1,49 @@
 ---
 name: wiki
 description: "Snowiki — unified LLM wiki with recall and sync. Ingest sources into structured wiki pages. Query compiled knowledge. Recall sessions by date, topic, or graph. Sync sessions to Obsidian. Edit pages. Merge overlapping pages. Lint for health. Use when user says: wiki ingest, wiki query, wiki lint, wiki status, wiki recall, wiki sync, wiki edit, wiki merge, add to wiki, file this, search wiki, what do I know about, recall, what did we work on, load context, yesterday, last week, session history, recall graph, sync sessions, export sessions, log session."
-argument-hint: [ingest SOURCE|query QUESTION|recall DATE_OR_TOPIC|sync|edit PAGE|merge PAGE1 PAGE2|lint|status]
-allowed-tools: Bash(python3:*), Bash(qmd:*), Read, Write, Edit, Glob, Grep, WebFetch, mcp__plugin_qmd_qmd__query, mcp__plugin_qmd_qmd__get
+argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|export|benchmark PRESET|daemon|mcp]
+allowed-tools: Bash(python3:*), Read, Write, Edit, Glob, Grep, WebFetch
 ---
 
-# Snowiki — Unified LLM Wiki Skill
+# Snowiki — CLI-First Wiki Workflow Skill
 
-A persistent wiki that compounds knowledge like a snowball, with integrated recall and session sync.
+A persistent wiki that compounds knowledge like a snowball.
 
-## Core Loop
+The authoritative runtime contract is the installed `snowiki` CLI.
+
+This skill should be treated as a workflow layer around the shipped CLI, not as an independent qmd-native runtime.
+
+## Current Runtime Truth
+
+Use the installed `snowiki` command as the primary interface.
+
+Currently shipped commands:
+- `snowiki ingest`
+- `snowiki rebuild`
+- `snowiki query`
+- `snowiki recall`
+- `snowiki status`
+- `snowiki lint`
+- `snowiki export`
+- `snowiki benchmark`
+- `snowiki daemon`
+- `snowiki mcp`
+
+Machine-usable interfaces today:
+- CLI with `--output json` where supported
+- read-only MCP via `snowiki mcp`
+
+## Workflow Context
 
 ```
 Source in -> LLM compiles -> Wiki grows -> Query draws from wiki -> Good answers filed back -> Snowball
-Sessions -> Recall loads context -> Sync exports to Obsidian -> Sessions become sources -> Snowball
+Sessions -> Recall loads context -> future sync/edit/merge flows may compound back into the wiki
 ```
 
 **Human** curates sources, asks questions, thinks.
 **LLM** summarizes, cross-references, files, maintains consistency, recalls context, syncs sessions.
 
-## Architecture
+## Architecture Context
 
 Three layers:
 1. **sources/** — immutable raw material (articles, notes). Never modified.
@@ -27,7 +51,7 @@ Three layers:
 3. **wiki/** — LLM-owned compiled knowledge (summaries, concepts, entities, topics, comparisons, questions, overview).
 4. **CLAUDE.md** — rules for structure, conventions, workflows.
 
-Read `CLAUDE.md` at the start of every ingest or lint operation.
+Read `CLAUDE.md` when operating inside a Snowiki-style vault workflow.
 
 ## Page Types
 
@@ -41,47 +65,41 @@ Read `CLAUDE.md` at the start of every ingest or lint operation.
 | question | `wiki/questions/` | Filed query answer. | `2026-04-07-why-wiki-beats-rag.md` |
 | overview | `wiki/overview.md` | Evolving synthesis. Singleton. | -- |
 
-## Modes (8 total)
+## Current Commands vs Deferred Workflow Ideas
 
-### /wiki ingest <source>
-Process a source and compile it into the wiki. One source should touch 5-15 pages.
+### Current shipped commands
 
-### /wiki query <question>
-Search wiki, synthesize answer, offer to file back as a question page.
+#### `ingest`
+Ingest a supported source into Snowiki storage.
 
-### /wiki recall <date_or_topic>
-Load context from vault memory. Temporal queries (yesterday, last week) use native JSONL timeline. Topic queries use QMD BM25 search. Graph mode generates interactive visualization. Every recall ends with "One Thing" -- the single highest-leverage next action.
+#### `query`
+Search compiled knowledge through the current lexical retrieval runtime.
 
-### /wiki sync
-Export Claude Code sessions to Obsidian markdown. Batch export, resume, annotate, close sessions.
+#### `recall`
+Recall against current stored knowledge/session-derived material through the shipped Snowiki runtime.
 
-### /wiki edit <page>
-Lightweight page modification. Read page, apply change, update frontmatter timestamps, done.
+#### `status`, `lint`, `export`, `benchmark`, `daemon`, `mcp`
+These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
 
-### /wiki merge <page1> <page2>
-Consolidate overlapping pages. Combine content, redirect links, update index.
+### Deferred / broader workflow ideas
 
-### /wiki lint
-Health-check: orphans, broken links, stale pages, missing summaries, overlapping pages.
+The following remain workflow or roadmap concepts rather than guaranteed shipped commands in the current runtime:
+- sync
+- edit
+- merge
+- graph-oriented recall workflows
+- qmd-backed hybrid/vector routing as a default runtime path
 
-### /wiki status
-Overview: page counts, source counts, last activity, session stats.
+Treat them as future-facing workflow concepts unless the runtime explicitly exposes them.
 
 ## Search Strategy
 
-Use qmd strategically based on context:
+Current shipped runtime posture:
+- lexical-first retrieval
+- deterministic benchmarked backend
+- semantic/hybrid/rerank remain deferred architecture work
 
-| Situation | Strategy | Why |
-|-----------|----------|-----|
-| Quick keyword lookup | `lex` only, `rerank: false` | Instant, no model loading, zero tokens |
-| Semantic meaning search | `lex` + `vec`, `rerank: false` | Good recall, ~3s with GPU |
-| Best quality (GPU available) | `lex` + `vec`, `rerank: true` | Full hybrid, ~5s with GPU |
-| CPU-only environment | `lex` only, `rerank: false` | vec/rerank too slow without GPU |
-| Finding related pages for ingest | `lex` + `vec` across wiki collection | Need broad coverage |
-| Verifying contradiction | `lex` exact phrase search | Precise matching |
-| Recall topic search | BM25 `lex` across all collections | 53x faster than hybrid |
-
-Always specify `collections: ["wiki"]` for wiki queries, `collections: ["sources"]` for source lookups, `collections: ["sessions"]` for recall.
+qmd remains lineage/reference material, not the current canonical runtime search engine.
 
 ## Obsidian Graph Integration
 
@@ -103,4 +121,4 @@ Scripts reference these paths and variables:
 
 ## Workflow
 
-See `workflows/wiki.md` for detailed step-by-step routing across all 8 modes.
+See `workflows/wiki.md` for the current workflow interpretation of the shipped CLI plus clearly marked deferred ideas.
