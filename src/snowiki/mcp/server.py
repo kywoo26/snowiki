@@ -9,13 +9,11 @@ from urllib.parse import unquote, urlparse
 
 from snowiki.compiler.taxonomy import slugify
 from snowiki.search import (
-    build_blended_index,
-    build_lexical_index,
-    build_wiki_index,
     temporal_recall,
     topical_recall,
 )
 from snowiki.search.indexer import SearchHit
+from snowiki.search.workspace import RetrievalService
 
 from .types import MCPMapping, MCPObject, ResourceSpec
 
@@ -69,12 +67,13 @@ class SnowikiReadOnlyFacade:
         self.compiled_pages = tuple(dict(page) for page in compiled_pages)
         self.reference_time = reference_time or datetime.now(tz=UTC)
 
-        self.lexical_index = build_lexical_index(self.session_records)
-        self.wiki_index = build_wiki_index(self.compiled_pages)
-        self.index = build_blended_index(
-            self.lexical_index.documents,
-            self.wiki_index.documents,
+        snapshot = RetrievalService.from_records_and_pages(
+            records=list(self.session_records),
+            pages=list(self.compiled_pages),
         )
+        self.lexical_index = snapshot.lexical
+        self.wiki_index = snapshot.wiki
+        self.index = snapshot.index
 
         self.page_by_path = {
             str(page.get("path", "")).strip(): dict(page)
