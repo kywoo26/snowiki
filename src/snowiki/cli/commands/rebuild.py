@@ -5,11 +5,10 @@ from typing import Any
 
 import click
 
-from snowiki.cli.commands.query import clear_query_search_index_cache
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.config import get_snowiki_root
-from snowiki.search.workspace import build_search_index
+from snowiki.search.workspace import RetrievalService, clear_query_search_index_cache
 from snowiki.storage.zones import StoragePaths, atomic_write_json
 
 
@@ -33,15 +32,15 @@ def run_rebuild(root: Path) -> dict[str, Any]:
     engine = CompilerEngine(root)
     compiled_paths = engine.rebuild()
     clear_query_search_index_cache()
-    index, record_count, page_count = build_search_index(root)
+    snapshot = RetrievalService.from_root(root)
     storage_paths = StoragePaths(root)
     manifest_path = storage_paths.index / "manifest.json"
     atomic_write_json(
         manifest_path,
         {
-            "records_indexed": record_count,
-            "pages_indexed": page_count,
-            "search_documents": index.size,
+            "records_indexed": snapshot.records_indexed,
+            "pages_indexed": snapshot.pages_indexed,
+            "search_documents": snapshot.index.size,
             "compiled_paths": compiled_paths,
         },
     )
@@ -50,8 +49,8 @@ def run_rebuild(root: Path) -> dict[str, Any]:
         "compiled_count": len(compiled_paths),
         "compiled_paths": compiled_paths,
         "index_manifest": manifest_path.relative_to(root).as_posix(),
-        "records_indexed": record_count,
-        "pages_indexed": page_count,
+        "records_indexed": snapshot.records_indexed,
+        "pages_indexed": snapshot.pages_indexed,
     }
 
 

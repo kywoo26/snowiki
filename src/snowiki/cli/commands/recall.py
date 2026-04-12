@@ -9,7 +9,7 @@ import click
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.config import get_snowiki_root
 from snowiki.search import known_item_lookup, temporal_recall, topical_recall
-from snowiki.search.workspace import build_search_index
+from snowiki.search.workspace import RetrievalService
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
@@ -45,7 +45,8 @@ def _iso_date_window(text: str) -> tuple[datetime, datetime] | None:
 
 
 def run_recall(root: Path, target: str) -> dict[str, Any]:
-    index, _, _ = build_search_index(root)
+    snapshot = RetrievalService.from_root(root)
+    index = snapshot.index
     strategy = "topic"
     window = _iso_date_window(target)
     if window is not None:
