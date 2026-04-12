@@ -90,9 +90,33 @@ Pull-forward trigger:
 - integration behavior leaks back into unit files
 - profiling repeatedly points to misclassified tests rather than runtime code
 
+### 5. Skill contract and agent interface design
+Rebuild the Snowiki skill layer as a first-class agent interface instead of letting old qmd-oriented workflow text drift away from the shipped runtime.
+
+Why:
+- the current skill and workflow docs still carry legacy qmd assumptions
+- a good skill is not just usage text; it is an agent contract covering content selection, token budget, tool coupling, front matter, and workflow composability
+- Snowiki needs a clear answer for what belongs in the CLI, MCP, skill layer, or roadmap
+
+Deferred because:
+- the immediate priority is fixing the current install/use contract mismatch so other sessions do not misunderstand the runtime
+- deeper skill redesign should follow deliberate research, not incremental patching
+
+Likely scope:
+- Claude/OpenCode/OMO skill contract comparison
+- front matter / metadata / token-budget rules
+- directory structure and canonical-owner rules for skill docs
+- agent-facing output contracts and workflow semantics
+- runtime-truth vs deferred-work boundaries
+
+Pull-forward trigger:
+- skill docs and runtime drift again after the current alignment PR
+- multiple agent platforms need divergent wrappers over the same runtime
+- the team is ready to treat skill ergonomics as a first-class product surface
+
 ## Mid-Term
 
-### 5. Search architecture hardening
+### 6. Search architecture hardening
 Clarify boundaries between tokenization, indexing, reranking, retrieval orchestration, and benchmark/evaluation surfaces.
 
 Why:
@@ -109,7 +133,7 @@ Pull-forward trigger:
 - benchmark and product code become too entangled to optimize safely
 - backend or local-model experiments require cleaner boundaries
 
-### 6. Semantic quality and linting expansion
+### 7. Semantic quality and linting expansion
 Extend quality checks beyond structural integrity into knowledge quality.
 
 Examples:
@@ -118,7 +142,7 @@ Examples:
 - weak-link or orphan-topic surfacing
 - citation/provenance quality checks
 
-### 7. Incremental rebuild and ingest efficiency
+### 8. Incremental rebuild and ingest efficiency
 Reduce the cost of repeated partial updates to a Snowiki workspace.
 
 Why:
@@ -135,7 +159,7 @@ Pull-forward trigger:
 
 ## Long-Term
 
-### 8. Optional native acceleration for hot paths
+### 9. Optional native acceleration for hot paths
 Investigate Rust-backed implementations for the highest-value performance-sensitive paths while keeping Python as the public orchestration/API layer.
 
 Important:
@@ -156,7 +180,7 @@ Pull-forward trigger:
 - Tantivy- or native-style tradeoffs become compelling enough to justify migration cost
 - local performance targets cannot be met within the current Python implementation
 
-### 9. Local semantic and hybrid retrieval layer
+### 10. Local semantic and hybrid retrieval layer
 Investigate embeddings, reranking, query expansion, and hybrid retrieval as additive layers on top of the lexical backbone.
 
 Why:
@@ -179,7 +203,7 @@ Pull-forward trigger:
 - a strong lexical baseline exists and the next bottleneck is quality rather than raw latency
 - local model ergonomics become important enough for agent-facing retrieval quality
 
-### 10. Broader benchmark and evaluation system
+### 11. Broader benchmark and evaluation system
 Expand from the current deterministic backend benchmark into a richer evaluation framework.
 
 Examples:
