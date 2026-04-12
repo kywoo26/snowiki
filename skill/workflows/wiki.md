@@ -1,6 +1,24 @@
 # Snowiki Workflow
 
-All 8 modes routed from a single entry point.
+## Important
+
+This file is a workflow guide around the current Snowiki CLI.
+
+The authoritative shipped runtime contract is the installed `snowiki` command, not the older qmd-centric workflow assumptions.
+
+Use this file to guide how an agent should orchestrate the shipped CLI, and treat any broader wiki workflow notes as deferred ideas unless the runtime explicitly exposes them.
+
+Current shipped CLI surface:
+- `snowiki ingest`
+- `snowiki rebuild`
+- `snowiki query`
+- `snowiki recall`
+- `snowiki status`
+- `snowiki lint`
+- `snowiki export`
+- `snowiki benchmark`
+- `snowiki daemon`
+- `snowiki mcp`
 
 ## Step 0: Bootstrap
 
@@ -21,9 +39,10 @@ Parse input after `/wiki`:
 | `ingest <URL/path/text>` | Step 2: Ingest |
 | `query <question>` | Step 3: Query |
 | `recall <date_or_topic>` | Step 4: Recall |
-| `sync [subcommand]` | Step 5: Sync |
-| `edit <page> [change]` | Step 6: Edit |
-| `merge <page1> <page2>` | Step 7: Merge |
+| `export` | Step 5: Export |
+| `benchmark [preset]` | Step 6: Benchmark |
+| `daemon` | Step 7: Daemon |
+| `mcp` | Step 8: MCP |
 | `lint` | Step 8: Lint |
 | `status` | Step 9: Status |
 
@@ -31,7 +50,7 @@ Implicit routing (no explicit mode keyword):
 - Temporal words ("yesterday", "last week", "what was I doing") -> Step 4: Recall
 - "what do I know about X" -> Step 3: Query
 - "add to wiki", "file this" -> Step 2: Ingest
-- "sync sessions", "export sessions", "log session" -> Step 5: Sync
+- "export sessions" -> Step 5: Export
 
 ---
 
@@ -63,13 +82,7 @@ Source is now immutable. Never modify it again.
 
 ### 2.2: Discuss
 
-Read the source. Present to user:
-- 3-5 key takeaways
-- Connections to existing wiki pages (search via qmd `lex`)
-- New concepts/entities that warrant pages
-- Potential contradictions with existing knowledge
-
-If user says "just file it" — skip to 2.3 with reasonable defaults.
+Read the source and current local Snowiki outputs. Use the shipped retrieval surfaces where possible. Do not assume qmd is available or canonical.
 
 ### 2.3: Compile (the core step)
 
@@ -138,7 +151,7 @@ Ingested: "Source Title"
 
 ### 2.5: Post-ingest
 
-Run `qmd update && qmd embed` to index new/updated pages for future queries.
+If the runtime later exposes additional indexing/maintenance helpers, use those. Do not assume a qmd update/embed loop is the current shipped behavior.
 
 ---
 
@@ -148,26 +161,13 @@ Search the wiki, synthesize an answer. Good answers compound back into the wiki.
 
 ### 3.1: Search Strategy
 
-Choose strategy based on context:
+Use the shipped `snowiki query` runtime first.
 
-**Quick lookup** (user knows the term):
-```
-qmd query: [{type: "lex", query: "exact term"}], rerank: false
-```
+Current truth:
+- lexical runtime is shipped
+- semantic/hybrid/rerank are not yet shipped as the canonical runtime path
 
-**Broad search** (user exploring):
-```
-qmd query: [{type: "lex", query: "keywords"}, {type: "vec", query: "natural language question"}], rerank: false
-```
-
-**Deep search** (complex question, GPU available):
-```
-qmd query: [{type: "lex", query: "keywords"}, {type: "vec", query: "question"}], rerank: true
-```
-
-Always search `collections: ["wiki"]` first. Fall back to `collections: ["sources"]` for raw detail.
-
-If qmd unavailable: read `wiki/index.md`, identify relevant pages by scanning, read them directly.
+So this workflow should assume `snowiki query` first, and only treat qmd-like hybrid flows as lineage or future-facing ideas.
 
 ### 3.2: Synthesize
 
@@ -246,9 +246,9 @@ python3 ~/.claude/skills/wiki/scripts/recall-day.py expand SESSION_ID
 
 This shows the conversation flow (user messages, assistant first lines, tool calls).
 
-### 4.3: Topic Recall (QMD BM25 with Query Expansion)
+### 4.3: Topic Recall
 
-BM25 is keyword-based — it only finds exact word matches. The user's recall of a topic often uses different words than the session itself. Fix: expand the query into 3-4 keyword variants covering synonyms and related phrasings.
+Use the shipped `snowiki recall` behavior first. Topic expansion and broader hybrid recall remain possible future enhancements, but should not be assumed as current built-in runtime behavior.
 
 **Step 4.3.1: Expand query into variants.** Generate 3-4 alternative phrasings that someone might use for the same topic. Think: what other words describe this? Example:
 - User says "disk clean up" -> variants: `"disk cleanup free space"`, `"large files storage"`, `"delete cache bloat GB"`, `"free up computer space"`
