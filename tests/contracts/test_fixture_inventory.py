@@ -246,6 +246,15 @@ def test_benchmark_query_and_judgment_inventory(
     assert len(set(ids)) == 60
 
     gold = judgments["judgments"]
+    canonical_query_ids = {
+        item["id"] for item in query_items if item["group"] in {"ko", "mixed"}
+    }
+    canonical_judgment_ids = {
+        query_id for query_id in gold if query_id.startswith(("ko-", "mix-"))
+    }
+    assert len(canonical_query_ids) == 40
+    assert len(canonical_judgment_ids) == 40
+    assert canonical_query_ids == canonical_judgment_ids
     assert set(ids) == set(gold)
     for query_id, relevant_doc_ids in gold.items():
         assert query_id
