@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from ..types import ToolSpec, coerce_path
-
-if TYPE_CHECKING:
-    from ..server import SnowikiReadOnlyFacade
+from ..types import ReadOnlyFacade, ToolSpec, coerce_path
 
 
-def build_tool(facade: SnowikiReadOnlyFacade) -> ToolSpec:
+def build_tool(facade: ReadOnlyFacade) -> ToolSpec:
     """Build the read-only resolve-links MCP tool."""
 
     def handler(arguments: dict[str, object]) -> dict[str, object]:

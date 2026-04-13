@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-from ..types import ToolSpec, coerce_limit, coerce_query
-
-if TYPE_CHECKING:
-    from ..server import SnowikiReadOnlyFacade
+from ..types import ReadOnlyFacade, ToolSpec, coerce_limit, coerce_query
 
 
-def build_tool(facade: SnowikiReadOnlyFacade) -> ToolSpec:
+def build_tool(facade: ReadOnlyFacade) -> ToolSpec:
     """Build the read-only recall MCP tool."""
 
     def handler(arguments: dict[str, object]) -> dict[str, object]:
@@ -31,7 +27,7 @@ def build_tool(facade: SnowikiReadOnlyFacade) -> ToolSpec:
 
     return ToolSpec(
         name="recall",
-        description="Recall topical or temporal knowledge from the existing index.",
+        description="Recall knowledge using CLI-truth auto-routing across date, temporal, known-item, and topic strategies.",
         input_schema={
             "type": "object",
             "properties": {
@@ -44,7 +40,7 @@ def build_tool(facade: SnowikiReadOnlyFacade) -> ToolSpec:
                 },
                 "mode": {
                     "type": "string",
-                    "description": "Recall mode: auto, temporal, or topical.",
+                    "description": "Recall mode: auto, date, temporal, known_item, or topic.",
                 },
                 "reference_time": {
                     "type": "string",
