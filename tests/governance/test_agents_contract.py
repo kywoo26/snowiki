@@ -68,6 +68,7 @@ def test_root_agents_contract_ownership(repo_root):
     content = (repo_root / "AGENTS.md").read_text()
 
     required_paths = [
+        "docs/architecture/skill-and-agent-interface-contract.md",
         "src/snowiki/",
         "tests/",
         "scripts/",

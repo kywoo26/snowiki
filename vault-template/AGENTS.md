@@ -4,7 +4,7 @@ Root `AGENTS.md` is inherited; this file defines local deltas only.
 
 ## Scope
 
-This directory governs the distributable vault schema and template layout. It ensures the integrity of the "Snowball" knowledge compounding loop.
+This directory governs the distributable vault schema and template layout. It ensures the integrity of the "Snowball" knowledge compounding loop. This file is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md`.
 
 ## Schema Integrity
 

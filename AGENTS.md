@@ -82,8 +82,10 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 | Path | Role | Governance Owner |
 | :--- | :--- | :--- |
 | `src/snowiki/` | Runtime code | Root `AGENTS.md` |
+| `docs/architecture/skill-and-agent-interface-contract.md` | Skill/Agent Contract | `docs/architecture/skill-and-agent-interface-contract.md` |
 | `tests/` | Verification | Root `AGENTS.md` |
 | `scripts/` | Repo automation | Root `AGENTS.md` |
+| `docs/architecture/skill-and-agent-interface-contract.md` | Canonical agent interface contract | Root `AGENTS.md` |
 | `benchmarks/` | Benchmark assets/reports/docs | `benchmarks/AGENTS.md` |
 | `vault-template/` | Distributable vault schema | `vault-template/AGENTS.md` |
 | `skill/` | Distributable skill package | `skill/AGENTS.md` |

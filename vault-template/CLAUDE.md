@@ -74,7 +74,7 @@ Target: 5-15 pages touched per source.
 
 ## Query
 
-1. Read index.md for navigation. Search via qmd if available.
+1. Read index.md for navigation. Use the `snowiki query` CLI command or the read-only MCP surface for search.
 2. Read relevant pages, synthesize answer with `[[wikilinks]]` citations.
 3. Flag information not yet in wiki: "> ⚠️ Not in wiki"
 4. If answer synthesizes ideas in a new way → offer to file as wiki/questions/YYYY-MM-DD-slug.md (the compounding loop).
@@ -102,9 +102,9 @@ When lint finds and fixes an issue → update this CLAUDE.md if the fix reveals 
 - Facts and inferences separated in summary pages.
 - Every claim in wiki should trace to a source via `sources:` frontmatter.
 
-## Search Strategy (qmd)
+## Historical Search Strategy (Lineage)
 
-Choose based on context:
+The following search strategies are preserved for **lineage and future design context**. They refer to the older `qmd` retrieval engine, not the current Snowiki runtime.
 
 | Need | Strategy | Speed |
 |------|----------|-------|
@@ -113,7 +113,7 @@ Choose based on context:
 | Best quality answer | `lex` + `vec`, `rerank: true` | ~5s (GPU) |
 | CPU-only environment | `lex` only, `rerank: false` | instant |
 
-Search `collections: ["wiki"]` first. Fall back to `collections: ["sources"]` for raw detail.
+The current Snowiki runtime uses a **lexical-first** retrieval strategy via the `snowiki` CLI.
 
 ## Log Format
 

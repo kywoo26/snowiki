@@ -63,6 +63,11 @@ uv run pytest
     _write(tmp_path, "AGENTS.md", root_agents)
     for relative_path in module.CHILD_AGENT_FILES:
         _write(tmp_path, relative_path.as_posix(), child_agents)
+    _write(
+        tmp_path,
+        "docs/architecture/skill-and-agent-interface-contract.md",
+        "# Skill and Agent Interface Contract\n\ncanonical contract owner\n",
+    )
     _write(tmp_path, "benchmarks/README.md", "# Benchmarks\n")
     _write(tmp_path, "vault-template/CLAUDE.md", "# Vault Schema\n")
     _write(tmp_path, "skill/SKILL.md", "# Skill\n")
@@ -97,6 +102,7 @@ def test_collect_findings_reports_missing_and_drift_cases(
         "benchmarks/AGENTS.md",
         "# Child Governance\n\nuv run pytest\n",
     )
+    (tmp_path / "docs/architecture/skill-and-agent-interface-contract.md").unlink()
     (tmp_path / "skill/SKILL.md").unlink()
     (tmp_path / "vault-template/AGENTS.md").unlink()
 
@@ -110,6 +116,10 @@ def test_collect_findings_reports_missing_and_drift_cases(
         "benchmarks/AGENTS.md",
     ) in codes_to_paths
     assert ("duplicated-root-command", "benchmarks/AGENTS.md") in codes_to_paths
+    assert (
+        "missing-canonical-surface",
+        "docs/architecture/skill-and-agent-interface-contract.md",
+    ) in codes_to_paths
 
 
 def test_main_is_advisory_by_default_and_blocking_in_strict_mode(

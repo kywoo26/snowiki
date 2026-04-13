@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: "Snowiki — unified LLM wiki with recall and sync. Ingest sources into structured wiki pages. Query compiled knowledge. Recall sessions by date, topic, or graph. Sync sessions to Obsidian. Edit pages. Merge overlapping pages. Lint for health. Use when user says: wiki ingest, wiki query, wiki lint, wiki status, wiki recall, wiki sync, wiki edit, wiki merge, add to wiki, file this, search wiki, what do I know about, recall, what did we work on, load context, yesterday, last week, session history, recall graph, sync sessions, export sessions, log session."
+description: "Snowiki — CLI-first workflow skill. Ingest sources, query compiled knowledge, and recall session history. Commands (ingest, query, recall, status, lint) are authoritative runtime surfaces. Skills (wiki, recall) are reusable procedures. Memory (sources/, wiki/, sessions/) is the ground truth. Use when user says: wiki ingest, wiki query, wiki lint, wiki status, wiki recall, what do I know about, recall, what did we work on, load context, yesterday, last week, session history. Note: sync, edit, merge, and graph flows are deferred reference workflows."
 argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|export|benchmark PRESET|daemon|mcp]
 allowed-tools: Bash(python3:*), Read, Write, Edit, Glob, Grep, WebFetch
 ---
@@ -11,29 +11,34 @@ A persistent wiki that compounds knowledge like a snowball.
 
 The authoritative runtime contract is the installed `snowiki` CLI.
 
-This skill should be treated as a workflow layer around the shipped CLI, not as an independent qmd-native runtime.
+This skill is an informative reference layer for orchestrating the shipped CLI. It projects the canonical artifact model (Commands, Skills, Memory) defined in `docs/architecture/skill-and-agent-interface-contract.md`.
+
+## Artifact Classes
+
+### Commands (Invocation Surface)
+Atomic units of execution provided by the `snowiki` CLI.
+- `snowiki ingest`, `rebuild`, `query`, `recall`, `status`, `lint`, `export`, `benchmark`, `daemon`, `mcp`.
+
+### Skills (Reusable Procedures)
+Higher-level orchestration logic for agents.
+- `wiki` skill: General wiki management and compilation.
+- `recall` skill: Temporal and topic-based context loading.
+
+### Memory (Ground Truth)
+Persistent state of the Snowiki system.
+- `sources/`: Immutable raw documents.
+- `wiki/`: LLM-compiled knowledge.
+- `sessions/`: Active or frozen session logs.
 
 ## Current Runtime Truth
 
 Use the installed `snowiki` command as the primary interface.
 
-Currently shipped commands:
-- `snowiki ingest`
-- `snowiki rebuild`
-- `snowiki query`
-- `snowiki recall`
-- `snowiki status`
-- `snowiki lint`
-- `snowiki export`
-- `snowiki benchmark`
-- `snowiki daemon`
-- `snowiki mcp`
-
 Machine-usable interfaces today:
 - CLI with `--output json` where supported
 - read-only MCP via `snowiki mcp`
 
-## Workflow Context
+## Workflow Context (Informative)
 
 ```
 Source in -> LLM compiles -> Wiki grows -> Query draws from wiki -> Good answers filed back -> Snowball
@@ -41,7 +46,9 @@ Sessions -> Recall loads context -> future sync/edit/merge flows may compound ba
 ```
 
 **Human** curates sources, asks questions, thinks.
-**LLM** summarizes, cross-references, files, maintains consistency, recalls context, syncs sessions.
+**LLM** summarizes, cross-references, files, maintains consistency, and recalls context.
+
+> **Note**: Broader sync, edit, merge, and graph-oriented flows are deferred reference workflows, not shipped runtime behavior.
 
 ## Architecture Context
 

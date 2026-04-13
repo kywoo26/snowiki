@@ -20,7 +20,7 @@ CLAUDE.md       → the schema (rules, conventions, workflows)
 
 Snowiki’s current shipped runtime is **CLI-first**.
 
-The authoritative runtime contract is the installed `snowiki` command, not the older qmd-oriented `/wiki` workflow text.
+The authoritative runtime contract is the installed `snowiki` command, not the older qmd-oriented `/wiki` workflow text. This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md`.
 
 ```bash
 # 1. Install Snowiki from a checkout
@@ -63,9 +63,9 @@ The `skill/` package is currently best understood as a **workflow/reference laye
 - The current shipped product truth is the Python `snowiki` CLI and its read-only MCP surface.
 - If you want a reliable machine-usable interface today, prefer `snowiki ... --output json` and `snowiki mcp`.
 
-## Historical workflow surface
+## Historical workflow surface (Lineage)
 
-Earlier Snowiki workflow docs described a broader `/wiki` interface:
+Earlier Snowiki workflow docs described a broader `/wiki` interface. This workflow remains useful as **lineage and future design context**, but it is **not** the authoritative runtime contract for the current shipped CLI.
 
 | Command | What it does |
 |---------|-------------|
@@ -78,7 +78,7 @@ Earlier Snowiki workflow docs described a broader `/wiki` interface:
 | `/wiki lint` | Structural + semantic health check |
 | `/wiki status` | Dashboard: pages, sources, health |
 
-That workflow remains useful as lineage and future design context, but it is **not** the authoritative runtime contract for the current shipped CLI.
+The current runtime truth is defined by the `snowiki` CLI and its read-only MCP surface.
 
 ## Obsidian Integration
 
@@ -111,4 +111,4 @@ That workflow remains useful as lineage and future design context, but it is **n
 ## Related
 
 - [qmd-system](https://github.com/kywoo26/qmd-system) — infrastructure setup (qmd + Claude Code + Obsidian)
-- [qmd](https://github.com/tobi/qmd) — retrieval lineage reference, not the current Snowiki runtime
+- [qmd](https://github.com/tobi/qmd) — retrieval lineage reference, not the current Snowiki runtime. Snowiki uses a lexical-first retrieval strategy in its current shipped CLI.
