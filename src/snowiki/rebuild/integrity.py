@@ -5,10 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from snowiki.compiler.engine import CompilerEngine
-from snowiki.search.workspace import (
-    build_retrieval_snapshot,
-    clear_query_search_index_cache,
-)
+from snowiki.search.workspace import RetrievalService, clear_query_search_index_cache
 from snowiki.storage.zones import StoragePaths, atomic_write_json
 
 
@@ -16,12 +13,19 @@ def _run_rebuild(root: Path) -> dict[str, Any]:
     engine = CompilerEngine(root)
     compiled_paths = engine.rebuild()
     clear_query_search_index_cache()
-    snapshot = build_retrieval_snapshot(root)
+    records = engine.load_normalized_records()
+    pages = engine.build_pages(records) if records else []
+    snapshot = RetrievalService.from_records_and_pages(
+        records=records,
+        pages=pages,
+    )
     storage_paths = StoragePaths(root)
     manifest_path = storage_paths.index / "manifest.json"
     atomic_write_json(
         manifest_path,
         {
+            "lexical_policy": snapshot.lexical_policy,
+            "lexical_policy_version": snapshot.lexical_policy_version,
             "records_indexed": snapshot.records_indexed,
             "pages_indexed": snapshot.pages_indexed,
             "search_documents": snapshot.index.size,
