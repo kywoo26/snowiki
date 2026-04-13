@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
 from snowiki.bench import phase1_latency
 from snowiki.bench.presets import get_preset
+from snowiki.search.indexer import SearchDocument, SearchHit
 
 run_phase1_latency_evaluation = phase1_latency.run_phase1_latency_evaluation
 
@@ -181,3 +183,107 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
     ]
     assert [call["mode"] for call in query_calls] == ["lexical", "lexical"]
     assert [call["query"] for call in query_calls] == ["first query", "second query"]
+
+
+def test_phase1_latency_keeps_benchmark_lexical_mode_and_shipped_query_hybrid_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    claude_fixture = tmp_path / "basic.jsonl"
+    _ = claude_fixture.write_text("{}\n", encoding="utf-8")
+
+    monkeypatch.setattr(phase1_latency, "PHASE_1_WARMUPS", 0)
+    monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 1)
+    monkeypatch.setattr(
+        phase1_latency,
+        "_canonical_fixtures",
+        lambda: ({"source": "claude", "path": claude_fixture},),
+    )
+    monkeypatch.setattr(
+        phase1_latency,
+        "_load_queries_for_preset",
+        lambda _preset: ("comparison query",),
+    )
+
+    benchmark_calls: list[dict[str, object]] = []
+
+    def fake_benchmark_query(
+        root: Path, query: str, *, mode: str, top_k: int
+    ) -> dict[str, object]:
+        benchmark_calls.append(
+            {"root": root, "query": query, "mode": mode, "top_k": top_k}
+        )
+        return {"root": root.as_posix(), "query": query, "mode": mode, "top_k": top_k}
+
+    monkeypatch.setattr(phase1_latency, "run_query", fake_benchmark_query)
+
+    ticks = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    monkeypatch.setattr(time, "perf_counter", lambda: next(ticks))
+
+    report = run_phase1_latency_evaluation(
+        tmp_path / "requested-root", preset=get_preset("retrieval")
+    )
+    protocol = cast(dict[str, object], report["protocol"])
+
+    assert protocol == {
+        "isolated_root": True,
+        "warmups": 0,
+        "repetitions": 1,
+        "query_mode": "lexical",
+        "top_k": 5,
+    }
+    assert "semantic_backend" not in protocol
+    assert len(benchmark_calls) == 1
+    assert benchmark_calls[0]["query"] == "comparison query"
+    assert benchmark_calls[0]["mode"] == "lexical"
+    assert benchmark_calls[0]["top_k"] == 5
+
+    from snowiki.cli.commands.query import run_query as shipped_run_query
+
+    query_index = object()
+    hit = SearchHit(
+        document=SearchDocument(
+            id="session-lexical",
+            path="normalized/session-lexical.json",
+            kind="session",
+            title="Shipped query hit",
+            content="shipped query content",
+            summary="Shipped query summary.",
+            source_type="normalized",
+        ),
+        score=5.5,
+        matched_terms=("comparison", "query"),
+    )
+
+    def fake_build_retrieval_snapshot(root: Path) -> object:
+        return SimpleNamespace(index=query_index, records_indexed=11, pages_indexed=6)
+
+    def fake_topical_recall(
+        index: object, query: str, *, limit: int
+    ) -> list[SearchHit]:
+        assert index is query_index
+        assert query == "comparison query"
+        assert limit == 5
+        return [hit]
+
+    monkeypatch.setattr(
+        "snowiki.cli.commands.query.build_retrieval_snapshot",
+        fake_build_retrieval_snapshot,
+    )
+    monkeypatch.setattr(
+        "snowiki.cli.commands.query.topical_recall", fake_topical_recall
+    )
+
+    lexical_result = shipped_run_query(
+        tmp_path, "comparison query", mode="lexical", top_k=5
+    )
+    hybrid_result = shipped_run_query(
+        tmp_path, "comparison query", mode="hybrid", top_k=5
+    )
+
+    assert lexical_result["semantic_backend"] is None
+    assert hybrid_result["semantic_backend"] == "disabled"
+    assert lexical_result["hits"] == hybrid_result["hits"]
+
+    assert protocol["query_mode"] == "lexical"
+    assert hybrid_result["mode"] == "hybrid"
+    assert hybrid_result["semantic_backend"] == "disabled"

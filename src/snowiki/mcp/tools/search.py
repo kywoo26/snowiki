@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from ..types import ToolSpec, coerce_limit, coerce_query
-
-if TYPE_CHECKING:
-    from ..server import SnowikiReadOnlyFacade
+from ..types import ReadOnlyFacade, ToolSpec, coerce_limit, coerce_query
 
 
-def build_tool(facade: SnowikiReadOnlyFacade) -> ToolSpec:
+def build_tool(facade: ReadOnlyFacade) -> ToolSpec:
     """Build the read-only search MCP tool."""
 
     def handler(arguments: dict[str, object]) -> dict[str, object]:
@@ -18,7 +13,7 @@ def build_tool(facade: SnowikiReadOnlyFacade) -> ToolSpec:
 
     return ToolSpec(
         name="search",
-        description="Search session and compiled page content without modifying storage.",
+        description="Search session and compiled page content directly without recall auto-routing or storage mutation.",
         input_schema={
             "type": "object",
             "properties": {

@@ -148,19 +148,34 @@ def test_stop_and_status_commands_handle_available_and_unavailable_daemon(
         cache_ttl=30.0,
     )
     requests: list[tuple[str, str, str, float]] = []
+    health_payload: dict[str, object] = {
+        "ok": True,
+        "pid": 1234,
+        "host": "127.0.0.1",
+        "port": 8765,
+        "cache": {"owner": "daemon.response_cache", "kind": "ttl_response_cache"},
+        "indexes": {
+            "owner": "daemon.warm_indexes",
+            "generation": 4,
+            "freshness": {
+                "snapshot_owner": "daemon.warm_indexes",
+                "runtime_generation": 4,
+            },
+        },
+    }
 
     def fake_request(
         base_url: str, path: str, *, method: str = "GET", timeout: float
     ) -> dict[str, object]:
         requests.append((base_url, path, method, timeout))
-        return {"ok": True, "reachable": True}
+        return health_payload
 
     monkeypatch.setattr(daemon_module, "daemon_request", fake_request)
-    monkeypatch.setattr(daemon_module, "_health", lambda host, port: {"ok": True})
+    monkeypatch.setattr(daemon_module, "_health", lambda host, port: health_payload)
 
     assert daemon_module.stop_command(args) == 0
     assert daemon_module.status_command(args) == 0
-    assert daemon_module.daemon_status(args) == {"ok": True}
+    assert daemon_module.daemon_status(args) == health_payload
     assert requests == [("http://127.0.0.1:8765", "/stop", "POST", 1.0)]
 
     def raise_unavailable(*_args: object, **_kwargs: object) -> dict[str, object]:

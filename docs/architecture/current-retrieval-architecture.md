@@ -60,6 +60,51 @@ This file owns the shared retrieval assembly path and related service abstractio
 
 This is the most important architectural seam in the current codebase.
 
+## Canonical retrieval contract
+
+The canonical retrieval contract defines the normative behavior and shared expectations across all Snowiki retrieval surfaces.
+
+### Source of truth
+- **CLI recall** is the source-of-truth routing contract for the Snowiki system.
+- Other surfaces (MCP, daemon) are **informative mirrors** or specialized optimizations of this authoritative contract.
+- The behavior of the installed CLI defines the current system capabilities.
+
+### Parity matrix
+To prevent drift, retrieval surfaces are evaluated against these parity categories:
+
+| Category | Definition |
+| :--- | :--- |
+| **Routing Parity** | Surfaces must use identical strategy layers (topical, temporal, known-item) for the same query intent. |
+| **Metadata Parity** | Result structures must preserve provenance, score, and identity fields across all surfaces. |
+| **Freshness Parity** | Surfaces must expose consistent generation identities (content-derived and process-local). |
+| **Evaluation Boundary Parity** | Benchmark/runtime equivalence should never be assumed without explicit declaration. |
+
+For the current shipped surfaces, that matrix means:
+
+- **CLI `recall`** defines the authoritative auto-routing order: `date` → `temporal` → `known_item` → `topic`.
+- **MCP `recall`** mirrors that routing contract and reports the chosen strategy, while **MCP `search`** intentionally remains a direct read-only search tool without recall auto-routing.
+- **daemon `/query`** may keep explicit operation names for specialized callers, but `operation=recall` is the parity path that mirrors the CLI recall contract.
+
+### Generation and identity
+Retrieval state is identified by two distinct generation markers:
+- **Content-derived freshness identity**: A hash or timestamp derived from the underlying source material.
+- **Process-local runtime generation**: An opaque identifier naming the specific assembly or reload event in the current process.
+
+For the current daemon surface, these identities should be exposed as separate diagnostic fields rather than collapsed into a single generic freshness label.
+
+### Stale-state semantics
+- Stale daemon state may exist until explicit invalidation or reload.
+- This state must be surfaced explicitly to consumers; it must not be treated as authoritative when a newer generation is available.
+- Cached retrieval state is valid only until explicit invalidation or TTL expiry.
+- Health/status and query diagnostics should report both the snapshot identity being served and the current content-derived identity observed on disk so stale state is visible instead of implicit.
+
+### Benchmark/runtime boundary
+- Benchmark lexical paths are not always identical to shipped runtime query paths.
+- This distinction is intentional but must be explicit.
+- Benchmark evidence is used for evaluation, while CLI behavior remains the authoritative runtime contract.
+- Benchmark outputs are evidence of engine capability, not the shipped runtime contract itself.
+- Benchmark/runtime equivalence should never be assumed without saying so explicitly.
+
 ## Strategy layers
 
 The retrieval policy wrappers currently live in:
@@ -116,6 +161,7 @@ The architecture implication is important:
 - cache ownership must remain explicit
 - invalidation must be deliberate
 - these cache layers should not silently redefine the retrieval contract
+- daemon diagnostics should identify whether metadata belongs to the warm snapshot owner or the TTL response-cache owner
 
 ## Agent-facing retrieval surfaces
 

@@ -4,7 +4,7 @@ This playbook guides performance-sensitive changes and search quality verificati
 
 ## Phase 1: Headless Backend Benchmark
 
-The current benchmark suite (Phase 1) is a **deterministic, headless backend benchmark**. It verifies the core retrieval and performance characteristics of the Snowiki engine.
+The current benchmark suite (Phase 1) is a **deterministic, headless backend benchmark**. It verifies the core retrieval and performance characteristics of the Snowiki engine. Benchmark outputs are evidence of engine capability, not the shipped runtime contract itself.
 
 It is **not** a full agent-authoring loop. It focuses on the `ingest -> rebuild -> query -> status/lint` flow using local, deterministic components.
 

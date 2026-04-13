@@ -4,6 +4,7 @@ import argparse
 import json
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from socketserver import ThreadingMixIn
@@ -11,6 +12,7 @@ from typing import Any
 from urllib import parse
 
 from snowiki.search import known_item_lookup, temporal_recall, topical_recall
+from snowiki.storage.zones import ensure_utc_datetime
 
 from .cache import TTLQueryCache
 from .invalidation import CacheInvalidationManager, InvalidationEvent
@@ -27,6 +29,27 @@ class QueryRequest:
 
 class _ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
+
+
+TEMPORAL_KEYWORDS = (
+    "yesterday",
+    "today",
+    "last week",
+    "this week",
+    "어제",
+    "오늘",
+    "지난주",
+    "이번주",
+)
+
+
+def _iso_date_window(text: str) -> tuple[datetime, datetime] | None:
+    try:
+        start = ensure_utc_datetime(datetime.fromisoformat(text))
+    except ValueError:
+        return None
+    end = start + timedelta(days=1)
+    return start, end
 
 
 class SnowikiDaemon:
@@ -89,17 +112,33 @@ class SnowikiDaemon:
             "topical_recall": topical_recall,
             "temporal_recall": temporal_recall,
         }
-        handler = operations.get(request_model.operation)
-        if handler is None:
-            raise ValueError(f"unsupported operation: {request_model.operation}")
+        strategy: str | None = None
+        if request_model.operation == "recall":
+            hits, strategy = self._run_recall(snapshot.blended, request_model)
+        else:
+            handler = operations.get(request_model.operation)
+            if handler is None:
+                raise ValueError(f"unsupported operation: {request_model.operation}")
 
-        hits = handler(snapshot.blended, request_model.query, limit=request_model.limit)
+            hits = handler(
+                snapshot.blended, request_model.query, limit=request_model.limit
+            )
+            strategy = request_model.operation
         return {
             "ok": True,
             "cached": False,
             "operation": request_model.operation,
             "query": request_model.query,
             "limit": request_model.limit,
+            "strategy": strategy,
+            "diagnostics": {
+                "snapshot": self.warm_indexes.snapshot_metadata(snapshot),
+                "cache": {
+                    "owner": "daemon.response_cache",
+                    "kind": "ttl_response_cache",
+                    "ttl_seconds": self.cache.ttl_seconds,
+                },
+            },
             "hits": [
                 {
                     "path": hit.document.path,
@@ -112,14 +151,47 @@ class SnowikiDaemon:
             ],
         }
 
+    def _run_recall(
+        self, index: Any, request_model: QueryRequest
+    ) -> tuple[list[Any], str]:
+        date_window = _iso_date_window(request_model.query)
+        if date_window is not None:
+            start, end = date_window
+            return (
+                index.search(
+                    request_model.query,
+                    limit=request_model.limit,
+                    recorded_after=start,
+                    recorded_before=end,
+                ),
+                "date",
+            )
+        lowered = request_model.query.casefold()
+        if any(keyword in lowered for keyword in TEMPORAL_KEYWORDS):
+            return (
+                temporal_recall(index, request_model.query, limit=request_model.limit),
+                "temporal",
+            )
+        known_hits = known_item_lookup(
+            index, request_model.query, limit=request_model.limit
+        )
+        if known_hits:
+            return known_hits, "known_item"
+        return topical_recall(
+            index, request_model.query, limit=request_model.limit
+        ), "topic"
+
     def _build_handler(self) -> type[BaseHTTPRequestHandler]:
         daemon = self
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self) -> None:
                 parsed = parse.urlparse(self.path)
-                if parsed.path in {"/health", "/status"}:
+                if parsed.path == "/health":
                     self._send_json(200, daemon.lifecycle.health_payload())
+                    return
+                if parsed.path == "/status":
+                    self._send_json(200, daemon.lifecycle.status_payload())
                     return
                 self._send_json(404, {"ok": False, "error": "not found"})
 
@@ -147,7 +219,9 @@ class SnowikiDaemon:
                     return
 
                 if parsed.path in {"/stop", "/shutdown"}:
-                    self._send_json(200, daemon.lifecycle.stop())
+                    payload = daemon.lifecycle.stop_payload()
+                    self._send_json(200, payload)
+                    daemon.lifecycle.begin_shutdown()
                     return
 
                 self._send_json(404, {"ok": False, "error": "not found"})
@@ -173,6 +247,7 @@ class SnowikiDaemon:
                 self.send_header("Content-Length", str(len(encoded)))
                 self.end_headers()
                 self.wfile.write(encoded)
+                self.wfile.flush()
 
         return Handler
 

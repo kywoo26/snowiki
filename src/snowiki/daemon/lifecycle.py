@@ -55,10 +55,12 @@ class DaemonLifecycle:
             "url": f"http://{self.host}:{self.port}",
         }
 
-    def stop(self) -> dict[str, Any]:
-        Thread(target=self.server.shutdown, daemon=True).start()
+    def stop_payload(self) -> dict[str, Any]:
         return {
             "ok": True,
             "stopping": True,
             "pid": os.getpid(),
         }
+
+    def begin_shutdown(self) -> None:
+        Thread(target=self.server.shutdown, daemon=True).start()

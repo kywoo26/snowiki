@@ -60,10 +60,12 @@ class TTLQueryCache:
                 self._entries.pop(key, None)
             return len(keys)
 
-    def stats(self) -> dict[str, float | int]:
+    def stats(self) -> dict[str, float | int | str]:
         with self._lock:
             self._prune_locked()
             return {
+                "owner": "daemon.response_cache",
+                "kind": "ttl_response_cache",
                 "size": len(self._entries),
                 "ttl_seconds": self.ttl_seconds,
             }

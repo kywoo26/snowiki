@@ -75,6 +75,7 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
         "bm25s_kiwi_nouns",
         "bm25s_kiwi_full",
     ]
+    assert set(legacy_baselines) == set(report.baselines)
     assert report.corpus.queries_evaluated == 60
     assert "semantic_slots" not in legacy
     assert "token_reduction" not in legacy
@@ -103,6 +104,63 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
         assert legacy_overall["queries_evaluated"] == 60
         assert "semantic_slots" not in payload.to_legacy_dict()
         assert "token_usage" not in payload.to_legacy_dict()
+        assert legacy_payload["name"] == baseline_name
+
+
+def test_run_baseline_comparison_does_not_call_shipped_query_entrypoint(
+    monkeypatch, benchmarks_dir: Path
+) -> None:
+    repo_root = benchmarks_dir.parent
+    baselines, models, presets = _load_benchmark_modules()
+    retrieval_fixtures = _load_retrieval_fixtures()
+
+    search = retrieval_fixtures.load_search_api()
+    records = retrieval_fixtures.normalized_records()
+    pages = retrieval_fixtures.compiled_pages()
+    lexical_index = search.build_lexical_index(records)
+    wiki_index = search.build_wiki_index(pages)
+    corpus = baselines.CorpusBundle(
+        records=tuple(models.validate_record_dict(item) for item in records),
+        pages=tuple(
+            models.validate_page_dict(
+                {
+                    "id": page["id"],
+                    "path": page["path"],
+                    "title": page["title"],
+                    "summary": page.get("summary"),
+                    "body": page["body"],
+                    "updated_at": page.get("updated_at"),
+                }
+            )
+            for page in pages
+        ),
+        raw_index=lexical_index.index,
+        blended_index=search.build_blended_index(
+            lexical_index.documents,
+            wiki_index.documents,
+        ),
+    )
+
+    monkeypatch.setattr(baselines, "_build_corpus", lambda root: corpus)
+
+    def fail_run_query(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError(
+            "benchmark baseline comparison must not route through the shipped query entrypoint"
+        )
+
+    monkeypatch.setattr("snowiki.cli.commands.query.run_query", fail_run_query)
+
+    report = baselines.run_baseline_comparison(
+        repo_root,
+        presets.get_preset("full"),
+    )
+
+    assert list(report.baselines) == [
+        "lexical",
+        "bm25s",
+        "bm25s_kiwi_nouns",
+        "bm25s_kiwi_full",
+    ]
 
 
 def test_loaders_fail_fast_on_malformed_top_level_fixture_shapes(

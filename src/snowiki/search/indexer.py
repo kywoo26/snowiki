@@ -6,6 +6,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from snowiki.storage.zones import ensure_utc_datetime
+
 from .tokenizer import normalize_text, tokenize_text
 
 type SearchScalar = None | bool | int | float | str
@@ -62,10 +64,10 @@ def _stringify(value: object) -> str:
 
 
 def _parse_recorded_at(value: object) -> datetime | None:
-    if value is None or isinstance(value, datetime):
-        return value
-    if isinstance(value, str):
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if value is None:
+        return None
+    if isinstance(value, datetime | str):
+        return ensure_utc_datetime(value)
     return None
 
 

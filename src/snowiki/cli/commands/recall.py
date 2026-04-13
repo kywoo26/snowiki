@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +10,7 @@ from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.config import get_snowiki_root
 from snowiki.search import known_item_lookup, temporal_recall, topical_recall
 from snowiki.search.workspace import RetrievalService
+from snowiki.storage.zones import ensure_utc_datetime
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
@@ -37,7 +38,7 @@ def _render_recall_human(payload: dict[str, Any]) -> str:
 
 def _iso_date_window(text: str) -> tuple[datetime, datetime] | None:
     try:
-        start = datetime.fromisoformat(text).replace(tzinfo=UTC)
+        start = ensure_utc_datetime(datetime.fromisoformat(text))
     except ValueError:
         return None
     end = start + timedelta(days=1)

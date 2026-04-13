@@ -101,6 +101,7 @@ def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
     type=click.Choice(["lexical", "hybrid"], case_sensitive=False),
     default="lexical",
     show_default=True,
+    help="Search mode. 'hybrid' is currently a lexical/no-op compatibility surface.",
 )
 @click.option("--top-k", type=click.IntRange(min=1), default=5, show_default=True)
 @click.option(
