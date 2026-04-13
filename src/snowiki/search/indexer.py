@@ -74,8 +74,14 @@ def _parse_recorded_at(value: object) -> datetime | None:
 class InvertedIndex:
     """In-memory inverted index for lexical and blended search."""
 
-    def __init__(self, documents: Iterable[SearchDocument] = ()) -> None:
+    def __init__(
+        self,
+        documents: Iterable[SearchDocument] = (),
+        *,
+        lexical_policy: str | None = None,
+    ) -> None:
         self.documents: dict[str, SearchDocument] = {}
+        self.lexical_policy = lexical_policy
         self._postings: dict[str, dict[str, float]] = defaultdict(dict)
         self._field_tokens: dict[str, dict[str, tuple[str, ...]]] = {}
         for document in documents:
@@ -88,11 +94,17 @@ class InvertedIndex:
     def add_document(self, document: SearchDocument) -> None:
         self.documents[document.id] = document
         field_tokens = {
-            "title": tokenize_text(document.title),
-            "path": tokenize_text(document.path),
-            "summary": tokenize_text(document.summary),
-            "content": tokenize_text(document.content),
-            "aliases": tokenize_text(" ".join(document.aliases)),
+            "title": tokenize_text(document.title, lexical_policy=self.lexical_policy),
+            "path": tokenize_text(document.path, lexical_policy=self.lexical_policy),
+            "summary": tokenize_text(
+                document.summary, lexical_policy=self.lexical_policy
+            ),
+            "content": tokenize_text(
+                document.content, lexical_policy=self.lexical_policy
+            ),
+            "aliases": tokenize_text(
+                " ".join(document.aliases), lexical_policy=self.lexical_policy
+            ),
         }
         self._field_tokens[document.id] = field_tokens
 
@@ -114,7 +126,7 @@ class InvertedIndex:
         recorded_before: datetime | None = None,
         exact_path_bias: bool = False,
     ) -> list[SearchHit]:
-        query_tokens = tokenize_text(query)
+        query_tokens = tokenize_text(query, lexical_policy=self.lexical_policy)
         if not query_tokens:
             return []
 
@@ -134,7 +146,7 @@ class InvertedIndex:
                 scores[document_id] += weighted_frequency * inverse_document_frequency
                 matches[document_id].add(token)
 
-        normalized_query = normalize_text(query)
+        normalized_query = normalize_text(query, lexical_policy=self.lexical_policy)
         hits: list[SearchHit] = []
         for document_id, score in scores.items():
             document = self.documents[document_id]
@@ -158,13 +170,16 @@ class InvertedIndex:
                 document.content,
             )
             if any(
-                normalized_query in normalize_text(haystack)
+                normalized_query
+                in normalize_text(haystack, lexical_policy=self.lexical_policy)
                 for haystack in haystacks
                 if haystack
             ):
                 score += 3.0
 
-            normalized_path = normalize_text(document.path)
+            normalized_path = normalize_text(
+                document.path, lexical_policy=self.lexical_policy
+            )
             if exact_path_bias and any(
                 token in normalized_path for token in query_tokens
             ):
@@ -260,9 +275,12 @@ def document_from_mapping(
     )
 
 
-def build_blended_index(*document_groups: Iterable[SearchDocument]) -> InvertedIndex:
+def build_blended_index(
+    *document_groups: Iterable[SearchDocument],
+    lexical_policy: str | None = None,
+) -> InvertedIndex:
     """Build a single search index from multiple document groups."""
     documents: list[SearchDocument] = []
     for group in document_groups:
         documents.extend(group)
-    return InvertedIndex(documents)
+    return InvertedIndex(documents, lexical_policy=lexical_policy)
