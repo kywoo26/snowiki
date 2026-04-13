@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+DEFAULT_BASELINES = (
+    "lexical",
+    "bm25s",
+    "bm25s_kiwi_nouns",
+    "bm25s_kiwi_full",
+)
+
 
 @dataclass(frozen=True)
 class BenchmarkPreset:
@@ -9,7 +16,7 @@ class BenchmarkPreset:
     description: str
     query_kinds: tuple[str, ...]
     top_k: int = 5
-    baselines: tuple[str, ...] = ("lexical", "bm25s", "bm25s_kiwi")
+    baselines: tuple[str, ...] = DEFAULT_BASELINES
 
 
 _PRESETS = {

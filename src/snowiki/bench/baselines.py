@@ -12,6 +12,7 @@ from snowiki.compiler.engine import CompilerEngine
 from snowiki.config import resolve_repo_asset_path
 from snowiki.search import BM25SearchDocument, BM25SearchIndex, build_lexical_index
 from snowiki.search.indexer import InvertedIndex, SearchDocument, SearchHit
+from snowiki.search.kiwi_tokenizer import KiwiLexicalCandidateMode
 from snowiki.search.workspace import (
     RetrievalService,
     compiled_page_to_search_mapping,
@@ -382,12 +383,29 @@ def _bm25_hit_to_search_hit(hit: Any) -> SearchHit:
 
 
 def _build_bm25_index(
-    documents: tuple[SearchDocument, ...], *, use_kiwi_tokenizer: bool
+    documents: tuple[SearchDocument, ...],
+    *,
+    use_kiwi_tokenizer: bool,
+    kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode = "morphology",
 ) -> BM25SearchIndex:
     return BM25SearchIndex(
         [_bm25_document_from_search(document) for document in documents],
         use_kiwi_tokenizer=use_kiwi_tokenizer,
+        kiwi_lexical_candidate_mode=kiwi_lexical_candidate_mode,
     )
+
+
+def _kiwi_mode_for_baseline(baseline: str) -> KiwiLexicalCandidateMode:
+    baseline_modes: dict[str, KiwiLexicalCandidateMode] = {
+        "bm25s_kiwi": "morphology",
+        "bm25s_kiwi_nouns": "nouns",
+        "bm25s_kiwi_full": "morphology",
+        "bm25s_kiwi_morphology": "morphology",
+    }
+    try:
+        return baseline_modes[baseline]
+    except KeyError as exc:
+        raise ValueError(f"unsupported baseline: {baseline}") from exc
 
 
 def _attach_threshold_report(summary: SlicedQualitySummary) -> SlicedQualitySummary:
@@ -534,7 +552,7 @@ def run_baseline_comparison(
     raw_documents = tuple(corpus.raw_index.documents.values())
     hit_lookup = _benchmark_hit_lookup(corpus)
     bm25_plain_index = _build_bm25_index(raw_documents, use_kiwi_tokenizer=False)
-    bm25_kiwi_index = _build_bm25_index(raw_documents, use_kiwi_tokenizer=True)
+    bm25_kiwi_indexes: dict[str, BM25SearchIndex] = {}
 
     results: dict[str, BaselineResult] = {}
     for baseline in preset.baselines:
@@ -561,14 +579,22 @@ def run_baseline_comparison(
                 hit_lookup=hit_lookup,
             )
             continue
-        if baseline == "bm25s_kiwi":
+        if baseline.startswith("bm25s_kiwi"):
+            kiwi_mode = _kiwi_mode_for_baseline(baseline)
+            if baseline not in bm25_kiwi_indexes:
+                bm25_kiwi_indexes[baseline] = _build_bm25_index(
+                    raw_documents,
+                    use_kiwi_tokenizer=True,
+                    kiwi_lexical_candidate_mode=kiwi_mode,
+                )
+            current_kiwi_index = bm25_kiwi_indexes[baseline]
             results[baseline] = _evaluate_baseline(
                 name=baseline,
                 queries=queries,
                 judgments=judgments,
-                search_fn=lambda query_text: [
+                search_fn=lambda query_text, bm25_index=current_kiwi_index: [
                     _bm25_hit_to_search_hit(hit)
-                    for hit in bm25_kiwi_index.search(query_text, limit=preset.top_k)
+                    for hit in bm25_index.search(query_text, limit=preset.top_k)
                 ],
                 hit_lookup=hit_lookup,
             )

@@ -69,7 +69,12 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
     legacy = report.to_legacy_dict()
     legacy_baselines = cast(dict[str, object], legacy["baselines"])
 
-    assert list(report.baselines) == ["lexical", "bm25s", "bm25s_kiwi"]
+    assert list(report.baselines) == [
+        "lexical",
+        "bm25s",
+        "bm25s_kiwi_nouns",
+        "bm25s_kiwi_full",
+    ]
     assert report.corpus.queries_evaluated == 60
     assert "semantic_slots" not in legacy
     assert "token_reduction" not in legacy
