@@ -233,6 +233,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
     assert "semantic_slots" not in report
     assert "semantic_slots" not in retrieval
     assert "token_reduction" not in retrieval
+    assert "runtime_generation" not in report
     assert retrieval["preset"]["baselines"] == _EXPANDED_BASELINES
     assert performance_thresholds[-1] == {
         "gate": "query",
