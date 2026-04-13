@@ -113,3 +113,71 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
     assert len(unique_rebuild_roots) == 6
     assert len(unique_query_roots) == 3
     assert all("requested-root" not in root for root in unique_ingest_roots)
+
+
+def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expanded_benchmarks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    claude_fixture = tmp_path / "basic.jsonl"
+    _ = claude_fixture.write_text("{}\n", encoding="utf-8")
+
+    def fake_canonical_fixtures() -> tuple[dict[str, object], ...]:
+        return ({"source": "claude", "path": claude_fixture},)
+
+    def fake_load_queries_for_preset(_preset: object) -> tuple[str, str]:
+        return ("first query", "second query")
+
+    def fake_ingest(path: Path, *, source: str, root: Path) -> dict[str, object]:
+        return {"path": path.as_posix(), "source": source, "root": root.as_posix()}
+
+    def fake_rebuild(root: Path) -> dict[str, object]:
+        return {"root": root.as_posix()}
+
+    monkeypatch.setattr(phase1_latency, "PHASE_1_WARMUPS", 0)
+    monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 1)
+    monkeypatch.setattr(phase1_latency, "_canonical_fixtures", fake_canonical_fixtures)
+    monkeypatch.setattr(
+        phase1_latency, "_load_queries_for_preset", fake_load_queries_for_preset
+    )
+
+    query_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(phase1_latency, "run_ingest", fake_ingest)
+    monkeypatch.setattr(phase1_latency, "run_rebuild", fake_rebuild)
+
+    def fake_query(
+        root: Path, query: str, *, mode: str, top_k: int
+    ) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "root": root.as_posix(),
+            "query": query,
+            "mode": mode,
+            "top_k": top_k,
+        }
+        query_calls.append(payload)
+        return payload
+
+    monkeypatch.setattr(phase1_latency, "run_query", fake_query)
+
+    ticks = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
+    monkeypatch.setattr(time, "perf_counter", lambda: next(ticks))
+
+    report = run_phase1_latency_evaluation(
+        tmp_path / "requested-root", preset=get_preset("retrieval")
+    )
+
+    assert report["protocol"] == {
+        "isolated_root": True,
+        "warmups": 0,
+        "repetitions": 1,
+        "query_mode": "lexical",
+        "top_k": 5,
+    }
+    assert list(get_preset("retrieval").baselines) == [
+        "lexical",
+        "bm25s",
+        "bm25s_kiwi_nouns",
+        "bm25s_kiwi_full",
+    ]
+    assert [call["mode"] for call in query_calls] == ["lexical", "lexical"]
+    assert [call["query"] for call in query_calls] == ["first query", "second query"]
