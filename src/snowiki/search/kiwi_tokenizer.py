@@ -2,8 +2,55 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from kiwipiepy import Kiwi
 from kiwipiepy.utils import Stopwords
+
+KiwiLexicalCandidateMode = Literal["morphology", "nouns"]
+KIWI_LEXICAL_CANDIDATE_MODES: frozenset[KiwiLexicalCandidateMode] = frozenset(
+    ["morphology", "nouns"]
+)
+
+
+def _token_forms(
+    tokens: object, target_tags: frozenset[str] | None = None
+) -> list[str]:
+    items = tokens if isinstance(tokens, list) else [tokens]
+    result: list[str] = []
+    for item in items:
+        tag = getattr(item, "tag", None)
+        form = getattr(item, "form", None)
+        if not isinstance(form, str):
+            continue
+        if target_tags is not None and tag not in target_tags:
+            continue
+        result.append(form)
+    return result
+
+
+def build_korean_tokenizer(
+    mode: KiwiLexicalCandidateMode = "morphology",
+    *,
+    num_workers: int | None = None,
+    normalize_coda: bool = True,
+    split_complex: bool = False,
+    use_stopwords: bool = False,
+) -> KoreanTokenizer:
+    """Build a Korean tokenizer for a specific lexical candidate mode."""
+    if mode not in KIWI_LEXICAL_CANDIDATE_MODES:
+        raise ValueError(
+            f"Invalid Kiwi lexical candidate mode: {mode}. "
+            + f"Must be one of {sorted(KIWI_LEXICAL_CANDIDATE_MODES)}"
+        )
+
+    return KoreanTokenizer(
+        num_workers=num_workers,
+        extract_nouns_only=mode == "nouns",
+        normalize_coda=normalize_coda,
+        split_complex=split_complex,
+        use_stopwords=use_stopwords,
+    )
 
 
 class KoreanTokenizer:
@@ -67,20 +114,7 @@ class KoreanTokenizer:
 
         result: list[str] = []
         for token in tokens:
-            if isinstance(token, list):
-                for t in token:
-                    if (
-                        hasattr(t, "tag")
-                        and hasattr(t, "form")
-                        and t.tag in self.target_tags
-                    ):
-                        result.append(str(t.form))
-            elif (
-                hasattr(token, "tag")
-                and hasattr(token, "form")
-                and token.tag in self.target_tags
-            ):
-                result.append(str(token.form))
+            result.extend(_token_forms(token, self.target_tags))
 
         return tuple(result)
 
@@ -96,12 +130,7 @@ class KoreanTokenizer:
         tokens = self.kiwi.tokenize(text, normalize_coda=True, stopwords=self.stopwords)
         result: list[str] = []
         for token in tokens:
-            if isinstance(token, list):
-                for t in token:
-                    if hasattr(t, "form"):
-                        result.append(str(t.form))
-            elif hasattr(token, "form"):
-                result.append(str(token.form))
+            result.extend(_token_forms(token))
         return "".join(result)
 
 

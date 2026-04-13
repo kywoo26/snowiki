@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import bm25s
 
-from .kiwi_tokenizer import KoreanTokenizer
+from .kiwi_tokenizer import (
+    KIWI_LEXICAL_CANDIDATE_MODES,
+    KiwiLexicalCandidateMode,
+    KoreanTokenizer,
+    build_korean_tokenizer,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -53,6 +60,8 @@ class BM25SearchIndex:
     BM25_METHODS: frozenset[str] = frozenset(
         ["robertson", "atire", "bm25l", "bm25+", "lucene"]
     )
+    DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE: KiwiLexicalCandidateMode = "morphology"
+    _METADATA_SUFFIX = ".snowiki_meta.json"
     _SHOW_PROGRESS = False
     _LEAVE_PROGRESS = False
 
@@ -64,10 +73,17 @@ class BM25SearchIndex:
         b: float = 0.75,
         delta: float = 0.5,
         use_kiwi_tokenizer: bool = True,
+        kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode = DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE,
     ) -> None:
         if method not in self.BM25_METHODS:
             raise ValueError(
                 f"Invalid method: {method}. Must be one of {self.BM25_METHODS}"
+            )
+        if kiwi_lexical_candidate_mode not in KIWI_LEXICAL_CANDIDATE_MODES:
+            raise ValueError(
+                "Invalid Kiwi lexical candidate mode: "
+                + f"{kiwi_lexical_candidate_mode}. Must be one of "
+                + f"{sorted(KIWI_LEXICAL_CANDIDATE_MODES)}"
             )
 
         self.documents: list[BM25SearchDocument] = list(documents)
@@ -76,13 +92,37 @@ class BM25SearchIndex:
         self.b: float = b
         self.delta: float = delta
         self.use_kiwi_tokenizer: bool = use_kiwi_tokenizer
+        self.kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode = (
+            kiwi_lexical_candidate_mode
+        )
 
         self.tokenizer: KoreanTokenizer | None = (
-            KoreanTokenizer() if use_kiwi_tokenizer else None
+            build_korean_tokenizer(kiwi_lexical_candidate_mode)
+            if use_kiwi_tokenizer
+            else None
         )
         self.corpus_tokens: list[list[str]] = []
         self.bm25: Any
         self._build_index()
+
+    @classmethod
+    def _metadata_path(cls, path: str) -> Path:
+        return Path(f"{path}{cls._METADATA_SUFFIX}")
+
+    def _metadata_payload(self) -> dict[str, object]:
+        return {
+            "method": self.method,
+            "k1": self.k1,
+            "b": self.b,
+            "delta": self.delta,
+            "use_kiwi_tokenizer": self.use_kiwi_tokenizer,
+            "kiwi_lexical_candidate_mode": self.kiwi_lexical_candidate_mode,
+        }
+
+    @staticmethod
+    def _metadata_float(metadata: dict[str, object], key: str, default: float) -> float:
+        value = metadata.get(key, default)
+        return float(cast(float | int | str, value))
 
     def _build_index(self) -> None:
         """Build BM25 index from documents."""
@@ -173,19 +213,40 @@ class BM25SearchIndex:
     def save(self, path: str) -> None:
         """Save index to disk."""
         self.bm25.save(path)
+        _ = self._metadata_path(path).write_text(
+            json.dumps(self._metadata_payload(), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
     @classmethod
     def load(
         cls, path: str, documents: Iterable[BM25SearchDocument]
     ) -> BM25SearchIndex:
         """Load index from disk."""
+        metadata_path = cls._metadata_path(path)
+        metadata: dict[str, object] = {}
+        if metadata_path.exists():
+            metadata = cast(dict[str, object], json.loads(metadata_path.read_text()))
+
         instance = cls.__new__(cls)
         instance.documents = list(documents)
-        instance.method = "lucene"
-        instance.k1 = 1.5
-        instance.b = 0.75
-        instance.delta = 0.5
-        instance.use_kiwi_tokenizer = True
-        instance.tokenizer = KoreanTokenizer()
+        instance.method = cast(str, metadata.get("method", "lucene"))
+        instance.k1 = cls._metadata_float(metadata, "k1", 1.5)
+        instance.b = cls._metadata_float(metadata, "b", 0.75)
+        instance.delta = cls._metadata_float(metadata, "delta", 0.5)
+        instance.use_kiwi_tokenizer = bool(metadata.get("use_kiwi_tokenizer", True))
+        instance.kiwi_lexical_candidate_mode = cast(
+            KiwiLexicalCandidateMode,
+            metadata.get(
+                "kiwi_lexical_candidate_mode",
+                cls.DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE,
+            ),
+        )
+        instance.tokenizer = (
+            build_korean_tokenizer(instance.kiwi_lexical_candidate_mode)
+            if instance.use_kiwi_tokenizer
+            else None
+        )
+        instance.corpus_tokens = []
         instance.bm25 = bm25s.BM25.load(path, load_corpus=True)
         return instance
