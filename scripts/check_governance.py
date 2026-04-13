@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import cast
 
 import click
+
 from snowiki.config import get_repo_root
 
 INHERITANCE_MARKER = (
@@ -27,6 +28,7 @@ REQUIRED_AGENT_FILES = (
 )
 REQUIRED_CANONICAL_SURFACES = (
     ROOT_AGENT_FILE,
+    Path("docs/architecture/skill-and-agent-interface-contract.md"),
     Path("benchmarks/README.md"),
     Path("skill/SKILL.md"),
     Path("vault-template/CLAUDE.md"),
