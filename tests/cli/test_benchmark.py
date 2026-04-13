@@ -9,6 +9,13 @@ from click.testing import CliRunner
 from snowiki.cli.commands import benchmark as benchmark_command
 from snowiki.cli.main import app
 
+_EXPANDED_BASELINES = [
+    "lexical",
+    "bm25s",
+    "bm25s_kiwi_nouns",
+    "bm25s_kiwi_full",
+]
+
 
 def _fake_report(
     *,
@@ -165,7 +172,7 @@ def _fake_report(
                 "description": "Known-item and topical retrieval benchmark coverage.",
                 "query_kinds": ["known-item", "topical"],
                 "top_k": 5,
-                "baselines": ["lexical", "bm25s"],
+                "baselines": _EXPANDED_BASELINES,
             },
             "corpus": {
                 "records_indexed": 12,
@@ -205,6 +212,8 @@ def _fake_report(
                         ]
                     }
                 },
+                "bm25s_kiwi_nouns": {"quality": {"thresholds": []}},
+                "bm25s_kiwi_full": {"quality": {"thresholds": []}},
             },
         },
         "benchmark_verdict": {
@@ -312,6 +321,7 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
         ],
         "temporal": [{"metric": "recall_at_k", "value": 0.47, "operator": ">="}],
     }
+    assert retrieval["preset"]["baselines"] == _EXPANDED_BASELINES
     assert payload["performance_thresholds"][-1]["verdict"] == "PASS"
     assert payload["benchmark_verdict"]["exit_code"] == 0
     assert "Structural verdict: PASS (0 failures, 1 warnings)" in result.output
