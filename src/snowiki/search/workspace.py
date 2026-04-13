@@ -155,6 +155,25 @@ def _search_index_cache_key(root: Path) -> tuple[str, tuple[int, int], tuple[int
     )
 
 
+def content_freshness_identity(root: Path) -> dict[str, dict[str, int]]:
+    """Return the current content-derived freshness identity for retrieval data."""
+    resolved_root = root.resolve()
+    normalized_mtime_ns, normalized_file_count = _tree_signature(
+        resolved_root / "normalized"
+    )
+    compiled_mtime_ns, compiled_file_count = _tree_signature(resolved_root / "compiled")
+    return {
+        "normalized": {
+            "latest_mtime_ns": normalized_mtime_ns,
+            "file_count": normalized_file_count,
+        },
+        "compiled": {
+            "latest_mtime_ns": compiled_mtime_ns,
+            "file_count": compiled_file_count,
+        },
+    }
+
+
 @lru_cache(maxsize=8)
 def _build_search_snapshot_cached(
     cache_key: tuple[str, tuple[int, int], tuple[int, int]],
