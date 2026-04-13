@@ -202,18 +202,18 @@ def test_run_phase1_correctness_flow_uses_isolated_root_and_known_answers(
         "error_count": 0,
     }
     queries = {item["query_id"]: item for item in result["queries"]}
-    assert queries["en-001"] == {
-        "query_id": "en-001",
-        "text": "Which Claude session gives the minimal one-line description of Snowiki as a personal wiki?",
+    assert queries["ko-001"] == {
+        "query_id": "ko-001",
+        "text": "Snowiki를 개인 위키로 설명하는 가장 기본 Claude 세션은 무엇인가?",
         "expected_ids": ["claude_basic"],
         "matched_ids": ["claude_basic"],
         "ok": True,
     }
-    assert queries["en-008"] == {
-        "query_id": "en-008",
-        "text": "Which OpenCode fixture talks about the fixture inventory contract itself?",
-        "expected_ids": ["omo_basic"],
-        "matched_ids": ["omo_basic"],
+    assert queries["mix-001"] == {
+        "query_id": "mix-001",
+        "text": "Snowiki personal wiki를 설명하는 basic session은 뭐야?",
+        "expected_ids": ["claude_basic"],
+        "matched_ids": ["claude_basic"],
         "ok": True,
     }
     assert result["failures"] == []

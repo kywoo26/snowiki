@@ -236,7 +236,7 @@ _FIXTURES: tuple[FixtureSpec, ...] = (
         "path": resolve_repo_asset_path("fixtures/opencode/basic.db"),
     },
 )
-_PHASE_1_QUERY_IDS: tuple[str, ...] = ("en-001", "en-008")
+_PHASE_1_QUERY_IDS: tuple[str, ...] = ("ko-001", "mix-001")
 
 
 def _load_json(path: Path) -> dict[str, object]:
