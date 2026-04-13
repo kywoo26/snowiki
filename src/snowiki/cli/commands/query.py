@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TypedDict, cast
 
 import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.config import get_snowiki_root
+from snowiki.config import (
+    SUPPORTED_RUNTIME_LEXICAL_POLICIES,
+    get_snowiki_root,
+    select_runtime_lexical_policy,
+)
 from snowiki.search import SearchHit
 from snowiki.search.queries.topical import topical_recall
 from snowiki.search.workspace import build_retrieval_snapshot
@@ -30,6 +35,8 @@ class QueryResult(TypedDict):
 
     query: str
     mode: str
+    lexical_policy: str
+    lexical_policy_source: str
     semantic_backend: str | None
     records_indexed: int
     pages_indexed: int
@@ -80,13 +87,29 @@ def _render_query_human(payload: object) -> str:
     return "\n".join(lines)
 
 
-def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
+def run_query(
+    root: Path,
+    query: str,
+    *,
+    mode: str,
+    top_k: int,
+    lexical_policy: str | None = None,
+    config_lexical_policy: str | None = None,
+    env: Mapping[str, str] | None = None,
+) -> QueryResult:
     """Execute a topical query against normalized and compiled content."""
-    snapshot = build_retrieval_snapshot(root)
+    selected_policy = select_runtime_lexical_policy(
+        lexical_policy,
+        env=env,
+        config_policy=config_lexical_policy,
+    )
+    snapshot = build_retrieval_snapshot(root, lexical_policy=selected_policy.policy)
     hits = topical_recall(snapshot.index, query, limit=top_k)
     return {
         "query": query,
         "mode": mode,
+        "lexical_policy": snapshot.lexical_policy,
+        "lexical_policy_source": selected_policy.source,
         "semantic_backend": "disabled" if mode == "hybrid" else None,
         "records_indexed": snapshot.records_indexed,
         "pages_indexed": snapshot.pages_indexed,
@@ -105,6 +128,12 @@ def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
 )
 @click.option("--top-k", type=click.IntRange(min=1), default=5, show_default=True)
 @click.option(
+    "--lexical-policy",
+    type=click.Choice(SUPPORTED_RUNTIME_LEXICAL_POLICIES, case_sensitive=False),
+    default=None,
+    help="Runtime lexical policy override. Precedence: CLI > env > config > default.",
+)
+@click.option(
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
@@ -116,19 +145,35 @@ def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
     default="human",
     show_default=True,
 )
-def command(query: str, mode: str, top_k: int, root: Path | None, output: str) -> None:
+def command(
+    query: str,
+    mode: str,
+    top_k: int,
+    lexical_policy: str | None,
+    root: Path | None,
+    output: str,
+) -> None:
     """Run the query CLI command."""
     output_mode = _normalize_output_mode(output)
     try:
         result = run_query(
-            root if root else get_snowiki_root(), query, mode=mode, top_k=top_k
+            root if root else get_snowiki_root(),
+            query,
+            mode=mode,
+            top_k=top_k,
+            lexical_policy=lexical_policy,
         )
     except Exception as exc:
         emit_error(
             str(exc),
             output=output_mode,
             code="query_failed",
-            details={"query": query, "mode": mode, "top_k": top_k},
+            details={
+                "query": query,
+                "mode": mode,
+                "top_k": top_k,
+                "lexical_policy": lexical_policy,
+            },
         )
     emit_result(
         {"ok": True, "command": "query", "result": result},

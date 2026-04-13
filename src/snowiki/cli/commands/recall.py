@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -7,7 +8,11 @@ from typing import Any
 import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.config import get_snowiki_root
+from snowiki.config import (
+    SUPPORTED_RUNTIME_LEXICAL_POLICIES,
+    get_snowiki_root,
+    select_runtime_lexical_policy,
+)
 from snowiki.search import known_item_lookup, temporal_recall, topical_recall
 from snowiki.search.workspace import RetrievalService
 from snowiki.storage.zones import ensure_utc_datetime
@@ -45,8 +50,20 @@ def _iso_date_window(text: str) -> tuple[datetime, datetime] | None:
     return start, end
 
 
-def run_recall(root: Path, target: str) -> dict[str, Any]:
-    snapshot = RetrievalService.from_root(root)
+def run_recall(
+    root: Path,
+    target: str,
+    *,
+    lexical_policy: str | None = None,
+    config_lexical_policy: str | None = None,
+    env: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    selected_policy = select_runtime_lexical_policy(
+        lexical_policy,
+        env=env,
+        config_policy=config_lexical_policy,
+    )
+    snapshot = RetrievalService.from_root(root, lexical_policy=selected_policy.policy)
     index = snapshot.index
     strategy = "topic"
     window = _iso_date_window(target)
@@ -78,6 +95,8 @@ def run_recall(root: Path, target: str) -> dict[str, Any]:
     return {
         "target": target,
         "strategy": strategy,
+        "lexical_policy": snapshot.lexical_policy,
+        "lexical_policy_source": selected_policy.source,
         "hits": [_hit_to_payload(hit) for hit in hits],
     }
 
@@ -91,16 +110,31 @@ def run_recall(root: Path, target: str) -> dict[str, Any]:
     show_default=True,
 )
 @click.option(
+    "--lexical-policy",
+    type=click.Choice(SUPPORTED_RUNTIME_LEXICAL_POLICIES, case_sensitive=False),
+    default=None,
+    help="Runtime lexical policy override. Precedence: CLI > env > config > default.",
+)
+@click.option(
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
     help="Snowiki storage root (defaults to ~/.snowiki)",
 )
-def command(target: str, output: str, root: Path | None) -> None:
+def command(
+    target: str,
+    output: str,
+    lexical_policy: str | None,
+    root: Path | None,
+) -> None:
     output_mode = _normalize_output_mode(output)
     result: dict[str, Any] | None = None
     try:
-        result = run_recall(root if root else get_snowiki_root(), target)
+        result = run_recall(
+            root if root else get_snowiki_root(),
+            target,
+            lexical_policy=lexical_policy,
+        )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="recall_failed")
     if result is None:

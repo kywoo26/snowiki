@@ -32,12 +32,19 @@ def run_rebuild(root: Path) -> dict[str, Any]:
     engine = CompilerEngine(root)
     compiled_paths = engine.rebuild()
     clear_query_search_index_cache()
-    snapshot = RetrievalService.from_root(root)
+    records = engine.load_normalized_records()
+    pages = engine.build_pages(records) if records else []
+    snapshot = RetrievalService.from_records_and_pages(
+        records=records,
+        pages=pages,
+    )
     storage_paths = StoragePaths(root)
     manifest_path = storage_paths.index / "manifest.json"
     atomic_write_json(
         manifest_path,
         {
+            "lexical_policy": snapshot.lexical_policy,
+            "lexical_policy_version": snapshot.lexical_policy_version,
             "records_indexed": snapshot.records_indexed,
             "pages_indexed": snapshot.pages_indexed,
             "search_documents": snapshot.index.size,

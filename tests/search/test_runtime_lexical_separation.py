@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from snowiki.mcp.server import SnowikiReadOnlyFacade
+from snowiki.search.indexer import InvertedIndex, SearchDocument
 from snowiki.search.workspace import RetrievalService
 
 
@@ -32,17 +33,41 @@ def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
     wiki = SimpleNamespace(documents=("runtime-wiki-doc",))
     blended = SimpleNamespace(size=2)
 
-    def fake_build_lexical_index(normalized_records: list[dict[str, object]]) -> object:
-        call_log.append({"fn": "build_lexical_index", "records": normalized_records})
+    def fake_build_lexical_index(
+        normalized_records: list[dict[str, object]],
+        *,
+        lexical_policy: str | None = None,
+    ) -> object:
+        call_log.append(
+            {
+                "fn": "build_lexical_index",
+                "records": normalized_records,
+                "lexical_policy": lexical_policy,
+            }
+        )
         return lexical
 
-    def fake_build_wiki_index(normalized_pages: list[dict[str, object]]) -> object:
-        call_log.append({"fn": "build_wiki_index", "pages": normalized_pages})
+    def fake_build_wiki_index(
+        normalized_pages: list[dict[str, object]], *, lexical_policy: str | None = None
+    ) -> object:
+        call_log.append(
+            {
+                "fn": "build_wiki_index",
+                "pages": normalized_pages,
+                "lexical_policy": lexical_policy,
+            }
+        )
         return wiki
 
-    def fake_build_blended_index(*document_groups: tuple[str, ...]) -> object:
+    def fake_build_blended_index(
+        *document_groups: tuple[str, ...], lexical_policy: str | None = None
+    ) -> object:
         call_log.append(
-            {"fn": "build_blended_index", "document_groups": document_groups}
+            {
+                "fn": "build_blended_index",
+                "document_groups": document_groups,
+                "lexical_policy": lexical_policy,
+            }
         )
         return blended
 
@@ -62,22 +87,83 @@ def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
     )
     monkeypatch.setattr("snowiki.search.bm25_index.BM25SearchIndex", fail_bm25)
 
-    snapshot = RetrievalService.from_records_and_pages(records=records, pages=pages)
+    snapshot = RetrievalService.from_records_and_pages(
+        records=records,
+        pages=pages,
+        lexical_policy="korean-mixed-lexical",
+    )
 
     assert snapshot.lexical is lexical
     assert snapshot.wiki is wiki
     assert snapshot.index is blended
+    assert snapshot.lexical_policy == "korean-mixed-lexical"
     assert call_log == [
-        {"fn": "build_lexical_index", "records": records},
-        {"fn": "build_wiki_index", "pages": pages},
+        {
+            "fn": "build_lexical_index",
+            "records": records,
+            "lexical_policy": "korean-mixed-lexical",
+        },
+        {
+            "fn": "build_wiki_index",
+            "pages": pages,
+            "lexical_policy": "korean-mixed-lexical",
+        },
         {
             "fn": "build_blended_index",
             "document_groups": (
                 ("runtime-lexical-doc",),
                 ("runtime-wiki-doc",),
             ),
+            "lexical_policy": "korean-mixed-lexical",
         },
     ]
+
+
+def test_inverted_index_uses_runtime_lexical_policy_for_document_and_query_tokenization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tokenization_calls: list[dict[str, object]] = []
+    normalization_calls: list[dict[str, object]] = []
+
+    def fake_tokenize_text(
+        text: str, *, lexical_policy: str | None = None
+    ) -> tuple[str, ...]:
+        tokenization_calls.append({"text": text, "lexical_policy": lexical_policy})
+        normalized = str(text).strip().casefold()
+        return tuple(part for part in normalized.split() if part)
+
+    def fake_normalize_text(text: str, *, lexical_policy: str | None = None) -> str:
+        normalization_calls.append({"text": text, "lexical_policy": lexical_policy})
+        return str(text).strip().casefold()
+
+    monkeypatch.setattr("snowiki.search.indexer.tokenize_text", fake_tokenize_text)
+    monkeypatch.setattr("snowiki.search.indexer.normalize_text", fake_normalize_text)
+
+    index = InvertedIndex(
+        [
+            SearchDocument(
+                id="doc-1",
+                path="compiled/topic/doc-1.md",
+                kind="page",
+                title="한글 mixed document",
+                content="한글 mixed runtime content",
+                summary="runtime summary",
+                aliases=("mixed alias",),
+                source_type="compiled",
+            )
+        ],
+        lexical_policy="korean-mixed-lexical",
+    )
+
+    hits = index.search("mixed runtime", limit=1)
+
+    assert [hit.document.id for hit in hits] == ["doc-1"]
+    assert {call["lexical_policy"] for call in tokenization_calls} == {
+        "korean-mixed-lexical"
+    }
+    assert {call["lexical_policy"] for call in normalization_calls} == {
+        "korean-mixed-lexical"
+    }
 
 
 def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(

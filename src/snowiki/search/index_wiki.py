@@ -7,14 +7,24 @@ from .indexer import InvertedIndex, SearchDocument, document_from_mapping
 
 
 class WikiIndex:
-    def __init__(self, documents: Iterable[SearchDocument]) -> None:
+    def __init__(
+        self,
+        documents: Iterable[SearchDocument],
+        *,
+        lexical_policy: str | None = None,
+    ) -> None:
         self.documents = tuple(documents)
-        self.index = InvertedIndex(self.documents)
+        self.index = InvertedIndex(self.documents, lexical_policy=lexical_policy)
 
     @classmethod
-    def from_compiled_pages(cls, pages: Iterable[Mapping[str, Any]]) -> WikiIndex:
+    def from_compiled_pages(
+        cls,
+        pages: Iterable[Mapping[str, Any]],
+        *,
+        lexical_policy: str | None = None,
+    ) -> WikiIndex:
         documents = [compiled_page_to_document(page) for page in pages]
-        return cls(documents)
+        return cls(documents, lexical_policy=lexical_policy)
 
 
 def compiled_page_to_document(page: Mapping[str, Any]) -> SearchDocument:
@@ -32,5 +42,7 @@ def compiled_page_to_document(page: Mapping[str, Any]) -> SearchDocument:
     )
 
 
-def build_wiki_index(pages: Iterable[Mapping[str, Any]]) -> WikiIndex:
-    return WikiIndex.from_compiled_pages(pages)
+def build_wiki_index(
+    pages: Iterable[Mapping[str, Any]], *, lexical_policy: str | None = None
+) -> WikiIndex:
+    return WikiIndex.from_compiled_pages(pages, lexical_policy=lexical_policy)

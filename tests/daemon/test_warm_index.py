@@ -5,6 +5,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 
 def _load_snowiki_modules() -> tuple[Any, Any, Any, Any, Any]:
     ttl_query_cache = importlib.import_module("snowiki.daemon.cache").TTLQueryCache
@@ -56,6 +58,8 @@ def test_warm_index_manager_keeps_indexes_loaded_and_searchable(tmp_path: Path) 
     snapshot = manager.get()
     hits = known_item_lookup(snapshot.blended, "warm index session", limit=3)
 
+    assert snapshot.lexical_policy == "legacy-lexical"
+    assert snapshot.lexical_policy_version == 1
     assert snapshot.normalized_count == 1
     assert snapshot.compiled_count >= 1
     assert hits
@@ -126,6 +130,8 @@ def test_invalidation_clears_cache_and_reloads_generation(tmp_path: Path) -> Non
     }
     assert result["freshness"]["snapshot_owner"] == "daemon.warm_indexes"
     assert result["freshness"]["runtime_generation"] == second_snapshot.generation
+    assert result["freshness"]["lexical_policy"] == second_snapshot.lexical_policy
+    assert result["freshness"]["lexical_policy_version"] == 1
     assert result["freshness"]["content_identity"] == second_snapshot.content_identity
     assert result["freshness"]["is_stale"] is False
     assert second_snapshot.generation > first_snapshot.generation
@@ -182,12 +188,42 @@ def test_warm_index_health_surfaces_content_identity_and_stale_state(
 
     assert health["owner"] == "daemon.warm_indexes"
     assert health["generation"] == snapshot.generation
+    assert health["lexical_policy"] == snapshot.lexical_policy
+    assert health["lexical_policy_version"] == 1
     assert health["freshness"]["snapshot_owner"] == "daemon.warm_indexes"
     assert health["freshness"]["runtime_generation"] == snapshot.generation
+    assert health["freshness"]["lexical_policy"] == snapshot.lexical_policy
+    assert health["freshness"]["lexical_policy_version"] == 1
     assert health["freshness"]["content_identity"] == snapshot.content_identity
     assert health["freshness"]["current_content_identity"] != snapshot.content_identity
     assert health["freshness"]["is_stale"] is True
     assert health["freshness"]["stale_reason"] == "content_changed_since_reload"
+
+
+def test_warm_index_manager_requires_explicit_rebuild_on_policy_mismatch(
+    tmp_path: Path,
+) -> None:
+    import json
+
+    from snowiki.search.workspace import RuntimeLexicalPolicyMismatchError
+
+    _, _, warm_index_manager_cls, _, _ = _load_snowiki_modules()
+    manifest_path = tmp_path / "index" / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "lexical_policy": "korean-mixed-lexical",
+                "lexical_policy_version": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manager = warm_index_manager_cls(tmp_path)
+
+    with pytest.raises(RuntimeLexicalPolicyMismatchError, match="snowiki rebuild"):
+        manager.get()
 
 
 def test_daemon_execute_query_returns_cached_payload_without_relabeling_it(
@@ -216,6 +252,8 @@ def test_daemon_execute_query_returns_cached_payload_without_relabeling_it(
         "snapshot_owner": "daemon.warm_indexes",
         "loaded_at": "2026-04-14T00:00:00Z",
         "runtime_generation": 4,
+        "lexical_policy": "legacy-lexical",
+        "lexical_policy_version": 1,
         "content_identity": {
             "normalized": {"latest_mtime_ns": 100, "file_count": 1},
             "compiled": {"latest_mtime_ns": 200, "file_count": 2},
@@ -317,6 +355,8 @@ def test_daemon_recall_operation_mirrors_cli_truth_known_item_strategy(
         "snapshot_owner": "daemon.warm_indexes",
         "loaded_at": "2026-04-14T00:00:00Z",
         "runtime_generation": 4,
+        "lexical_policy": "legacy-lexical",
+        "lexical_policy_version": 1,
         "content_identity": {
             "normalized": {"latest_mtime_ns": 100, "file_count": 1},
             "compiled": {"latest_mtime_ns": 200, "file_count": 2},
