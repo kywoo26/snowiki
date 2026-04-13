@@ -6,7 +6,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from snowiki.search.kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
+from snowiki.search.kiwi_tokenizer import (
+    BilingualTokenizer,
+    KoreanTokenizer,
+    build_korean_tokenizer,
+)
 
 
 def _token(form: str, tag: str) -> SimpleNamespace:
@@ -71,6 +75,23 @@ class TestKoreanTokenizer:
         result = tokenizer.tokenize("자연어 처리는 재미있습니다")
         assert result == ("자연어", "처리")
         assert fake_kiwi[1]["text"] == "자연어 처리는 재미있습니다"
+
+    def test_lexical_candidate_modes_distinguish_same_input(
+        self, fake_kiwi: list[dict[str, object]]
+    ) -> None:
+        morphology = build_korean_tokenizer("morphology")
+        nouns = build_korean_tokenizer("nouns")
+
+        assert morphology.tokenize("자연어 처리는 재미있습니다") == (
+            "자연어",
+            "처리",
+            "재미있",
+        )
+        assert nouns.tokenize("자연어 처리는 재미있습니다") == ("자연어", "처리")
+        assert [call["text"] for call in fake_kiwi if "text" in call] == [
+            "자연어 처리는 재미있습니다",
+            "자연어 처리는 재미있습니다",
+        ]
 
     def test_tokenize_empty_string(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = KoreanTokenizer()

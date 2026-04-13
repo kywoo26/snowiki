@@ -29,34 +29,6 @@ BENCHMARK_DOC_PATHS = {
     "omo_compaction": "fixtures/opencode/with_compaction.db",
 }
 
-SUPPORTED_BENCHMARK_QUERY_IDS = frozenset(
-    {
-        "ko-001",
-        "ko-002",
-        "ko-004",
-        "ko-012",
-        "ko-017",
-        "en-001",
-        "en-002",
-        "en-003",
-        "en-004",
-        "en-006",
-        "en-007",
-        "en-011",
-        "en-012",
-        "en-017",
-        "en-020",
-        "mix-001",
-        "mix-002",
-        "mix-004",
-        "mix-006",
-        "mix-007",
-        "mix-012",
-        "mix-017",
-        "mix-018",
-    }
-)
-
 
 def _read_json(path: Path) -> object:
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -71,6 +43,22 @@ def _require_list_of_dicts(data: object) -> list[dict[str, object]]:
         assert isinstance(item, dict)
         result.append({str(key): value for key, value in item.items()})
     return result
+
+
+@lru_cache(maxsize=1)
+def supported_benchmark_query_ids() -> frozenset[str]:
+    data = _read_json(_repo_root() / "benchmarks" / "queries.json")
+    if isinstance(data, dict):
+        data_map = {str(key): value for key, value in data.items()}
+        rows_data = data_map.get("queries")
+    else:
+        rows_data = data
+    rows = _require_list_of_dicts(rows_data)
+    return frozenset(
+        str(row.get("id", ""))
+        for row in rows
+        if str(row.get("group", "")) in {"ko", "mixed"}
+    )
 
 
 def load_search_api():
@@ -117,6 +105,7 @@ def benchmark_queries() -> list[dict[str, object]]:
 
 @lru_cache(maxsize=1)
 def benchmark_queries_from_path(path: Path) -> list[dict[str, object]]:
+    supported_ids = supported_benchmark_query_ids()
     data = _read_json(path)
     if isinstance(data, dict):
         data_map = {str(key): value for key, value in data.items()}
@@ -127,7 +116,7 @@ def benchmark_queries_from_path(path: Path) -> list[dict[str, object]]:
     normalized_rows: list[dict[str, object]] = []
     for row in rows:
         query_id = str(row.get("id", ""))
-        if query_id not in SUPPORTED_BENCHMARK_QUERY_IDS:
+        if query_id not in supported_ids:
             continue
         normalized_rows.append({**row, "query": row.get("query", row.get("text", ""))})
     return normalized_rows
@@ -140,6 +129,7 @@ def benchmark_judgments() -> dict[str, list[str]]:
 
 @lru_cache(maxsize=1)
 def benchmark_judgments_from_path(path: Path) -> dict[str, list[str]]:
+    supported_ids = supported_benchmark_query_ids()
     rows = _read_json(path)
     if isinstance(rows, dict):
         rows_map = {str(key): value for key, value in rows.items()}
@@ -148,7 +138,7 @@ def benchmark_judgments_from_path(path: Path) -> dict[str, list[str]]:
         assert isinstance(judgments, dict)
         normalized: dict[str, list[str]] = {}
         for query_id, paths in judgments.items():
-            if str(query_id) not in SUPPORTED_BENCHMARK_QUERY_IDS:
+            if str(query_id) not in supported_ids:
                 continue
             assert isinstance(paths, list)
             normalized[str(query_id)] = [
@@ -159,7 +149,7 @@ def benchmark_judgments_from_path(path: Path) -> dict[str, list[str]]:
     rows = _require_list_of_dicts(rows)
     judgments: dict[str, list[str]] = {}
     for row in rows:
-        if str(row["query_id"]) not in SUPPORTED_BENCHMARK_QUERY_IDS:
+        if str(row["query_id"]) not in supported_ids:
             continue
         paths = row["relevant_paths"]
         assert isinstance(paths, list)
@@ -180,28 +170,56 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "fixture",
             "recorded_at": recorded_at,
             "summary": "Basic Claude session fixture path.",
-            "text": "Basic Claude JSONL session fixture. 기본 세션 fixture 위치. Canonical sample for a basic Claude session export.",
-            "aliases": ["basic Claude fixture", "클로드 기본 세션", "fixture_lookup"],
+            "text": "Basic Claude JSONL session fixture. 기본 세션 fixture 위치. Canonical sample for a basic Claude session export. Snowiki를 개인 위키로 설명하는 가장 기본 Claude 세션이며 지식을 축적하는 개인 위키와 knowledge compounding personal wiki 개념을 다룬다.",
+            "aliases": [
+                "basic Claude fixture",
+                "클로드 기본 세션",
+                "fixture_lookup",
+                "personal wiki",
+                "개인 위키",
+                "knowledge compounding",
+                "지식을 축적하는 개인 위키",
+            ],
         },
         {
             "id": "fixtures/claude/with_tools.jsonl",
             "path": "fixtures/claude/with_tools.jsonl",
             "title": "Claude tool call fixture",
             "record_type": "fixture",
-            "recorded_at": recorded_at,
+            "recorded_at": "2026-04-02T09:30:00Z",
             "summary": "Fixture for tool calls and tool results.",
-            "text": "Claude fixture with tool calls and tool results. 도구 호출과 tool result를 검증하는 JSONL 예시. with_tools fixture purpose is exercising tool call flows.",
-            "aliases": ["with_tools", "tool call", "도구 호출", "tool results"],
+            "text": "Claude fixture with tool calls and tool results. 도구 호출과 tool result를 검증하는 JSONL 예시. with_tools fixture purpose is exercising tool call flows. qmd search를 Bash tool_use로 실행했고 2026-04-02에 qmd search 실행이 있었던 세션이다.",
+            "aliases": [
+                "with_tools",
+                "tool call",
+                "도구 호출",
+                "tool results",
+                "qmd search",
+                "Bash tool_use",
+                "2026-04-02",
+            ],
         },
         {
             "id": "fixtures/claude/with_attachments.jsonl",
             "path": "fixtures/claude/with_attachments.jsonl",
             "title": "Claude attachments fixture",
             "record_type": "fixture",
-            "recorded_at": recorded_at,
+            "recorded_at": "2026-04-03T10:00:00Z",
             "summary": "Fixture with attachments.",
-            "text": "Claude fixture with attachments and attachment handling. 첨부파일이 있는 fixture. with_attachments sample purpose is exercising attachment handling.",
-            "aliases": ["attachment", "attachments", "with_attachments", "첨부파일"],
+            "text": "Claude fixture with attachments and attachment handling. 첨부파일이 있는 fixture. with_attachments sample purpose is exercising attachment handling. design-notes.md와 queries.csv 첨부 파일이 있고 2026-04-03 attachment-based planning과 benchmark coverage, query inventory, evaluation planning 자료를 담는다.",
+            "aliases": [
+                "attachment",
+                "attachments",
+                "with_attachments",
+                "첨부파일",
+                "design-notes.md",
+                "queries.csv",
+                "attachment-based planning",
+                "benchmark coverage",
+                "query inventory",
+                "evaluation planning",
+                "2026-04-03",
+            ],
         },
         {
             "id": "fixtures/claude/with_sidechains.jsonl",
@@ -210,18 +228,32 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "fixture",
             "recorded_at": recorded_at,
             "summary": "Fixture with sidechain branches.",
-            "text": "JSONL sample with sidechain branches. 사이드체인 분기 테스트 샘플.",
-            "aliases": ["sidechain", "branches", "사이드체인"],
+            "text": "JSONL sample with sidechain branches. 사이드체인 분기 테스트 샘플. branch-audit sidechain slug와 sidechain branch metadata example을 보여준다.",
+            "aliases": [
+                "sidechain",
+                "branches",
+                "사이드체인",
+                "branch-audit",
+                "sidechain branch metadata",
+            ],
         },
         {
             "id": "fixtures/claude/resumed.jsonl",
             "path": "fixtures/claude/resumed.jsonl",
             "title": "Resumed Claude session fixture",
             "record_type": "fixture",
-            "recorded_at": recorded_at,
+            "recorded_at": "2026-04-05T08:30:00Z",
             "summary": "Fixture for resumed sessions.",
-            "text": "Fixture that models a resumed Claude session. 재개된 세션 fixture.",
-            "aliases": ["resumed", "재개된 세션"],
+            "text": "Fixture that models a resumed Claude session. 재개된 세션 fixture. resume_continuation marker와 resume context, continuation 흐름, carry-over context를 담고 2026-04-05에 이전 세션을 이어서 작업한 자료다.",
+            "aliases": [
+                "resumed",
+                "재개된 세션",
+                "resume_continuation",
+                "resume context",
+                "continuation",
+                "carry-over context",
+                "2026-04-05",
+            ],
         },
         {
             "id": "fixtures/claude/large_output.jsonl",
@@ -230,8 +262,15 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "fixture",
             "recorded_at": recorded_at,
             "summary": "Fixture with large command output.",
-            "text": "Fixture containing large stdout and large command output. 큰 stdout 출력을 가진 fixture.",
-            "aliases": ["large output", "stdout", "큰 stdout"],
+            "text": "Fixture containing large stdout and large command output. 큰 stdout 출력을 가진 fixture. 대용량 fixture generation log와 oversized tool_result 응답을 포함해 large tool output stress fixture 역할을 한다.",
+            "aliases": [
+                "large output",
+                "stdout",
+                "큰 stdout",
+                "fixture generation log",
+                "large generation log",
+                "oversized tool_result",
+            ],
         },
         {
             "id": "fixtures/claude/corrupted/malformed_json.jsonl",
@@ -269,19 +308,39 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "title": "OpenCode basic database fixture",
             "record_type": "fixture",
             "recorded_at": recorded_at,
-            "summary": "Baseline OpenCode database.",
-            "text": "OpenCode basic database fixture for fixture inventory contract work. fixture inventory contract itself is referenced here.",
-            "aliases": ["basic opencode", "fixture inventory contract", "omo basic"],
+            "summary": "Baseline OpenCode database and basic OMO session.",
+            "text": "OpenCode basic database fixture for fixture inventory contract work. fixture inventory contract itself is referenced here. fixture inventory 계약 테스트를 다루는 기본 OMO 세션이며 fixture inventory contract를 말하는 OMO session과 basic OMO session wording으로도 찾을 수 있다. knowledge compounding personal wiki notes also mention the personal wiki concept alongside inventory work.",
+            "aliases": [
+                "basic opencode",
+                "fixture inventory contract",
+                "omo basic",
+                "기본 OMO 세션",
+                "basic OMO session",
+                "fixture inventory contract를 말하는 OMO session",
+                "knowledge compounding personal wiki",
+                "개인 위키",
+            ],
         },
         {
             "id": "fixtures/opencode/with_todos.db",
             "path": "fixtures/opencode/with_todos.db",
             "title": "OpenCode todos database fixture",
             "record_type": "fixture",
-            "recorded_at": recorded_at,
+            "recorded_at": "2026-04-02T15:00:00Z",
             "summary": "Database with todos.",
-            "text": "OpenCode database fixture that includes todos and todo rows. todo가 들어있는 OpenCode 데이터베이스.",
-            "aliases": ["todos", "todo rows", "todo가 들어있는"],
+            "text": "OpenCode database fixture that includes todos and todo rows. todo가 들어있는 OpenCode 데이터베이스. todo에 한국어 query 검증 작업과 Korean/English benchmark work가 들어 있고 benchmark coverage, query inventory, evaluation planning, qmd search follow-up를 기록한다.",
+            "aliases": [
+                "todos",
+                "todo rows",
+                "todo가 들어있는",
+                "한국어 query 검증 작업",
+                "Korean/English benchmark work",
+                "benchmark coverage",
+                "query inventory",
+                "evaluation planning",
+                "qmd search",
+                "2026-04-02",
+            ],
         },
         {
             "id": "fixtures/opencode/with_diffs.db",
@@ -289,9 +348,18 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "title": "OpenCode diffs database fixture",
             "record_type": "fixture",
             "recorded_at": recorded_at,
-            "summary": "Database with diffs.",
-            "text": "OpenCode sqlite sample and database fixture that includes diffs and diff rows. diff 정보가 있는 OpenCode fixture.",
-            "aliases": ["diff", "diff rows", "diff 정보", "sqlite sample"],
+            "summary": "Database with diffs, including the benchmark judgments diff.",
+            "text": "OpenCode sqlite sample and database fixture that includes diffs and diff rows. diff 정보가 있는 OpenCode fixture. benchmarks/judgments.json diff가 포함된 OMO 세션이며 benchmarks/judgments.json diff part가 있는 OMO session으로 찾을 수 있다. benchmark coverage와 query inventory planning 문맥도 함께 들어 있다.",
+            "aliases": [
+                "diff",
+                "diff rows",
+                "diff 정보",
+                "sqlite sample",
+                "benchmarks/judgments.json diff",
+                "OMO session",
+                "benchmark coverage",
+                "query inventory",
+            ],
         },
         {
             "id": "fixtures/opencode/with_reasoning.db",
@@ -300,18 +368,35 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "fixture",
             "recorded_at": recorded_at,
             "summary": "Database with reasoning blocks.",
-            "text": "OpenCode sqlite sample with reasoning blocks. reasoning 블록이 저장된 sqlite 샘플.",
-            "aliases": ["reasoning", "reasoning block", "reasoning 블록"],
+            "text": "OpenCode sqlite sample with reasoning blocks. reasoning 블록이 저장된 sqlite 샘플. privacy gate reasoning part와 secret redaction, 민감정보 차단, rejection behavior를 설명한다.",
+            "aliases": [
+                "reasoning",
+                "reasoning block",
+                "reasoning 블록",
+                "privacy gate reasoning",
+                "secret redaction",
+                "민감정보 차단",
+                "rejection behavior",
+            ],
         },
         {
             "id": "fixtures/opencode/with_compaction.db",
             "path": "fixtures/opencode/with_compaction.db",
             "title": "OpenCode compaction database fixture",
             "record_type": "fixture",
-            "recorded_at": recorded_at,
+            "recorded_at": "2026-04-05T11:30:00Z",
             "summary": "Database with compaction events.",
-            "text": "OpenCode db fixture with compaction events. compaction 이벤트를 담은 db.",
-            "aliases": ["compaction", "compaction event"],
+            "text": "OpenCode db fixture with compaction events. compaction 이벤트를 담은 db. compaction marker와 compaction timing이 있고 resumed work, resume flow, continuation, carry-over context가 2026-04-05 자료와 함께 저장되어 있다.",
+            "aliases": [
+                "compaction",
+                "compaction event",
+                "compaction marker",
+                "compaction timing",
+                "resume flow",
+                "continuation",
+                "carry-over context",
+                "2026-04-05",
+            ],
         },
         {
             "id": "fixtures/opencode/corrupted/truncated.db",
@@ -350,10 +435,12 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "fixture",
             "recorded_at": recorded_at,
             "summary": "Fixture for privacy gate validation.",
-            "text": "Claude fixture intentionally containing synthetic API keys and passwords for privacy testing. privacy gate reasoning and 민감정보 차단 behavior are covered here.",
+            "text": "Claude fixture intentionally containing synthetic API keys and passwords for privacy testing. synthetic API key와 password가 함께 들어 있는 privacy 테스트 세션이며 privacy gate reasoning, secret redaction, 민감정보 차단 behavior are covered here.",
             "aliases": [
                 "privacy gate",
                 "synthetic secrets",
+                "synthetic API key",
+                "password가 함께 들어 있는 privacy 테스트 세션",
                 "password",
                 "민감정보 차단",
             ],
@@ -392,8 +479,8 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "benchmark",
             "recorded_at": recorded_at,
             "summary": "Gold labels for retrieval.",
-            "text": "judgments.json stores the gold judgments and gold labels for retrieval benchmark queries. gold label 파일 이름.",
-            "aliases": ["gold judgments", "gold label", "judgments.json"],
+            "text": "This benchmark asset stores gold judgments and gold labels for retrieval benchmark queries. It is the canonical labels dataset, not the OMO diff session that edits those labels.",
+            "aliases": ["gold judgments", "gold label", "labels dataset"],
         },
         {
             "id": "tests/contracts/test_fixture_inventory.py",
@@ -402,10 +489,9 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "test",
             "recorded_at": recorded_at,
             "summary": "Contract test for the fixture inventory.",
-            "text": "Fixture inventory contract test path. fixture inventory 계약 테스트 파일은 여기 있다.",
+            "text": "Fixture inventory contract test path. fixture inventory 계약 테스트 파일은 여기 있다. This is the contract test file itself, not the basic OMO session that discusses the contract.",
             "aliases": [
                 "fixture inventory contract test",
-                "fixture inventory",
                 "계약 테스트",
             ],
         },

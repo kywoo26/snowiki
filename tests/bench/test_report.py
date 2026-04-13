@@ -4,6 +4,13 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+_EXPANDED_BASELINES = [
+    "lexical",
+    "bm25s",
+    "bm25s_kiwi_nouns",
+    "bm25s_kiwi_full",
+]
+
 
 def _load_report_symbols() -> tuple[Any, Any]:
     report = import_module("snowiki.bench.report")
@@ -68,7 +75,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
                     "description": "Known-item and topical retrieval benchmark coverage.",
                     "query_kinds": ["known-item", "topical"],
                     "top_k": 5,
-                    "baselines": ["lexical", "bm25s"],
+                    "baselines": _EXPANDED_BASELINES,
                 },
                 "corpus": {
                     "records_indexed": 12,
@@ -78,6 +85,29 @@ def test_generate_report_exposes_unified_benchmark_gate(
                     "queries_evaluated": 18,
                 },
                 "baselines": {
+                    "lexical": {
+                        "name": "lexical",
+                        "latency": {
+                            "p50_ms": 1.1,
+                            "p95_ms": 2.1,
+                            "mean_ms": 1.6,
+                            "min_ms": 1.1,
+                            "max_ms": 2.1,
+                        },
+                        "quality": {
+                            "overall": {
+                                "recall_at_k": 0.83,
+                                "mrr": 0.71,
+                                "ndcg_at_k": 0.76,
+                                "top_k": 5,
+                                "queries_evaluated": 18,
+                                "per_query": [],
+                            },
+                            "slices": {"group": {}, "kind": {}},
+                            "thresholds": [],
+                        },
+                        "queries": [],
+                    },
                     "bm25s": {
                         "name": "bm25s",
                         "latency": {
@@ -110,7 +140,53 @@ def test_generate_report_exposes_unified_benchmark_gate(
                             ],
                         },
                         "queries": [],
-                    }
+                    },
+                    "bm25s_kiwi_nouns": {
+                        "name": "bm25s_kiwi_nouns",
+                        "latency": {
+                            "p50_ms": 1.2,
+                            "p95_ms": 2.2,
+                            "mean_ms": 1.7,
+                            "min_ms": 1.2,
+                            "max_ms": 2.2,
+                        },
+                        "quality": {
+                            "overall": {
+                                "recall_at_k": 0.81,
+                                "mrr": 0.7,
+                                "ndcg_at_k": 0.74,
+                                "top_k": 5,
+                                "queries_evaluated": 18,
+                                "per_query": [],
+                            },
+                            "slices": {"group": {}, "kind": {}},
+                            "thresholds": [],
+                        },
+                        "queries": [],
+                    },
+                    "bm25s_kiwi_full": {
+                        "name": "bm25s_kiwi_full",
+                        "latency": {
+                            "p50_ms": 1.3,
+                            "p95_ms": 2.3,
+                            "mean_ms": 1.8,
+                            "min_ms": 1.3,
+                            "max_ms": 2.3,
+                        },
+                        "quality": {
+                            "overall": {
+                                "recall_at_k": 0.84,
+                                "mrr": 0.72,
+                                "ndcg_at_k": 0.77,
+                                "top_k": 5,
+                                "queries_evaluated": 18,
+                                "per_query": [],
+                            },
+                            "slices": {"group": {}, "kind": {}},
+                            "thresholds": [],
+                        },
+                        "queries": [],
+                    },
                 },
             }
         ),
@@ -157,6 +233,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
     assert "semantic_slots" not in report
     assert "semantic_slots" not in retrieval
     assert "token_reduction" not in retrieval
+    assert retrieval["preset"]["baselines"] == _EXPANDED_BASELINES
     assert performance_thresholds[-1] == {
         "gate": "query",
         "metric": "p95_ms",

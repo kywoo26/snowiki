@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -25,14 +26,28 @@ def fake_bm25_backend(
         "index": [],
         "retrieve": [],
         "kiwi": [],
+        "save": [],
+        "load": [],
     }
 
     class FakeTokenizer:
+        def __init__(self, extract_nouns_only: bool = False) -> None:
+            calls["kiwi"].append({"init_extract_nouns_only": extract_nouns_only})
+            self.extract_nouns_only = extract_nouns_only
+
         def __call__(self, text: str) -> list[str]:
-            calls["kiwi"].append({"text": text})
+            calls["kiwi"].append(
+                {
+                    "text": text,
+                    "extract_nouns_only": self.extract_nouns_only,
+                }
+            )
+            tokens: list[str] = []
             if "자연어" in text:
-                return ["자연어"]
-            return []
+                tokens.append("자연어")
+            if not self.extract_nouns_only and ("재미있" in text or "재미있는" in text):
+                tokens.append("재미있")
+            return tokens
 
     class FakeBM25:
         def __init__(self, **kwargs: object) -> None:
@@ -50,6 +65,14 @@ def fake_bm25_backend(
             limit = min(cast(int, kwargs["k"]), self._doc_count)
             return _Flattenable(list(range(limit))), _Flattenable([1.0] * limit)
 
+        def save(self, path: str) -> None:
+            calls["save"].append({"path": path})
+
+        @classmethod
+        def load(cls, path: str, **kwargs: object) -> FakeBM25:
+            calls["load"].append({"path": path, **kwargs})
+            return cls()
+
     def fake_tokenize(texts: str | list[str], **kwargs: object) -> list[list[str]]:
         calls["tokenize"].append({"texts": texts, **kwargs})
         values = [texts] if isinstance(texts, str) else texts
@@ -59,7 +82,10 @@ def fake_bm25_backend(
         "snowiki.search.bm25_index.bm25s",
         SimpleNamespace(BM25=FakeBM25, tokenize=fake_tokenize),
     )
-    monkeypatch.setattr("snowiki.search.bm25_index.KoreanTokenizer", FakeTokenizer)
+    monkeypatch.setattr(
+        "snowiki.search.bm25_index.build_korean_tokenizer",
+        lambda mode="morphology": FakeTokenizer(extract_nouns_only=mode == "nouns"),
+    )
     return calls
 
 
@@ -155,11 +181,96 @@ class TestBM25SearchIndex:
         results = index.search("자연어")
         assert len(results) > 0
         assert isinstance(results[0], BM25SearchHit)
-        assert any(call["text"] == "자연어" for call in fake_bm25_backend["kiwi"])
+        assert any(call.get("text") == "자연어" for call in fake_bm25_backend["kiwi"])
+
+    def test_kiwi_candidate_mode_changes_index_and_query_tokens(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="자연어 처리",
+                content="자연어 처리는 재미있는 분야입니다.",
+            )
+        ]
+
+        morphology_index = BM25SearchIndex(
+            docs,
+            kiwi_lexical_candidate_mode="morphology",
+        )
+        nouns_index = BM25SearchIndex(
+            docs,
+            kiwi_lexical_candidate_mode="nouns",
+        )
+
+        morphology_results = morphology_index.search("재미있다")
+        nouns_results = nouns_index.search("재미있다")
+
+        first_index_call = cast(dict[str, Any], fake_bm25_backend["index"][0])
+        second_index_call = cast(dict[str, Any], fake_bm25_backend["index"][1])
+        first_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][0])
+        second_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][1])
+
+        assert first_index_call["corpus_tokens"][0] == [
+            "자연어",
+            "처리",
+            "자연어",
+            "처리는",
+            "재미있는",
+            "분야입니다",
+            "자연어",
+            "재미있",
+        ]
+        assert second_index_call["corpus_tokens"][0] == [
+            "자연어",
+            "처리",
+            "자연어",
+            "처리는",
+            "재미있는",
+            "분야입니다",
+            "자연어",
+        ]
+        assert first_retrieve_call["query_tokens"] == [["재미있다", "재미있"]]
+        assert second_retrieve_call["query_tokens"] == [["재미있다"]]
+        assert morphology_results[0].matched_terms == ("재미있다", "재미있")
+        assert nouns_results[0].matched_terms == ("재미있다",)
+
+    def test_save_and_load_preserve_kiwi_candidate_mode(
+        self,
+        fake_bm25_backend: dict[str, list[dict[str, object]]],
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="자연어 처리",
+                content="자연어 처리는 재미있는 분야입니다.",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+
+        index = BM25SearchIndex(docs, kiwi_lexical_candidate_mode="nouns")
+        index.save(str(path))
+        loaded = BM25SearchIndex.load(str(path), docs)
+
+        assert fake_bm25_backend["save"] == [{"path": str(path)}]
+        assert fake_bm25_backend["load"] == [{"path": str(path), "load_corpus": True}]
+        assert loaded.use_kiwi_tokenizer is True
+        assert loaded.kiwi_lexical_candidate_mode == "nouns"
+        assert loaded.tokenizer is not None
+        assert loaded.tokenizer("자연어 재미있다") == ["자연어"]
 
     def test_invalid_method(self) -> None:
         with pytest.raises(ValueError, match="Invalid method"):
             BM25SearchIndex([], method="invalid")
+
+    def test_invalid_kiwi_candidate_mode(self) -> None:
+        with pytest.raises(ValueError, match="Invalid Kiwi lexical candidate mode"):
+            BM25SearchIndex([], kiwi_lexical_candidate_mode=cast(Any, "verbs"))
 
     @pytest.mark.parametrize(
         "method", ["robertson", "atire", "bm25l", "bm25+", "lucene"]
