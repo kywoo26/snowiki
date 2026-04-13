@@ -105,6 +105,37 @@ For the current daemon surface, these identities should be exposed as separate d
 - Benchmark outputs are evidence of engine capability, not the shipped runtime contract itself.
 - Benchmark/runtime equivalence should never be assumed without saying so explicitly.
 
+## Runtime Lexical-Policy Promotion Contract
+
+This contract defines the formal requirements for promoting a new lexical retrieval policy to the Snowiki runtime default.
+
+### Lexical-Policy Identifier
+The authoritative identifier for the current promoted candidate is `korean-mixed-lexical`. This policy uses the Kiwi-backed morphology engine for improved Korean and mixed-language retrieval.
+
+### Promotion Gates
+Promotion from benchmark-only evidence to runtime truth requires passing two distinct gates. A benchmark PASS alone is insufficient for promotion.
+
+1. **Benchmark Victory Gate**
+   - The candidate must meet or exceed all Phase 1 thresholds: Recall@k >= 0.72, MRR >= 0.70, nDCG@k >= 0.67.
+   - It must demonstrate a clear improvement in topical or known-item metrics without regressing the overall system recall.
+   - Benchmark outputs are treated as evidence of capability, not as the shipped runtime contract.
+
+2. **Runtime Safety Gate**
+   - The candidate must provide a runtime safety proof through a full green suite: `uv run ruff check`, `uv run ty check`, `uv run pytest`, and `uv run pytest -m integration`.
+   - Implementation work must preserve the strict separation between benchmark baselines and runtime retrieval paths.
+   - No candidate may introduce silent adaptation or hidden dependencies on benchmark-only assets.
+
+### Mismatch and Failure Behavior
+To prevent operational drift and index corruption, the runtime enforces strict policy alignment:
+- **Explicit Rebuild**: Any change to the active runtime lexical policy requires an explicit `snowiki rebuild`.
+- **Hard Fail on Mismatch**: If the runtime detects a mismatch between the active policy and the existing index/snapshot, it must hard-fail or trigger a mandatory rebuild. Silent adaptation to a mismatched index is forbidden.
+- **No Auto-Promotion**: Benchmark victory does not trigger automatic runtime promotion. Promotion remains a deliberate architectural decision.
+
+### Rollback and Recovery
+Rollback of a promoted policy is an explicit operational action.
+- A rollback requires reverting the runtime policy identifier and performing a full index rebuild.
+- The system must maintain the ability to return to the legacy lexical default if the promoted candidate exhibits unforeseen runtime instability.
+
 ## Strategy layers
 
 The retrieval policy wrappers currently live in:
