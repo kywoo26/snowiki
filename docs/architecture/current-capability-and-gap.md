@@ -165,7 +165,7 @@ This is unusually strong for a project at this stage and is one of the system’
 - broader workflow-level evaluation beyond Phase 1 backend focus
 
 **Production-readiness caveat:**
-- benchmark rigor is strong for Phase 1 backend evaluation, but it is not yet the same thing as a full product-quality or agent-authoring evaluation system.
+- benchmark rigor is strong for Phase 1 backend evaluation, but it is not yet the same thing as a full product-quality or agent-authoring evaluation system. Benchmark outputs are evidence of engine capability, not the shipped runtime contract itself.
 
 ### 7. Unit/integration split and governance
 The repo now has:
