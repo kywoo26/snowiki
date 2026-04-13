@@ -45,11 +45,26 @@ def test_query_returns_hits_after_cold_start_ingest(
     assert query.exit_code == 0, query.output
     payload = json.loads(query.output)
     assert payload["ok"] is True
+    assert payload["command"] == "query"
+    assert payload["result"]["query"] == "claude-basic"
+    assert payload["result"]["mode"] == "lexical"
+    assert payload["result"]["semantic_backend"] is None
     assert payload["result"]["hits"]
     assert any(
         "claude-basic" in hit["path"] or "claude-basic" in hit["id"]
         for hit in payload["result"]["hits"]
     )
+
+
+def test_query_help_documents_machine_output_flag() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["query", "--help"])
+
+    assert result.exit_code == 0
+    assert "--output [human|json]" in result.output
+    assert "--top-k INTEGER RANGE" in result.output
+    assert "--mode [lexical|hybrid]" in result.output
 
 
 def test_query_cache_invalidates_after_ingest(tmp_path: Path) -> None:
