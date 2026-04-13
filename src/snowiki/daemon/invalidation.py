@@ -35,6 +35,11 @@ class CacheInvalidationManager:
             "reason": event.reason,
             "triggered_at": event.triggered_at,
             "invalidated_entries": invalidated_entries,
+            "owners": {
+                "cache": "daemon.response_cache",
+                "snapshot": "daemon.warm_indexes",
+            },
+            "freshness": self.warm_indexes.snapshot_metadata(snapshot),
             "generation": snapshot.generation,
             "normalized_count": snapshot.normalized_count,
             "compiled_count": snapshot.compiled_count,
