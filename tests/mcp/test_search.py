@@ -158,6 +158,22 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
     responses = {
         response["id"]: response for response in decode_messages(stdout.getvalue())
     }
+    assert sorted(responses) == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert all(response["jsonrpc"] == "2.0" for response in responses.values())
+    assert all(
+        response["id"] == request_id for request_id, response in responses.items()
+    )
+
+    initialize_result = responses[1]["result"]
+    assert initialize_result["protocolVersion"] == "2025-03-26"
+    assert initialize_result["serverInfo"] == {
+        "name": "snowiki-readonly",
+        "version": "0.1.0",
+    }
+    assert initialize_result["capabilities"] == {
+        "resources": {"listChanged": False, "subscribe": False},
+        "tools": {"listChanged": False},
+    }
 
     listed_tools = [tool["name"] for tool in responses[2]["result"]["tools"]]
     assert listed_tools == ["get_page", "recall", "resolve_links", "search"]
@@ -174,6 +190,15 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
         hit["path"] for hit in responses[3]["result"]["structuredContent"]["hits"]
     ]
     assert returned_search_paths == expected_search_paths
+    assert (
+        responses[3]["result"]["structuredContent"]["query"]
+        == "basic Claude fixture 위치 알려줘."
+    )
+    assert responses[3]["result"]["structuredContent"]["limit"] == 3
+    assert (
+        json.loads(responses[3]["result"]["content"][0]["text"])
+        == responses[3]["result"]["structuredContent"]
+    )
 
     expected_recall_paths = [
         hit.document.path
@@ -188,15 +213,29 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
         hit["path"] for hit in responses[4]["result"]["structuredContent"]["hits"]
     ]
     assert returned_recall_paths == expected_recall_paths
+    assert responses[4]["result"]["structuredContent"]["mode"] == "temporal"
+    assert responses[4]["result"]["structuredContent"]["limit"] == 3
+    assert (
+        json.loads(responses[4]["result"]["content"][0]["text"])
+        == responses[4]["result"]["structuredContent"]
+    )
 
     assert (
         responses[5]["result"]["structuredContent"]["path"]
         == "compiled/topics/korean-retrieval.md"
     )
+    assert (
+        json.loads(responses[5]["result"]["content"][0]["text"])
+        == responses[5]["result"]["structuredContent"]
+    )
     resolved_links = responses[6]["result"]["structuredContent"]["links"]
     assert any(
         link["resolved_path"] == "compiled/wiki/search/mixed-language-overview.md"
         for link in resolved_links
+    )
+    assert (
+        json.loads(responses[6]["result"]["content"][0]["text"])
+        == responses[6]["result"]["structuredContent"]
     )
 
     listed_resources = [
@@ -208,7 +247,88 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
 
     session_payload = json.loads(responses[8]["result"]["contents"][0]["text"])
     assert session_payload["id"] == "session-yesterday-korean-english"
+    assert responses[8]["result"]["contents"][0]["mimeType"] == "application/json"
+    assert (
+        responses[8]["result"]["contents"][0]["uri"]
+        == "session://session-yesterday-korean-english"
+    )
 
     graph_payload = json.loads(responses[9]["result"]["contents"][0]["text"])
     assert graph_payload["nodes"]
     assert graph_payload["edges"]
+    assert responses[9]["result"]["contents"][0]["mimeType"] == "application/json"
+    assert responses[9]["result"]["contents"][0]["uri"] == "graph://current"
+
+
+def test_stdio_bridge_without_injected_project_data_stays_read_only_but_empty() -> None:
+    requests = b"".join(
+        (
+            encode_message(
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
+            ),
+            encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/list",
+                    "params": {},
+                }
+            ),
+            encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "search",
+                        "arguments": {"query": "korean retrieval", "limit": 3},
+                    },
+                }
+            ),
+            encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 4,
+                    "method": "resources/read",
+                    "params": {"uri": "graph://current"},
+                }
+            ),
+            encode_message(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 5,
+                    "method": "tools/call",
+                    "params": {"name": "ingest", "arguments": {}},
+                }
+            ),
+        )
+    )
+
+    stdin = io.BytesIO(requests)
+    stdout = io.BytesIO()
+
+    exit_code = run(["serve", "--stdio"], input_stream=stdin, output_stream=stdout)
+
+    assert exit_code == 0
+    responses = {
+        response["id"]: response for response in decode_messages(stdout.getvalue())
+    }
+    assert sorted(responses) == [1, 2, 3, 4, 5]
+    assert all(response["jsonrpc"] == "2.0" for response in responses.values())
+
+    listed_tools = [tool["name"] for tool in responses[2]["result"]["tools"]]
+    assert listed_tools == ["get_page", "recall", "resolve_links", "search"]
+
+    search_result = responses[3]["result"]["structuredContent"]
+    assert search_result == {"hits": [], "limit": 3, "query": "korean retrieval"}
+    assert json.loads(responses[3]["result"]["content"][0]["text"]) == search_result
+
+    graph_result = json.loads(responses[4]["result"]["contents"][0]["text"])
+    assert graph_result == {"edges": [], "nodes": []}
+    assert responses[4]["result"]["contents"][0]["uri"] == "graph://current"
+
+    readonly_error = responses[5]["result"]
+    assert readonly_error["isError"] is True
+    assert readonly_error["structuredContent"] == {
+        "error": "Write operation `ingest` is not exposed by this read-only MCP facade."
+    }
