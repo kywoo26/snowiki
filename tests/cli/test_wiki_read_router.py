@@ -23,7 +23,22 @@ def _load_read_router_module() -> ModuleType:
     return module
 
 
+def _load_skill_script_module(name: str) -> ModuleType:
+    module_path = Path(__file__).resolve().parents[2] / "skill" / "scripts" / name
+    spec = importlib.util.spec_from_file_location(
+        f"wiki_skill_{name[:-3]}", module_path
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"failed to load skill script module: {name}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 READ_ROUTER = _load_read_router_module()
+QUERY_SCRIPT = _load_skill_script_module("query.py")
+RECALL_SCRIPT = _load_skill_script_module("recall.py")
 build_query_route = cast(Callable[..., object], READ_ROUTER.build_query_route)
 build_recall_route = cast(Callable[..., object], READ_ROUTER.build_recall_route)
 route_read = cast(Callable[..., dict[str, object]], READ_ROUTER.route_read)
@@ -33,7 +48,7 @@ class _RouteWithCommand(Protocol):
     command: str
 
 
-def test_route_read_falls_back_to_cli_when_daemon_is_unreachable(
+def test_fallback_cli_route_read_falls_back_to_cli_when_daemon_is_unreachable(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     cli_calls: list[dict[str, object]] = []
@@ -97,7 +112,9 @@ def test_route_read_falls_back_to_cli_when_daemon_is_unreachable(
     ]
 
 
-def test_route_read_normalizes_daemon_payload_into_stable_cli_style_shape() -> None:
+def test_daemon_preferred_route_read_normalizes_daemon_payload_into_stable_cli_style_shape() -> (
+    None
+):
     daemon_calls: list[dict[str, object]] = []
 
     def fake_health(host: str, port: int) -> dict[str, object]:
@@ -249,3 +266,133 @@ def test_daemon_path_preserves_query_and_recall_command_identity(
         "strategy": "temporal",
         "hits": [],
     }
+
+
+def test_query_script_uses_shared_router_as_thin_wrapper(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    route_calls: list[dict[str, object]] = []
+
+    def fake_route_read(
+        route: object,
+        *,
+        root: Path | None,
+        snowiki_executable: str,
+        host: str,
+        port: int,
+        timeout: float,
+    ) -> dict[str, object]:
+        typed_route = cast(Any, route)
+        route_calls.append(
+            {
+                "command": typed_route.command,
+                "cli_args": typed_route.cli_args,
+                "daemon_payload": typed_route.daemon_payload,
+                "root": root,
+                "snowiki_executable": snowiki_executable,
+                "host": host,
+                "port": port,
+                "timeout": timeout,
+            }
+        )
+        return {
+            "ok": True,
+            "command": "query",
+            "backend": "daemon",
+            "backend_diagnostics": {"cache": {"kind": "ttl_response_cache"}},
+            "result": {"query": "bm25", "mode": "lexical", "hits": []},
+        }
+
+    monkeypatch.setattr(QUERY_SCRIPT, "route_read", fake_route_read)
+
+    payload = QUERY_SCRIPT.run_query(
+        "bm25",
+        root=tmp_path,
+        mode="lexical",
+        top_k=7,
+        host="127.0.0.1",
+        port=9010,
+        timeout=0.25,
+    )
+
+    assert payload["backend"] == "daemon"
+    assert route_calls == [
+        {
+            "command": "query",
+            "cli_args": ("query", "bm25", "--mode", "lexical", "--top-k", "7"),
+            "daemon_payload": {
+                "operation": "topical_recall",
+                "query": "bm25",
+                "limit": 7,
+            },
+            "root": tmp_path,
+            "snowiki_executable": "snowiki",
+            "host": "127.0.0.1",
+            "port": 9010,
+            "timeout": 0.25,
+        }
+    ]
+
+
+def test_recall_script_uses_shared_router_as_thin_wrapper(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    route_calls: list[dict[str, object]] = []
+
+    def fake_route_read(
+        route: object,
+        *,
+        root: Path | None,
+        snowiki_executable: str,
+        host: str,
+        port: int,
+        timeout: float,
+    ) -> dict[str, object]:
+        typed_route = cast(Any, route)
+        route_calls.append(
+            {
+                "command": typed_route.command,
+                "cli_args": typed_route.cli_args,
+                "daemon_payload": typed_route.daemon_payload,
+                "root": root,
+                "snowiki_executable": snowiki_executable,
+                "host": host,
+                "port": port,
+                "timeout": timeout,
+            }
+        )
+        return {
+            "ok": True,
+            "command": "recall",
+            "backend": "cli",
+            "backend_diagnostics": {},
+            "result": {"target": "yesterday", "strategy": "temporal", "hits": []},
+        }
+
+    monkeypatch.setattr(RECALL_SCRIPT, "route_read", fake_route_read)
+
+    payload = RECALL_SCRIPT.run_recall(
+        "yesterday",
+        root=tmp_path,
+        host="127.0.0.1",
+        port=9011,
+        timeout=0.5,
+    )
+
+    assert payload["backend"] == "cli"
+    assert route_calls == [
+        {
+            "command": "recall",
+            "cli_args": ("recall", "yesterday"),
+            "daemon_payload": {
+                "operation": "recall",
+                "query": "yesterday",
+                "limit": 10,
+            },
+            "root": tmp_path,
+            "snowiki_executable": "snowiki",
+            "host": "127.0.0.1",
+            "port": 9011,
+            "timeout": 0.5,
+        }
+    ]
