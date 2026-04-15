@@ -1,6 +1,17 @@
 from __future__ import annotations
 
 from .bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
+from .contract import (
+    TEMPORAL_KEYWORDS,
+    is_temporal_query,
+    iso_date_window,
+    normalize_direct_search_hits,
+    normalize_direct_search_result,
+    normalize_lexical_hit,
+    normalize_recall_hits,
+    normalize_recall_result,
+    run_authoritative_recall,
+)
 from .index_lexical import LexicalIndex, build_lexical_index
 from .index_wiki import WikiIndex, build_wiki_index
 from .indexer import InvertedIndex, SearchDocument, SearchHit, build_blended_index
@@ -23,6 +34,7 @@ __all__ = [
     "KoreanTokenizer",
     "LexicalIndex",
     "NoOpReranker",
+    "TEMPORAL_KEYWORDS",
     "RetrievalService",
     "RetrievalSnapshot",
     "SearchDocument",
@@ -32,7 +44,15 @@ __all__ = [
     "build_blended_index",
     "build_lexical_index",
     "build_wiki_index",
+    "is_temporal_query",
+    "iso_date_window",
     "known_item_lookup",
+    "normalize_direct_search_hits",
+    "normalize_direct_search_result",
+    "normalize_lexical_hit",
+    "normalize_recall_hits",
+    "normalize_recall_result",
+    "run_authoritative_recall",
     "temporal_recall",
     "tokenize_text",
     "topical_recall",

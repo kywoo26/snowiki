@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -8,9 +7,13 @@ import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.config import get_snowiki_root
-from snowiki.search import known_item_lookup, temporal_recall, topical_recall
+from snowiki.search import (
+    known_item_lookup,
+    run_authoritative_recall,
+    temporal_recall,
+    topical_recall,
+)
 from snowiki.search.workspace import RetrievalService
-from snowiki.storage.zones import ensure_utc_datetime
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
@@ -36,45 +39,16 @@ def _render_recall_human(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _iso_date_window(text: str) -> tuple[datetime, datetime] | None:
-    try:
-        start = ensure_utc_datetime(datetime.fromisoformat(text))
-    except ValueError:
-        return None
-    end = start + timedelta(days=1)
-    return start, end
-
-
 def run_recall(root: Path, target: str) -> dict[str, Any]:
     snapshot = RetrievalService.from_root(root)
-    index = snapshot.index
-    strategy = "topic"
-    window = _iso_date_window(target)
-    if window is not None:
-        start, end = window
-        hits = index.search(target, limit=10, recorded_after=start, recorded_before=end)
-        strategy = "date"
-    elif any(
-        token in target.casefold()
-        for token in (
-            "yesterday",
-            "today",
-            "last week",
-            "this week",
-            "어제",
-            "오늘",
-            "지난주",
-            "이번주",
-        )
-    ):
-        hits = temporal_recall(index, target, limit=10)
-        strategy = "temporal"
-    else:
-        hits = known_item_lookup(index, target, limit=10)
-        strategy = "known_item"
-        if not hits:
-            hits = topical_recall(index, target, limit=10)
-            strategy = "topic"
+    hits, strategy = run_authoritative_recall(
+        snapshot.index,
+        target,
+        limit=10,
+        known_item_lookup=known_item_lookup,
+        temporal_recall=temporal_recall,
+        topical_recall=topical_recall,
+    )
     return {
         "target": target,
         "strategy": strategy,
