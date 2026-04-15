@@ -3,45 +3,54 @@
 ## Active tracks
 
 - [x] **Step 1: Lexical contract stabilization**
-  - Status: Analysis complete. Negative guards exist (`test_runtime_lexical_separation.py`); positive parity tests (CLI/MCP/daemon diff) are missing.
-  - Next action: Implement `tests/governance/test_retrieval_surface_parity.py` and promotion-gate script.
+  - Status: Analysis complete. Promoted to `.sisyphus/plans/step1_lexical-foundation.md`.
+  - Next action: Execute the plan (parity tests, shared contract seam, rebuild hardening, promotion gate).
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Analysis complete. Detailed comparison of ir (preprocessor executable), seCall (in-process Lindera-default + Kiwi opt-in), and Kiwi/kiwi-rs bindings written into `step2_korean-tokenizer-selection/analysis.md`.
-  - Next action: Create benchmark corpus for true mixed-language tokenization; prototype tokenizer abstraction interface.
+  - Status: Analysis complete. Decomposed into three sub-steps:
+    - `01-mixed-language-benchmark-corpus.md`
+    - `02-tokenizer-abstraction-registry.md`
+    - `03-tokenizer-candidate-matrix.md`
+  - Next action: Close the three sub-steps (corpus freeze, registry decision, candidate matrix) before promoting to `.sisyphus/plans/`.
   - Blocker: None
 
 - [x] **Step 3: Wiki skill contract draft**
-  - Status: Analysis complete. External concepts (Farzapedia, Karpathy LLM Wiki, personal-os-skills, seCall) mapped onto Snowiki skill/ + mcp/ structure.
-  - Status: External note layer now includes Karpathy, Farzapedia, personal-os-skills, and Artem personal-OS pattern notes under `docs/roadmap/external/`.
-  - Next action: Create `skill/schemas/*.yaml` for current routes; add `tests/governance/test_skill_contract_alignment.py`.
-  - Blocker: None
+  - Status: Analysis complete. External concepts mapped onto Snowiki skill/ + mcp/ structure.
+  - Next action: Promote to `.sisyphus/plans/` after Step 1 execution completes; create `skill/schemas/*.yaml` and `tests/governance/test_skill_contract_alignment.py`.
+  - Blocker: Step 1 must complete first so the runtime contract is canonical.
 
 - [x] **Step 4: Hybrid fusion deep-dive**
-  - Status: Analysis complete. Exact parameters extracted from qmd (shortcut 0.85/0.15, RRF k=60), ir (fusion α=0.80, shortcut 0.40/0.06 + tier-0 0.75/0.10, RRF bonuses), seCall (RRF normalize, diversify_by_session max=2).
-  - Status: `hybrid-architecture.md` drafted with seam design, fallback rules, mode-gated API surface, and evaluation gates.
-  - Status: `hybrid-evaluation-plan.md` drafted with benchmark slices, ablations, and promotion gates.
-  - Next action: Begin chunker + vector store schema POC.
+  - Status: Analysis complete. Decomposed into four sub-steps:
+    - `01-chunker-vector-schema.md`
+    - `02-embedder-lifecycle-model-policy.md`
+    - `03-hybrid-fusion-shortcut-rerank.md`
+    - `04-hybrid-evaluation-mode-plumbing.md`
+  - Next action: Close sub-steps before any `.sisyphus/plans/` promotion; Step 2 must be proven first.
   - Blocker: Step 2 sparse branch proven on mixed-language benchmark.
 
 - [x] **Step 5: Rust core migration path**
-  - Status: Analysis complete. `analysis.md` now synthesizes `ir`, `tokenizers`, `tantivy-py`, and ParadeDB into candidate hot-path ranking, Python↔Rust boundary rules, wheel/stub policy, and fallback/debug requirements.
-  - Status: `rust-migration-decision-record.md` and `profiling-baseline.md` now exist as roadmap-stage decision/evidence scaffolding.
-  - Next action: Collect real hotspot evidence before any Rust spike.
+  - Status: Analysis complete. Decomposed into three sub-steps:
+    - `01-profiling-workload-matrix.md`
+    - `02-rust-boundary-api-sketch.md`
+    - `03-packaging-stub-fallback-policy.md`
+  - Next action: Close sub-steps before any `.sisyphus/plans/` promotion; collect profiling evidence first.
   - Blocker: Profiling evidence has not yet been collected.
 
 ## Completed tracks
 
 - [x] Initial roadmap structure and main-roadmap.md
 - [x] 7 reference surface research and synthesis
-- [x] external notes infrastructure setup (`docs/roadmap/external/`)
-- [x] Step 1 lexical parity gap analysis
+- [x] External notes infrastructure setup (`docs/roadmap/external/`)
+- [x] Step 1 lexical parity gap analysis; promoted to `.sisyphus/plans/step1_lexical-foundation.md`
+- [x] Step 2 decomposed into sub-steps (corpus, registry, candidate matrix)
 - [x] Step 3 wiki skill design analysis
 - [x] Step 4 hybrid architecture memo (`hybrid-architecture.md`)
 - [x] Step 4 hybrid evaluation plan (`hybrid-evaluation-plan.md`)
+- [x] Step 4 decomposed into sub-steps (chunker, embedder, fusion, evaluation)
 - [x] Step 5 rust migration analysis (`step5_rust-core-migration-path/analysis.md`)
 - [x] Step 5 decision/evidence scaffolding (`rust-migration-decision-record.md`, `profiling-baseline.md`)
+- [x] Step 5 decomposed into sub-steps (profiling, boundary API, packaging)
 - [x] External note expansion for Step 3 references (`karpathy-llm-wiki`, `farzapedia`, `personal-os-skills`, `artem-personal-os-pattern`)
 
 ## Canonical surface note
