@@ -3,45 +3,28 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
+from typing import cast
 from urllib.parse import unquote, urlparse
 
 from snowiki.compiler.taxonomy import slugify
 from snowiki.search import (
     known_item_lookup,
+    run_authoritative_recall,
     temporal_recall,
     topical_recall,
 )
+from snowiki.search.contract import RecallMode
 from snowiki.search.indexer import SearchHit
 from snowiki.search.workspace import RetrievalService
-from snowiki.storage.zones import ensure_utc_datetime
 
 from .types import MCPMapping, MCPObject, ResourceSpec
 
 WRITE_OPERATION_NAMES = frozenset(
     {"edit", "ingest", "merge", "status", "sync", "write"}
 )
-TEMPORAL_KEYWORDS = (
-    "yesterday",
-    "today",
-    "last week",
-    "this week",
-    "어제",
-    "오늘",
-    "지난주",
-    "이번주",
-)
 WIKILINK_PATTERN = re.compile(r"\[\[([^\]|#]+)")
-
-
-def _iso_date_window(text: str) -> tuple[datetime, datetime] | None:
-    try:
-        start = ensure_utc_datetime(datetime.fromisoformat(text))
-    except ValueError:
-        return None
-    end = start + timedelta(days=1)
-    return start, end
 
 
 def serialize_hit(hit: SearchHit) -> MCPObject:
@@ -126,31 +109,17 @@ class SnowikiReadOnlyFacade:
         reference_time: datetime | None = None,
     ) -> MCPObject:
         """Recall topical or temporal knowledge from the blended index."""
-        strategy = self._resolve_recall_strategy(query, mode=mode, limit=limit)
-        if strategy == "date":
-            window = _iso_date_window(query)
-            if window is None:
-                raise ValueError(
-                    "date recall requires an ISO-8601 calendar date query."
-                )
-            start, end = window
-            hits = self.index.search(
-                query,
-                limit=limit,
-                recorded_after=start,
-                recorded_before=end,
-            )
-        elif strategy == "temporal":
-            hits = temporal_recall(
-                self.index,
-                query,
-                limit=limit,
-                reference_time=reference_time or self.reference_time,
-            )
-        elif strategy == "known_item":
-            hits = known_item_lookup(self.index, query, limit=limit)
-        else:
-            hits = topical_recall(self.index, query, limit=limit)
+        normalized_mode = self._normalize_recall_mode(mode)
+        hits, strategy = run_authoritative_recall(
+            self.index,
+            query,
+            limit=limit,
+            known_item_lookup=known_item_lookup,
+            temporal_recall=temporal_recall,
+            topical_recall=topical_recall,
+            mode=normalized_mode,
+            reference_time=reference_time or self.reference_time,
+        )
         return {
             "hits": [serialize_hit(hit) for hit in hits],
             "limit": limit,
@@ -307,7 +276,7 @@ class SnowikiReadOnlyFacade:
         title = str(page.get("title", "")).strip()
         return slugify(title or "page")
 
-    def _resolve_recall_strategy(self, query: str, *, mode: str, limit: int) -> str:
+    def _normalize_recall_mode(self, mode: str) -> RecallMode:
         selected_mode = mode.strip().lower()
         if selected_mode == "topical":
             selected_mode = "topic"
@@ -315,17 +284,7 @@ class SnowikiReadOnlyFacade:
             raise ValueError(
                 "`mode` must be one of: auto, date, temporal, known_item, topic."
             )
-        if selected_mode != "auto":
-            return selected_mode
-        if _iso_date_window(query) is not None:
-            return "date"
-        lowered = query.casefold()
-        if any(keyword in lowered for keyword in TEMPORAL_KEYWORDS):
-            return "temporal"
-        known_item_hits = known_item_lookup(self.index, query, limit=limit)
-        if known_item_hits:
-            return "known_item"
-        return "topic"
+        return cast(RecallMode, selected_mode)
 
     def _resolved_link(self, target: str) -> MCPObject:
         cleaned = target.strip()
