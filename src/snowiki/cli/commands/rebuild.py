@@ -6,10 +6,8 @@ from typing import Any
 import click
 
 from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.compiler.engine import CompilerEngine
 from snowiki.config import get_snowiki_root
-from snowiki.search.workspace import RetrievalService, clear_query_search_index_cache
-from snowiki.storage.zones import StoragePaths, atomic_write_json
+from snowiki.rebuild.integrity import RebuildFreshnessError, run_rebuild_with_integrity
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
@@ -29,29 +27,8 @@ def _render_rebuild_human(payload: dict[str, Any]) -> str:
 
 
 def run_rebuild(root: Path) -> dict[str, Any]:
-    engine = CompilerEngine(root)
-    compiled_paths = engine.rebuild()
-    clear_query_search_index_cache()
-    snapshot = RetrievalService.from_root(root)
-    storage_paths = StoragePaths(root)
-    manifest_path = storage_paths.index / "manifest.json"
-    atomic_write_json(
-        manifest_path,
-        {
-            "records_indexed": snapshot.records_indexed,
-            "pages_indexed": snapshot.pages_indexed,
-            "search_documents": snapshot.index.size,
-            "compiled_paths": compiled_paths,
-        },
-    )
-    return {
-        "root": root.as_posix(),
-        "compiled_count": len(compiled_paths),
-        "compiled_paths": compiled_paths,
-        "index_manifest": manifest_path.relative_to(root).as_posix(),
-        "records_indexed": snapshot.records_indexed,
-        "pages_indexed": snapshot.pages_indexed,
-    }
+    result = run_rebuild_with_integrity(root)
+    return {"root": root.as_posix(), **result}
 
 
 @click.command("rebuild")
@@ -72,6 +49,13 @@ def command(output: str, root: Path | None) -> None:
     result: dict[str, Any] | None = None
     try:
         result = run_rebuild(root if root else get_snowiki_root())
+    except RebuildFreshnessError as exc:
+        emit_error(
+            str(exc),
+            output=output_mode,
+            code="rebuild_failed",
+            details=exc.result,
+        )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="rebuild_failed")
     if result is None:
