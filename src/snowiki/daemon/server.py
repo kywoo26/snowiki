@@ -4,20 +4,23 @@ import argparse
 import json
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from socketserver import ThreadingMixIn
 from typing import Any
 from urllib import parse
 
-from snowiki.search import known_item_lookup, temporal_recall, topical_recall
-from snowiki.storage.zones import ensure_utc_datetime
+from snowiki.search import (
+    known_item_lookup,
+    run_authoritative_recall,
+    temporal_recall,
+    topical_recall,
+)
 
 from .cache import TTLQueryCache
 from .invalidation import CacheInvalidationManager, InvalidationEvent
 from .lifecycle import DaemonLifecycle
-from .warm_index import WarmIndexManager
+from .warm_index import WarmIndexManager, WarmSnapshotStaleError
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,27 +32,6 @@ class QueryRequest:
 
 class _ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
-
-
-TEMPORAL_KEYWORDS = (
-    "yesterday",
-    "today",
-    "last week",
-    "this week",
-    "어제",
-    "오늘",
-    "지난주",
-    "이번주",
-)
-
-
-def _iso_date_window(text: str) -> tuple[datetime, datetime] | None:
-    try:
-        start = ensure_utc_datetime(datetime.fromisoformat(text))
-    except ValueError:
-        return None
-    end = start + timedelta(days=1)
-    return start, end
 
 
 class SnowikiDaemon:
@@ -91,10 +73,17 @@ class SnowikiDaemon:
             self._server.server_close()
 
     def execute_query(self, request_model: QueryRequest) -> dict[str, Any]:
+        try:
+            fresh_snapshot = self.warm_indexes.ensure_fresh_snapshot()
+        except WarmSnapshotStaleError:
+            self.cache.invalidate()
+            raise
+        if fresh_snapshot.reloaded:
+            self.cache.invalidate()
         cache_key = json.dumps(asdict(request_model), sort_keys=True)
         return self.cache.get_or_set(
             cache_key,
-            lambda: self._run_query(request_model),
+            lambda: self._run_query(request_model, fresh_snapshot.snapshot),
         )
 
     def invalidate(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -105,8 +94,10 @@ class SnowikiDaemon:
         )
         return self.invalidator.handle(event)
 
-    def _run_query(self, request_model: QueryRequest) -> dict[str, Any]:
-        snapshot = self.warm_indexes.get()
+    def _run_query(
+        self, request_model: QueryRequest, snapshot: Any | None = None
+    ) -> dict[str, Any]:
+        current_snapshot = snapshot or self.warm_indexes.get()
         operations: dict[str, Callable[..., Any]] = {
             "known_item_lookup": known_item_lookup,
             "topical_recall": topical_recall,
@@ -114,14 +105,14 @@ class SnowikiDaemon:
         }
         strategy: str | None = None
         if request_model.operation == "recall":
-            hits, strategy = self._run_recall(snapshot.blended, request_model)
+            hits, strategy = self._run_recall(current_snapshot.blended, request_model)
         else:
             handler = operations.get(request_model.operation)
             if handler is None:
                 raise ValueError(f"unsupported operation: {request_model.operation}")
 
             hits = handler(
-                snapshot.blended, request_model.query, limit=request_model.limit
+                current_snapshot.blended, request_model.query, limit=request_model.limit
             )
             strategy = request_model.operation
         return {
@@ -132,7 +123,7 @@ class SnowikiDaemon:
             "limit": request_model.limit,
             "strategy": strategy,
             "diagnostics": {
-                "snapshot": self.warm_indexes.snapshot_metadata(snapshot),
+                "snapshot": self.warm_indexes.snapshot_metadata(current_snapshot),
                 "cache": {
                     "owner": "daemon.response_cache",
                     "kind": "ttl_response_cache",
@@ -154,32 +145,14 @@ class SnowikiDaemon:
     def _run_recall(
         self, index: Any, request_model: QueryRequest
     ) -> tuple[list[Any], str]:
-        date_window = _iso_date_window(request_model.query)
-        if date_window is not None:
-            start, end = date_window
-            return (
-                index.search(
-                    request_model.query,
-                    limit=request_model.limit,
-                    recorded_after=start,
-                    recorded_before=end,
-                ),
-                "date",
-            )
-        lowered = request_model.query.casefold()
-        if any(keyword in lowered for keyword in TEMPORAL_KEYWORDS):
-            return (
-                temporal_recall(index, request_model.query, limit=request_model.limit),
-                "temporal",
-            )
-        known_hits = known_item_lookup(
-            index, request_model.query, limit=request_model.limit
+        return run_authoritative_recall(
+            index,
+            request_model.query,
+            limit=request_model.limit,
+            known_item_lookup=known_item_lookup,
+            temporal_recall=temporal_recall,
+            topical_recall=topical_recall,
         )
-        if known_hits:
-            return known_hits, "known_item"
-        return topical_recall(
-            index, request_model.query, limit=request_model.limit
-        ), "topic"
 
     def _build_handler(self) -> type[BaseHTTPRequestHandler]:
         daemon = self
@@ -208,6 +181,23 @@ class SnowikiDaemon:
                             limit=max(1, int(payload.get("limit") or 10)),
                         )
                         response = daemon.execute_query(request_model)
+                    except WarmSnapshotStaleError as exc:
+                        self._send_json(
+                            503,
+                            {
+                                "ok": False,
+                                "error": str(exc),
+                                "diagnostics": {
+                                    "snapshot": exc.freshness,
+                                    "cache": {
+                                        "owner": "daemon.response_cache",
+                                        "kind": "ttl_response_cache",
+                                        "ttl_seconds": daemon.cache.ttl_seconds,
+                                    },
+                                },
+                            },
+                        )
+                        return
                     except ValueError as exc:
                         self._send_json(400, {"ok": False, "error": str(exc)})
                         return

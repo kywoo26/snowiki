@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 
 def _load_snowiki_modules() -> tuple[Any, Any, Any, Any, Any]:
@@ -190,6 +190,68 @@ def test_warm_index_health_surfaces_content_identity_and_stale_state(
     assert health["freshness"]["stale_reason"] == "content_changed_since_reload"
 
 
+def test_warm_index_manager_reload_restores_freshness_before_serving(
+    tmp_path: Path,
+) -> None:
+    _, _, warm_index_manager_cls, normalized_storage_cls, known_item_lookup = (
+        _load_snowiki_modules()
+    )
+
+    storage = normalized_storage_cls(tmp_path)
+    storage.store_record(
+        source_type="claude",
+        record_type="session",
+        record_id="session-1",
+        payload={
+            "metadata": {"title": "First Session"},
+            "summary": "Before refresh.",
+        },
+        raw_ref={
+            "sha256": "abc123",
+            "path": "raw/claude/ab/c123",
+            "size": 42,
+            "mtime": "2026-04-08T12:00:00Z",
+        },
+        recorded_at="2026-04-08T12:00:00Z",
+    )
+
+    manager = warm_index_manager_cls(tmp_path)
+    first_snapshot = manager.get()
+
+    storage.store_record(
+        source_type="claude",
+        record_type="session",
+        record_id="session-2",
+        payload={
+            "metadata": {"title": "Second Session"},
+            "summary": "After refresh.",
+        },
+        raw_ref={
+            "sha256": "def456",
+            "path": "raw/claude/de/f456",
+            "size": 42,
+            "mtime": "2026-04-08T12:05:00Z",
+        },
+        recorded_at="2026-04-08T12:05:00Z",
+    )
+
+    refreshed = manager.ensure_fresh_snapshot()
+    hits = known_item_lookup(refreshed.snapshot.blended, "second session", limit=3)
+
+    assert refreshed.reloaded is True
+    assert refreshed.snapshot.generation > first_snapshot.generation
+    assert (
+        refreshed.freshness["content_identity"] == refreshed.snapshot.content_identity
+    )
+    assert (
+        refreshed.freshness["current_content_identity"]
+        == refreshed.snapshot.content_identity
+    )
+    assert refreshed.freshness["is_stale"] is False
+    assert hits
+    assert hits[0].document.title == "Second Session"
+
+
 def test_daemon_execute_query_returns_cached_payload_without_relabeling_it(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
@@ -197,7 +259,7 @@ def test_daemon_execute_query_returns_cached_payload_without_relabeling_it(
     from snowiki.search.indexer import SearchDocument, SearchHit
 
     daemon = SnowikiDaemon(tmp_path, port=0)
-    snapshot = SimpleNamespace(blended=object())
+    snapshot = cast(Any, SimpleNamespace(blended=object()))
     hit = SearchHit(
         document=SearchDocument(
             id="session-1",
@@ -231,6 +293,11 @@ def test_daemon_execute_query_returns_cached_payload_without_relabeling_it(
     def fake_get() -> object:
         return snapshot
 
+    def fake_ensure_fresh_snapshot() -> object:
+        return SimpleNamespace(
+            snapshot=snapshot, freshness=snapshot_metadata, reloaded=False
+        )
+
     def fake_snapshot_metadata(current_snapshot: object) -> object:
         assert current_snapshot is snapshot
         return snapshot_metadata
@@ -248,6 +315,9 @@ def test_daemon_execute_query_returns_cached_payload_without_relabeling_it(
         raise AssertionError("daemon query should not fall back to topical recall")
 
     monkeypatch.setattr(daemon.warm_indexes, "get", fake_get)
+    monkeypatch.setattr(
+        daemon.warm_indexes, "ensure_fresh_snapshot", fake_ensure_fresh_snapshot
+    )
     monkeypatch.setattr(
         daemon.warm_indexes, "snapshot_metadata", fake_snapshot_metadata
     )
@@ -292,6 +362,142 @@ def test_daemon_execute_query_returns_cached_payload_without_relabeling_it(
     ]
 
 
+def test_daemon_execute_query_invalidates_response_cache_after_refresh_reload(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    from snowiki.daemon.server import QueryRequest, SnowikiDaemon
+    from snowiki.daemon.warm_index import FreshSnapshotResult
+    from snowiki.search.indexer import SearchDocument, SearchHit
+
+    daemon = SnowikiDaemon(tmp_path, port=0)
+    snapshot = cast(Any, SimpleNamespace(blended=object()))
+    hit = SearchHit(
+        document=SearchDocument(
+            id="session-2",
+            path="normalized/session-2.json",
+            kind="session",
+            title="Fresh daemon hit",
+            content="fresh daemon content",
+            summary="Fresh daemon summary.",
+            source_type="normalized",
+        ),
+        score=5.0,
+        matched_terms=("fresh", "daemon"),
+    )
+    freshness = {
+        "snapshot_owner": "daemon.warm_indexes",
+        "loaded_at": "2026-04-14T00:00:00Z",
+        "runtime_generation": 5,
+        "content_identity": {
+            "normalized": {"latest_mtime_ns": 110, "file_count": 2},
+            "compiled": {"latest_mtime_ns": 210, "file_count": 2},
+        },
+        "current_content_identity": {
+            "normalized": {"latest_mtime_ns": 110, "file_count": 2},
+            "compiled": {"latest_mtime_ns": 210, "file_count": 2},
+        },
+        "is_stale": False,
+        "stale_reason": "",
+    }
+    call_log: list[dict[str, object]] = []
+
+    daemon.cache.set(
+        '{"limit": 3, "operation": "known_item_lookup", "query": "daemon query"}',
+        {"ok": True, "cached": True},
+    )
+
+    def fake_ensure_fresh_snapshot() -> FreshSnapshotResult:
+        return FreshSnapshotResult(
+            snapshot=snapshot, freshness=freshness, reloaded=True
+        )
+
+    def fake_snapshot_metadata(current_snapshot: object) -> object:
+        assert current_snapshot is snapshot
+        return freshness
+
+    def fake_known_item_lookup(
+        index: object, query: str, *, limit: int
+    ) -> list[SearchHit]:
+        call_log.append({"index": index, "query": query, "limit": limit})
+        return [hit]
+
+    monkeypatch.setattr(
+        daemon.warm_indexes, "ensure_fresh_snapshot", fake_ensure_fresh_snapshot
+    )
+    monkeypatch.setattr(
+        daemon.warm_indexes, "snapshot_metadata", fake_snapshot_metadata
+    )
+    monkeypatch.setattr(
+        "snowiki.daemon.server.known_item_lookup", fake_known_item_lookup
+    )
+
+    result = daemon.execute_query(
+        QueryRequest(operation="known_item_lookup", query="daemon query", limit=3)
+    )
+
+    assert (
+        daemon.cache.get(
+            '{"limit": 3, "operation": "known_item_lookup", "query": "daemon query"}'
+        )
+        is result
+    )
+    assert result["hits"][0]["title"] == "Fresh daemon hit"
+    assert result["diagnostics"]["snapshot"] == freshness
+    assert call_log == [
+        {"index": snapshot.blended, "query": "daemon query", "limit": 3}
+    ]
+
+
+def test_daemon_execute_query_fails_closed_when_refresh_cannot_restore_freshness(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    from snowiki.daemon.server import QueryRequest, SnowikiDaemon
+    from snowiki.daemon.warm_index import WarmSnapshotStaleError
+
+    daemon = SnowikiDaemon(tmp_path, port=0)
+    freshness = {
+        "snapshot_owner": "daemon.warm_indexes",
+        "loaded_at": "2026-04-14T00:00:00Z",
+        "runtime_generation": 4,
+        "content_identity": {
+            "normalized": {"latest_mtime_ns": 100, "file_count": 1},
+            "compiled": {"latest_mtime_ns": 200, "file_count": 2},
+        },
+        "current_content_identity": {
+            "normalized": {"latest_mtime_ns": 101, "file_count": 2},
+            "compiled": {"latest_mtime_ns": 201, "file_count": 3},
+        },
+        "is_stale": True,
+        "stale_reason": "content_changed_since_reload",
+    }
+
+    daemon.cache.set(
+        '{"limit": 3, "operation": "known_item_lookup", "query": "daemon query"}',
+        {"ok": True, "cached": True},
+    )
+
+    def fail_refresh() -> None:
+        raise WarmSnapshotStaleError(freshness)
+
+    monkeypatch.setattr(daemon.warm_indexes, "ensure_fresh_snapshot", fail_refresh)
+
+    try:
+        daemon.execute_query(
+            QueryRequest(operation="known_item_lookup", query="daemon query", limit=3)
+        )
+    except WarmSnapshotStaleError as exc:
+        assert exc.freshness == freshness
+    else:
+        raise AssertionError("expected daemon freshness failure")
+
+    assert (
+        daemon.cache.get(
+            '{"limit": 3, "operation": "known_item_lookup", "query": "daemon query"}'
+        )
+        is None
+    )
+
+
 def test_daemon_recall_operation_mirrors_cli_truth_known_item_strategy(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
@@ -333,6 +539,11 @@ def test_daemon_recall_operation_mirrors_cli_truth_known_item_strategy(
     def fake_get() -> object:
         return snapshot
 
+    def fake_ensure_fresh_snapshot() -> object:
+        return SimpleNamespace(
+            snapshot=snapshot, freshness=snapshot_metadata, reloaded=False
+        )
+
     def fake_snapshot_metadata(current_snapshot: object) -> object:
         assert current_snapshot is snapshot
         return snapshot_metadata
@@ -354,6 +565,9 @@ def test_daemon_recall_operation_mirrors_cli_truth_known_item_strategy(
         raise AssertionError("daemon recall parity should not fall back to topic here")
 
     monkeypatch.setattr(daemon.warm_indexes, "get", fake_get)
+    monkeypatch.setattr(
+        daemon.warm_indexes, "ensure_fresh_snapshot", fake_ensure_fresh_snapshot
+    )
     monkeypatch.setattr(
         daemon.warm_indexes, "snapshot_metadata", fake_snapshot_metadata
     )
