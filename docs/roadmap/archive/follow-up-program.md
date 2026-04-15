@@ -4,7 +4,7 @@
 
 This document turns the architecture and research conclusions into an explicit ordered sequence of next big tasks.
 
-It is more concrete than `ROADMAP.md`, but broader than a single execution plan.
+It is more concrete than the former root roadmap (now `docs/archive/root-roadmap.md`), but broader than a single execution plan.
 
 ## Recently completed work
 

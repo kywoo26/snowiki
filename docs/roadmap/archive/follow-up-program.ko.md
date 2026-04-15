@@ -4,7 +4,7 @@
 
 이 문서는 architecture와 research 결론을 바탕으로, 다음 큰 작업의 순서를 명시합니다.
 
-`ROADMAP.md`보다 더 구체적이지만, 개별 execution plan보다는 넓습니다.
+이전 root roadmap(현재 `docs/archive/root-roadmap.md`)보다 더 구체적이지만, 개별 execution plan보다는 넓습니다.
 
 ## 최근 완료된 작업
 - canonical retrieval service hardening
