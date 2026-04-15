@@ -405,12 +405,6 @@ def test_mcp_recall_auto_prefers_known_item_and_reports_cli_strategy(
             "query": "known item",
             "limit": 4,
         },
-        {
-            "fn": "known_item_lookup",
-            "index": runtime_index,
-            "query": "known item",
-            "limit": 4,
-        },
     ]
 
 
