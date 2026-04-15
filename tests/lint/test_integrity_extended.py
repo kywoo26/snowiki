@@ -28,12 +28,14 @@ def test_check_layer_integrity_reports_missing_provenance_and_compiled_layer(
     assert result["issues"] == [
         {
             "code": "L101",
+            "check": "integrity.raw_provenance",
             "severity": "error",
             "path": "normalized/record.json",
             "message": "normalized record missing raw provenance",
         },
         {
             "code": "L103",
+            "check": "integrity.compiled_layer",
             "severity": "error",
             "path": "compiled",
             "message": "compiled layer missing for existing normalized records",
@@ -58,6 +60,7 @@ def test_check_layer_integrity_reports_missing_raw_targets_and_manifest(
         lambda base: [
             {
                 "code": "L201",
+                "check": "graph.broken_wikilink",
                 "severity": "warning",
                 "path": "compiled/topic.md",
                 "message": "stale",
@@ -70,6 +73,7 @@ def test_check_layer_integrity_reports_missing_raw_targets_and_manifest(
         lambda base: [
             {
                 "code": "L202",
+                "check": "graph.orphan_compiled_page",
                 "severity": "warning",
                 "path": "compiled/topic.md",
                 "message": "orphaned",
@@ -83,24 +87,28 @@ def test_check_layer_integrity_reports_missing_raw_targets_and_manifest(
     assert result["issues"] == [
         {
             "code": "L102",
+            "check": "integrity.raw_target",
             "severity": "error",
             "path": "normalized/record.json",
             "message": "raw provenance target missing: raw/claude/missing.jsonl",
         },
         {
             "code": "L104",
+            "check": "integrity.index_manifest",
             "severity": "error",
             "path": "index/manifest.json",
             "message": "index manifest missing for compiled layer",
         },
         {
             "code": "L201",
+            "check": "graph.broken_wikilink",
             "severity": "warning",
             "path": "compiled/topic.md",
             "message": "stale",
         },
         {
             "code": "L202",
+            "check": "graph.orphan_compiled_page",
             "severity": "warning",
             "path": "compiled/topic.md",
             "message": "orphaned",

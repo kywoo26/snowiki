@@ -23,6 +23,7 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
             issues.append(
                 {
                     "code": "L101",
+                    "check": "integrity.raw_provenance",
                     "severity": "error",
                     "path": path.relative_to(base).as_posix(),
                     "message": "normalized record missing raw provenance",
@@ -41,6 +42,7 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
                 issues.append(
                     {
                         "code": "L102",
+                        "check": "integrity.raw_target",
                         "severity": "error",
                         "path": path.relative_to(base).as_posix(),
                         "message": f"raw provenance target missing: {raw_path}",
@@ -52,6 +54,7 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
         issues.append(
             {
                 "code": "L103",
+                "check": "integrity.compiled_layer",
                 "severity": "error",
                 "path": "compiled",
                 "message": "compiled layer missing for existing normalized records",
@@ -63,6 +66,7 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
         issues.append(
             {
                 "code": "L104",
+                "check": "integrity.index_manifest",
                 "severity": "error",
                 "path": "index/manifest.json",
                 "message": "index manifest missing for compiled layer",

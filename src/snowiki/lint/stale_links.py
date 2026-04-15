@@ -37,7 +37,8 @@ def find_stale_wikilinks(root: str | Path) -> list[dict[str, str]]:
                 continue
             issues.append(
                 {
-                    "code": "L002",
+                    "code": "L201",
+                    "check": "graph.broken_wikilink",
                     "severity": "error",
                     "path": path.relative_to(base).as_posix(),
                     "message": f"broken wikilink: [[{target[:-3]}]]",
