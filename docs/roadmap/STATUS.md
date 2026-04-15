@@ -3,8 +3,8 @@
 ## Active tracks
 
 - [x] **Step 1: Lexical contract stabilization**
-  - Status: Analysis complete. Promoted to `.sisyphus/plans/step1_lexical-foundation.md`.
-  - Next action: Execute the plan (parity tests, shared contract seam, rebuild hardening, promotion gate).
+  - Status: Analysis complete. Ready for execution planning.
+  - Next action: Recreate the execution plan locally (not in git) and execute parity tests, shared contract seam, rebuild hardening, and the promotion gate.
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
@@ -42,7 +42,7 @@
 - [x] Initial roadmap structure and main-roadmap.md
 - [x] 7 reference surface research and synthesis
 - [x] External notes infrastructure setup (`docs/roadmap/external/`)
-- [x] Step 1 lexical parity gap analysis; promoted to `.sisyphus/plans/step1_lexical-foundation.md`
+- [x] Step 1 lexical parity gap analysis; execution-planning-ready
 - [x] Step 2 decomposed into sub-steps (corpus, registry, candidate matrix)
 - [x] Step 3 wiki skill design analysis
 - [x] Step 4 hybrid architecture memo (`hybrid-architecture.md`)
