@@ -27,7 +27,8 @@ def find_orphaned_compiled_pages(root: str | Path) -> list[dict[str, str]]:
             continue
         issues.append(
             {
-                "code": "L003",
+                "code": "L301",
+                "check": "graph.orphan_compiled_page",
                 "severity": "warning",
                 "path": relative_path,
                 "message": "compiled page has no inbound wikilinks",

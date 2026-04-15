@@ -20,7 +20,8 @@ def test_find_stale_wikilinks_reports_missing_targets(tmp_path: Path) -> None:
 
     assert issues == [
         {
-            "code": "L002",
+            "code": "L201",
+            "check": "graph.broken_wikilink",
             "severity": "error",
             "path": "compiled/overview.md",
             "message": "broken wikilink: [[compiled/topics/missing]]",

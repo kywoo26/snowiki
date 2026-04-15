@@ -22,7 +22,8 @@ def test_find_orphaned_compiled_pages_returns_pages_without_inbound_links(
 
     assert issues == [
         {
-            "code": "L003",
+            "code": "L301",
+            "check": "graph.orphan_compiled_page",
             "severity": "warning",
             "path": "compiled/topics/orphaned.md",
             "message": "compiled page has no inbound wikilinks",
