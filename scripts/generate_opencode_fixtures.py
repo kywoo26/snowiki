@@ -21,7 +21,7 @@ def create_schema(conn):
             sandboxes TEXT,
             commands TEXT
         );
-        
+
         CREATE TABLE IF NOT EXISTS session (
             id TEXT PRIMARY KEY,
             project_id TEXT,
@@ -42,7 +42,7 @@ def create_schema(conn):
             time_compacting INTEGER,
             time_archived INTEGER
         );
-        
+
         CREATE TABLE IF NOT EXISTS message (
             id TEXT PRIMARY KEY,
             session_id TEXT,
@@ -50,7 +50,7 @@ def create_schema(conn):
             time_updated INTEGER,
             data TEXT
         );
-        
+
         CREATE TABLE IF NOT EXISTS part (
             id TEXT PRIMARY KEY,
             message_id TEXT,
@@ -59,7 +59,7 @@ def create_schema(conn):
             time_updated INTEGER,
             data TEXT
         );
-        
+
         CREATE TABLE IF NOT EXISTS todo (
             id TEXT PRIMARY KEY,
             session_id TEXT,
@@ -70,7 +70,7 @@ def create_schema(conn):
             time_created INTEGER,
             time_updated INTEGER
         );
-        
+
         CREATE TABLE IF NOT EXISTS workspace (
             id TEXT PRIMARY KEY,
             branch TEXT,
@@ -80,7 +80,7 @@ def create_schema(conn):
             directory TEXT,
             extra TEXT
         );
-        
+
         CREATE TABLE IF NOT EXISTS fixture_provenance (
             fixture_id TEXT PRIMARY KEY,
             family TEXT,
