@@ -1,0 +1,103 @@
+# Claude Code `/wiki` Quickstart
+
+This guide is the shortest truthful path to using Snowiki’s current parity-plus `/wiki` workflow.
+
+The runtime truth is still the installed `snowiki` CLI. The Claude Code `/wiki` skill should mirror these commands and behaviors rather than invent a separate backend.
+
+## 1. Install from a checkout
+
+```bash
+uv tool install --from . snowiki
+snowiki --help
+```
+
+If you are iterating from the repository checkout instead of a tool install, use `uv run snowiki ...` in the same examples below.
+
+## 2. Optional: start the daemon for faster repeated reads
+
+The daemon is an optimization for `query` and `recall`, not a separate runtime truth and not a correctness requirement.
+
+```bash
+snowiki daemon start
+snowiki daemon status
+```
+
+If the daemon is already reachable, the `/wiki` read path can prefer warm daemon-backed reads. If not, Snowiki falls back to the canonical CLI read path.
+
+## 3. First useful commands
+
+### Ingest
+
+```bash
+snowiki ingest /path/to/claude-export.jsonl --source claude
+snowiki rebuild
+```
+
+### Query
+
+```bash
+snowiki query "What do I know about the fileback flow?" --output json
+```
+
+### Recall
+
+```bash
+snowiki recall yesterday --output json
+```
+
+### Status
+
+```bash
+snowiki status --output json
+```
+
+### Lint
+
+```bash
+snowiki lint --output json
+```
+
+## 4. Reviewable file-back flow
+
+`fileback` is current shipped behavior. It is CLI-only, reviewable, and derived: preview first, then apply a reviewed proposal.
+
+### Preview a filed-back answer
+
+```bash
+snowiki fileback preview \
+  "What did we ship?" \
+  --answer-markdown "We shipped the reviewable fileback flow." \
+  --summary "Reviewed answer for the current shipped behavior." \
+  --evidence-path compiled/summaries/example.md \
+  --output json > /tmp/fileback-preview.json
+```
+
+Review the JSON proposal before applying it.
+
+### Apply the reviewed proposal
+
+```bash
+snowiki fileback apply \
+  --proposal-file /tmp/fileback-preview.json \
+  --output json
+```
+
+This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the generated compiled question page. It does not grant MCP write support.
+
+## 5. What is deferred
+
+These remain deferred workflow ideas, not shipped runtime behavior:
+
+- `sync`
+- `edit`
+- `merge`
+- graph-oriented workflows
+
+Do not document or rely on them as if they already ship.
+
+## 6. Current `/wiki` mental model
+
+- use `ingest`, `query`, `recall`, `status`, `lint`, and `fileback` today
+- prefer daemon-backed reads only when a daemon is already available
+- use CLI JSON output for automation and reliable machine-readable contracts
+- treat the read-only MCP surface as retrieval-only
