@@ -143,6 +143,7 @@ def test_fileback_preview_is_reviewable_and_non_mutating(
     assert proposal["apply_plan"]["source_type"] == "manual-question"
     assert proposal["apply_plan"]["record_type"] == "question"
     assert proposal["apply_plan"]["raw_note_path"].startswith("raw/manual/questions/")
+    assert "what-did-we-ship--" in proposal["apply_plan"]["raw_note_path"]
     assert proposal["apply_plan"]["normalized_path"].startswith(
         "normalized/manual-question/"
     )
@@ -399,3 +400,58 @@ def test_fileback_apply_rejects_reviewed_apply_plan_mismatch(
     assert payload["ok"] is False
     assert payload["error"]["code"] == "fileback_apply_failed"
     assert "proposed write set" in payload["error"]["message"]
+
+
+def test_fileback_apply_uses_unique_raw_note_paths_for_same_day_repeats(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
+
+    first_preview = _preview_payload(
+        tmp_path,
+        evidence_path,
+        answer_markdown="First reviewed answer.",
+        summary="First reviewed summary.",
+    )
+    first_file = _write_payload_file(
+        tmp_path, first_preview, name="first-reviewed-fileback.json"
+    )
+    first_apply = _invoke_apply(tmp_path, first_file)
+    assert first_apply.exit_code == 0, first_apply.output
+    first_result = json.loads(first_apply.output)["result"]
+    first_raw_path = first_result["raw_ref"]["path"]
+    first_raw_content = (tmp_path / first_raw_path).read_text(encoding="utf-8")
+
+    second_preview = _preview_payload(
+        tmp_path,
+        evidence_path,
+        answer_markdown="Second reviewed answer.",
+        summary="Second reviewed summary.",
+    )
+    second_file = _write_payload_file(
+        tmp_path, second_preview, name="second-reviewed-fileback.json"
+    )
+    second_apply = _invoke_apply(tmp_path, second_file)
+    assert second_apply.exit_code == 0, second_apply.output
+    second_result = json.loads(second_apply.output)["result"]
+    second_raw_path = second_result["raw_ref"]["path"]
+
+    assert first_result["compiled_path"] == second_result["compiled_path"]
+    assert first_raw_path != second_raw_path
+    assert (tmp_path / first_raw_path).exists()
+    assert (tmp_path / second_raw_path).exists()
+    assert (tmp_path / first_raw_path).read_text(encoding="utf-8") == first_raw_content
+    assert "First reviewed answer." in first_raw_content
+    assert "Second reviewed answer." in (tmp_path / second_raw_path).read_text(
+        encoding="utf-8"
+    )
+
+    first_normalized = json.loads(
+        (tmp_path / first_result["normalized_path"]).read_text(encoding="utf-8")
+    )
+    second_normalized = json.loads(
+        (tmp_path / second_result["normalized_path"]).read_text(encoding="utf-8")
+    )
+    assert first_normalized["raw_ref"]["path"] == first_raw_path
+    assert second_normalized["raw_ref"]["path"] == second_raw_path

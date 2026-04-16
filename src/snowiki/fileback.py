@@ -332,11 +332,14 @@ def build_fileback_normalized_path(record_id: str, *, recorded_at: str) -> str:
     )
 
 
-def build_manual_question_raw_path(*, slug: str, recorded_at: str) -> str:
+def build_manual_question_raw_path(
+    *, slug: str, proposal_id: str, recorded_at: str
+) -> str:
     moment = ensure_utc_datetime(recorded_at)
+    proposal_suffix = proposal_id.removeprefix("fileback-proposal-")
     return (
         f"raw/manual/questions/{moment.year:04d}/{moment.month:02d}/"
-        f"{moment.day:02d}/{slug}.md"
+        f"{moment.day:02d}/{slug}--{proposal_suffix}.md"
     )
 
 
@@ -387,7 +390,7 @@ def build_proposed_write_set(
 ) -> ProposedWriteSet:
     record_id = build_fileback_record_id(target["slug"], proposal_id)
     raw_note_path = build_manual_question_raw_path(
-        slug=target["slug"], recorded_at=created_at
+        slug=target["slug"], proposal_id=proposal_id, recorded_at=created_at
     )
     raw_note_body = _build_manual_question_note_body(
         proposal_id=proposal_id,
