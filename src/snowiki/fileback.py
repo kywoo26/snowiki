@@ -16,8 +16,9 @@ from snowiki.config import (
 )
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.storage.normalized import NormalizedStorage
-from snowiki.storage.raw import RawStorage
 from snowiki.storage.zones import (
+    StoragePaths,
+    atomic_write_bytes,
     ensure_utc_datetime,
     isoformat_utc,
     relative_to_root,
@@ -25,8 +26,8 @@ from snowiki.storage.zones import (
 )
 
 PROPOSAL_VERSION = 1
-FILEBACK_SOURCE_TYPE = "fileback"
-FILEBACK_RECORD_TYPE = "fileback"
+FILEBACK_SOURCE_TYPE = "manual-question"
+FILEBACK_RECORD_TYPE = "question"
 
 
 class RawRefDict(TypedDict):
@@ -64,6 +65,14 @@ class FilebackProposal(TypedDict):
     evidence: EvidenceResolution
     derivation: dict[str, Any]
     apply_plan: dict[str, Any]
+
+
+class ProposedWriteSet(TypedDict):
+    raw_note_body: str
+    raw_note_path: str
+    raw_ref: RawRefDict
+    normalized_record: dict[str, Any]
+    normalized_path: str
 
 
 class LoadedNormalizedRecord(TypedDict):
@@ -110,9 +119,17 @@ def build_fileback_proposal(
         requested_paths=requested_paths,
     )
     evidence = resolve_evidence(root, requested_paths)
-    record_id = build_fileback_record_id(target["slug"], proposal_id)
-    normalized_path = build_fileback_normalized_path(
-        record_id, recorded_at=proposal_created_at
+    proposed_write = build_proposed_write_set(
+        root,
+        proposal_id=proposal_id,
+        created_at=proposal_created_at,
+        draft={
+            "question": normalized_question,
+            "answer_markdown": normalized_answer,
+            "summary": normalized_summary,
+        },
+        target=target,
+        evidence=evidence,
     )
 
     return {
@@ -143,8 +160,11 @@ def build_fileback_proposal(
         "apply_plan": {
             "source_type": FILEBACK_SOURCE_TYPE,
             "record_type": FILEBACK_RECORD_TYPE,
-            "record_id": record_id,
-            "normalized_path": normalized_path,
+            "record_id": proposed_write["normalized_record"]["id"],
+            "raw_note_path": proposed_write["raw_note_path"],
+            "normalized_path": proposed_write["normalized_path"],
+            "proposed_raw_note_body": proposed_write["raw_note_body"],
+            "proposed_normalized_record_payload": proposed_write["normalized_record"],
             "rebuild_required": True,
         },
     }
@@ -164,72 +184,42 @@ def apply_fileback_proposal(root: Path, reviewed_payload: object) -> dict[str, A
 
     requested_paths = proposal["evidence"]["requested_paths"]
     evidence = resolve_evidence(resolved_root, requested_paths)
-    applied_at = isoformat_utc(None)
-    record_id = build_fileback_record_id(target["slug"], proposal["proposal_id"])
-
-    raw_storage = RawStorage(resolved_root)
-    raw_payload = {
-        "applied_at": applied_at,
-        "proposal": proposal,
-    }
-    raw_ref = _coerce_raw_ref(
-        raw_storage.store_bytes(
-            FILEBACK_SOURCE_TYPE,
-            json.dumps(
-                raw_payload, indent=2, sort_keys=True, ensure_ascii=False
-            ).encode("utf-8"),
-        )
+    proposed_write = build_proposed_write_set(
+        resolved_root,
+        proposal_id=proposal["proposal_id"],
+        created_at=proposal["created_at"],
+        draft=draft,
+        target=target,
+        evidence=evidence,
     )
+    _validate_apply_plan(proposal["apply_plan"], proposed_write)
+    applied_at = isoformat_utc(None)
+
+    _write_manual_raw_note(
+        resolved_root,
+        relative_path=proposed_write["raw_note_path"],
+        content=proposed_write["raw_note_body"],
+        mtime=proposal["created_at"],
+    )
+    raw_ref = proposed_write["raw_ref"]
 
     normalized_storage = NormalizedStorage(resolved_root)
     provenance_refs = [
         raw_ref,
-        *_dedupe_supporting_raw_refs(evidence["supporting_raw_refs"]),
+        *_dedupe_supporting_raw_refs(evidence["supporting_raw_refs"], raw_ref["path"]),
     ]
     store_result = normalized_storage.store_record(
         source_type=FILEBACK_SOURCE_TYPE,
         record_type=FILEBACK_RECORD_TYPE,
-        record_id=record_id,
-        payload={
-            "question": draft["question"],
-            "title": draft["question"],
-            "summary": draft["summary"],
-            "answer_markdown": draft["answer_markdown"],
-            "supporting_paths": [
-                *evidence["resolved_paths"]["compiled"],
-                *evidence["resolved_paths"]["normalized"],
-                *evidence["resolved_paths"]["raw"],
-            ],
-            "derivation": {
-                **proposal["derivation"],
-                "kind": "derived",
-                "synthesized": True,
-                "review_status": "applied",
-                "reviewed_proposal_id": proposal["proposal_id"],
-                "reviewed_proposal_version": proposal["proposal_version"],
-                "applied_at": applied_at,
-                "supporting_compiled_paths": evidence["resolved_paths"]["compiled"],
-                "supporting_normalized_paths": evidence["resolved_paths"]["normalized"],
-                "supporting_raw_paths": evidence["resolved_paths"]["raw"],
-                "supporting_record_ids": evidence["supporting_record_ids"],
-            },
-            "compiler": {
-                "summary": draft["summary"],
-                "questions": [
-                    {
-                        "title": draft["question"],
-                        "summary": draft["summary"],
-                        "tags": ["fileback"],
-                    }
-                ],
-            },
-        },
+        record_id=str(proposed_write["normalized_record"]["id"]),
+        payload=_normalized_store_payload(proposed_write["normalized_record"]),
         raw_ref=provenance_refs,
-        recorded_at=applied_at,
+        recorded_at=str(proposed_write["normalized_record"]["recorded_at"]),
     )
     rebuild_result = run_rebuild_with_integrity(resolved_root)
     return {
         "root": resolved_root.as_posix(),
+        "applied_at": applied_at,
         "proposal_id": proposal["proposal_id"],
         "proposal_version": proposal["proposal_version"],
         "raw_ref": raw_ref,
@@ -329,7 +319,7 @@ def resolve_evidence(root: Path, requested_paths: Sequence[str]) -> EvidenceReso
 def build_fileback_record_id(slug: str, proposal_id: str) -> str:
     """Build a deterministic normalized record identifier for a fileback."""
     digest = hashlib.sha256(f"{slug}:{proposal_id}".encode()).hexdigest()[:12]
-    return f"fileback-{slug}-{digest}"
+    return f"question-{slug}-{digest}"
 
 
 def build_fileback_normalized_path(record_id: str, *, recorded_at: str) -> str:
@@ -339,6 +329,14 @@ def build_fileback_normalized_path(record_id: str, *, recorded_at: str) -> str:
     return (
         f"normalized/{safe_source_type}/{moment.year:04d}/{moment.month:02d}/"
         f"{moment.day:02d}/{record_id}.json"
+    )
+
+
+def build_manual_question_raw_path(*, slug: str, recorded_at: str) -> str:
+    moment = ensure_utc_datetime(recorded_at)
+    return (
+        f"raw/manual/questions/{moment.year:04d}/{moment.month:02d}/"
+        f"{moment.day:02d}/{slug}.md"
     )
 
 
@@ -369,13 +367,59 @@ def dedupe_raw_refs(raw_refs: Sequence[Mapping[str, object]]) -> list[RawRefDict
 
 
 def _dedupe_supporting_raw_refs(
-    raw_refs: Sequence[Mapping[str, object]],
+    raw_refs: Sequence[Mapping[str, object]], manual_raw_path: str
 ) -> list[RawRefDict]:
     return [
         raw_ref
         for raw_ref in dedupe_raw_refs(raw_refs)
-        if raw_ref["path"] != "" and not raw_ref["path"].startswith("raw/fileback/")
+        if raw_ref["path"] != "" and raw_ref["path"] != manual_raw_path
     ]
+
+
+def build_proposed_write_set(
+    root: Path,
+    *,
+    proposal_id: str,
+    created_at: str,
+    draft: FilebackDraft,
+    target: FilebackTarget,
+    evidence: EvidenceResolution,
+) -> ProposedWriteSet:
+    record_id = build_fileback_record_id(target["slug"], proposal_id)
+    raw_note_path = build_manual_question_raw_path(
+        slug=target["slug"], recorded_at=created_at
+    )
+    raw_note_body = _build_manual_question_note_body(
+        proposal_id=proposal_id,
+        created_at=created_at,
+        draft=draft,
+        target=target,
+        evidence=evidence,
+    )
+    raw_ref = _build_raw_ref_for_note(
+        root,
+        relative_path=raw_note_path,
+        content=raw_note_body,
+        mtime=created_at,
+    )
+    normalized_record = _build_normalized_record_payload(
+        proposal_id=proposal_id,
+        created_at=created_at,
+        draft=draft,
+        target=target,
+        evidence=evidence,
+        raw_ref=raw_ref,
+        record_id=record_id,
+    )
+    return {
+        "raw_note_body": raw_note_body,
+        "raw_note_path": raw_note_path,
+        "raw_ref": raw_ref,
+        "normalized_record": normalized_record,
+        "normalized_path": build_fileback_normalized_path(
+            record_id, recorded_at=created_at
+        ),
+    }
 
 
 def _build_target(question: str) -> FilebackTarget:
@@ -405,6 +449,112 @@ def _build_proposal_id(
         json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     ).hexdigest()[:16]
     return f"fileback-proposal-{digest}"
+
+
+def _build_manual_question_note_body(
+    *,
+    proposal_id: str,
+    created_at: str,
+    draft: FilebackDraft,
+    target: FilebackTarget,
+    evidence: EvidenceResolution,
+) -> str:
+    evidence_lines = [
+        f"- {path}"
+        for path in [
+            *evidence["resolved_paths"]["compiled"],
+            *evidence["resolved_paths"]["normalized"],
+            *evidence["resolved_paths"]["raw"],
+        ]
+    ]
+    return "\n".join(
+        [
+            "---",
+            f"title: {json.dumps(draft['question'], ensure_ascii=False)}",
+            'type: "manual-question"',
+            f"proposal_id: {json.dumps(proposal_id)}",
+            f"created_at: {json.dumps(created_at)}",
+            f"compiled_path: {json.dumps(target['compiled_path'])}",
+            "---",
+            f"# {draft['question']}",
+            "",
+            "## Summary",
+            "",
+            draft["summary"],
+            "",
+            "## Answer",
+            "",
+            draft["answer_markdown"],
+            "",
+            "## Evidence",
+            "",
+            *(evidence_lines or ["- _No supporting paths recorded._"]),
+        ]
+    )
+
+
+def _build_normalized_record_payload(
+    *,
+    proposal_id: str,
+    created_at: str,
+    draft: FilebackDraft,
+    target: FilebackTarget,
+    evidence: EvidenceResolution,
+    raw_ref: RawRefDict,
+    record_id: str,
+) -> dict[str, Any]:
+    supporting_paths = [
+        *evidence["resolved_paths"]["compiled"],
+        *evidence["resolved_paths"]["normalized"],
+        *evidence["resolved_paths"]["raw"],
+    ]
+    supporting_raw_refs = [
+        raw_ref,
+        *_dedupe_supporting_raw_refs(evidence["supporting_raw_refs"], raw_ref["path"]),
+    ]
+    return {
+        "id": record_id,
+        "record_type": FILEBACK_RECORD_TYPE,
+        "recorded_at": created_at,
+        "source_type": FILEBACK_SOURCE_TYPE,
+        "question": draft["question"],
+        "title": draft["question"],
+        "summary": draft["summary"],
+        "answer_markdown": draft["answer_markdown"],
+        "supporting_paths": supporting_paths,
+        "derivation": {
+            "kind": "derived",
+            "synthesized": True,
+            "source_authorship": "reviewed_fileback_proposal",
+            "honesty_note": (
+                "This answer is synthesized from reviewed Snowiki evidence and stored "
+                "as a derived manual question record. Supporting sources are preserved "
+                "as evidence, not claimed as direct raw authorship."
+            ),
+            "reviewed_proposal_id": proposal_id,
+            "reviewed_proposal_version": PROPOSAL_VERSION,
+            "supporting_compiled_paths": evidence["resolved_paths"]["compiled"],
+            "supporting_normalized_paths": evidence["resolved_paths"]["normalized"],
+            "supporting_raw_paths": evidence["resolved_paths"]["raw"],
+            "supporting_record_ids": evidence["supporting_record_ids"],
+        },
+        "compiler": {
+            "summary": draft["summary"],
+            "questions": [
+                {
+                    "title": draft["question"],
+                    "summary": draft["summary"],
+                    "tags": ["manual-question", "fileback"],
+                }
+            ],
+        },
+        "raw_ref": raw_ref,
+        "provenance": {
+            "raw_refs": supporting_raw_refs,
+            "link_chain": ["normalized", "raw"],
+        },
+        "target": target,
+    }
 
 
 def _compiled_record_ids(path: Path) -> list[str]:
@@ -512,6 +662,61 @@ def _require_text(value: str, *, field_name: str) -> str:
     if not normalized:
         raise ValueError(f"{field_name} is required")
     return normalized
+
+
+def _build_raw_ref_for_note(
+    root: Path, *, relative_path: str, content: str, mtime: str
+) -> RawRefDict:
+    rendered = content.encode("utf-8")
+    return {
+        "sha256": hashlib.sha256(rendered).hexdigest(),
+        "path": relative_path,
+        "size": len(rendered),
+        "mtime": isoformat_utc(mtime),
+    }
+
+
+def _normalized_store_payload(record: Mapping[str, object]) -> dict[str, object]:
+    return {
+        key: value
+        for key, value in record.items()
+        if key
+        not in {
+            "id",
+            "record_type",
+            "recorded_at",
+            "source_type",
+            "raw_ref",
+            "provenance",
+        }
+    }
+
+
+def _validate_apply_plan(
+    apply_plan: Mapping[str, Any], proposed_write: ProposedWriteSet
+) -> None:
+    expected = {
+        "source_type": FILEBACK_SOURCE_TYPE,
+        "record_type": FILEBACK_RECORD_TYPE,
+        "record_id": proposed_write["normalized_record"]["id"],
+        "raw_note_path": proposed_write["raw_note_path"],
+        "normalized_path": proposed_write["normalized_path"],
+        "proposed_raw_note_body": proposed_write["raw_note_body"],
+        "proposed_normalized_record_payload": proposed_write["normalized_record"],
+        "rebuild_required": True,
+    }
+    if dict(apply_plan) != expected:
+        raise ValueError("reviewed apply plan no longer matches the proposed write set")
+
+
+def _write_manual_raw_note(
+    root: Path, *, relative_path: str, content: str, mtime: str
+) -> None:
+    storage_paths = StoragePaths(root)
+    target = storage_paths.root / relative_path
+    atomic_write_bytes(target, content.encode("utf-8"))
+    timestamp = ensure_utc_datetime(mtime).timestamp()
+    os.utime(target, (timestamp, timestamp))
 
 
 def _resolve_workspace_path(root: Path, requested_path: str) -> Path:

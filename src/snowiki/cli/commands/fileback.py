@@ -27,6 +27,7 @@ def _render_preview_human(payload: dict[str, Any]) -> str:
         f"proposal_id: {proposal['proposal_id']}",
         f"summary: {draft['summary']}",
         f"supporting paths: {len(proposal['evidence']['requested_paths'])}",
+        f"raw note write: {proposal['apply_plan']['raw_note_path']}",
         f"normalized write: {proposal['apply_plan']['normalized_path']}",
         "rebuild required: yes",
     ]
@@ -97,7 +98,16 @@ def preview_command(
         {
             "ok": True,
             "command": "fileback preview",
-            "result": {"root": preview_root.as_posix(), "proposal": proposal},
+            "result": {
+                "root": preview_root.as_posix(),
+                "proposal": proposal,
+                "proposed_write": {
+                    "raw_note_body": proposal["apply_plan"]["proposed_raw_note_body"],
+                    "normalized_record_payload": proposal["apply_plan"][
+                        "proposed_normalized_record_payload"
+                    ],
+                },
+            },
         },
         output=output_mode,
         human_renderer=_render_preview_human,
