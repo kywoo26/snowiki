@@ -16,16 +16,17 @@ Current shipped CLI surface:
 - `snowiki status`
 - `snowiki lint`
 - `snowiki export`
+- `snowiki fileback`
 - `snowiki benchmark`
 - `snowiki daemon`
 - `snowiki mcp`
 
 ## Step 0: Bootstrap
 
-On first use or when entering a new vault:
-1. Read `CLAUDE.md` — understand structure and rules.
-2. Verify directories: `wiki/`, `sources/`, `sessions/`.
-3. Detect environment: `VAULT_DIR` and `TZ`.
+On first use:
+1. Confirm the installed runtime with `snowiki --help`.
+2. Prefer `snowiki ... --output json` for machine-readable results.
+3. If faster repeated reads are useful, optionally start `snowiki daemon`; treat it as an optimization, not a separate contract.
 
 ## Step 1: Classify Command
 
@@ -36,11 +37,13 @@ Parse input after `/wiki`:
 | `ingest <URL/path/text>` | Step 2: Ingest | Current |
 | `query <question>` | Step 3: Query | Current |
 | `recall <date_or_topic>` | Step 4: Recall | Current |
-| `sync` | Step 5: Sync | **Deferred** |
-| `edit <page>` | Step 6: Edit | **Deferred** |
-| `merge <p1> <p2>` | Step 7: Merge | **Deferred** |
-| `lint` | Step 8: Lint | Current |
-| `status` | Step 9: Status | Current |
+| `fileback preview <question>` | Step 5: Fileback Preview | Current |
+| `fileback apply` | Step 6: Fileback Apply | Current |
+| `sync` | Step 7: Sync | **Deferred** |
+| `edit <page>` | Step 8: Edit | **Deferred** |
+| `merge <p1> <p2>` | Step 9: Merge | **Deferred** |
+| `lint` | Step 10: Lint | Current |
+| `status` | Step 11: Status | Current |
 
 Implicit routing (no explicit mode keyword):
 - Temporal words ("yesterday", "last week", "what was I doing") -> Step 4: Recall
@@ -51,103 +54,22 @@ Implicit routing (no explicit mode keyword):
 
 ## Step 2: Ingest
 
-One source -> 5-15 wiki pages touched. This is the core compilation step.
+Use `snowiki ingest` with the appropriate source type, then rebuild if needed.
 
-### 2.1: Acquire Source
+Typical current flow:
 
-| Input | Action |
-|-------|--------|
-| URL | WebFetch -> save to `sources/articles/YYYY-MM-DD-slug.md` |
-| File path | Read file. If not in `sources/`, copy it there |
-| Inline text | Save to `sources/notes/YYYY-MM-DD-slug.md` |
-| "yesterday's session about X" | Use `recall` to find session |
-
-Add frontmatter to source:
-```yaml
----
-type: source
-source_type: article | session | note
-title: "Source Title"
-url: "https://..." # if applicable
-ingested: YYYY-MM-DD
----
+```bash
+snowiki ingest /path/to/source --source claude
+snowiki rebuild
 ```
 
-Source is now immutable. Never modify it again.
-
-### 2.2: Discuss
-
-Read the source and current local Snowiki outputs. Use the shipped retrieval surfaces where possible.
-
-### 2.3: Compile (the core step)
-
-Read `CLAUDE.md` for rules. Then:
-
-**A. Create summary page** (mandatory, always):
-- `wiki/summaries/<slug>.md`
-- Key Claims, Notable Details, Open Questions.
-- Link to all concept/entity pages this source informed.
-
-**B. Create or update concept pages**:
-- For each significant concept: check if `wiki/concepts/<name>.md` exists.
-  - Exists -> append new information. Never delete existing content.
-  - New -> create with Definition, How It Works, Strengths, Limitations.
-- Use `[[wiki/concepts/<name>]]` wikilinks in body text.
-
-**C. Create or update entity pages**:
-- For people, tools, orgs, projects mentioned substantively.
-- `wiki/entities/<name>.md` with `entity_type: tool | person | org | project`.
-
-**D. Create or update topic pages**:
-- If source contributes to a cross-cutting theme.
-- `wiki/topics/<theme>.md` — links to relevant concepts and entities.
-
-**E. Create comparison pages** (when applicable):
-- If source explicitly compares things, or new info makes comparison useful.
-- `wiki/comparisons/<a>-vs-<b>.md` — always include a markdown table.
-
-**F. Flag contradictions**:
-- If new info contradicts existing wiki content:
-  ```markdown
-  > [!warning] Contradiction
-  > This page says X (from source A), but [[wiki/concepts/Y]] says Z (from source B).
-  > Needs resolution.
-  ```
-- Never silently overwrite — always flag.
-
-**G. Update overview.md**:
-- Add or revise the relevant section.
-- Should read as coherent narrative, not a list.
-
-**H. Update index.md**:
-- Add new pages to correct category.
-
-**I. Append to log.md**:
-```markdown
-## [YYYY-MM-DD] ingest | Source Title
-- source: sources/articles/YYYY-MM-DD-slug.md
-- created: summaries/slug.md, concepts/x.md, entities/y.md
-- updated: overview.md, topics/z.md, index.md
-```
-
-### 2.4: Report
-
-```
-Ingested: "Source Title"
-   Created: 4 pages (summaries/slug.md, concepts/x.md, entities/y.md, comparisons/a-vs-b.md)
-   Updated: 3 pages (overview.md, topics/z.md, index.md)
-   Total pages touched: 7
-```
-
-### 2.5: Post-ingest
-
-If the runtime later exposes additional indexing/maintenance helpers, use those.
+Do not describe older `sources/` or `wiki/` hand-edited layouts as the shipped contract.
 
 ---
 
 ## Step 3: Query
 
-Search the wiki, synthesize an answer. Good answers compound back into the wiki.
+Search compiled knowledge and synthesize an answer.
 
 ### 3.1: Search Strategy
 
@@ -156,31 +78,26 @@ Use the shipped `snowiki query` runtime first.
 Current truth:
 - Lexical retrieval is the shipped runtime path.
 - Semantic/hybrid/rerank remain deferred reference workflows.
+- When a daemon is already reachable, daemon-backed reads may be preferred as a warm-read optimization.
+- If the daemon is unavailable, fall back to the canonical CLI path without changing result shape.
 
 ### 3.2: Synthesize
 
-- Read top 3-5 matching pages in full via `Read` tool
-- Generate answer with inline `[[wikilinks]]`
-- Flag gaps: "Not in wiki — consider ingesting a source about X"
-
-### 3.3: File Back (Deferred Workflow)
-
-The following compounding step is a deferred workflow idea, not a shipped runtime command.
-
-If an answer is valuable beyond the conversation:
-1. Propose creating `wiki/questions/YYYY-MM-DD-slug.md`.
-2. On approval, create the page and update related arrays.
-3. Update `index.md` and `log.md`.
+- Read the returned results.
+- Answer from current compiled knowledge.
+- If the answer should become durable knowledge, use the current `fileback` flow instead of claiming ad-hoc page writes.
 
 ---
 
 ## Step 4: Recall
 
-Load context from vault memory.
+Load context from current stored knowledge/session-derived material.
 
 ### 4.1: Temporal Recall
 
 Use the shipped `snowiki recall` command for temporal context.
+
+If a daemon is already reachable, daemon-backed recall may be preferred as a warm-read optimization. CLI fallback remains canonical.
 
 ### 4.2: Synthesize "One Thing"
 
@@ -211,7 +128,7 @@ Graph-oriented recall workflows are deferred reference ideas. If the runtime lat
 2. Present interactive HTML to the user.
 
 
-### 4.3: Fallback — No Results
+### 4.5: Fallback — No Results
 
 ```
 No results found for "QUERY". Try:
@@ -221,7 +138,35 @@ No results found for "QUERY". Try:
 
 ---
 
-## Step 5: Sync (Deferred Workflow)
+## Step 5: Fileback Preview
+
+Current shipped write posture is reviewable and CLI-only.
+
+Use `snowiki fileback preview` to produce a non-mutating proposal that includes:
+- the target compiled question path
+- reviewed draft content
+- supporting evidence paths
+- the apply plan for the eventual reviewed write
+
+Do not treat preview as an applied write.
+
+---
+
+## Step 6: Fileback Apply
+
+Use `snowiki fileback apply --proposal-file ...` only with a reviewed preview payload.
+
+Current truth:
+- this is shipped behavior
+- it is derived and reviewable
+- it writes through the canonical CLI path
+- compiled question pages remain rebuild-generated artifacts
+
+Do not claim direct MCP writes or direct compiled-file editing.
+
+---
+
+## Step 7: Sync (Deferred Workflow)
 
 Exporting Claude Code sessions to Obsidian markdown is a deferred reference workflow. If the runtime later exposes a `sync` command:
 1. Detect `VAULT_DIR` and `TZ`.
@@ -230,7 +175,7 @@ Exporting Claude Code sessions to Obsidian markdown is a deferred reference work
 
 ---
 
-## Step 6: Edit (Deferred Workflow)
+## Step 8: Edit (Deferred Workflow)
 
 Lightweight page modification is a deferred reference workflow. If the runtime later exposes an `edit` command:
 1. Identify target page.
@@ -240,7 +185,7 @@ Lightweight page modification is a deferred reference workflow. If the runtime l
 
 ---
 
-## Step 7: Merge (Deferred Workflow)
+## Step 9: Merge (Deferred Workflow)
 
 Consolidating overlapping pages is a deferred reference workflow. If the runtime later exposes a `merge` command:
 1. Identify pages to merge.
@@ -251,15 +196,15 @@ Consolidating overlapping pages is a deferred reference workflow. If the runtime
 
 ---
 
-## Step 8: Lint
+## Step 10: Lint
 
 Health-check per `CLAUDE.md` rules.
 
-### 8.1: Structural Checks
+### 10.1: Structural Checks
 
 Run `snowiki lint` for the authoritative runtime linting.
 
-### 8.2: Semantic Checks (Informative)
+### 10.2: Semantic Checks (Informative)
 
 The LLM may check for:
 - Cross-page contradictions.
@@ -267,20 +212,20 @@ The LLM may check for:
 - Concepts mentioned but lacking their own page.
 - Stale claims superseded by newer sources.
 
-### 8.3: Gap Analysis (Informative)
+### 10.3: Gap Analysis (Informative)
 
 Suggest new sources to seek:
 - "No wiki pages about X, but it's mentioned in 3 places — consider ingesting a source."
 - "Topic Y has only 1 source — more depth needed."
 
-### 8.4: Report and Fix
+### 10.4: Report and Fix
 
 Present findings. For auto-fixable issues, offer to fix.
 For semantic issues, present the contradiction and let user decide.
 
 ---
 
-## Step 9: Status
+## Step 11: Status
 
 Quick overview of the entire system.
 
@@ -301,14 +246,9 @@ Health:    0 errors, 2 warnings
 ## Notes
 
 - One source at a time for ingest (quality > speed)
-- Always discuss before writing (unless user says "just file it")
-- `sources/` is immutable — never modify
-- `sessions/` are "live" while active, frozen after session ends
-- Wiki pages: append/update only — never delete content
-- Contradictions: flag, do not resolve silently
-- Use `[[wikilinks]]` everywhere for Obsidian graph connectivity
-- Entity pages are graph hubs — they should have many inbound links
-- The `overview.md` is the thesis — keep it narrative, not a list
-- Every claim traces to source
-- For recall/sync: always resolve `VAULT_DIR` and `TZ` before running scripts
+- Prefer the installed CLI as runtime truth
+- Use daemon-backed reads only when already available
+- `fileback` is current and reviewable; preview before apply
+- Do not claim MCP write support
+- Deferred flows stay clearly marked deferred
 - Search strategy: lexical-first retrieval is the current runtime truth

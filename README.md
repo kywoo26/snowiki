@@ -2,25 +2,11 @@
 
 A personal wiki that compounds knowledge like a snowball.
 
-Instead of re-deriving knowledge on every query, the LLM incrementally builds and maintains a persistent, interlinked wiki. Every source ingested makes it richer. Knowledge compounds.
-
-## Three Layers
-
-```
-sources/        → immutable raw documents (articles, notes)
-sessions/       → cc session exports (live while active, frozen after)
-wiki/           → LLM-compiled knowledge (summaries, concepts, entities, topics)
-CLAUDE.md       → the schema (rules, conventions, workflows)
-```
-
-**You** curate sources, ask questions, think.
-**LLM** summarizes, cross-references, files, maintains — all the bookkeeping humans abandon.
+Snowiki’s current shipped runtime is **CLI-first**. The installed `snowiki` command is the authoritative runtime contract; the Claude Code `/wiki` skill is a workflow layer that should mirror the CLI rather than redefine it.
 
 ## Quick Start
 
-Snowiki’s current shipped runtime is **CLI-first**.
-
-The authoritative runtime contract is the installed `snowiki` command, not the older qmd-oriented `/wiki` workflow text. This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md`.
+This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md`.
 
 ```bash
 # 1. Install Snowiki from a checkout
@@ -34,15 +20,17 @@ snowiki ingest /path/to/claude-export.jsonl --source claude
 snowiki rebuild
 snowiki query "What do I know about X?" --output json
 snowiki recall yesterday --output json
-snowiki lint
-snowiki status
+snowiki status --output json
+snowiki lint --output json
 ```
 
-If you are working from a development checkout instead of a tool install, the equivalent commands are available via `uv run snowiki ...`.
+For the Claude Code `/wiki` workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/apply` flow.
+
+If you are working from a development checkout instead of a tool install, run the same commands as `uv run snowiki ...`.
 
 ## Current shipped CLI surface
 
-The current runtime exposes these commands:
+The current runtime exposes these top-level commands:
 
 - `snowiki ingest`
 - `snowiki rebuild`
@@ -51,64 +39,43 @@ The current runtime exposes these commands:
 - `snowiki status`
 - `snowiki lint`
 - `snowiki export`
+- `snowiki fileback`
 - `snowiki benchmark`
 - `snowiki daemon`
 - `snowiki mcp`
 
-## Workflow skill status
+Current `fileback` subcommands:
 
-The `skill/` package is currently best understood as a **workflow/reference layer**, not the canonical runtime contract.
+- `snowiki fileback preview`
+- `snowiki fileback apply`
 
-- It still contains legacy qmd-oriented guidance and broader aspirational wiki workflows.
-- The current shipped product truth is the Python `snowiki` CLI and its read-only MCP surface.
-- If you want a reliable machine-usable interface today, prefer `snowiki ... --output json` and `snowiki mcp`.
+## Claude Code `/wiki` status
 
-## Historical workflow surface (Lineage)
+The `/wiki` skill should currently mirror this shipped surface for everyday use:
 
-Earlier Snowiki workflow docs described a broader `/wiki` interface. This workflow remains useful as **lineage and future design context**, but it is **not** the authoritative runtime contract for the current shipped CLI.
+- current: `ingest`, `query`, `recall`, `status`, `lint`, `fileback preview`, `fileback apply`
+- optimization, not separate runtime truth: daemon-backed warm reads for query/recall when a daemon is already reachable
+- deferred: `sync`, `edit`, `merge`, graph-oriented workflows
 
-| Command | What it does |
-|---------|-------------|
-| `/wiki ingest <source>` | Compile source → 5-15 wiki pages |
-| `/wiki query <question>` | Search wiki → synthesize → file back |
-| `/wiki recall <date/topic>` | Session history (temporal, topic, graph) |
-| `/wiki sync` | Export sessions to Obsidian markdown |
-| `/wiki edit <page>` | Lightweight page modification |
-| `/wiki merge <p1> <p2>` | Consolidate overlapping pages |
-| `/wiki lint` | Structural + semantic health check |
-| `/wiki status` | Dashboard: pages, sources, health |
+Do not treat daemon-backed reads, qmd lineage, or older vault-layout docs as a separate product contract.
 
-The current runtime truth is defined by the `snowiki` CLI and its read-only MCP surface.
+## Machine-usable surfaces today
 
-## Obsidian Integration
+- CLI JSON output via `snowiki ... --output json`
+- read-only MCP via `snowiki mcp`
 
-- `[[wikilinks]]` everywhere for graph connectivity
-- Entity pages = hub nodes (many inbound links)
-- Topic pages = bridges between concept clusters
-- overview.md = central synthesis node
-- Graph view reveals natural knowledge structure
-
-## Lint Codes
-
-| Code | Severity | Check |
-|------|----------|-------|
-| L001 | ERROR | Missing/incomplete frontmatter |
-| L002 | ERROR | Broken wikilinks |
-| L003 | WARN | Orphan pages (no inbound links) |
-| L004 | WARN | Source without summary page |
-| L005 | ERROR | Page missing from index.md |
-| L006 | INFO | Stale pages (30+ days) |
+Mutation remains CLI-mediated. MCP write support is not shipped.
 
 ## Design Principles
 
-1. **Compilation, not storage** — sources are compiled into structured, interlinked wiki pages
-2. **Epistemic integrity** — every claim traces to a source, contradictions flagged not smoothed
-3. **Graph-first** — every design decision considers Obsidian graph view
-4. **Search-strategic** — lexical-first retrieval now, with semantic/hybrid layers deferred until evidence promotes them
-5. **Progressive growth** — start simple, structure emerges from content
-6. **Human insight preserved** — `[!insight]` callouts never modified by LLM
+1. **CLI truth first** — docs and skills mirror the installed runtime instead of inventing a parallel `/wiki` backend
+2. **Compilation, not ad-hoc mutation** — durable knowledge flows through Snowiki storage and rebuild paths
+3. **Reviewable writes** — `fileback apply` requires a reviewed proposal from `fileback preview`
+4. **Search-strategic** — lexical-first retrieval is shipped now; hybrid/semantic work remains deferred
+5. **Performance where it matters** — warm daemon reads are an optimization for repeated read paths, not a requirement for correctness
 
 ## Related
 
-- [qmd-system](https://github.com/kywoo26/qmd-system) — infrastructure setup (qmd + Claude Code + Obsidian)
-- [qmd](https://github.com/tobi/qmd) — retrieval lineage reference, not the current Snowiki runtime. Snowiki uses a lexical-first retrieval strategy in its current shipped CLI.
+- `docs/architecture/skill-and-agent-interface-contract.md` — canonical agent/runtime contract
+- `docs/reference/claude-code-wiki-quickstart.md` — step-by-step Claude Code `/wiki` adoption guide
+- [qmd](https://github.com/tobi/qmd) — lineage/reference material, not the current Snowiki runtime
