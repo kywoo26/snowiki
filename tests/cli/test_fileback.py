@@ -38,7 +38,13 @@ def _build_fileback_workspace(tmp_path: Path, claude_basic_fixture: Path) -> Pat
     return summary_path.relative_to(tmp_path)
 
 
-def _preview_payload(tmp_path: Path, evidence_path: Path) -> dict[str, Any]:
+def _preview_payload(
+    tmp_path: Path,
+    evidence_path: Path,
+    *,
+    answer_markdown: str = "Initial answer that should be reviewed.",
+    summary: str = "Initial fileback summary.",
+) -> dict[str, Any]:
     runner = CliRunner()
     preview = runner.invoke(
         app,
@@ -47,9 +53,9 @@ def _preview_payload(tmp_path: Path, evidence_path: Path) -> dict[str, Any]:
             "preview",
             "What did we ship?",
             "--answer-markdown",
-            "Initial answer that should be reviewed.",
+            answer_markdown,
             "--summary",
-            "Initial fileback summary.",
+            summary,
             "--evidence-path",
             evidence_path.as_posix(),
             "--output",
@@ -134,7 +140,27 @@ def test_fileback_preview_is_reviewable_and_non_mutating(
     assert proposal["evidence"]["supporting_record_ids"]
     assert proposal["derivation"]["kind"] == "derived"
     assert proposal["derivation"]["synthesized"] is True
-    assert proposal["apply_plan"]["normalized_path"].startswith("normalized/fileback/")
+    assert proposal["apply_plan"]["source_type"] == "manual-question"
+    assert proposal["apply_plan"]["record_type"] == "question"
+    assert proposal["apply_plan"]["raw_note_path"].startswith("raw/manual/questions/")
+    assert proposal["apply_plan"]["normalized_path"].startswith(
+        "normalized/manual-question/"
+    )
+    assert "## Answer" in proposal["apply_plan"]["proposed_raw_note_body"]
+    assert (
+        proposal["apply_plan"]["proposed_normalized_record_payload"]["source_type"]
+        == "manual-question"
+    )
+    assert (
+        proposal["apply_plan"]["proposed_normalized_record_payload"]["record_type"]
+        == "question"
+    )
+    assert payload["result"]["proposed_write"] == {
+        "raw_note_body": proposal["apply_plan"]["proposed_raw_note_body"],
+        "normalized_record_payload": proposal["apply_plan"][
+            "proposed_normalized_record_payload"
+        ],
+    }
     assert proposal["apply_plan"]["rebuild_required"] is True
 
 
@@ -142,49 +168,17 @@ def test_fileback_apply_persists_derived_record_and_rebuilds_question_output(
     tmp_path: Path,
     claude_basic_fixture: Path,
 ) -> None:
-    runner = CliRunner()
     evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
-
-    preview = runner.invoke(
-        app,
-        [
-            "fileback",
-            "preview",
-            "What did we ship?",
-            "--answer-markdown",
-            "Initial answer that should be reviewed.",
-            "--summary",
-            "Initial fileback summary.",
-            "--evidence-path",
-            evidence_path.as_posix(),
-            "--output",
-            "json",
-        ],
-        env={"SNOWIKI_ROOT": str(tmp_path)},
-    )
-    assert preview.exit_code == 0, preview.output
-    reviewed_payload = json.loads(preview.output)
-    reviewed_payload["result"]["proposal"]["draft"]["answer_markdown"] = (
-        "Reviewed answer with **markdown** support."
-    )
-    reviewed_payload["result"]["proposal"]["draft"]["summary"] = (
-        "Reviewed fileback summary."
+    reviewed_payload = _preview_payload(
+        tmp_path,
+        evidence_path,
+        answer_markdown="Reviewed answer with **markdown** support.",
+        summary="Reviewed fileback summary.",
     )
     proposal_file = tmp_path / "reviewed-fileback.json"
     proposal_file.write_text(json.dumps(reviewed_payload, indent=2), encoding="utf-8")
 
-    apply = runner.invoke(
-        app,
-        [
-            "fileback",
-            "apply",
-            "--proposal-file",
-            str(proposal_file),
-            "--output",
-            "json",
-        ],
-        env={"SNOWIKI_ROOT": str(tmp_path)},
-    )
+    apply = _invoke_apply(tmp_path, proposal_file)
 
     assert apply.exit_code == 0, apply.output
     payload = json.loads(apply.output)
@@ -192,26 +186,34 @@ def test_fileback_apply_persists_derived_record_and_rebuilds_question_output(
     assert payload["command"] == "fileback apply"
 
     result = payload["result"]
-    assert result["normalized_path"].startswith("normalized/fileback/")
+    preview_proposal = reviewed_payload["result"]["proposal"]
+    preview_write = reviewed_payload["result"]["proposed_write"]
+    assert (
+        result["normalized_path"] == preview_proposal["apply_plan"]["normalized_path"]
+    )
     assert result["compiled_path"] == "compiled/questions/what-did-we-ship.md"
-    assert result["raw_ref"]["path"].startswith("raw/fileback/")
+    assert result["raw_ref"]["path"] == preview_proposal["apply_plan"]["raw_note_path"]
     assert (tmp_path / result["raw_ref"]["path"]).exists()
     assert (tmp_path / result["normalized_path"]).exists()
     assert (tmp_path / result["compiled_path"]).exists()
     assert (tmp_path / "index/manifest.json").exists()
+    assert (tmp_path / result["raw_ref"]["path"]).read_text(
+        encoding="utf-8"
+    ) == preview_write["raw_note_body"]
 
     normalized_payload = json.loads(
         (tmp_path / result["normalized_path"]).read_text(encoding="utf-8")
     )
-    assert normalized_payload["source_type"] == "fileback"
-    assert normalized_payload["record_type"] == "fileback"
+    assert normalized_payload == preview_write["normalized_record_payload"]
+    assert normalized_payload["source_type"] == "manual-question"
+    assert normalized_payload["record_type"] == "question"
     assert normalized_payload["question"] == "What did we ship?"
     assert (
         normalized_payload["answer_markdown"]
         == "Reviewed answer with **markdown** support."
     )
     assert normalized_payload["summary"] == "Reviewed fileback summary."
-    assert normalized_payload["raw_ref"]["path"].startswith("raw/fileback/")
+    assert normalized_payload["raw_ref"]["path"].startswith("raw/manual/questions/")
     assert normalized_payload["derivation"]["kind"] == "derived"
     assert normalized_payload["derivation"]["synthesized"] is True
     assert (
@@ -375,3 +377,25 @@ def test_fileback_apply_rejects_unsupported_version(
     assert payload["ok"] is False
     assert payload["error"]["code"] == "fileback_apply_failed"
     assert "unsupported fileback proposal version" in payload["error"]["message"]
+
+
+def test_fileback_apply_rejects_reviewed_apply_plan_mismatch(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    reviewed_payload["result"]["proposal"]["apply_plan"]["raw_note_path"] = (
+        "raw/manual/questions/2099/01/01/tampered.md"
+    )
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="tampered-apply-plan-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert "proposed write set" in payload["error"]["message"]
