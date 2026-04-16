@@ -86,6 +86,41 @@ class StatusResult(TypedDict):
     index_manifest: IndexManifestResult | None
 
 
+def _project_benchmark_status(status_payload: dict[str, object]) -> StatusResult:
+    """Project the current status payload into the benchmark compatibility shape.
+
+    Args:
+        status_payload: Current runtime status payload.
+
+    Returns:
+        A benchmark-compatible status payload with legacy zone/manifest fields.
+    """
+    manifest_path = Path(str(status_payload["root"])) / "index" / "manifest.json"
+    manifest = _load_json(manifest_path) if manifest_path.exists() else None
+    compiled_paths: list[str] = []
+    if isinstance(manifest, dict):
+        raw_compiled_paths = manifest.get("compiled_paths")
+        if isinstance(raw_compiled_paths, list):
+            compiled_paths = [
+                path for path in raw_compiled_paths if isinstance(path, str)
+            ]
+
+    sources = cast(dict[str, object], status_payload.get("sources", {}))
+    pages = cast(dict[str, object], status_payload.get("pages", {}))
+
+    normalized_count = sources.get("total")
+    compiled_count = pages.get("total")
+
+    return {
+        "root": str(status_payload["root"]),
+        "zones": {
+            "normalized": normalized_count if isinstance(normalized_count, int) else 0,
+            "compiled": compiled_count if isinstance(compiled_count, int) else 0,
+        },
+        "index_manifest": {"compiled_paths": compiled_paths} if manifest else None,
+    }
+
+
 class RebuildResult(TypedDict):
     """Typed rebuild payload returned by the rebuild command.
 
@@ -178,6 +213,62 @@ class CheckResult(TypedDict):
     root: str
     issues: list[CheckIssue]
     error_count: int
+
+
+_BENCH_LINT_CHECKS: frozenset[str] = frozenset(
+    {
+        "normalized.required_key",
+        "normalized.invalid_json",
+        "normalized.invalid_payload",
+        "compiled.frontmatter",
+    }
+)
+
+
+def _project_check_issue(issue: dict[str, object]) -> CheckIssue:
+    """Project a lint or integrity issue into the benchmark result shape."""
+    projected: CheckIssue = {
+        "code": str(issue["code"]),
+        "severity": str(issue["severity"]),
+        "path": str(issue["path"]),
+        "message": str(issue["message"]),
+    }
+    target = issue.get("target")
+    if isinstance(target, str):
+        projected["target"] = target
+    return projected
+
+
+def _project_benchmark_check_result(
+    raw_result: dict[str, object], *, allowed_checks: frozenset[str] | None = None
+) -> CheckResult:
+    """Project current lint/integrity output into the benchmark compatibility shape.
+
+    Args:
+        raw_result: Current runtime lint or integrity result.
+        allowed_checks: Optional allowlist of check names to retain.
+
+    Returns:
+        A benchmark-compatible result containing error-only projected issues.
+    """
+    raw_issues = raw_result.get("issues", [])
+    issues: list[CheckIssue] = []
+    if isinstance(raw_issues, list):
+        for raw_issue in raw_issues:
+            if not isinstance(raw_issue, dict):
+                continue
+            issue = cast(dict[str, object], raw_issue)
+            if issue.get("severity") != "error":
+                continue
+            raw_check = issue.get("check")
+            if allowed_checks is not None and raw_check not in allowed_checks:
+                continue
+            issues.append(_project_check_issue(issue))
+    return {
+        "root": str(raw_result["root"]),
+        "issues": issues,
+        "error_count": len(issues),
+    }
 
 
 class Phase1FlowResult(TypedDict):
@@ -404,9 +495,14 @@ def validate_phase1_workspace(root: Path) -> ValidationResult:
     Returns:
         A validation result containing status, lint, integrity, and failures.
     """
-    status = cast(StatusResult, cast(object, run_status(root)))
-    lint = cast(CheckResult, cast(object, run_lint(root)))
-    integrity = cast(CheckResult, cast(object, check_layer_integrity(root)))
+    status = _project_benchmark_status(run_status(root))
+    lint = _project_benchmark_check_result(
+        cast(dict[str, object], cast(object, run_lint(root))),
+        allowed_checks=_BENCH_LINT_CHECKS,
+    )
+    integrity = _project_benchmark_check_result(
+        cast(dict[str, object], cast(object, check_layer_integrity(root)))
+    )
     failures = [
         *_flatten_check_failures("lint", lint["issues"]),
         *_flatten_check_failures("integrity", integrity["issues"]),

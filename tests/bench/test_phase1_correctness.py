@@ -300,22 +300,22 @@ def test_validate_phase1_workspace_reports_stale_compiled_links_and_structural_l
     assert result["lint"]["error_count"] == 2
     assert result["lint"]["issues"] == [
         {
-            "code": "L001",
-            "severity": "error",
-            "path": normalized_path.relative_to(tmp_path).as_posix(),
-            "message": "missing required key: id",
-        },
-        {
             "code": "L002",
             "severity": "error",
             "path": compiled_path.relative_to(tmp_path).as_posix(),
             "message": "compiled page missing YAML frontmatter",
         },
+        {
+            "code": "L001",
+            "severity": "error",
+            "path": normalized_path.relative_to(tmp_path).as_posix(),
+            "message": "normalized record missing required key: id",
+        },
     ]
     assert result["integrity"]["error_count"] == 1
     assert result["integrity"]["issues"] == [
         {
-            "code": "L002",
+            "code": "L201",
             "severity": "error",
             "path": compiled_path.relative_to(tmp_path).as_posix(),
             "message": "broken wikilink: [[compiled/missing-page]]",
@@ -325,19 +325,19 @@ def test_validate_phase1_workspace_reports_stale_compiled_links_and_structural_l
     assert result["failures"] == [
         {
             "stage": "lint",
-            "code": "L001",
-            "path": normalized_path.relative_to(tmp_path).as_posix(),
-            "message": "missing required key: id",
-        },
-        {
-            "stage": "lint",
             "code": "L002",
             "path": compiled_path.relative_to(tmp_path).as_posix(),
             "message": "compiled page missing YAML frontmatter",
         },
         {
+            "stage": "lint",
+            "code": "L001",
+            "path": normalized_path.relative_to(tmp_path).as_posix(),
+            "message": "normalized record missing required key: id",
+        },
+        {
             "stage": "integrity",
-            "code": "L002",
+            "code": "L201",
             "path": compiled_path.relative_to(tmp_path).as_posix(),
             "message": "broken wikilink: [[compiled/missing-page]]",
         },
