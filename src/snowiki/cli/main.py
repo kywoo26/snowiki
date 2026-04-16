@@ -5,6 +5,7 @@ import click
 from snowiki.cli.commands.benchmark import command as benchmark_command
 from snowiki.cli.commands.daemon import command as daemon_command
 from snowiki.cli.commands.export import command as export_command
+from snowiki.cli.commands.fileback import command as fileback_command
 from snowiki.cli.commands.ingest import command as ingest_command
 from snowiki.cli.commands.lint import command as lint_command
 from snowiki.cli.commands.mcp import command as mcp_command
@@ -25,6 +26,7 @@ app.add_command(recall_command)
 app.add_command(status_command)
 app.add_command(lint_command)
 app.add_command(export_command)
+app.add_command(fileback_command)
 app.add_command(benchmark_command)
 app.add_command(daemon_command)
 app.add_command(mcp_command)

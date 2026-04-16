@@ -54,6 +54,7 @@ def generate_question_pages(records: list[NormalizedRecord]) -> list[CompiledPag
             )
 
             related = [overview_path, summary_path, *related_item_paths]
+            related.extend(_supporting_compiled_paths(record))
             if session_id is not None:
                 related.append(session_path_for_id(session_id))
 
@@ -69,6 +70,10 @@ def generate_question_pages(records: list[NormalizedRecord]) -> list[CompiledPag
             for key, value in item.metadata.items():
                 page.extra_frontmatter.setdefault(key, value)
 
+            answer_markdown = _answer_markdown(record)
+            if answer_markdown:
+                append_section(page, "Answer", answer_markdown)
+
             append_section(
                 page,
                 f"Evidence from {record_title(record)}",
@@ -82,3 +87,23 @@ def generate_question_pages(records: list[NormalizedRecord]) -> list[CompiledPag
             )
 
     return sorted(pages.values(), key=lambda page: page.path)
+
+
+def _answer_markdown(record: NormalizedRecord) -> str:
+    value = record.payload.get("answer_markdown")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def _supporting_compiled_paths(record: NormalizedRecord) -> list[str]:
+    value = record.payload.get("supporting_paths")
+    if not isinstance(value, list):
+        return []
+    return sorted(
+        {
+            item.strip()
+            for item in value
+            if isinstance(item, str)
+            and item.strip()
+            and item.strip().startswith("compiled/")
+        }
+    )
