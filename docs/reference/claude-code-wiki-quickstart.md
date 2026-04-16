@@ -11,6 +11,8 @@ uv tool install --from . snowiki
 snowiki --help
 ```
 
+If you also want the Claude Code `/wiki` skill installed locally, place this repo's packaged skill at `~/.claude/skills/wiki/` so Claude Code can load `skill/SKILL.md` from that install path.
+
 If you are iterating from the repository checkout instead of a tool install, use `uv run snowiki ...` in the same examples below.
 
 ## 2. Optional: start the daemon for faster repeated reads
