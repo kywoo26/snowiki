@@ -241,16 +241,31 @@ def apply_fileback_proposal(root: Path, reviewed_payload: object) -> dict[str, A
 
 
 def extract_fileback_proposal(reviewed_payload: object) -> FilebackProposal:
-    """Extract a fileback proposal from either a preview envelope or direct proposal."""
+    """Extract a fileback proposal from a reviewed payload."""
     payload = _stringify_mapping(reviewed_payload)
 
-    if "proposal_id" in payload:
+    if _looks_like_direct_proposal(payload):
         return _coerce_fileback_proposal(payload)
+
+    if payload.get("ok") is not True:
+        raise ValueError(
+            "reviewed proposal payload must come from a successful preview"
+        )
+    if payload.get("command") != "fileback preview":
+        raise ValueError(
+            "reviewed proposal payload must come from the fileback preview command"
+        )
 
     result = payload.get("result")
     if result is None:
-        raise ValueError("reviewed proposal payload must include a result object")
-    proposal = _stringify_mapping(result).get("proposal")
+        raise ValueError(
+            "reviewed proposal payload must include a proposal or preview result envelope"
+        )
+    result_payload = _stringify_mapping(result)
+    proposal_root = result_payload.get("root")
+    if not isinstance(proposal_root, str) or not proposal_root.strip():
+        raise ValueError("reviewed proposal payload must include result.root")
+    proposal = result_payload.get("proposal")
     if proposal is None:
         raise ValueError("reviewed proposal payload must include result.proposal")
     return _coerce_fileback_proposal(_stringify_mapping(proposal))
@@ -519,11 +534,17 @@ def _resolve_workspace_path(root: Path, requested_path: str) -> Path:
 
 def _validate_proposal_root(reviewed_payload: object, root: Path) -> None:
     payload = _stringify_mapping(reviewed_payload)
+    if _looks_like_direct_proposal(payload):
+        return
     result = payload.get("result")
     if result is None:
-        return
+        raise ValueError(
+            "reviewed proposal payload must include the preview result envelope"
+        )
     proposal_root = _stringify_mapping(result).get("root")
-    if isinstance(proposal_root, str) and proposal_root != root.as_posix():
+    if not isinstance(proposal_root, str) or not proposal_root.strip():
+        raise ValueError("reviewed proposal payload must include result.root")
+    if proposal_root != root.as_posix():
         raise ValueError(
             f"reviewed proposal was created for {proposal_root}, but apply is running against {root.as_posix()}"
         )
@@ -534,14 +555,34 @@ def _validate_proposal_schema(proposal: FilebackProposal) -> None:
         raise ValueError(
             f"unsupported fileback proposal version: {proposal.get('proposal_version')}"
         )
-    if not proposal.get("proposal_id"):
-        raise ValueError("proposal_id is required")
+    _require_text(proposal.get("proposal_id", ""), field_name="proposal_id")
+    _require_text(proposal.get("created_at", ""), field_name="created_at")
+
+    target = proposal["target"]
+    _require_text(target.get("title", ""), field_name="target.title")
+    _require_text(target.get("slug", ""), field_name="target.slug")
+    _require_text(target.get("compiled_path", ""), field_name="target.compiled_path")
+
+    apply_plan = proposal["apply_plan"]
+    _require_text(
+        str(apply_plan.get("source_type", "")), field_name="apply_plan.source_type"
+    )
+    _require_text(
+        str(apply_plan.get("record_type", "")), field_name="apply_plan.record_type"
+    )
+    _require_text(
+        str(apply_plan.get("record_id", "")), field_name="apply_plan.record_id"
+    )
+    _require_text(
+        str(apply_plan.get("normalized_path", "")),
+        field_name="apply_plan.normalized_path",
+    )
 
 
 def _coerce_fileback_proposal(value: Mapping[str, object]) -> FilebackProposal:
     return {
         "proposal_id": str(value.get("proposal_id", "")),
-        "proposal_version": _int_from_object(value.get("proposal_version", 0)),
+        "proposal_version": _require_exact_int_field(value, "proposal_version"),
         "created_at": str(value.get("created_at", "")),
         "target": _coerce_target(_require_mapping(value, "target")),
         "draft": _coerce_draft(_require_mapping(value, "draft")),
@@ -555,21 +596,30 @@ def _coerce_raw_ref(value: Mapping[str, object]) -> RawRefDict:
     return {
         "sha256": str(value["sha256"]),
         "path": str(value["path"]),
-        "size": _int_from_object(value["size"]),
+        "size": _coerce_int_like_value(value["size"]),
         "mtime": str(value["mtime"]),
     }
 
 
 def _coerce_draft(value: Mapping[str, object]) -> FilebackDraft:
     return {
-        "question": str(value.get("question", "")),
-        "answer_markdown": str(value.get("answer_markdown", "")),
-        "summary": str(value.get("summary", "")),
+        "question": _require_text(
+            _require_string_field(value, "question"), field_name="question"
+        ),
+        "answer_markdown": _require_text(
+            _require_string_field(value, "answer_markdown"),
+            field_name="answer_markdown",
+        ),
+        "summary": _require_text(
+            _require_string_field(value, "summary"), field_name="summary"
+        ),
     }
 
 
 def _coerce_evidence(value: Mapping[str, object]) -> EvidenceResolution:
     requested_paths = _string_list(value.get("requested_paths"))
+    if not requested_paths:
+        raise ValueError("at least one evidence path is required")
     resolved_paths_mapping = _require_mapping(value, "resolved_paths")
     supporting_raw_refs_value = value.get("supporting_raw_refs")
     supporting_raw_refs: list[RawRefDict] = []
@@ -599,7 +649,7 @@ def _coerce_target(value: Mapping[str, object]) -> FilebackTarget:
     }
 
 
-def _int_from_object(value: object) -> int:
+def _coerce_int_like_value(value: object) -> int:
     if isinstance(value, bool):
         return int(value)
     if isinstance(value, int):
@@ -609,6 +659,26 @@ def _int_from_object(value: object) -> int:
     if isinstance(value, str):
         return int(value)
     raise TypeError(f"expected integer-compatible value, got {type(value).__name__}")
+
+
+def _looks_like_direct_proposal(payload: Mapping[str, object]) -> bool:
+    return {
+        "proposal_id",
+        "proposal_version",
+        "created_at",
+        "target",
+        "draft",
+        "evidence",
+        "derivation",
+        "apply_plan",
+    }.issubset(payload)
+
+
+def _require_exact_int_field(value: Mapping[str, object], field_name: str) -> int:
+    field_value = value.get(field_name)
+    if isinstance(field_value, bool) or not isinstance(field_value, int):
+        raise ValueError(f"{field_name} must be an integer")
+    return field_value
 
 
 def _require_dict(value: Mapping[str, object], field_name: str) -> dict[str, Any]:
@@ -629,6 +699,13 @@ def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
+def _require_string_field(value: Mapping[str, object], field_name: str) -> str:
+    field_value = value.get(field_name)
+    if not isinstance(field_value, str):
+        raise ValueError(f"{field_name} is required")
+    return field_value
 
 
 def _stringify_mapping(value: object) -> dict[str, object]:

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
+import pytest
 from click.testing import CliRunner
 
 from snowiki.cli.main import app
@@ -34,6 +36,51 @@ def _build_fileback_workspace(tmp_path: Path, claude_basic_fixture: Path) -> Pat
 
     summary_path = next((tmp_path / "compiled" / "summaries").glob("*.md"))
     return summary_path.relative_to(tmp_path)
+
+
+def _preview_payload(tmp_path: Path, evidence_path: Path) -> dict[str, Any]:
+    runner = CliRunner()
+    preview = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What did we ship?",
+            "--answer-markdown",
+            "Initial answer that should be reviewed.",
+            "--summary",
+            "Initial fileback summary.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert preview.exit_code == 0, preview.output
+    return json.loads(preview.output)
+
+
+def _write_payload_file(tmp_path: Path, payload: dict[str, Any], *, name: str) -> Path:
+    proposal_file = tmp_path / name
+    proposal_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return proposal_file
+
+
+def _invoke_apply(tmp_path: Path, proposal_file: Path):
+    runner = CliRunner()
+    return runner.invoke(
+        app,
+        [
+            "fileback",
+            "apply",
+            "--proposal-file",
+            str(proposal_file),
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
 
 
 def test_fileback_preview_is_reviewable_and_non_mutating(
@@ -185,3 +232,146 @@ def test_fileback_apply_persists_derived_record_and_rebuilds_question_output(
     assert "Reviewed answer with **markdown** support." in compiled_output
     assert "## Provenance" in compiled_output
     assert normalized_payload["raw_ref"]["path"] in compiled_output
+
+
+def test_fileback_apply_rejects_malformed_reviewed_payload(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    del reviewed_payload["result"]["proposal"]
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="malformed-reviewed-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert "result.proposal" in payload["error"]["message"]
+
+
+@pytest.mark.parametrize(
+    ("field_path", "value", "expected_message"),
+    [
+        (("result", "proposal", "draft", "question"), "   ", "question is required"),
+        (
+            ("result", "proposal", "draft", "answer_markdown"),
+            "   ",
+            "answer_markdown is required",
+        ),
+        (("result", "proposal", "draft", "summary"), "   ", "summary is required"),
+        (
+            ("result", "proposal", "evidence", "requested_paths"),
+            [],
+            "at least one evidence path is required",
+        ),
+    ],
+)
+def test_fileback_apply_rejects_empty_reviewed_fields(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+    field_path: tuple[str, ...],
+    value: object,
+    expected_message: str,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    target: Any = reviewed_payload
+    for segment in field_path[:-1]:
+        target = target[segment]
+    target[field_path[-1]] = value
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="empty-reviewed-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert expected_message in payload["error"]["message"]
+
+
+@pytest.mark.parametrize(
+    ("field_path", "expected_message"),
+    [
+        (("result", "proposal", "draft", "question"), "question is required"),
+        (
+            ("result", "proposal", "draft", "answer_markdown"),
+            "answer_markdown is required",
+        ),
+        (("result", "proposal", "draft", "summary"), "summary is required"),
+        (
+            ("result", "proposal", "evidence", "requested_paths"),
+            "at least one evidence path is required",
+        ),
+    ],
+)
+def test_fileback_apply_rejects_missing_reviewed_fields(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+    field_path: tuple[str, ...],
+    expected_message: str,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    target: Any = reviewed_payload
+    for segment in field_path[:-1]:
+        target = target[segment]
+    del target[field_path[-1]]
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="missing-reviewed-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert expected_message in payload["error"]["message"]
+
+
+def test_fileback_apply_rejects_root_mismatch(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    reviewed_payload["result"]["root"] = (tmp_path / "other-root").as_posix()
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="root-mismatch-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert "created for" in payload["error"]["message"]
+
+
+def test_fileback_apply_rejects_unsupported_version(
+    tmp_path: Path,
+    claude_basic_fixture: Path,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path, claude_basic_fixture)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    reviewed_payload["result"]["proposal"]["proposal_version"] = 2
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="unsupported-version-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert "unsupported fileback proposal version" in payload["error"]["message"]
