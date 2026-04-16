@@ -135,6 +135,18 @@ def test_lint_json_output_includes_summary_checks_and_normalized_issues(
             "severity": "warning",
             "issue_count": 1,
         },
+        {
+            "name": "freshness.stale_compiled_page",
+            "label": "Stale compiled pages",
+            "severity": "info",
+            "issue_count": 0,
+        },
+        {
+            "name": "coverage.source_without_summary",
+            "label": "Sources without summary pages",
+            "severity": "info",
+            "issue_count": 0,
+        },
     ]
     assert payload["result"]["issues"] == [
         {
@@ -257,6 +269,99 @@ def test_lint_human_output_groups_warning_only_findings(tmp_path: Path) -> None:
     assert "[L301] compiled page has no inbound wikilinks" in result.output
     assert "Path: compiled/topics/orphaned.md" in result.output
     assert "Errors (" not in result.output
+
+
+def test_lint_json_output_reports_info_level_stale_and_summary_coverage_checks(
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    _write_json(
+        tmp_path / "normalized" / "claude" / "record.json",
+        {
+            "id": "record-1",
+            "source_type": "claude",
+            "record_type": "session",
+            "recorded_at": "2026-04-16T10:00:00Z",
+            "title": "Claude Basic",
+            "raw_refs": [{"path": "raw/claude/source.jsonl"}],
+            "provenance": {"raw_refs": [{"path": "raw/claude/source.jsonl"}]},
+        },
+    )
+    _write_json(tmp_path / "index" / "manifest.json", {"pages": ["overview.md"]})
+    _write_json(tmp_path / "raw" / "claude" / "source.jsonl", {"ok": True})
+    _write_compiled_page(
+        tmp_path / "compiled" / "topics" / "stale.md",
+        "\n".join(
+            [
+                "---",
+                'title: "Stale"',
+                'type: "topic"',
+                'created: "2026-01-01"',
+                'updated: "2026-01-15"',
+                'summary: "Old summary"',
+                "sources: []",
+                "related: []",
+                "tags: []",
+                "record_ids: []",
+                "---",
+                "# Stale",
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        ["lint", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is True
+    assert payload["result"]["summary"] == {
+        "error": 0,
+        "warning": 1,
+        "info": 2,
+        "total": 3,
+    }
+    assert payload["result"]["checks"][-2:] == [
+        {
+            "name": "freshness.stale_compiled_page",
+            "label": "Stale compiled pages",
+            "severity": "info",
+            "issue_count": 1,
+        },
+        {
+            "name": "coverage.source_without_summary",
+            "label": "Sources without summary pages",
+            "severity": "info",
+            "issue_count": 1,
+        },
+    ]
+    assert payload["result"]["issues"] == [
+        {
+            "code": "L301",
+            "check": "graph.orphan_compiled_page",
+            "message": "compiled page has no inbound wikilinks",
+            "path": "compiled/topics/stale.md",
+            "severity": "warning",
+        },
+        {
+            "code": "L401",
+            "check": "freshness.stale_compiled_page",
+            "message": "compiled page has not been updated since 2026-01-15",
+            "path": "compiled/topics/stale.md",
+            "severity": "info",
+        },
+        {
+            "code": "L402",
+            "check": "coverage.source_without_summary",
+            "message": "normalized record is missing compiled summary page: compiled/summaries/claude-claude-basic-record-1.md",
+            "path": "normalized/claude/record.json",
+            "severity": "info",
+            "target": "compiled/summaries/claude-claude-basic-record-1.md",
+        },
+    ]
 
 
 def test_lint_exit_code_depends_only_on_error_findings(tmp_path: Path) -> None:

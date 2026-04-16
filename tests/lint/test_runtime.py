@@ -3,12 +3,22 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from snowiki.lint.runtime import collect_structural_issues, run_lint
+from snowiki.lint.runtime import (
+    collect_freshness_issues,
+    collect_structural_issues,
+    collect_summary_coverage_issues,
+    run_lint,
+)
 
 
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _write_compiled_page(path: Path, body: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
 
 
 def test_collect_structural_issues_reports_required_normalized_keys_and_frontmatter(
@@ -137,3 +147,80 @@ def test_run_lint_returns_summary_counts_and_check_inventory(tmp_path: Path) -> 
         "severity": "error",
         "issue_count": 1,
     }
+    assert result["checks"][-2:] == [
+        {
+            "name": "freshness.stale_compiled_page",
+            "label": "Stale compiled pages",
+            "severity": "info",
+            "issue_count": 0,
+        },
+        {
+            "name": "coverage.source_without_summary",
+            "label": "Sources without summary pages",
+            "severity": "info",
+            "issue_count": 0,
+        },
+    ]
+
+
+def test_collect_freshness_issues_reports_stale_compiled_pages(tmp_path: Path) -> None:
+    _write_compiled_page(
+        tmp_path / "compiled" / "topics" / "stale.md",
+        "\n".join(
+            [
+                "---",
+                'title: "Stale"',
+                'type: "topic"',
+                'created: "2026-01-01"',
+                'updated: "2026-01-15"',
+                'summary: "Old summary"',
+                "sources: []",
+                "related: []",
+                "tags: []",
+                "record_ids: []",
+                "---",
+                "# Stale",
+            ]
+        ),
+    )
+
+    issues = collect_freshness_issues(tmp_path)
+
+    assert issues == [
+        {
+            "code": "L401",
+            "check": "freshness.stale_compiled_page",
+            "message": "compiled page has not been updated since 2026-01-15",
+            "path": "compiled/topics/stale.md",
+            "severity": "info",
+        }
+    ]
+
+
+def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "normalized" / "claude" / "record.json",
+        {
+            "id": "record-1",
+            "source_type": "claude",
+            "record_type": "session",
+            "recorded_at": "2026-04-16T10:00:00Z",
+            "title": "Claude Basic",
+            "raw_refs": [{"path": "raw/claude/source.jsonl"}],
+        },
+    )
+
+    issues = collect_summary_coverage_issues(tmp_path)
+
+    assert issues == [
+        {
+            "code": "L402",
+            "check": "coverage.source_without_summary",
+            "message": "normalized record is missing compiled summary page: compiled/summaries/claude-claude-basic-record-1.md",
+            "path": "normalized/claude/record.json",
+            "severity": "info",
+            "target": "compiled/summaries/claude-claude-basic-record-1.md",
+        }
+    ]
