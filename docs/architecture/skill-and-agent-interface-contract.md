@@ -24,7 +24,7 @@ Snowiki defines three distinct classes of artifacts that agents interact with.
 
 ### 2.1 Command
 An atomic unit of execution provided by the `snowiki` CLI. Commands are the primary mechanism for mutation and retrieval.
-- **Examples**: `ingest`, `rebuild`, `query`, `recall`, `lint`.
+- **Examples**: `ingest`, `rebuild`, `query`, `recall`, `lint`, `status`, `export`, `fileback`, `benchmark`, `daemon`, `mcp`.
 - **Contract**: Commands must provide deterministic behavior and, where applicable, machine-readable JSON output.
 
 ### 2.2 Skill
@@ -194,6 +194,7 @@ Some concepts overlap across the CLI and MCP surfaces, but the shipped contract 
 - **CLI `query`** is the authoritative machine-facing retrieval command for local runtime use and emits the CLI JSON envelope (`ok`, `command`, `result`).
 - **MCP `search`** and **MCP `recall`** expose read-only retrieval through JSON-RPC tool calls and return MCP-shaped `structuredContent` plus text content.
 - **CLI `recall`** and **MCP `recall`** overlap conceptually, but MCP routing still terminates inside the read-only facade instead of invoking the CLI command implementation.
+- **CLI-only commands** such as `fileback`, `benchmark`, `daemon`, `status`, and `export` have no MCP equivalent. They are runtime-only surfaces and do not flow through the MCP bridge.
 
 This difference is intentional in the current verified contract and must be documented explicitly rather than hidden behind “shared adapter” language.
 
