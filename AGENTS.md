@@ -2,30 +2,6 @@
 
 This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGENTS.md` files inherit these rules and define local deltas only.
 
-## Commands
-
-```bash
-# Setup & Dependencies
-uv sync --group dev
-uv run pre-commit install
-
-# Quality Control
-uv run ruff check src/snowiki tests
-uv run ruff format src/snowiki tests
-uv run ty check
-
-# Testing
-uv run pytest
-uv run pytest -m integration
-uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml
-uv run pytest tests/cli/test_query.py -v
-uv run pytest --durations=10
-
-# Verification
-uv run python -m compileall src/snowiki/
-uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
-```
-
 ## Toolchain
 
 - **Runtime**: Python 3.14+ managed by `uv`
@@ -36,12 +12,10 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 ## Always
 
 - Execute all tools via `uv run`.
-- Run `ruff check` and `ty check` before every commit.
+- Run `uv run ruff check src/snowiki tests && uv run ty check` before every commit.
 - Use explicit type hints for all function signatures.
 - Maintain 90%+ test coverage target for new logic.
-- Keep default local test loops fast; use explicit coverage runs locally or rely on CI coverage reporting.
-- Treat `uv run pytest` as the fast unit-test loop; run integration tests explicitly before opening a PR.
-- Use integration tests for real heavy engines, subprocess/thread/server lifecycle, benchmark-sized fixtures, real DB/index builds, or timing-sensitive behavior.
+- Treat `uv run pytest` as the fast unit-test loop; run `uv run pytest -m integration` before opening a PR.
 - Follow Google style docstrings.
 - Use `tmp_path` fixture for all tests that write to the filesystem.
 - Ensure child AGENTS are delta-only and inherit root policy.
@@ -61,6 +35,7 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 - Modify raw source files in `SNOWIKI_ROOT/raw/`.
 - Manually modify or delete files in `SNOWIKI_ROOT/quarantine/`.
 - Manually edit generated artifacts in `compiled/` or `index/` zones.
+- Add agent co-author markers (e.g., `Co-authored-by:`, `Ultraworked with`) to commits.
 
 ## Verification Matrix
 
@@ -68,10 +43,10 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 | :--- | :--- |
 | **Docs Only** | `uv run ruff check src/snowiki tests` |
 | **CLI / Help** | `uv run snowiki --help && uv run ruff check src/snowiki tests && uv run ty check` |
-| **Search / Compiler** | `uv run python -m compileall src/snowiki/ && uv run pytest tests/cli/test_query.py` |
-| **Storage / Schema / Config** | `uv run pytest && uv run ty check && uv run ruff check src/snowiki tests` |
-| **Tests / Fixtures** | `uv run pytest && uv run ruff check src/snowiki tests` |
-| **PR Preflight** | `uv run pytest && uv run pytest -m integration && uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml` |
+| **Search / Compiler** | `uv run python -m compileall src/snowiki/ && uv run pytest tests/search/ tests/retrieval/ tests/compiler/` |
+| **Storage / Schema / Config** | `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest` |
+| **Tests / Fixtures** | `uv run ruff check src/snowiki tests && uv run pytest` |
+| **PR Preflight** | `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest && uv run pytest -m integration` |
 | **Coverage Check** | `uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml` |
 | **Integration Check** | `uv run pytest -m integration` |
 | **Slow Test Diagnosis** | `uv run pytest --durations=10` |
@@ -82,10 +57,12 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 | Path | Role | Governance Owner |
 | :--- | :--- | :--- |
 | `src/snowiki/` | Runtime code | Root `AGENTS.md` |
-| `docs/architecture/skill-and-agent-interface-contract.md` | Skill/Agent Contract | `docs/architecture/skill-and-agent-interface-contract.md` |
 | `tests/` | Verification | Root `AGENTS.md` |
 | `scripts/` | Repo automation | Root `AGENTS.md` |
-| `docs/architecture/skill-and-agent-interface-contract.md` | Canonical agent interface contract | Root `AGENTS.md` |
+| `docs/architecture/` | Contract layer (runtime truth, stable interfaces) | Root `AGENTS.md` |
+| `docs/reference/` | Supporting architecture rationale and research | Root `AGENTS.md` |
+| `docs/roadmap/` | Canonical planning and analysis surface | Root `AGENTS.md` |
+| `docs/archive/` | Historical non-roadmap lineage | Root `AGENTS.md` |
 | `benchmarks/` | Benchmark assets/reports/docs | `benchmarks/AGENTS.md` |
 | `vault-template/` | Distributable vault schema | `vault-template/AGENTS.md` |
 | `skill/` | Distributable skill package | `skill/AGENTS.md` |
@@ -101,3 +78,14 @@ uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 - One canonical owner per fact; mirrors must be updated in the same PR.
 - Root AGENTS changes must be intentional; do not silently rewrite child AGENTS.
 - Maintain atomic commits by concern.
+- Use the PR template at `.github/pull_request_template.md`; fill Problem, Surfaces Touched, Verification, and Contract Sync.
+- Use conventional commits: `type(scope): subject`. See `.github/commit-message-rules.md` for the full rule set.
+- `feat` and `fix` require a scope and a body explaining why.
+- Reference issues in the footer: `Refs: #N` or `Fixes: #N`.
+
+## Branch Naming
+
+Use `type/description` where type matches the commit type:
+`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `ci/`, `deps/`
+
+Example: `feat/search-architecture-hardening`, `docs/roadmap-reorganization`.

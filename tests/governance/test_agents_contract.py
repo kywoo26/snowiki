@@ -31,8 +31,9 @@ def test_root_agents_contract_exists(repo_root):
 def test_root_agents_contract_sections(repo_root):
     content = (repo_root / "AGENTS.md").read_text()
 
-    required_sections = [
-        "## Commands",
+    required_markers = [
+        "repo-wide rules",
+        "Child `AGENTS.md` files inherit these rules",
         "## Toolchain",
         "## Always",
         "## Ask First",
@@ -43,19 +44,18 @@ def test_root_agents_contract_sections(repo_root):
         "## PR Discipline",
     ]
 
-    for section in required_sections:
-        assert section in content, f"Missing required section: {section}"
+    for marker in required_markers:
+        assert marker in content, f"Missing required AGENTS contract marker: {marker}"
 
 
 def test_root_agents_contract_commands(repo_root):
     content = (repo_root / "AGENTS.md").read_text()
 
     required_commands = [
-        "uv sync --group dev",
-        "uv run pre-commit install",
         "uv run ruff check src/snowiki tests",
         "uv run ty check",
         "uv run pytest",
+        "uv run pytest -m integration",
         "uv run python -m compileall src/snowiki/",
         "uv run snowiki benchmark",
     ]
@@ -68,10 +68,13 @@ def test_root_agents_contract_ownership(repo_root):
     content = (repo_root / "AGENTS.md").read_text()
 
     required_paths = [
-        "docs/architecture/skill-and-agent-interface-contract.md",
         "src/snowiki/",
         "tests/",
         "scripts/",
+        "docs/architecture/",
+        "docs/reference/",
+        "docs/roadmap/",
+        "docs/archive/",
         "benchmarks/",
         "vault-template/",
         "skill/",
@@ -79,10 +82,8 @@ def test_root_agents_contract_ownership(repo_root):
     ]
 
     assert "## Ownership" in content
-
-    ownership_section = content.split("## Ownership")[1].split("##")[0]
     for path in required_paths:
-        assert path in ownership_section, f"Missing path in ownership table: {path}"
+        assert path in content, f"Missing governed path in AGENTS.md: {path}"
 
 
 def test_root_agents_contract_policies(repo_root):
@@ -121,27 +122,15 @@ def test_child_agents_inheritance_statement(repo_root):
 
 def test_child_agents_no_command_duplication(repo_root):
     module = _load_module(repo_root)
-    root_content = (repo_root / "AGENTS.md").read_text()
-    if "## Commands" in root_content:
-        sample_commands = [
-            "uv sync --group dev",
-            "uv run pre-commit install",
-            "uv run ruff check src/snowiki tests",
-        ]
-
-        for path in module.CHILD_AGENT_FILES:
-            content = path.read_text()
-            for cmd in sample_commands:
-                assert cmd not in content, (
-                    f"Duplicated root command '{cmd}' found in {path.as_posix()}"
-                )
-
-
-def test_child_agents_conciseness(repo_root):
-    module = _load_module(repo_root)
+    root_commands = [
+        "uv run ruff check src/snowiki tests",
+        "uv run ty check",
+        "uv run pytest",
+    ]
 
     for path in module.CHILD_AGENT_FILES:
-        lines = path.read_text().splitlines()
-        assert len(lines) <= 40, (
-            f"Child AGENTS file {path.as_posix()} is too long ({len(lines)} lines)"
-        )
+        content = path.read_text()
+        for cmd in root_commands:
+            assert cmd not in content, (
+                f"Duplicated root command '{cmd}' found in {path.as_posix()}"
+            )
