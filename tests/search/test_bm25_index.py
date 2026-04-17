@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -7,6 +8,7 @@ from typing import Any, cast
 import pytest
 
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
+from snowiki.search.workspace import StaleTokenizerArtifactError
 
 
 class _Flattenable:
@@ -25,18 +27,19 @@ def fake_bm25_backend(
         "tokenize": [],
         "index": [],
         "retrieve": [],
-        "kiwi": [],
+        "registry": [],
+        "resolve": [],
         "save": [],
         "load": [],
     }
 
     class FakeTokenizer:
         def __init__(self, extract_nouns_only: bool = False) -> None:
-            calls["kiwi"].append({"init_extract_nouns_only": extract_nouns_only})
+            calls["registry"].append({"init_extract_nouns_only": extract_nouns_only})
             self.extract_nouns_only = extract_nouns_only
 
-        def __call__(self, text: str) -> list[str]:
-            calls["kiwi"].append(
+        def tokenize(self, text: str) -> tuple[str, ...]:
+            calls["registry"].append(
                 {
                     "text": text,
                     "extract_nouns_only": self.extract_nouns_only,
@@ -47,7 +50,7 @@ def fake_bm25_backend(
                 tokens.append("자연어")
             if not self.extract_nouns_only and ("재미있" in text or "재미있는" in text):
                 tokens.append("재미있")
-            return tokens
+            return tuple(tokens)
 
     class FakeBM25:
         def __init__(self, **kwargs: object) -> None:
@@ -83,8 +86,29 @@ def fake_bm25_backend(
         SimpleNamespace(BM25=FakeBM25, tokenize=fake_tokenize),
     )
     monkeypatch.setattr(
-        "snowiki.search.bm25_index.build_korean_tokenizer",
-        lambda mode="morphology": FakeTokenizer(extract_nouns_only=mode == "nouns"),
+        "snowiki.search.bm25_index.resolve_legacy_tokenizer",
+        lambda **kwargs: (
+            calls["resolve"].append(kwargs)
+            or (
+                "kiwi_nouns_v1"
+                if kwargs.get("kiwi_lexical_candidate_mode") == "nouns"
+                or kwargs.get("benchmark_alias") == "bm25s_kiwi_nouns"
+                else "regex_v1"
+                if kwargs.get("use_kiwi_tokenizer") is False
+                else "kiwi_morphology_v1"
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        "snowiki.search.bm25_index.get",
+        lambda name: SimpleNamespace(name=name, benchmark_supported=True),
+    )
+    monkeypatch.setattr(
+        "snowiki.search.bm25_index.create",
+        lambda name: (
+            calls["registry"].append({"create": name})
+            or FakeTokenizer(extract_nouns_only=name == "kiwi_nouns_v1")
+        ),
     )
     return calls
 
@@ -181,7 +205,9 @@ class TestBM25SearchIndex:
         results = index.search("자연어")
         assert len(results) > 0
         assert isinstance(results[0], BM25SearchHit)
-        assert any(call.get("text") == "자연어" for call in fake_bm25_backend["kiwi"])
+        assert any(
+            call.get("text") == "자연어" for call in fake_bm25_backend["registry"]
+        )
 
     def test_kiwi_candidate_mode_changes_index_and_query_tokens(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
@@ -213,6 +239,16 @@ class TestBM25SearchIndex:
         first_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][0])
         second_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][1])
 
+        assert fake_bm25_backend["resolve"][:2] == [
+            {
+                "use_kiwi_tokenizer": True,
+                "kiwi_lexical_candidate_mode": "morphology",
+            },
+            {
+                "use_kiwi_tokenizer": True,
+                "kiwi_lexical_candidate_mode": "nouns",
+            },
+        ]
         assert first_index_call["corpus_tokens"][0] == [
             "자연어",
             "처리",
@@ -256,13 +292,142 @@ class TestBM25SearchIndex:
         index = BM25SearchIndex(docs, kiwi_lexical_candidate_mode="nouns")
         index.save(str(path))
         loaded = BM25SearchIndex.load(str(path), docs)
+        metadata = json.loads(
+            path.with_name(f"{path.name}.snowiki_meta.json").read_text()
+        )
 
         assert fake_bm25_backend["save"] == [{"path": str(path)}]
         assert fake_bm25_backend["load"] == [{"path": str(path), "load_corpus": True}]
+        assert metadata["tokenizer_name"] == "kiwi_nouns_v1"
         assert loaded.use_kiwi_tokenizer is True
         assert loaded.kiwi_lexical_candidate_mode == "nouns"
+        assert loaded.tokenizer_name == "kiwi_nouns_v1"
         assert loaded.tokenizer is not None
-        assert loaded.tokenizer("자연어 재미있다") == ["자연어"]
+        assert loaded.tokenizer.tokenize("자연어 재미있다") == ("자연어",)
+
+    def test_init_accepts_canonical_tokenizer_name(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="자연어 처리",
+                content="자연어 처리는 재미있는 분야입니다.",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="kiwi_nouns_v1")
+
+        assert index.tokenizer_name == "kiwi_nouns_v1"
+        assert index.use_kiwi_tokenizer is True
+        assert index.kiwi_lexical_candidate_mode == "nouns"
+        assert fake_bm25_backend["resolve"] == []
+
+    def test_load_accepts_legacy_metadata_without_canonical_tokenizer_name(
+        self,
+        fake_bm25_backend: dict[str, list[dict[str, object]]],
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="자연어 처리",
+                content="자연어 처리는 재미있는 분야입니다.",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+        path.with_name(f"{path.name}.snowiki_meta.json").write_text(
+            json.dumps(
+                {
+                    "method": "lucene",
+                    "use_kiwi_tokenizer": True,
+                    "kiwi_lexical_candidate_mode": "nouns",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        loaded = BM25SearchIndex.load(str(path), docs)
+
+        assert loaded.tokenizer_name == "kiwi_nouns_v1"
+        assert loaded.use_kiwi_tokenizer is True
+        assert loaded.kiwi_lexical_candidate_mode == "nouns"
+        assert fake_bm25_backend["load"] == [{"path": str(path), "load_corpus": True}]
+
+    def test_load_fails_closed_when_metadata_tokenizer_identity_missing(
+        self,
+        fake_bm25_backend: dict[str, list[dict[str, object]]],
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Test",
+                content="Test content.",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+        metadata_path = path.with_name(f"{path.name}.snowiki_meta.json")
+        metadata_path.write_text(json.dumps({"method": "lucene"}), encoding="utf-8")
+
+        with pytest.raises(
+            StaleTokenizerArtifactError, match="rebuild required"
+        ) as excinfo:
+            BM25SearchIndex.load(str(path), docs)
+
+        assert excinfo.value.details == {
+            "artifact_path": metadata_path.as_posix(),
+            "requested_tokenizer_name": "regex_v1",
+            "stored_tokenizer_name": None,
+            "rebuild_required": True,
+            "reason": "missing tokenizer identity",
+        }
+        assert fake_bm25_backend["load"] == []
+
+    def test_load_fails_closed_when_expected_tokenizer_mismatches_stored_identity(
+        self,
+        fake_bm25_backend: dict[str, list[dict[str, object]]],
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="자연어 처리",
+                content="자연어 처리는 재미있는 분야입니다.",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+
+        index = BM25SearchIndex(docs, tokenizer_name="kiwi_nouns_v1")
+        index.save(str(path))
+
+        with pytest.raises(
+            StaleTokenizerArtifactError, match="rebuild required"
+        ) as excinfo:
+            BM25SearchIndex.load(
+                str(path),
+                docs,
+                expected_tokenizer_name="kiwi_morphology_v1",
+            )
+
+        assert excinfo.value.details == {
+            "artifact_path": path.with_name(
+                f"{path.name}.snowiki_meta.json"
+            ).as_posix(),
+            "requested_tokenizer_name": "kiwi_morphology_v1",
+            "stored_tokenizer_name": "kiwi_nouns_v1",
+            "rebuild_required": True,
+            "reason": "tokenizer identity mismatch",
+        }
+        assert fake_bm25_backend["load"] == []
 
     def test_invalid_method(self) -> None:
         with pytest.raises(ValueError, match="Invalid method"):
@@ -294,7 +459,7 @@ class TestBM25SearchIndex:
         assert index.method == method
         results = index.search("test")
         assert isinstance(results, list)
-        assert fake_bm25_backend["kiwi"] == []
+        assert fake_bm25_backend["registry"] == []
 
     def test_search_with_limit(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
