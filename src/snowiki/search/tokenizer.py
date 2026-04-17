@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import dataclass
 
 _TOKEN_RE = re.compile(r"[가-힣]+|[a-z0-9]+", re.IGNORECASE)
 _PATH_SPLIT_RE = re.compile(r"[/\\._:-]+")
@@ -40,3 +41,19 @@ def tokenize_text(text: str) -> tuple[str, ...]:
                 add(token[index : index + 2])
 
     return tuple(tokens)
+
+
+@dataclass(frozen=True)
+class RegexTokenizer:
+    """Search tokenizer backed by the shipped regex tokenization rules."""
+
+    def tokenize(self, text: str) -> tuple[str, ...]:
+        return tokenize_text(text)
+
+    def normalize(self, text: str) -> str:
+        return normalize_text(text)
+
+
+def build_regex_tokenizer() -> RegexTokenizer:
+    """Build a fresh regex tokenizer instance."""
+    return RegexTokenizer()

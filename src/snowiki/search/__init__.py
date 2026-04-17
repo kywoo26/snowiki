@@ -19,6 +19,18 @@ from .kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
 from .queries.known_item import known_item_lookup
 from .queries.temporal import temporal_recall
 from .queries.topical import topical_recall
+from .registry import (
+    DEFAULT_TOKENIZER_NAME,
+    SearchTokenizer,
+    TokenizerSpec,
+    all_candidates,
+    create,
+    default,
+    get,
+    is_tokenizer_compatible,
+    register,
+    resolve_legacy_tokenizer,
+)
 from .rerank import NoOpReranker
 from .semantic_abstraction import DisabledSemanticBackend, SemanticBackend
 from .tokenizer import tokenize_text
@@ -35,16 +47,24 @@ __all__ = [
     "LexicalIndex",
     "NoOpReranker",
     "TEMPORAL_KEYWORDS",
+    "DEFAULT_TOKENIZER_NAME",
     "RetrievalService",
     "RetrievalSnapshot",
+    "SearchTokenizer",
     "SearchDocument",
     "SearchHit",
     "SemanticBackend",
+    "TokenizerSpec",
     "WikiIndex",
+    "all_candidates",
     "build_blended_index",
     "build_lexical_index",
     "build_wiki_index",
+    "create",
+    "default",
+    "get",
     "is_temporal_query",
+    "is_tokenizer_compatible",
     "iso_date_window",
     "known_item_lookup",
     "normalize_direct_search_hits",
@@ -52,6 +72,8 @@ __all__ = [
     "normalize_lexical_hit",
     "normalize_recall_hits",
     "normalize_recall_result",
+    "register",
+    "resolve_legacy_tokenizer",
     "run_authoritative_recall",
     "temporal_recall",
     "tokenize_text",
