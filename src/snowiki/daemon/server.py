@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from socketserver import ThreadingMixIn
-from typing import Any
+from typing import Any, cast
 from urllib import parse
 
 from snowiki.search import (
@@ -80,7 +80,10 @@ class SnowikiDaemon:
             raise
         if fresh_snapshot.reloaded:
             self.cache.invalidate()
-        cache_key = json.dumps(asdict(request_model), sort_keys=True)
+        cache_key = self._cache_key(
+            request_model,
+            cast(dict[str, Any], fresh_snapshot.freshness["content_identity"]),
+        )
         return self.cache.get_or_set(
             cache_key,
             lambda: self._run_query(request_model, fresh_snapshot.snapshot),
@@ -141,6 +144,19 @@ class SnowikiDaemon:
                 for hit in hits
             ],
         }
+
+    def _cache_key(
+        self,
+        request_model: QueryRequest,
+        content_identity: dict[str, Any],
+    ) -> str:
+        return json.dumps(
+            {
+                "request": asdict(request_model),
+                "content_identity": content_identity,
+            },
+            sort_keys=True,
+        )
 
     def _run_recall(
         self, index: Any, request_model: QueryRequest
