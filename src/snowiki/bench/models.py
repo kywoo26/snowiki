@@ -240,12 +240,111 @@ class BaselineResult(BaseModel):
         return payload
 
 
+class PlatformSupportEvidence(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    macos: Literal["supported", "unsupported", "unknown"]
+    linux_x86_64: Literal["supported", "unsupported", "unknown"]
+    linux_aarch64: Literal["supported", "unsupported", "unknown"]
+    windows: Literal["supported", "unsupported", "unknown"]
+    fallback_behavior: Literal[
+        "none", "fail_closed", "fail_open", "requires_fallback", "unknown"
+    ]
+
+
+class InstallErgonomicsEvidence(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    prebuilt_available: bool | None = None
+    build_from_source_required: bool | None = None
+    hidden_bootstrap_steps: bool | None = None
+    operational_complexity: Literal["low", "medium", "high", "unknown"]
+
+
+class CandidateOperationalEvidence(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    memory_peak_rss_mb: float | None = None
+    memory_evidence_status: Literal["measured", "not_measured"]
+    disk_size_mb: float | None = None
+    disk_size_evidence_status: Literal["measured", "not_measured"]
+    platform_support: PlatformSupportEvidence
+    install_ergonomics: InstallErgonomicsEvidence
+    zero_cost_admission: bool
+    admission_reason: str
+
+
+class CandidateMatrixEntry(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    candidate_name: str
+    evidence_baseline: str | None = None
+    role: Literal["control", "candidate"]
+    admission_status: Literal["admitted", "not_admitted"]
+    control: bool
+    operational_evidence: CandidateOperationalEvidence | None = None
+    baseline: BaselineResult | None = None
+
+    def to_report_dict(self) -> dict[str, object]:
+        payload = self.model_dump(mode="json")
+        if self.baseline is None:
+            payload.pop("baseline", None)
+        if self.operational_evidence is None:
+            payload.pop("operational_evidence", None)
+        return payload
+
+
+class CandidateDecision(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    candidate_name: str
+    evidence_baseline: str | None = None
+    disposition: Literal["promote", "benchmark_only", "reject"]
+    overall_quality_gate_passed: bool
+    operational_evidence_present: bool
+    mixed_deltas: dict[str, float] = Field(default_factory=dict)
+    ko_recall_delta: float | None = None
+    en_recall_delta: float | None = None
+    latency_p95_ratio: float | None = None
+    reasons: list[str] = Field(default_factory=list)
+
+    def to_report_dict(self) -> dict[str, object]:
+        payload = self.model_dump(mode="json")
+        if self.evidence_baseline is None:
+            payload.pop("evidence_baseline", None)
+        if self.ko_recall_delta is None:
+            payload.pop("ko_recall_delta", None)
+        if self.en_recall_delta is None:
+            payload.pop("en_recall_delta", None)
+        if self.latency_p95_ratio is None:
+            payload.pop("latency_p95_ratio", None)
+        return payload
+
+
+class CandidateMatrixReport(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    candidates: list[CandidateMatrixEntry] = Field(default_factory=list)
+    decisions: list[CandidateDecision] = Field(default_factory=list)
+
+    def to_report_dict(self) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "candidates": [candidate.to_report_dict() for candidate in self.candidates]
+        }
+        if self.decisions:
+            payload["decisions"] = [
+                decision.to_report_dict() for decision in self.decisions
+            ]
+        return payload
+
+
 class BenchmarkReport(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow", frozen=True)
 
     preset: PresetSummary | None = None
     corpus: CorpusSummary | None = None
     baselines: dict[str, BaselineResult] = Field(default_factory=dict)
+    candidate_matrix: CandidateMatrixReport | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -295,7 +394,12 @@ __all__ = [
     "BaselineResult",
     "BenchmarkHit",
     "BenchmarkReport",
+    "CandidateOperationalEvidence",
+    "CandidateDecision",
+    "CandidateMatrixEntry",
+    "CandidateMatrixReport",
     "CorpusSummary",
+    "InstallErgonomicsEvidence",
     "JsonScalar",
     "JsonValue",
     "LatencyMetrics",
@@ -303,6 +407,7 @@ __all__ = [
     "PageModel",
     "PerQueryQuality",
     "PresetSummary",
+    "PlatformSupportEvidence",
     "QUERY_RESULT_LIST_ADAPTER",
     "QualityMetrics",
     "QualityReport",
