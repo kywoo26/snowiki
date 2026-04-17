@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,12 @@ from click.testing import CliRunner
 
 from snowiki.cli.main import app
 from snowiki.rebuild.integrity import RebuildFreshnessError, verify_rebuild_integrity
+from snowiki.search.workspace import (
+    StaleTokenizerArtifactError,
+    build_retrieval_snapshot,
+    content_freshness_identity,
+    current_runtime_tokenizer_name,
+)
 
 
 def test_verify_rebuild_integrity_restores_compiled_and_index_layers(
@@ -47,6 +54,10 @@ def test_verify_rebuild_integrity_restores_compiled_and_index_layers(
     assert result["index_restored"] is True
     assert result["content_identity"] == result["current_content_identity"]
     assert result["freshness_restored"] is True
+    manifest = json.loads(
+        (tmp_path / "index" / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["tokenizer_name"] == current_runtime_tokenizer_name()
 
 
 def test_verify_rebuild_integrity_fails_closed_on_post_rebuild_freshness_mismatch(
@@ -153,3 +164,56 @@ def test_run_rebuild_with_integrity_does_not_overwrite_existing_manifest_on_mism
         integrity.run_rebuild_with_integrity(tmp_path)
 
     assert manifest_path.read_text(encoding="utf-8") == '{"published": "previous"}'
+
+
+def test_build_retrieval_snapshot_fails_closed_when_manifest_tokenizer_identity_missing(
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "index" / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps({"content_identity": content_freshness_identity(tmp_path)}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        StaleTokenizerArtifactError, match="rebuild required"
+    ) as excinfo:
+        build_retrieval_snapshot(tmp_path)
+
+    assert excinfo.value.details == {
+        "artifact_path": manifest_path.as_posix(),
+        "requested_tokenizer_name": current_runtime_tokenizer_name(),
+        "stored_tokenizer_name": None,
+        "rebuild_required": True,
+        "reason": "missing tokenizer identity",
+    }
+
+
+def test_build_retrieval_snapshot_fails_closed_when_manifest_tokenizer_identity_mismatches(
+    tmp_path: Path,
+) -> None:
+    manifest_path = tmp_path / "index" / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "content_identity": content_freshness_identity(tmp_path),
+                "tokenizer_name": "kiwi_nouns_v1",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        StaleTokenizerArtifactError, match="rebuild required"
+    ) as excinfo:
+        build_retrieval_snapshot(tmp_path)
+
+    assert excinfo.value.details == {
+        "artifact_path": manifest_path.as_posix(),
+        "requested_tokenizer_name": current_runtime_tokenizer_name(),
+        "stored_tokenizer_name": "kiwi_nouns_v1",
+        "rebuild_required": True,
+        "reason": "tokenizer identity mismatch",
+    }

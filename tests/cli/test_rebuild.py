@@ -7,6 +7,7 @@ from typing import Any
 from click.testing import CliRunner
 
 from snowiki.cli.main import app
+from snowiki.search.workspace import current_runtime_tokenizer_name
 
 
 def test_rebuild_generates_compiled_outputs_and_index_manifest(
@@ -31,11 +32,16 @@ def test_rebuild_generates_compiled_outputs_and_index_manifest(
     assert payload["ok"] is True
     assert (tmp_path / "compiled/overview.md").exists()
     assert (tmp_path / "index/manifest.json").exists()
+    manifest = json.loads(
+        (tmp_path / "index/manifest.json").read_text(encoding="utf-8")
+    )
     assert payload["result"]["compiled_count"] >= 1
     assert (
         payload["result"]["content_identity"]
         == payload["result"]["current_content_identity"]
     )
+    assert payload["result"]["tokenizer_name"] == current_runtime_tokenizer_name()
+    assert manifest["tokenizer_name"] == current_runtime_tokenizer_name()
 
 
 def test_rebuild_fails_closed_when_integrity_freshness_changes(
