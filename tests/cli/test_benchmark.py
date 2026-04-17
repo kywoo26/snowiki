@@ -183,6 +183,16 @@ def _fake_report(
             },
             "baselines": {
                 "lexical": {
+                    "name": "lexical",
+                    "tokenizer_name": "regex_v1",
+                    "latency": {
+                        "p50_ms": 0,
+                        "p95_ms": 0,
+                        "mean_ms": 0,
+                        "min_ms": 0,
+                        "max_ms": 0,
+                    },
+                    "queries": [],
                     "quality": {
                         "thresholds": [
                             {
@@ -195,9 +205,19 @@ def _fake_report(
                                 "warnings": [],
                             }
                         ]
-                    }
+                    },
                 },
                 "bm25s": {
+                    "name": "bm25s",
+                    "tokenizer_name": "regex_v1",
+                    "latency": {
+                        "p50_ms": 0,
+                        "p95_ms": 0,
+                        "mean_ms": 0,
+                        "min_ms": 0,
+                        "max_ms": 0,
+                    },
+                    "queries": [],
                     "quality": {
                         "thresholds": [
                             {
@@ -210,10 +230,34 @@ def _fake_report(
                                 "warnings": [],
                             }
                         ]
-                    }
+                    },
                 },
-                "bm25s_kiwi_nouns": {"quality": {"thresholds": []}},
-                "bm25s_kiwi_full": {"quality": {"thresholds": []}},
+                "bm25s_kiwi_nouns": {
+                    "name": "bm25s_kiwi_nouns",
+                    "tokenizer_name": "kiwi_nouns_v1",
+                    "latency": {
+                        "p50_ms": 0,
+                        "p95_ms": 0,
+                        "mean_ms": 0,
+                        "min_ms": 0,
+                        "max_ms": 0,
+                    },
+                    "queries": [],
+                    "quality": {"thresholds": []},
+                },
+                "bm25s_kiwi_full": {
+                    "name": "bm25s_kiwi_full",
+                    "tokenizer_name": "kiwi_morphology_v1",
+                    "latency": {
+                        "p50_ms": 0,
+                        "p95_ms": 0,
+                        "mean_ms": 0,
+                        "min_ms": 0,
+                        "max_ms": 0,
+                    },
+                    "queries": [],
+                    "quality": {"thresholds": []},
+                },
             },
         },
         "benchmark_verdict": {
@@ -330,6 +374,8 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     assert "Performance threshold verdict: PASS (0 failures)" in result.output
     assert "Retrieval threshold policy:" in result.output
     assert "Retrieval threshold verdict: PASS (0 failures)" in result.output
+    assert "- lexical (regex_v1) overall recall_at_k: PASS" in result.output
+    assert "- bm25s (regex_v1) overall mrr: PASS" in result.output
     assert (
         "Unified benchmark verdict: PASS (blocking_stage=None, exit_code=0)"
         in result.output

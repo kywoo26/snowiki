@@ -9,6 +9,7 @@ from snowiki.search.workspace import (
     build_retrieval_snapshot,
     clear_query_search_index_cache,
     content_freshness_identity,
+    current_runtime_tokenizer_name,
 )
 from snowiki.storage.zones import StoragePaths, atomic_write_json
 
@@ -36,6 +37,7 @@ def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
         "search_documents": snapshot.index.size,
         "compiled_paths": compiled_paths,
         "content_identity": snapshot_content_identity,
+        "tokenizer_name": current_runtime_tokenizer_name(),
     }
     result = {
         "compiled_count": len(compiled_paths),
@@ -45,6 +47,7 @@ def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
         "records_indexed": snapshot.records_indexed,
         "content_identity": snapshot_content_identity,
         "current_content_identity": current_content_identity,
+        "tokenizer_name": current_runtime_tokenizer_name(),
     }
     if snapshot_content_identity != current_content_identity:
         raise RebuildFreshnessError(result)

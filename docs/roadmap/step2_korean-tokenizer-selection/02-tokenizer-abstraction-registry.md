@@ -50,6 +50,20 @@ That option would keep the codebase simple in the short term, but it fails Step 
 
 The registry is therefore mandatory for Step 2 execution.
 
+## Legacy Normalization Table
+
+To ensure deterministic migration, the following legacy inputs must map to these canonical tokenizer identities:
+
+| Legacy Input | Condition | Canonical Identity |
+| :--- | :--- | :--- |
+| `use_kiwi_tokenizer=False` | (any mode) | `regex_v1` |
+| `use_kiwi_tokenizer=True` | `kiwi_lexical_candidate_mode="nouns"` | `kiwi_nouns_v1` |
+| `use_kiwi_tokenizer=True` | `kiwi_lexical_candidate_mode="morphology"` or missing | `kiwi_morphology_v1` |
+| `bm25s_kiwi` | (benchmark alias) | `kiwi_morphology_v1` |
+| `bm25s_kiwi_full` | (benchmark alias) | `kiwi_morphology_v1` |
+| `bm25s_kiwi_morphology` | (benchmark alias) | `kiwi_morphology_v1` |
+| `bm25s_kiwi_nouns` | (benchmark alias) | `kiwi_nouns_v1` |
+
 ## Registry and factory API shape
 
 The registry contract for Step 2 is:

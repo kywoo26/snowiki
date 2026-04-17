@@ -105,6 +105,7 @@ def _build_status_workspace(root: Path) -> None:
     _write_json(
         root / "index" / "manifest.json",
         {
+            "tokenizer_name": "regex_v1",
             "records_indexed": 2,
             "pages_indexed": 3,
             "search_documents": 5,
@@ -169,6 +170,7 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
             "manifest": {
                 "path": "index/manifest.json",
                 "present": True,
+                "tokenizer_name": "regex_v1",
                 "records_indexed": 2,
                 "pages_indexed": 3,
                 "search_documents": 5,
@@ -195,11 +197,11 @@ def test_status_human_output_renders_dashboard_summary(tmp_path: Path) -> None:
     assert "By source: claude: 1, opencode: 1" in result.output
     assert "Lint: 0 errors, 0 warnings, 2 info" in result.output
     assert (
-        "Freshness: state=current, latest normalized=2026-04-16T08:30:00Z, latest compiled=2026-04-16"
+        "Freshness: state=current, tokenizer=regex_v1, latest normalized=2026-04-16T08:30:00Z, latest compiled=2026-04-16"
         in result.output
     )
     assert (
-        "Manifest: records indexed=2, pages indexed=3, search documents=5, compiled paths=3"
+        "Manifest: tokenizer=regex_v1, records indexed=2, pages indexed=3, search documents=5, compiled paths=3"
         in result.output
     )
 

@@ -101,9 +101,13 @@ def _retrieval_threshold_entries(
         thresholds = quality.get("thresholds", ())
         if not isinstance(thresholds, list):
             continue
+        tokenizer_name = baseline.get("tokenizer_name")
         for entry in thresholds:
             if isinstance(entry, dict):
-                entries.append((str(baseline_name), cast(dict[str, object], entry)))
+                entry_copy = dict(cast(dict[str, object], entry))
+                if tokenizer_name:
+                    entry_copy["tokenizer_name"] = tokenizer_name
+                entries.append((str(baseline_name), entry_copy))
     return tuple(entries)
 
 

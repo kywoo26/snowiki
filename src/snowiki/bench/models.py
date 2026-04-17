@@ -12,6 +12,10 @@ from pydantic import (
     model_validator,
 )
 
+from snowiki.search.registry import all_candidates, resolve_legacy_tokenizer
+
+from .presets import normalize_benchmark_baseline, normalize_benchmark_baselines
+
 type JsonScalar = str | int | float | bool | None
 type JsonValue = JsonScalar | list[JsonValue] | dict[str, JsonValue]
 
@@ -118,16 +122,16 @@ class ThresholdResult(BaseModel):
 
 
 class QualityReport(BaseModel):
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow", frozen=True)
 
-    overall: QualityMetrics
-    slices: QualitySlices
+    overall: QualityMetrics | None = None
+    slices: QualitySlices | None = None
     thresholds: list[ThresholdResult] = Field(default_factory=list)
 
     def to_legacy_dict(self) -> dict[str, object]:
         return {
-            "overall": self.overall.to_legacy_dict(),
-            "slices": self.slices.to_legacy_dict(),
+            "overall": self.overall.to_legacy_dict() if self.overall else {},
+            "slices": self.slices.to_legacy_dict() if self.slices else {},
             "thresholds": [entry.to_legacy_dict() for entry in self.thresholds],
         }
 
@@ -154,6 +158,19 @@ class PresetSummary(BaseModel):
     top_k: int
     baselines: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_legacy_baselines(cls, value: object) -> object:
+        if not isinstance(value, Mapping):
+            return value
+        payload = dict(cast(Mapping[object, object], value))
+        baselines = payload.get("baselines")
+        if isinstance(baselines, list):
+            payload["baselines"] = list(
+                normalize_benchmark_baselines(str(item) for item in baselines)
+            )
+        return payload
+
     def to_legacy_dict(self) -> dict[str, object]:
         return self.model_dump(mode="json")
 
@@ -172,11 +189,12 @@ class CorpusSummary(BaseModel):
 
 
 class BaselineResult(BaseModel):
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow", frozen=True)
 
     name: str
-    latency: LatencyMetrics
-    quality: QualityReport
+    tokenizer_name: str | None = None
+    latency: LatencyMetrics | None = None
+    quality: QualityReport | None = None
     queries: list[QueryResult] = Field(default_factory=list)
 
     @model_validator(mode="before")
@@ -185,6 +203,21 @@ class BaselineResult(BaseModel):
         if not isinstance(value, Mapping):
             return value
         payload = dict(cast(Mapping[object, object], value))
+        name = payload.get("name")
+        if isinstance(name, str):
+            payload["name"] = normalize_benchmark_baseline(name)
+
+        tokenizer_name = payload.get("tokenizer_name")
+        if isinstance(tokenizer_name, str) and tokenizer_name.strip():
+            name = tokenizer_name.strip()
+            canonical_names = {spec.name for spec in all_candidates()}
+            if name in canonical_names:
+                payload["tokenizer_name"] = name
+            else:
+                payload["tokenizer_name"] = resolve_legacy_tokenizer(
+                    benchmark_alias=name
+                )
+
         queries = payload.get("queries")
         if isinstance(queries, Mapping):
             query_items = list(queries.items())
@@ -194,27 +227,47 @@ class BaselineResult(BaseModel):
         return payload
 
     def to_legacy_dict(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "name": self.name,
-            "latency": self.latency.to_legacy_dict(),
-            "quality": self.quality.to_legacy_dict(),
+            "latency": self.latency.to_legacy_dict() if self.latency else {},
+            "quality": self.quality.to_legacy_dict() if self.quality else {},
             "queries": {
                 query.query_id: query.to_legacy_dict() for query in self.queries
             },
         }
+        if self.tokenizer_name is not None:
+            payload["tokenizer_name"] = self.tokenizer_name
+        return payload
 
 
 class BenchmarkReport(BaseModel):
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow", frozen=True)
 
-    preset: PresetSummary
-    corpus: CorpusSummary
-    baselines: dict[str, BaselineResult]
+    preset: PresetSummary | None = None
+    corpus: CorpusSummary | None = None
+    baselines: dict[str, BaselineResult] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_legacy_baseline_keys(cls, value: object) -> object:
+        if not isinstance(value, Mapping):
+            return value
+        payload = dict(cast(Mapping[object, object], value))
+        baselines = payload.get("baselines")
+        if not isinstance(baselines, Mapping):
+            return payload
+
+        normalized: dict[str, object] = {}
+        for key, baseline_payload in cast(Mapping[object, object], baselines).items():
+            normalized_key = normalize_benchmark_baseline(str(key))
+            normalized[normalized_key] = baseline_payload
+        payload["baselines"] = normalized
+        return payload
 
     def to_legacy_dict(self) -> dict[str, object]:
         return {
-            "preset": self.preset.to_legacy_dict(),
-            "corpus": self.corpus.to_legacy_dict(),
+            "preset": self.preset.to_legacy_dict() if self.preset else {},
+            "corpus": self.corpus.to_legacy_dict() if self.corpus else {},
             "baselines": {
                 name: result.to_legacy_dict() for name, result in self.baselines.items()
             },

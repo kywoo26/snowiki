@@ -7,7 +7,12 @@ from typing import Any
 
 from snowiki.compiler import CompilerEngine
 from snowiki.search import InvertedIndex, LexicalIndex, WikiIndex
-from snowiki.search.workspace import RetrievalService, content_freshness_identity
+from snowiki.search.registry import create as create_tokenizer
+from snowiki.search.workspace import (
+    RetrievalService,
+    content_freshness_identity,
+    current_runtime_tokenizer_name,
+)
 from snowiki.storage.zones import isoformat_utc
 
 
@@ -18,7 +23,7 @@ class WarmIndexes:
     blended: InvertedIndex
     loaded_at: str
     generation: int
-    content_identity: dict[str, dict[str, int]]
+    content_identity: dict[str, Any]
     normalized_count: int
     compiled_count: int
 
@@ -111,10 +116,15 @@ class WarmIndexManager:
         }
 
     def _build_snapshot_locked(self) -> WarmIndexes:
+        tokenizer_name = current_runtime_tokenizer_name()
         compiler = self._compiler_factory(self.root)
         records = compiler.load_normalized_records()
         pages = compiler.build_pages(records)
-        snapshot = RetrievalService.from_records_and_pages(records=records, pages=pages)
+        snapshot = RetrievalService.from_records_and_pages(
+            records=records,
+            pages=pages,
+            tokenizer=create_tokenizer(tokenizer_name),
+        )
 
         self._generation += 1
         return WarmIndexes(
@@ -123,7 +133,10 @@ class WarmIndexManager:
             blended=snapshot.index,
             loaded_at=isoformat_utc(None),
             generation=self._generation,
-            content_identity=content_freshness_identity(self.root),
+            content_identity=content_freshness_identity(
+                self.root,
+                tokenizer_name=tokenizer_name,
+            ),
             normalized_count=snapshot.records_indexed,
             compiled_count=snapshot.pages_indexed,
         )

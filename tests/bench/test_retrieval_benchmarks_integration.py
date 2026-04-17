@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from importlib import import_module
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
@@ -242,3 +243,91 @@ def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring(
         ).overall.ndcg_at_k
         == 1.0
     )
+
+
+def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
+    monkeypatch, repo_root: Path
+) -> None:
+    baselines, models, _ = _load_benchmark_modules()
+    from snowiki.search.indexer import SearchDocument
+
+    raw_document = SearchDocument(
+        id="record-a",
+        path="normalized/a.json",
+        kind="session",
+        title="A record",
+        content="fixture content",
+    )
+    corpus = baselines.CorpusBundle(
+        records=(),
+        pages=(),
+        raw_index=SimpleNamespace(documents={raw_document.id: raw_document}, size=1),
+        blended_index=SimpleNamespace(size=1),
+    )
+    tokenizer_names: list[str] = []
+
+    monkeypatch.setattr(baselines, "_build_corpus", lambda root: corpus)
+    monkeypatch.setattr(
+        baselines,
+        "_load_queries",
+        lambda root: (
+            baselines.BenchmarkQuery(
+                query_id="q1",
+                text="fixture",
+                group="default",
+                kind="known-item",
+            ),
+        ),
+    )
+    monkeypatch.setattr(baselines, "_load_judgments", lambda root: {"q1": ["record-a"]})
+    monkeypatch.setattr(
+        baselines,
+        "_build_bm25_index",
+        lambda documents, *, tokenizer_name: (
+            tokenizer_names.append(tokenizer_name)
+            or SimpleNamespace(search=lambda query, limit: [])
+        ),
+    )
+    monkeypatch.setattr(
+        baselines,
+        "_evaluate_baseline",
+        lambda **kwargs: models.BaselineResult.model_validate(
+            {
+                "name": kwargs["name"],
+                "latency": {
+                    "p50_ms": 0.0,
+                    "p95_ms": 0.0,
+                    "mean_ms": 0.0,
+                    "min_ms": 0.0,
+                    "max_ms": 0.0,
+                },
+                "quality": {
+                    "overall": {
+                        "recall_at_k": 0.0,
+                        "mrr": 0.0,
+                        "ndcg_at_k": 0.0,
+                        "top_k": 1,
+                        "queries_evaluated": 1,
+                        "per_query": [],
+                    },
+                    "slices": {"group": {}, "kind": {}},
+                    "thresholds": [],
+                },
+                "queries": [],
+            }
+        ),
+    )
+
+    report = baselines.run_baseline_comparison(
+        repo_root,
+        baselines.BenchmarkPreset(
+            name="legacy-aliases",
+            description="Normalize legacy bm25 aliases.",
+            query_kinds=("known-item",),
+            baselines=("bm25s_kiwi", "bm25s_kiwi_morphology", "bm25s_kiwi_nouns"),
+        ),
+    )
+
+    assert list(report.baselines) == ["bm25s_kiwi_full", "bm25s_kiwi_nouns"]
+    assert report.preset.baselines == ["bm25s_kiwi_full", "bm25s_kiwi_nouns"]
+    assert tokenizer_names == ["kiwi_morphology_v1", "kiwi_nouns_v1"]
