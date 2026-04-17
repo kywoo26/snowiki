@@ -181,6 +181,29 @@ def _fake_report(
                 "blended_documents": 16,
                 "queries_evaluated": 18,
             },
+            "candidate_matrix": {
+                "candidates": [
+                    {
+                        "candidate_name": "regex_v1",
+                        "role": "control",
+                        "admission_status": "admitted",
+                        "evidence_baseline": "lexical",
+                    },
+                    {
+                        "candidate_name": "kiwi_morphology_v1",
+                        "role": "candidate",
+                        "admission_status": "admitted",
+                        "evidence_baseline": "bm25s_kiwi_full",
+                    },
+                ],
+                "decisions": [
+                    {
+                        "candidate_name": "kiwi_morphology_v1",
+                        "disposition": "promote",
+                        "reasons": ["beats_regex"],
+                    }
+                ],
+            },
             "baselines": {
                 "lexical": {
                     "name": "lexical",
@@ -341,6 +364,8 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     assert seeded_roots[0].name.startswith("snowiki-benchmark-root-")
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     retrieval = payload["retrieval"]
+    assert "candidate_matrix" in retrieval
+    assert "candidates" in retrieval["candidate_matrix"]
     assert "semantic_slots" not in payload
     assert "semantic_slots" not in retrieval
     assert "token_reduction" not in retrieval
@@ -376,6 +401,16 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     assert "Retrieval threshold verdict: PASS (0 failures)" in result.output
     assert "- lexical (regex_v1) overall recall_at_k: PASS" in result.output
     assert "- bm25s (regex_v1) overall mrr: PASS" in result.output
+    assert "Candidate Matrix:" in result.output
+    assert (
+        "- regex_v1: role=control, status=admitted, baseline=lexical" in result.output
+    )
+    assert (
+        "- kiwi_morphology_v1: role=candidate, status=admitted, baseline=bm25s_kiwi_full"
+        in result.output
+    )
+    assert "Candidate Decisions:" in result.output
+    assert "- kiwi_morphology_v1: PROMOTE (beats_regex)" in result.output
     assert (
         "Unified benchmark verdict: PASS (blocking_stage=None, exit_code=0)"
         in result.output
