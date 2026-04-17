@@ -66,6 +66,35 @@ def _format_performance_threshold_entry(entry: dict[str, object]) -> str:
     )
 
 
+def _render_candidate_matrix(matrix: dict[str, object]) -> list[str]:
+    candidates = cast(list[dict[str, object]], matrix.get("candidates", []))
+    if not candidates:
+        return []
+    lines = ["Candidate Matrix:"]
+    for candidate in candidates:
+        name = candidate.get("candidate_name", "unknown")
+        role = candidate.get("role", "unknown")
+        status = candidate.get("admission_status", "unknown")
+        baseline = candidate.get("evidence_baseline")
+        baseline_str = f", baseline={baseline}" if baseline else ""
+        lines.append(f"- {name}: role={role}, status={status}{baseline_str}")
+    return lines
+
+
+def _render_candidate_decisions(matrix: dict[str, object]) -> list[str]:
+    decisions = cast(list[dict[str, object]], matrix.get("decisions", []))
+    if not decisions:
+        return []
+    lines = ["Candidate Decisions:"]
+    for decision in decisions:
+        name = decision.get("candidate_name", "unknown")
+        disposition = str(decision.get("disposition", "unknown")).upper()
+        reasons = decision.get("reasons", [])
+        reasons_str = f" ({', '.join(cast(list[str], reasons))})" if reasons else ""
+        lines.append(f"- {name}: {disposition}{reasons_str}")
+    return lines
+
+
 def render_report_text(report: dict[str, object]) -> str:
     """Render a benchmark report as human-readable text.
 
@@ -80,6 +109,7 @@ def render_report_text(report: dict[str, object]) -> str:
     protocol = cast(dict[str, object], report["protocol"])
     structural = cast(dict[str, object], report.get("structural", {}))
     retrieval = cast(dict[str, object], report["retrieval"])
+    candidate_matrix = cast(dict[str, object], retrieval.get("candidate_matrix", {}))
     performance = cast(dict[str, dict[str, float]], report["performance"])
     performance_threshold_policy = cast(
         list[dict[str, object]], report.get("performance_threshold_policy", [])
@@ -121,6 +151,11 @@ def render_report_text(report: dict[str, object]) -> str:
         for entry in warnings:
             if isinstance(entry, dict):
                 lines.append(_format_structural_issue(cast(dict[str, object], entry)))
+
+    if candidate_matrix:
+        lines.extend(_render_candidate_matrix(candidate_matrix))
+        lines.extend(_render_candidate_decisions(candidate_matrix))
+
     lines.append("Performance:")
     for name, latency in performance.items():
         lines.append(f"- {name}: P50={latency['p50_ms']}ms, P95={latency['p95_ms']}ms")

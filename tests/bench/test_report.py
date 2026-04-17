@@ -4,6 +4,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from snowiki.bench.matrix import CANDIDATE_MATRIX
+
 _EXPANDED_BASELINES = [
     "lexical",
     "bm25s",
@@ -234,6 +236,13 @@ def test_generate_report_exposes_unified_benchmark_gate(
     assert "semantic_slots" not in retrieval
     assert "token_reduction" not in retrieval
     assert "runtime_generation" not in report
+    candidate_matrix = cast(dict[str, Any], retrieval["candidate_matrix"])
+    assert candidate_matrix == {
+        "candidates": [
+            candidate.model_dump(mode="json") for candidate in CANDIDATE_MATRIX
+        ]
+    }
+    assert "benchmark_verdict" not in retrieval
     assert retrieval["preset"]["baselines"] == _EXPANDED_BASELINES
     assert performance_thresholds[-1] == {
         "gate": "query",
@@ -341,6 +350,15 @@ def test_generate_report_structural_failures_block_before_thresholds(
     assert "semantic_slots" not in report
     assert "semantic_slots" not in cast(dict[str, Any], report["retrieval"])
     assert "token_reduction" not in cast(dict[str, Any], report["retrieval"])
+    assert cast(dict[str, Any], report["retrieval"])["candidate_matrix"] == {
+        "candidates": [
+            candidate.model_dump(mode="json") for candidate in CANDIDATE_MATRIX
+        ]
+    }
+    assert (
+        cast(dict[str, Any], report["benchmark_verdict"])["blocking_stage"]
+        == "structural"
+    )
 
     assert report["benchmark_verdict"] == {
         "verdict": "FAIL",
