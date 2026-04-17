@@ -4,6 +4,16 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any
 
+from snowiki.bench.models import (
+    BaselineResult,
+    CandidateMatrixEntry,
+    CandidateMatrixReport,
+    CandidateOperationalEvidence,
+    InstallErgonomicsEvidence,
+    PlatformSupportEvidence,
+)
+from snowiki.bench.verdict import evaluate_candidate_policy
+
 
 def _load_quality_symbols() -> tuple[Any, Any]:
     quality = import_module("snowiki.bench.quality")
@@ -123,3 +133,229 @@ def test_evaluate_quality_thresholds_marks_regressions_as_failures(
     assert verdicts[("kind:temporal", "recall_at_k")].verdict == "WARN"
     assert verdicts[("kind:temporal", "recall_at_k")].threshold == 0.47
     assert verdicts[("kind:temporal", "recall_at_k")].value == "n/a"
+
+
+def test_candidate_policy_marks_benchmark_only_when_operational_evidence_is_missing() -> (
+    None
+):
+    control = BaselineResult.model_validate(
+        {
+            "name": "lexical",
+            "latency": {
+                "p50_ms": 1.0,
+                "p95_ms": 10.0,
+                "mean_ms": 1.5,
+                "min_ms": 1.0,
+                "max_ms": 10.0,
+            },
+            "quality": {
+                "overall": {
+                    "recall_at_k": 0.72,
+                    "mrr": 0.7,
+                    "ndcg_at_k": 0.67,
+                    "top_k": 5,
+                    "queries_evaluated": 3,
+                    "per_query": [],
+                },
+                "slices": {
+                    "group": {
+                        "ko": {
+                            "recall_at_k": 0.60,
+                            "mrr": 0.60,
+                            "ndcg_at_k": 0.60,
+                            "top_k": 5,
+                            "queries_evaluated": 1,
+                            "per_query": [],
+                        },
+                        "en": {
+                            "recall_at_k": 0.60,
+                            "mrr": 0.60,
+                            "ndcg_at_k": 0.60,
+                            "top_k": 5,
+                            "queries_evaluated": 1,
+                            "per_query": [],
+                        },
+                        "mixed": {
+                            "recall_at_k": 0.60,
+                            "mrr": 0.60,
+                            "ndcg_at_k": 0.60,
+                            "top_k": 5,
+                            "queries_evaluated": 1,
+                            "per_query": [],
+                        },
+                    },
+                    "kind": {},
+                },
+                "thresholds": [
+                    {
+                        "gate": "overall",
+                        "metric": "recall_at_k",
+                        "value": 0.72,
+                        "delta": 0.0,
+                        "verdict": "PASS",
+                        "threshold": 0.72,
+                        "warnings": [],
+                    },
+                    {
+                        "gate": "overall",
+                        "metric": "mrr",
+                        "value": 0.7,
+                        "delta": 0.0,
+                        "verdict": "PASS",
+                        "threshold": 0.7,
+                        "warnings": [],
+                    },
+                    {
+                        "gate": "overall",
+                        "metric": "ndcg_at_k",
+                        "value": 0.67,
+                        "delta": 0.0,
+                        "verdict": "PASS",
+                        "threshold": 0.67,
+                        "warnings": [],
+                    },
+                ],
+            },
+            "queries": [],
+        }
+    )
+    candidate = BaselineResult.model_validate(
+        {
+            "name": "bm25s_kiwi_full",
+            "tokenizer_name": "kiwi_morphology_v1",
+            "latency": {
+                "p50_ms": 1.0,
+                "p95_ms": 11.0,
+                "mean_ms": 1.5,
+                "min_ms": 1.0,
+                "max_ms": 11.0,
+            },
+            "quality": {
+                "overall": {
+                    "recall_at_k": 0.76,
+                    "mrr": 0.74,
+                    "ndcg_at_k": 0.71,
+                    "top_k": 5,
+                    "queries_evaluated": 3,
+                    "per_query": [],
+                },
+                "slices": {
+                    "group": {
+                        "ko": {
+                            "recall_at_k": 0.60,
+                            "mrr": 0.60,
+                            "ndcg_at_k": 0.60,
+                            "top_k": 5,
+                            "queries_evaluated": 1,
+                            "per_query": [],
+                        },
+                        "en": {
+                            "recall_at_k": 0.60,
+                            "mrr": 0.60,
+                            "ndcg_at_k": 0.60,
+                            "top_k": 5,
+                            "queries_evaluated": 1,
+                            "per_query": [],
+                        },
+                        "mixed": {
+                            "recall_at_k": 0.64,
+                            "mrr": 0.64,
+                            "ndcg_at_k": 0.64,
+                            "top_k": 5,
+                            "queries_evaluated": 1,
+                            "per_query": [],
+                        },
+                    },
+                    "kind": {},
+                },
+                "thresholds": [
+                    {
+                        "gate": "overall",
+                        "metric": "recall_at_k",
+                        "value": 0.76,
+                        "delta": 0.04,
+                        "verdict": "PASS",
+                        "threshold": 0.72,
+                        "warnings": [],
+                    },
+                    {
+                        "gate": "overall",
+                        "metric": "mrr",
+                        "value": 0.74,
+                        "delta": 0.04,
+                        "verdict": "PASS",
+                        "threshold": 0.7,
+                        "warnings": [],
+                    },
+                    {
+                        "gate": "overall",
+                        "metric": "ndcg_at_k",
+                        "value": 0.71,
+                        "delta": 0.04,
+                        "verdict": "PASS",
+                        "threshold": 0.67,
+                        "warnings": [],
+                    },
+                ],
+            },
+            "queries": [],
+        }
+    )
+    matrix = CandidateMatrixReport(
+        candidates=[
+            CandidateMatrixEntry(
+                candidate_name="regex_v1",
+                evidence_baseline="lexical",
+                role="control",
+                admission_status="admitted",
+                control=True,
+                operational_evidence=CandidateOperationalEvidence(
+                    memory_peak_rss_mb=None,
+                    memory_evidence_status="not_measured",
+                    disk_size_mb=None,
+                    disk_size_evidence_status="not_measured",
+                    platform_support=PlatformSupportEvidence(
+                        macos="supported",
+                        linux_x86_64="supported",
+                        linux_aarch64="supported",
+                        windows="supported",
+                        fallback_behavior="none",
+                    ),
+                    install_ergonomics=InstallErgonomicsEvidence(
+                        prebuilt_available=True,
+                        build_from_source_required=False,
+                        hidden_bootstrap_steps=False,
+                        operational_complexity="low",
+                    ),
+                    zero_cost_admission=True,
+                    admission_reason="current_runtime_default",
+                ),
+                baseline=control,
+            ),
+            CandidateMatrixEntry(
+                candidate_name="kiwi_morphology_v1",
+                evidence_baseline="bm25s_kiwi_full",
+                role="candidate",
+                admission_status="admitted",
+                control=False,
+                baseline=candidate,
+            ),
+        ]
+    )
+
+    decisions = {
+        entry.candidate_name: entry for entry in evaluate_candidate_policy(matrix)
+    }
+
+    assert decisions["regex_v1"].disposition == "benchmark_only"
+    assert decisions["regex_v1"].operational_evidence_present is False
+    assert decisions["regex_v1"].reasons == ["missing_operational_evidence"]
+    assert decisions["kiwi_morphology_v1"].disposition == "benchmark_only"
+    assert decisions["kiwi_morphology_v1"].operational_evidence_present is False
+    assert decisions["kiwi_morphology_v1"].mixed_deltas == {
+        "recall_at_k": 0.04,
+        "mrr": 0.04,
+        "ndcg_at_k": 0.04,
+    }
+    assert decisions["kiwi_morphology_v1"].latency_p95_ratio == 1.1
+    assert "missing_operational_evidence" in decisions["kiwi_morphology_v1"].reasons
