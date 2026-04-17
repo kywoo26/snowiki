@@ -11,7 +11,10 @@ from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.taxonomy import PageType
 from snowiki.config import get_snowiki_root
 from snowiki.lint import run_lint
-from snowiki.search.workspace import content_freshness_identity
+from snowiki.search.workspace import (
+    content_freshness_identity,
+    normalize_stored_tokenizer_name,
+)
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
@@ -113,6 +116,9 @@ def _manifest_stats(
     return {
         "path": "index/manifest.json",
         "present": manifest is not None,
+        "tokenizer_name": (
+            normalize_stored_tokenizer_name(manifest) if manifest else None
+        ),
         "records_indexed": manifest.get("records_indexed") if manifest else None,
         "pages_indexed": manifest.get("pages_indexed") if manifest else None,
         "search_documents": manifest.get("search_documents") if manifest else None,
@@ -186,12 +192,18 @@ def _render_status_human(payload: dict[str, Any]) -> str:
     freshness = result["freshness"]
     manifest = result["manifest"]
     summary = lint["summary"]
+
+    current_tokenizer = freshness["current_content_identity"].get("tokenizer", {})
+    tokenizer_name = current_tokenizer.get("name", "n/a")
+
     freshness_bits = [
         f"state={freshness['status']}",
+        f"tokenizer={tokenizer_name}",
         f"latest normalized={freshness['latest_normalized_recorded_at'] or 'n/a'}",
         f"latest compiled={freshness['latest_compiled_update'] or 'n/a'}",
     ]
     manifest_bits = [
+        f"tokenizer={manifest['tokenizer_name'] or 'n/a'}",
         f"records indexed={manifest['records_indexed'] if manifest['records_indexed'] is not None else 'n/a'}",
         f"pages indexed={manifest['pages_indexed'] if manifest['pages_indexed'] is not None else 'n/a'}",
         f"search documents={manifest['search_documents'] if manifest['search_documents'] is not None else 'n/a'}",
