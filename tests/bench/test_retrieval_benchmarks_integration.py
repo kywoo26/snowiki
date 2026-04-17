@@ -69,6 +69,11 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
     )
     legacy = report.to_legacy_dict()
     legacy_baselines = cast(dict[str, object], legacy["baselines"])
+    assert report.candidate_matrix is not None
+    candidate_entries = report.candidate_matrix.candidates
+    regex_entries = [
+        entry for entry in candidate_entries if entry.candidate_name == "regex_v1"
+    ]
 
     assert list(report.baselines) == [
         "lexical",
@@ -76,6 +81,28 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
         "bm25s_kiwi_nouns",
         "bm25s_kiwi_full",
     ]
+    assert [entry.evidence_baseline for entry in candidate_entries] == [
+        "lexical",
+        "bm25s",
+        "bm25s_kiwi_nouns",
+        "bm25s_kiwi_full",
+        None,
+    ]
+    assert [entry.candidate_name for entry in regex_entries] == ["regex_v1", "regex_v1"]
+    assert [entry.evidence_baseline for entry in regex_entries] == ["lexical", "bm25s"]
+    assert regex_entries[0].baseline == report.baselines["lexical"]
+    assert regex_entries[1].baseline == report.baselines["bm25s"]
+    assert candidate_entries[-1].candidate_name == "lindera_ko_v1"
+    assert candidate_entries[-1].evidence_baseline is None
+    assert candidate_entries[-1].baseline is None
+    decisions = {
+        decision.candidate_name: decision
+        for decision in report.candidate_matrix.decisions
+    }
+    assert decisions["regex_v1"].evidence_baseline == "lexical"
+    assert decisions["kiwi_morphology_v1"].evidence_baseline == "bm25s_kiwi_full"
+    assert decisions["kiwi_nouns_v1"].evidence_baseline == "bm25s_kiwi_nouns"
+    assert decisions["lindera_ko_v1"].evidence_baseline is None
     assert set(legacy_baselines) == set(report.baselines)
     assert report.corpus.queries_evaluated == 60
     assert "semantic_slots" not in legacy
@@ -331,3 +358,17 @@ def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
     assert list(report.baselines) == ["bm25s_kiwi_full", "bm25s_kiwi_nouns"]
     assert report.preset.baselines == ["bm25s_kiwi_full", "bm25s_kiwi_nouns"]
     assert tokenizer_names == ["kiwi_morphology_v1", "kiwi_nouns_v1"]
+    assert report.candidate_matrix is not None
+    assert [entry.candidate_name for entry in report.candidate_matrix.candidates] == [
+        "kiwi_morphology_v1",
+        "kiwi_nouns_v1",
+        "lindera_ko_v1",
+    ]
+    assert [
+        decision.candidate_name for decision in report.candidate_matrix.decisions
+    ] == [
+        "regex_v1",
+        "kiwi_morphology_v1",
+        "kiwi_nouns_v1",
+        "lindera_ko_v1",
+    ]

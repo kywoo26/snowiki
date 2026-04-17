@@ -22,12 +22,15 @@ from snowiki.search.workspace import (
 from .contract import PHASE_1_THRESHOLDS
 from .corpus import CANONICAL_BENCHMARK_FIXTURE_PATHS
 from .latency import LatencySummary, measure_latency
+from .matrix import CANDIDATE_MATRIX, get_candidate
 from .models import (
     PAGE_LIST_ADAPTER,
     RECORD_LIST_ADAPTER,
     BaselineResult,
     BenchmarkHit,
     BenchmarkReport,
+    CandidateMatrixEntry,
+    CandidateMatrixReport,
     CorpusSummary,
     LatencyMetrics,
     PageModel,
@@ -42,6 +45,7 @@ from .models import (
 )
 from .presets import (
     BenchmarkPreset,
+    candidate_name_for_benchmark_baseline,
     normalize_benchmark_baseline,
     normalize_benchmark_baselines,
 )
@@ -51,6 +55,7 @@ from .quality import (
     evaluate_quality_thresholds,
     evaluate_sliced_quality,
 )
+from .verdict import evaluate_candidate_policy
 
 
 class _Bm25DocumentLike(Protocol):
@@ -543,6 +548,47 @@ def _query_result(query_id: str, hits: list[SearchHit]) -> QueryResult:
     )
 
 
+def _assemble_candidate_matrix(
+    baseline_results: Mapping[str, BaselineResult],
+) -> CandidateMatrixReport:
+    candidates: list[CandidateMatrixEntry] = []
+
+    for evidence_baseline, baseline_result in baseline_results.items():
+        candidate = get_candidate(
+            candidate_name_for_benchmark_baseline(evidence_baseline)
+        )
+        candidates.append(
+            CandidateMatrixEntry(
+                candidate_name=candidate.candidate_name,
+                evidence_baseline=evidence_baseline,
+                role=candidate.role,
+                admission_status=candidate.admission_status,
+                control=candidate.control,
+                operational_evidence=candidate.operational_evidence,
+                baseline=baseline_result,
+            )
+        )
+
+    for candidate in CANDIDATE_MATRIX:
+        if candidate.evidence_baseline is not None:
+            continue
+        candidates.append(
+            CandidateMatrixEntry(
+                candidate_name=candidate.candidate_name,
+                evidence_baseline=candidate.evidence_baseline,
+                role=candidate.role,
+                admission_status=candidate.admission_status,
+                control=candidate.control,
+                operational_evidence=candidate.operational_evidence,
+            )
+        )
+
+    matrix = CandidateMatrixReport(candidates=candidates)
+    return matrix.model_copy(
+        update={"decisions": list(evaluate_candidate_policy(matrix))}
+    )
+
+
 def run_baseline_comparison(
     root: Path,
     preset: BenchmarkPreset,
@@ -612,4 +658,5 @@ def run_baseline_comparison(
             queries_evaluated=len(queries),
         ),
         baselines=results,
+        candidate_matrix=_assemble_candidate_matrix(results),
     )
