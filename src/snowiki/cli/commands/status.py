@@ -7,6 +7,7 @@ from typing import Any
 
 import click
 
+from snowiki.bench.matrix import CANDIDATE_MATRIX
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.taxonomy import PageType
 from snowiki.config import get_snowiki_root
@@ -176,6 +177,9 @@ def run_status(root: Path) -> dict[str, Any]:
             latest_compiled_update=latest_compiled_update,
         ),
         "manifest": _manifest_stats(manifest),
+        "candidate_matrix": [
+            candidate.model_dump(mode="json") for candidate in CANDIDATE_MATRIX
+        ],
     }
 
 
@@ -192,6 +196,7 @@ def _render_status_human(payload: dict[str, Any]) -> str:
     freshness = result["freshness"]
     manifest = result["manifest"]
     summary = lint["summary"]
+    candidate_matrix = result.get("candidate_matrix", [])
 
     current_tokenizer = freshness["current_content_identity"].get("tokenizer", {})
     tokenizer_name = current_tokenizer.get("name", "n/a")
@@ -209,21 +214,30 @@ def _render_status_human(payload: dict[str, Any]) -> str:
         f"search documents={manifest['search_documents'] if manifest['search_documents'] is not None else 'n/a'}",
         f"compiled paths={manifest['compiled_path_count'] if manifest['compiled_path_count'] is not None else 'n/a'}",
     ]
-    return "\n".join(
-        [
-            f"Snowiki status for {result['root']}",
-            f"Pages: {pages['total']} total",
-            _render_mapping_line("  By type", pages["by_type"]),
-            f"Sources: {sources['total']} total",
-            _render_mapping_line("  By source", sources["by_type"]),
-            (
-                "Lint: "
-                f"{summary['error']} errors, {summary['warning']} warnings, {summary['info']} info"
-            ),
-            f"Freshness: {', '.join(freshness_bits)}",
-            f"Manifest: {', '.join(manifest_bits)}",
-        ]
-    )
+
+    lines = [
+        f"Snowiki status for {result['root']}",
+        f"Pages: {pages['total']} total",
+        _render_mapping_line("  By type", pages["by_type"]),
+        f"Sources: {sources['total']} total",
+        _render_mapping_line("  By source", sources["by_type"]),
+        (
+            "Lint: "
+            f"{summary['error']} errors, {summary['warning']} warnings, {summary['info']} info"
+        ),
+        f"Freshness: {', '.join(freshness_bits)}",
+        f"Manifest: {', '.join(manifest_bits)}",
+    ]
+
+    if candidate_matrix:
+        lines.append("Tokenizer Candidates:")
+        for candidate in candidate_matrix:
+            name = candidate.get("candidate_name", "unknown")
+            role = candidate.get("role", "unknown")
+            status = candidate.get("admission_status", "unknown")
+            lines.append(f"  - {name}: role={role}, status={status}")
+
+    return "\n".join(lines)
 
 
 @click.command("status")
