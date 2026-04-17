@@ -8,6 +8,13 @@ _BASELINE_ALIAS_MAP = {
     "bm25s_kiwi_morphology": "bm25s_kiwi_full",
 }
 
+_BASELINE_CANDIDATE_MAP = {
+    "lexical": "regex_v1",
+    "bm25s": "regex_v1",
+    "bm25s_kiwi_full": "kiwi_morphology_v1",
+    "bm25s_kiwi_nouns": "kiwi_nouns_v1",
+}
+
 
 def normalize_benchmark_baseline(name: str) -> str:
     return _BASELINE_ALIAS_MAP.get(name, name)
@@ -23,6 +30,14 @@ def normalize_benchmark_baselines(baselines: Iterable[str]) -> tuple[str, ...]:
         seen.add(normalized_name)
         normalized.append(normalized_name)
     return tuple(normalized)
+
+
+def candidate_name_for_benchmark_baseline(name: str) -> str:
+    normalized_name = normalize_benchmark_baseline(name)
+    try:
+        return _BASELINE_CANDIDATE_MAP[normalized_name]
+    except KeyError as exc:
+        raise ValueError(f"unsupported baseline: {name}") from exc
 
 
 DEFAULT_BASELINES = (

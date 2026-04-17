@@ -9,6 +9,7 @@ from snowiki.bench.models import (
     PAGE_LIST_ADAPTER,
     RECORD_LIST_ADAPTER,
     BenchmarkReport,
+    CandidateMatrixReport,
     validate_baseline_result,
     validate_page_dict,
     validate_record_dict,
@@ -153,6 +154,17 @@ def test_benchmark_report_legacy_serializer_preserves_shape() -> None:
                 "queries_evaluated": 1,
             },
             "baselines": {"lexical": _baseline_payload()},
+            "candidate_matrix": {
+                "candidates": [
+                    {
+                        "candidate_name": "regex_v1",
+                        "evidence_baseline": "lexical",
+                        "role": "control",
+                        "admission_status": "admitted",
+                        "control": True,
+                    }
+                ]
+            },
         }
     )
 
@@ -166,6 +178,20 @@ def test_benchmark_report_legacy_serializer_preserves_shape() -> None:
     assert preset["name"] == "core"
     assert corpus["records_indexed"] == 1
     assert q1_hits[0]["score"] == 3.5
+    assert report.candidate_matrix == CandidateMatrixReport.model_validate(
+        {
+            "candidates": [
+                {
+                    "candidate_name": "regex_v1",
+                    "evidence_baseline": "lexical",
+                    "role": "control",
+                    "admission_status": "admitted",
+                    "control": True,
+                }
+            ]
+        }
+    )
+    assert "candidate_matrix" not in legacy
 
 
 def test_record_list_adapter_rejects_malformed_record_metadata() -> None:

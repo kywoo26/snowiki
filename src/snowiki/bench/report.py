@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Protocol, cast
 
 from .baselines import run_baseline_comparison
-from .models import BenchmarkReport
+from .matrix import CANDIDATE_MATRIX
+from .models import BenchmarkReport, CandidateMatrixReport
 from .phase1_correctness import CheckIssue, ValidationResult, validate_phase1_workspace
 from .phase1_latency import run_phase1_latency_evaluation
 from .presets import get_preset
@@ -47,6 +48,30 @@ def _legacy_retrieval_payload(
     return retrieval
 
 
+def _candidate_matrix_payload(
+    retrieval: BenchmarkReport | dict[str, object],
+) -> dict[str, object]:
+    if isinstance(retrieval, BenchmarkReport):
+        if retrieval.candidate_matrix is not None:
+            return retrieval.candidate_matrix.to_report_dict()
+        return _default_candidate_matrix_report().to_report_dict()
+
+    candidate_matrix = retrieval.get("candidate_matrix")
+    if isinstance(candidate_matrix, dict):
+        return cast(dict[str, object], candidate_matrix)
+    return _default_candidate_matrix_report().to_report_dict()
+
+
+def _default_candidate_matrix_report() -> CandidateMatrixReport:
+    return CandidateMatrixReport.model_validate(
+        {
+            "candidates": [
+                candidate.model_dump(mode="json") for candidate in CANDIDATE_MATRIX
+            ]
+        }
+    )
+
+
 render_report_text = cast(_RenderReportText, _RENDER.render_report_text)
 benchmark_verdict = cast(_ReportToDict, _VERDICT.benchmark_verdict)
 benchmark_exit_code = cast(_ReportToInt, _VERDICT.benchmark_exit_code)
@@ -77,7 +102,8 @@ def generate_report(
     preset = get_preset(preset_name)
     structural = _structural_validation_summary(validate_phase1_workspace(root))
     performance = run_phase1_latency_evaluation(root, preset=preset)
-    retrieval = _legacy_retrieval_payload(run_baseline_comparison(root, preset))
+    retrieval_result = run_baseline_comparison(root, preset)
+    retrieval = _legacy_retrieval_payload(retrieval_result)
     report: dict[str, object] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "report_version": "1.2",
@@ -94,6 +120,7 @@ def generate_report(
         "protocol": performance["protocol"],
         "retrieval": {
             **retrieval,
+            "candidate_matrix": _candidate_matrix_payload(retrieval_result),
             "threshold_policy": _retrieval_threshold_policy(),
         },
     }

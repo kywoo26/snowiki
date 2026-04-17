@@ -37,6 +37,13 @@ class ReportSchemaContract(TypedDict):
     entry_type: type[ReportEntry]
 
 
+@dataclass(frozen=True)
+class CandidatePolicyThresholds:
+    mixed_delta_min: float
+    slice_recall_non_regression_floor: float
+    latency_p95_ratio_max: float
+
+
 class MetadataContract(TypedDict):
     phase: int
     status: str
@@ -49,6 +56,13 @@ class Phase1Contract(TypedDict):
     thresholds: ThresholdsContract
     report_schema: ReportSchemaContract
     metadata: MetadataContract
+
+
+class Step3CandidatePolicyContract(TypedDict):
+    control_candidate_name: str
+    control_decision_baseline: str
+    mixed_delta_metrics: list[str]
+    thresholds: CandidatePolicyThresholds
 
 
 PHASE_1_CORPUS: CorpusContract = {
@@ -77,6 +91,17 @@ PHASE_1_THRESHOLDS: ThresholdsContract = {
             MetricThreshold("recall_at_k", 0.47),
         ],
     },
+}
+
+STEP_03_CANDIDATE_POLICY: Step3CandidatePolicyContract = {
+    "control_candidate_name": "regex_v1",
+    "control_decision_baseline": "lexical",
+    "mixed_delta_metrics": ["recall_at_k", "mrr", "ndcg_at_k"],
+    "thresholds": CandidatePolicyThresholds(
+        mixed_delta_min=0.03,
+        slice_recall_non_regression_floor=-0.01,
+        latency_p95_ratio_max=1.25,
+    ),
 }
 
 

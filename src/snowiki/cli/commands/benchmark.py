@@ -79,7 +79,7 @@ def command(preset: str, output: Path, root: Path | None) -> None:
         model_input = {
             k: v
             for k, v in retrieval_data.items()
-            if k in {"preset", "corpus", "baselines"}
+            if k in {"preset", "corpus", "baselines", "candidate_matrix"}
         }
         try:
             canonical_retrieval = BenchmarkReport.model_validate(

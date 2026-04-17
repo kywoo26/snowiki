@@ -4,7 +4,19 @@ from __future__ import annotations
 
 from typing import cast
 
-from .contract import PHASE_1_THRESHOLDS, MetricThreshold
+from .contract import (
+    PHASE_1_THRESHOLDS,
+    STEP_03_CANDIDATE_POLICY,
+    CandidatePolicyThresholds,
+    MetricThreshold,
+)
+from .matrix import CANDIDATE_MATRIX
+from .models import (
+    BaselineResult,
+    CandidateDecision,
+    CandidateMatrixEntry,
+    CandidateMatrixReport,
+)
 
 _PERFORMANCE_THRESHOLD_METRICS = {"p50_ms", "p95_ms"}
 _RETRIEVAL_THRESHOLD_METRICS = {"recall_at_k", "mrr", "ndcg_at_k"}
@@ -263,3 +275,236 @@ def benchmark_exit_code(report: dict[str, object]) -> int:
     if isinstance(exit_code, int):
         return exit_code
     return 0
+
+
+def evaluate_candidate_policy(
+    candidate_matrix: CandidateMatrixReport,
+) -> tuple[CandidateDecision, ...]:
+    thresholds = STEP_03_CANDIDATE_POLICY["thresholds"]
+    control_entry = _decision_entry(
+        candidate_matrix,
+        STEP_03_CANDIDATE_POLICY["control_candidate_name"],
+        STEP_03_CANDIDATE_POLICY["control_decision_baseline"],
+    )
+    decisions: list[CandidateDecision] = []
+
+    for candidate in CANDIDATE_MATRIX:
+        entry = _decision_entry(
+            candidate_matrix, candidate.candidate_name, candidate.evidence_baseline
+        )
+        if candidate.control:
+            decisions.append(_control_decision(entry))
+            continue
+        decisions.append(_candidate_decision(entry, control_entry, thresholds))
+
+    return tuple(decisions)
+
+
+def _decision_entry(
+    candidate_matrix: CandidateMatrixReport,
+    candidate_name: str,
+    evidence_baseline: str | None,
+) -> CandidateMatrixEntry | None:
+    for entry in candidate_matrix.candidates:
+        if entry.candidate_name != candidate_name:
+            continue
+        if entry.evidence_baseline == evidence_baseline:
+            return entry
+    return None
+
+
+def _control_decision(entry: CandidateMatrixEntry | None) -> CandidateDecision:
+    if entry is None or entry.baseline is None:
+        return CandidateDecision(
+            candidate_name=STEP_03_CANDIDATE_POLICY["control_candidate_name"],
+            evidence_baseline=STEP_03_CANDIDATE_POLICY["control_decision_baseline"],
+            disposition="reject",
+            overall_quality_gate_passed=False,
+            operational_evidence_present=False,
+            mixed_deltas=dict.fromkeys(
+                STEP_03_CANDIDATE_POLICY["mixed_delta_metrics"], 0.0
+            ),
+            ko_recall_delta=0.0,
+            en_recall_delta=0.0,
+            latency_p95_ratio=None,
+            reasons=["missing_control_evidence"],
+        )
+
+    overall_pass = _passes_overall_quality_gates(entry.baseline)
+    operational_present = _has_usable_operational_evidence(entry)
+    return CandidateDecision(
+        candidate_name=entry.candidate_name,
+        evidence_baseline=entry.evidence_baseline,
+        disposition=(
+            "promote"
+            if overall_pass and operational_present
+            else "benchmark_only"
+            if overall_pass
+            else "reject"
+        ),
+        overall_quality_gate_passed=overall_pass,
+        operational_evidence_present=operational_present,
+        mixed_deltas=dict.fromkeys(
+            STEP_03_CANDIDATE_POLICY["mixed_delta_metrics"], 0.0
+        ),
+        ko_recall_delta=0.0,
+        en_recall_delta=0.0,
+        latency_p95_ratio=1.0,
+        reasons=(
+            []
+            if overall_pass and operational_present
+            else ["missing_operational_evidence"]
+            if overall_pass
+            else ["overall_quality_gate_failed"]
+        ),
+    )
+
+
+def _candidate_decision(
+    entry: CandidateMatrixEntry | None,
+    control_entry: CandidateMatrixEntry | None,
+    thresholds: object,
+) -> CandidateDecision:
+    mixed_metrics = tuple(STEP_03_CANDIDATE_POLICY["mixed_delta_metrics"])
+    if (
+        entry is None
+        or entry.baseline is None
+        or control_entry is None
+        or control_entry.baseline is None
+    ):
+        return CandidateDecision(
+            candidate_name=entry.candidate_name if entry else "unknown",
+            evidence_baseline=entry.evidence_baseline if entry else None,
+            disposition="reject",
+            overall_quality_gate_passed=False,
+            operational_evidence_present=bool(entry and entry.operational_evidence),
+            reasons=["missing_benchmark_evidence"],
+        )
+
+    mixed_deltas = {
+        metric: _group_metric_delta(
+            entry.baseline, control_entry.baseline, "mixed", metric
+        )
+        for metric in mixed_metrics
+    }
+    ko_recall_delta = _group_metric_delta(
+        entry.baseline, control_entry.baseline, "ko", "recall_at_k"
+    )
+    en_recall_delta = _group_metric_delta(
+        entry.baseline, control_entry.baseline, "en", "recall_at_k"
+    )
+    latency_ratio = _latency_ratio(entry.baseline, control_entry.baseline)
+    overall_pass = _passes_overall_quality_gates(entry.baseline)
+    operational_present = _has_usable_operational_evidence(entry)
+    threshold_values = cast(CandidatePolicyThresholds, thresholds)
+    mixed_min = threshold_values.mixed_delta_min
+    recall_floor = threshold_values.slice_recall_non_regression_floor
+    latency_max = threshold_values.latency_p95_ratio_max
+
+    if not overall_pass:
+        return CandidateDecision(
+            candidate_name=entry.candidate_name,
+            evidence_baseline=entry.evidence_baseline,
+            disposition="reject",
+            overall_quality_gate_passed=False,
+            operational_evidence_present=operational_present,
+            mixed_deltas=mixed_deltas,
+            ko_recall_delta=ko_recall_delta,
+            en_recall_delta=en_recall_delta,
+            latency_p95_ratio=latency_ratio,
+            reasons=["overall_quality_gate_failed"],
+        )
+
+    if not any(delta > 0.0 for delta in mixed_deltas.values()):
+        return CandidateDecision(
+            candidate_name=entry.candidate_name,
+            evidence_baseline=entry.evidence_baseline,
+            disposition="reject",
+            overall_quality_gate_passed=True,
+            operational_evidence_present=operational_present,
+            mixed_deltas=mixed_deltas,
+            ko_recall_delta=ko_recall_delta,
+            en_recall_delta=en_recall_delta,
+            latency_p95_ratio=latency_ratio,
+            reasons=["no_material_mixed_improvement"],
+        )
+
+    reasons: list[str] = []
+    if any(delta < mixed_min for delta in mixed_deltas.values()):
+        reasons.append("mixed_delta_below_promotion_threshold")
+    if ko_recall_delta < recall_floor or en_recall_delta < recall_floor:
+        reasons.append("slice_recall_non_regression_failed")
+    if latency_ratio > latency_max:
+        reasons.append("latency_ratio_guard_failed")
+    if not operational_present:
+        reasons.append("missing_operational_evidence")
+
+    return CandidateDecision(
+        candidate_name=entry.candidate_name,
+        evidence_baseline=entry.evidence_baseline,
+        disposition="benchmark_only" if reasons else "promote",
+        overall_quality_gate_passed=True,
+        operational_evidence_present=operational_present,
+        mixed_deltas=mixed_deltas,
+        ko_recall_delta=ko_recall_delta,
+        en_recall_delta=en_recall_delta,
+        latency_p95_ratio=latency_ratio,
+        reasons=reasons,
+    )
+
+
+def _passes_overall_quality_gates(baseline: BaselineResult) -> bool:
+    quality = baseline.quality
+    if quality is None:
+        return False
+    thresholds = quality.thresholds
+    overall_entries = [entry for entry in thresholds if entry.gate == "overall"]
+    if not overall_entries:
+        return False
+    return all(entry.verdict != "FAIL" for entry in overall_entries)
+
+
+def _group_metric_delta(
+    candidate: BaselineResult,
+    control: BaselineResult,
+    group: str,
+    metric: str,
+) -> float:
+    candidate_value = _group_metric(candidate, group, metric)
+    control_value = _group_metric(control, group, metric)
+    return round(candidate_value - control_value, 6)
+
+
+def _group_metric(baseline: BaselineResult, group: str, metric: str) -> float:
+    quality = baseline.quality
+    if quality is None or quality.slices is None:
+        return 0.0
+    group_summary = quality.slices.group.get(group)
+    if group_summary is None:
+        return 0.0
+    return float(getattr(group_summary, metric))
+
+
+def _latency_ratio(candidate: BaselineResult, control: BaselineResult) -> float:
+    candidate_p95 = _baseline_p95(candidate)
+    control_p95 = _baseline_p95(control)
+    if control_p95 <= 0.0:
+        return 1.0 if candidate_p95 <= 0.0 else float("inf")
+    return round(candidate_p95 / control_p95, 6)
+
+
+def _baseline_p95(baseline: BaselineResult) -> float:
+    latency = baseline.latency
+    if latency is None:
+        return 0.0
+    return float(latency.p95_ms)
+
+
+def _has_usable_operational_evidence(entry: CandidateMatrixEntry) -> bool:
+    evidence = entry.operational_evidence
+    if evidence is None:
+        return False
+    return (
+        evidence.memory_evidence_status == "measured"
+        and evidence.disk_size_evidence_status == "measured"
+    )
