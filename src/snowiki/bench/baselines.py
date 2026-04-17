@@ -12,7 +12,7 @@ from snowiki.compiler.engine import CompilerEngine
 from snowiki.config import resolve_repo_asset_path
 from snowiki.search import BM25SearchDocument, BM25SearchIndex, build_lexical_index
 from snowiki.search.indexer import InvertedIndex, SearchDocument, SearchHit
-from snowiki.search.kiwi_tokenizer import KiwiLexicalCandidateMode
+from snowiki.search.registry import resolve_legacy_tokenizer
 from snowiki.search.workspace import (
     RetrievalService,
     compiled_page_to_search_mapping,
@@ -40,7 +40,11 @@ from .models import (
     RecordModel,
     ThresholdResult,
 )
-from .presets import BenchmarkPreset
+from .presets import (
+    BenchmarkPreset,
+    normalize_benchmark_baseline,
+    normalize_benchmark_baselines,
+)
 from .quality import (
     QualitySummary,
     SlicedQualitySummary,
@@ -385,27 +389,27 @@ def _bm25_hit_to_search_hit(hit: Any) -> SearchHit:
 def _build_bm25_index(
     documents: tuple[SearchDocument, ...],
     *,
-    use_kiwi_tokenizer: bool,
-    kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode = "morphology",
+    tokenizer_name: str,
 ) -> BM25SearchIndex:
     return BM25SearchIndex(
         [_bm25_document_from_search(document) for document in documents],
-        use_kiwi_tokenizer=use_kiwi_tokenizer,
-        kiwi_lexical_candidate_mode=kiwi_lexical_candidate_mode,
+        tokenizer_name=tokenizer_name,
     )
 
 
-def _kiwi_mode_for_baseline(baseline: str) -> KiwiLexicalCandidateMode:
-    baseline_modes: dict[str, KiwiLexicalCandidateMode] = {
-        "bm25s_kiwi": "morphology",
-        "bm25s_kiwi_nouns": "nouns",
-        "bm25s_kiwi_full": "morphology",
-        "bm25s_kiwi_morphology": "morphology",
-    }
-    try:
-        return baseline_modes[baseline]
-    except KeyError as exc:
-        raise ValueError(f"unsupported baseline: {baseline}") from exc
+def _tokenizer_name_for_baseline(baseline: str) -> str:
+    normalized_baseline = normalize_benchmark_baseline(baseline)
+    if normalized_baseline == "bm25s":
+        resolved = resolve_legacy_tokenizer(use_kiwi_tokenizer=False)
+        if resolved is None:
+            raise ValueError(f"could not resolve tokenizer for baseline: {baseline}")
+        return resolved
+    if normalized_baseline.startswith("bm25s_kiwi"):
+        resolved = resolve_legacy_tokenizer(benchmark_alias=normalized_baseline)
+        if resolved is None:
+            raise ValueError(f"unsupported baseline: {baseline}")
+        return resolved
+    raise ValueError(f"unsupported baseline: {baseline}")
 
 
 def _attach_threshold_report(summary: SlicedQualitySummary) -> SlicedQualitySummary:
@@ -424,6 +428,7 @@ def _attach_threshold_report(summary: SlicedQualitySummary) -> SlicedQualitySumm
 def _evaluate_baseline(
     *,
     name: str,
+    tokenizer_name: str | None = None,
     queries: tuple[BenchmarkQuery, ...],
     judgments: dict[str, list[str]],
     search_fn: Callable[[str], list[SearchHit]],
@@ -453,8 +458,9 @@ def _evaluate_baseline(
         )
     )
 
-    return BaselineResult.model_construct(
+    return BaselineResult(
         name=name,
+        tokenizer_name=tokenizer_name,
         latency=_latency_metrics(latency),
         quality=_quality_report(quality),
         queries=[
@@ -464,7 +470,7 @@ def _evaluate_baseline(
 
 
 def _latency_metrics(summary: LatencySummary) -> LatencyMetrics:
-    return LatencyMetrics.model_construct(
+    return LatencyMetrics(
         p50_ms=summary.p50_ms,
         p95_ms=summary.p95_ms,
         mean_ms=summary.mean_ms,
@@ -474,14 +480,14 @@ def _latency_metrics(summary: LatencySummary) -> LatencyMetrics:
 
 
 def _quality_metrics(summary: QualitySummary) -> QualityMetrics:
-    return QualityMetrics.model_construct(
+    return QualityMetrics(
         recall_at_k=summary.recall_at_k,
         mrr=summary.mrr,
         ndcg_at_k=summary.ndcg_at_k,
         top_k=summary.top_k,
         queries_evaluated=summary.queries_evaluated,
         per_query=[
-            PerQueryQuality.model_construct(
+            PerQueryQuality(
                 query_id=item.query_id,
                 ranked_ids=list(item.ranked_ids),
                 relevant_ids=list(item.relevant_ids),
@@ -495,9 +501,9 @@ def _quality_metrics(summary: QualitySummary) -> QualityMetrics:
 
 
 def _quality_report(summary: SlicedQualitySummary) -> QualityReport:
-    return QualityReport.model_construct(
+    return QualityReport(
         overall=_quality_metrics(summary.overall),
-        slices=QualitySlices.model_construct(
+        slices=QualitySlices(
             group={
                 name: _quality_metrics(metrics)
                 for name, metrics in summary.by_group.items()
@@ -508,7 +514,7 @@ def _quality_report(summary: SlicedQualitySummary) -> QualityReport:
             },
         ),
         thresholds=[
-            ThresholdResult.model_construct(
+            ThresholdResult(
                 gate=entry.gate,
                 metric=entry.metric,
                 value=entry.value,
@@ -523,10 +529,10 @@ def _quality_report(summary: SlicedQualitySummary) -> QualityReport:
 
 
 def _query_result(query_id: str, hits: list[SearchHit]) -> QueryResult:
-    return QueryResult.model_construct(
+    return QueryResult(
         query_id=query_id,
         hits=[
-            BenchmarkHit.model_construct(
+            BenchmarkHit(
                 id=_hit_identifier(hit),
                 path=hit.document.path,
                 title=hit.document.title,
@@ -551,14 +557,15 @@ def run_baseline_comparison(
 
     raw_documents = tuple(corpus.raw_index.documents.values())
     hit_lookup = _benchmark_hit_lookup(corpus)
-    bm25_plain_index = _build_bm25_index(raw_documents, use_kiwi_tokenizer=False)
-    bm25_kiwi_indexes: dict[str, BM25SearchIndex] = {}
+    normalized_baselines = normalize_benchmark_baselines(preset.baselines)
+    bm25_indexes: dict[str, BM25SearchIndex] = {}
 
     results: dict[str, BaselineResult] = {}
-    for baseline in preset.baselines:
+    for baseline in normalized_baselines:
         if baseline == "lexical":
             results[baseline] = _evaluate_baseline(
                 name=baseline,
+                tokenizer_name="regex_v1",
                 queries=queries,
                 judgments=judgments,
                 search_fn=lambda query_text: _run_lexical(
@@ -567,32 +574,20 @@ def run_baseline_comparison(
                 hit_lookup=hit_lookup,
             )
             continue
-        if baseline == "bm25s":
-            results[baseline] = _evaluate_baseline(
-                name=baseline,
-                queries=queries,
-                judgments=judgments,
-                search_fn=lambda query_text: [
-                    _bm25_hit_to_search_hit(hit)
-                    for hit in bm25_plain_index.search(query_text, limit=preset.top_k)
-                ],
-                hit_lookup=hit_lookup,
-            )
-            continue
-        if baseline.startswith("bm25s_kiwi"):
-            kiwi_mode = _kiwi_mode_for_baseline(baseline)
-            if baseline not in bm25_kiwi_indexes:
-                bm25_kiwi_indexes[baseline] = _build_bm25_index(
+        if baseline == "bm25s" or baseline.startswith("bm25s_kiwi"):
+            tokenizer_name = _tokenizer_name_for_baseline(baseline)
+            if tokenizer_name not in bm25_indexes:
+                bm25_indexes[tokenizer_name] = _build_bm25_index(
                     raw_documents,
-                    use_kiwi_tokenizer=True,
-                    kiwi_lexical_candidate_mode=kiwi_mode,
+                    tokenizer_name=tokenizer_name,
                 )
-            current_kiwi_index = bm25_kiwi_indexes[baseline]
+            current_index = bm25_indexes[tokenizer_name]
             results[baseline] = _evaluate_baseline(
                 name=baseline,
+                tokenizer_name=tokenizer_name,
                 queries=queries,
                 judgments=judgments,
-                search_fn=lambda query_text, bm25_index=current_kiwi_index: [
+                search_fn=lambda query_text, bm25_index=current_index: [
                     _bm25_hit_to_search_hit(hit)
                     for hit in bm25_index.search(query_text, limit=preset.top_k)
                 ],
@@ -601,15 +596,15 @@ def run_baseline_comparison(
             continue
         raise ValueError(f"unsupported baseline: {baseline}")
 
-    return BenchmarkReport.model_construct(
-        preset=PresetSummary.model_construct(
+    return BenchmarkReport(
+        preset=PresetSummary(
             name=preset.name,
             description=preset.description,
             query_kinds=list(preset.query_kinds),
             top_k=preset.top_k,
-            baselines=list(preset.baselines),
+            baselines=list(normalized_baselines),
         ),
-        corpus=CorpusSummary.model_construct(
+        corpus=CorpusSummary(
             records_indexed=len(corpus.records),
             pages_indexed=len(corpus.pages),
             raw_documents=corpus.raw_index.size,

@@ -124,6 +124,17 @@ def test_baseline_result_legacy_queries_round_trip() -> None:
     assert result.to_legacy_dict() == payload
 
 
+def test_baseline_result_preserves_canonical_tokenizer_name_in_legacy_dict() -> None:
+    payload = _baseline_payload()
+    payload["tokenizer_name"] = "kiwi_morphology_v1"
+
+    result = validate_baseline_result(payload)
+
+    assert result.tokenizer_name == "kiwi_morphology_v1"
+    assert result.to_legacy_dict()["tokenizer_name"] == "kiwi_morphology_v1"
+    assert result.to_legacy_dict() == payload
+
+
 def test_benchmark_report_legacy_serializer_preserves_shape() -> None:
     report = BenchmarkReport.model_validate(
         {
