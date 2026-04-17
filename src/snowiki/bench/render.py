@@ -35,8 +35,10 @@ def _format_threshold_entry(baseline: str, entry: dict[str, object]) -> str:
     delta = entry.get("delta")
     threshold = entry.get("threshold", "n/a")
     verdict = str(entry.get("verdict", "UNKNOWN"))
+    tokenizer_name = entry.get("tokenizer_name")
+    baseline_label = f"{baseline} ({tokenizer_name})" if tokenizer_name else baseline
     parts = [
-        f"- {baseline} {gate} {metric}: {verdict}",
+        f"- {baseline_label} {gate} {metric}: {verdict}",
         f"value={value}",
         f"delta={delta if delta is not None else 'n/a'}",
         f"threshold={threshold}",
