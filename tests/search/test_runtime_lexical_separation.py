@@ -145,3 +145,87 @@ def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
     assert facade.wiki_index is wiki
     assert facade.index is blended
     assert calls == [{"records": session_records, "pages": compiled_pages}]
+
+
+def test_retrieval_service_threads_explicit_tokenizer_through_runtime_indexes() -> None:
+    class RecordingTokenizer:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def tokenize(self, text: str) -> tuple[str, ...]:
+            self.calls.append(("tokenize", text))
+            return tuple(text.casefold().split())
+
+        def normalize(self, text: str) -> str:
+            self.calls.append(("normalize", text))
+            return text.casefold()
+
+    tokenizer = RecordingTokenizer()
+    records: list[dict[str, object]] = [
+        {
+            "id": "session-1",
+            "path": "normalized/session-1.json",
+            "title": "Runtime Tokenizer",
+            "content": "alpha beta",
+            "summary": "custom runtime seam",
+        }
+    ]
+    pages: list[dict[str, object]] = [
+        {
+            "id": "page-1",
+            "path": "compiled/runtime/page-1.md",
+            "title": "Runtime Tokenizer Page",
+            "body": "alpha gamma",
+            "summary": "compiled runtime seam",
+        }
+    ]
+
+    snapshot = RetrievalService.from_records_and_pages(
+        records=records,
+        pages=pages,
+        tokenizer=tokenizer,
+    )
+    hits = snapshot.index.search("alpha")
+
+    assert snapshot.lexical.index.tokenizer is tokenizer
+    assert snapshot.wiki.index.tokenizer is tokenizer
+    assert snapshot.index.tokenizer is tokenizer
+    assert [hit.document.id for hit in hits] == ["page-1", "session-1"]
+    assert ("tokenize", "alpha") in tokenizer.calls
+    assert ("normalize", "alpha") in tokenizer.calls
+
+
+def test_inverted_index_uses_injected_tokenizer_for_indexing_and_query_time() -> None:
+    class ExactTokenizer:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, str]] = []
+
+        def tokenize(self, text: str) -> tuple[str, ...]:
+            self.calls.append(("tokenize", text))
+            if text == "special query":
+                return ("special-token",)
+            return (text.casefold().replace(" ", "-"),)
+
+        def normalize(self, text: str) -> str:
+            self.calls.append(("normalize", text))
+            return text.casefold().replace(" ", "-")
+
+    tokenizer = ExactTokenizer()
+    snapshot = RetrievalService.from_records_and_pages(
+        records=[
+            {
+                "id": "session-special",
+                "path": "normalized/session-special.json",
+                "title": "special token",
+                "content": "special-token",
+            }
+        ],
+        pages=[],
+        tokenizer=tokenizer,
+    )
+
+    hits = snapshot.index.search("special query")
+
+    assert [hit.document.id for hit in hits] == ["session-special"]
+    assert tokenizer.calls.count(("tokenize", "special query")) == 1
+    assert ("normalize", "special query") in tokenizer.calls

@@ -4,19 +4,28 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from .indexer import InvertedIndex, SearchDocument, document_from_mapping
+from .registry import SearchTokenizer
 
 
 class LexicalIndex:
-    def __init__(self, documents: Iterable[SearchDocument]) -> None:
+    def __init__(
+        self,
+        documents: Iterable[SearchDocument],
+        *,
+        tokenizer: SearchTokenizer | None = None,
+    ) -> None:
         self.documents = tuple(documents)
-        self.index = InvertedIndex(self.documents)
+        self.index = InvertedIndex(self.documents, tokenizer=tokenizer)
 
     @classmethod
     def from_normalized_records(
-        cls, records: Iterable[Mapping[str, Any]]
+        cls,
+        records: Iterable[Mapping[str, Any]],
+        *,
+        tokenizer: SearchTokenizer | None = None,
     ) -> LexicalIndex:
         documents = [normalized_record_to_document(record) for record in records]
-        return cls(documents)
+        return cls(documents, tokenizer=tokenizer)
 
 
 def normalized_record_to_document(record: Mapping[str, Any]) -> SearchDocument:
@@ -31,5 +40,9 @@ def normalized_record_to_document(record: Mapping[str, Any]) -> SearchDocument:
     return document_from_mapping(payload, kind="session", source_type="normalized")
 
 
-def build_lexical_index(records: Iterable[Mapping[str, Any]]) -> LexicalIndex:
-    return LexicalIndex.from_normalized_records(records)
+def build_lexical_index(
+    records: Iterable[Mapping[str, Any]],
+    *,
+    tokenizer: SearchTokenizer | None = None,
+) -> LexicalIndex:
+    return LexicalIndex.from_normalized_records(records, tokenizer=tokenizer)

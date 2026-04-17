@@ -8,7 +8,8 @@ from datetime import datetime
 
 from snowiki.storage.zones import ensure_utc_datetime
 
-from .tokenizer import normalize_text, tokenize_text
+from .registry import SearchTokenizer, default
+from .registry import create as create_tokenizer
 
 type SearchScalar = None | bool | int | float | str
 type SearchValue = SearchScalar | list[SearchValue] | dict[str, SearchValue]
@@ -74,12 +75,23 @@ def _parse_recorded_at(value: object) -> datetime | None:
 class InvertedIndex:
     """In-memory inverted index for lexical and blended search."""
 
-    def __init__(self, documents: Iterable[SearchDocument] = ()) -> None:
+    def __init__(
+        self,
+        documents: Iterable[SearchDocument] = (),
+        *,
+        tokenizer: SearchTokenizer | None = None,
+    ) -> None:
         self.documents: dict[str, SearchDocument] = {}
         self._postings: dict[str, dict[str, float]] = defaultdict(dict)
         self._field_tokens: dict[str, dict[str, tuple[str, ...]]] = {}
+        self._tokenizer: SearchTokenizer
+        self._tokenizer = tokenizer or create_tokenizer(default().name)
         for document in documents:
             self.add_document(document)
+
+    @property
+    def tokenizer(self) -> SearchTokenizer:
+        return self._tokenizer
 
     @property
     def size(self) -> int:
@@ -88,11 +100,11 @@ class InvertedIndex:
     def add_document(self, document: SearchDocument) -> None:
         self.documents[document.id] = document
         field_tokens = {
-            "title": tokenize_text(document.title),
-            "path": tokenize_text(document.path),
-            "summary": tokenize_text(document.summary),
-            "content": tokenize_text(document.content),
-            "aliases": tokenize_text(" ".join(document.aliases)),
+            "title": self._tokenizer.tokenize(document.title),
+            "path": self._tokenizer.tokenize(document.path),
+            "summary": self._tokenizer.tokenize(document.summary),
+            "content": self._tokenizer.tokenize(document.content),
+            "aliases": self._tokenizer.tokenize(" ".join(document.aliases)),
         }
         self._field_tokens[document.id] = field_tokens
 
@@ -114,7 +126,7 @@ class InvertedIndex:
         recorded_before: datetime | None = None,
         exact_path_bias: bool = False,
     ) -> list[SearchHit]:
-        query_tokens = tokenize_text(query)
+        query_tokens = self._tokenizer.tokenize(query)
         if not query_tokens:
             return []
 
@@ -134,7 +146,7 @@ class InvertedIndex:
                 scores[document_id] += weighted_frequency * inverse_document_frequency
                 matches[document_id].add(token)
 
-        normalized_query = normalize_text(query)
+        normalized_query = self._tokenizer.normalize(query)
         hits: list[SearchHit] = []
         for document_id, score in scores.items():
             document = self.documents[document_id]
@@ -158,13 +170,13 @@ class InvertedIndex:
                 document.content,
             )
             if any(
-                normalized_query in normalize_text(haystack)
+                normalized_query in self._tokenizer.normalize(haystack)
                 for haystack in haystacks
                 if haystack
             ):
                 score += 3.0
 
-            normalized_path = normalize_text(document.path)
+            normalized_path = self._tokenizer.normalize(document.path)
             if exact_path_bias and any(
                 token in normalized_path for token in query_tokens
             ):
@@ -260,9 +272,12 @@ def document_from_mapping(
     )
 
 
-def build_blended_index(*document_groups: Iterable[SearchDocument]) -> InvertedIndex:
+def build_blended_index(
+    *document_groups: Iterable[SearchDocument],
+    tokenizer: SearchTokenizer | None = None,
+) -> InvertedIndex:
     """Build a single search index from multiple document groups."""
     documents: list[SearchDocument] = []
     for group in document_groups:
         documents.extend(group)
-    return InvertedIndex(documents)
+    return InvertedIndex(documents, tokenizer=tokenizer)
