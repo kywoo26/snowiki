@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from click.testing import CliRunner
@@ -14,7 +15,10 @@ from snowiki.cli.commands.recall import run_recall
 from snowiki.cli.main import app
 from snowiki.config import resolve_repo_asset_path
 from snowiki.search.indexer import SearchDocument, SearchHit
-from snowiki.search.workspace import build_retrieval_snapshot
+from snowiki.search.workspace import (
+    build_retrieval_snapshot,
+    clear_query_search_index_cache,
+)
 
 
 def test_query_returns_hits_after_cold_start_ingest(
@@ -481,6 +485,49 @@ def test_query_cache_invalidates_after_rebuild(
     assert result["records_indexed"] == after.records_indexed
     assert result["pages_indexed"] == after.pages_indexed
     assert after.index.size >= before_size
+
+
+def test_query_cache_invalidates_after_runtime_tokenizer_flip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from snowiki.search import workspace
+
+    tokenizer_holder = {"name": "regex_v1"}
+    build_log: list[str] = []
+
+    def fake_default() -> object:
+        return SimpleNamespace(name=tokenizer_holder["name"])
+
+    def fake_create_tokenizer(name: str) -> object:
+        return SimpleNamespace(name=name)
+
+    def fake_from_root(root: Path, *, tokenizer: object | None = None) -> object:
+        assert root == tmp_path
+        tokenizer_name = getattr(tokenizer, "name", None)
+        assert isinstance(tokenizer_name, str)
+        build_log.append(tokenizer_name)
+        return SimpleNamespace(
+            index=SimpleNamespace(size=len(build_log)),
+            records_indexed=1,
+            pages_indexed=1,
+            marker=(root, tokenizer_name, len(build_log)),
+        )
+
+    clear_query_search_index_cache()
+    monkeypatch.setattr(workspace, "default", fake_default)
+    monkeypatch.setattr(workspace, "create_tokenizer", fake_create_tokenizer)
+    monkeypatch.setattr(workspace.RetrievalService, "from_root", fake_from_root)
+
+    first = build_retrieval_snapshot(tmp_path)
+    second = build_retrieval_snapshot(tmp_path)
+    tokenizer_holder["name"] = "kiwi_nouns_v1"
+    third = build_retrieval_snapshot(tmp_path)
+
+    assert first is second
+    assert first is not third
+    assert cast(Any, first).marker == (tmp_path, "regex_v1", 1)
+    assert cast(Any, third).marker == (tmp_path, "kiwi_nouns_v1", 2)
+    assert build_log == ["regex_v1", "kiwi_nouns_v1"]
 
 
 def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexes(
