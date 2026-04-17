@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 
+from snowiki.bench.models import BenchmarkReport
 from snowiki.cli.output import emit_error
 
 _BENCH = import_module("snowiki.bench")
@@ -72,6 +73,22 @@ def command(preset: str, output: Path, root: Path | None) -> None:
         emit_error(str(exc), output="human", code="benchmark_failed")
     if report is None:
         raise RuntimeError("benchmark did not produce a report")
+
+    if "retrieval" in report and isinstance(report["retrieval"], dict):
+        retrieval_data = report["retrieval"]
+        model_input = {
+            k: v
+            for k, v in retrieval_data.items()
+            if k in {"preset", "corpus", "baselines"}
+        }
+        try:
+            canonical_retrieval = BenchmarkReport.model_validate(
+                model_input
+            ).to_legacy_dict()
+            report["retrieval"] = {**retrieval_data, **canonical_retrieval}
+        except Exception:
+            pass
+
     output.parent.mkdir(parents=True, exist_ok=True)
     _ = output.write_text(
         json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True),

@@ -1,6 +1,29 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
+
+_BASELINE_ALIAS_MAP = {
+    "bm25s_kiwi": "bm25s_kiwi_full",
+    "bm25s_kiwi_morphology": "bm25s_kiwi_full",
+}
+
+
+def normalize_benchmark_baseline(name: str) -> str:
+    return _BASELINE_ALIAS_MAP.get(name, name)
+
+
+def normalize_benchmark_baselines(baselines: Iterable[str]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for baseline in baselines:
+        normalized_name = normalize_benchmark_baseline(baseline)
+        if normalized_name in seen:
+            continue
+        seen.add(normalized_name)
+        normalized.append(normalized_name)
+    return tuple(normalized)
+
 
 DEFAULT_BASELINES = (
     "lexical",
@@ -17,6 +40,11 @@ class BenchmarkPreset:
     query_kinds: tuple[str, ...]
     top_k: int = 5
     baselines: tuple[str, ...] = DEFAULT_BASELINES
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "baselines", normalize_benchmark_baselines(self.baselines)
+        )
 
 
 _PRESETS = {
