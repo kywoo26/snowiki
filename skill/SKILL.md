@@ -11,28 +11,28 @@ A persistent wiki that compounds knowledge like a snowball.
 
 The authoritative runtime contract is the installed `snowiki` CLI.
 
-This skill is an informative reference layer for orchestrating the shipped CLI. It projects the canonical artifact model (Commands, Skills, Memory) defined in `docs/architecture/skill-and-agent-interface-contract.md`.
+This skill is an informative reference layer for orchestrating the shipped CLI. It projects the canonical artifact model (Commands, Skills, Memory) defined in `docs/architecture/skill-and-agent-interface-contract.md`. For the authoritative mapping of skill routes to runtime commands, see the [Wiki Route Contract](../docs/roadmap/step3_wiki-skill-design/01-wiki-route-contract.md).
 
 ## Current shipped commands
 
 Atomic units of execution provided by the `snowiki` CLI:
 
+### Primary Current Routes
 - `snowiki ingest`
-- `snowiki rebuild`
 - `snowiki query`
 - `snowiki recall`
 - `snowiki status`
 - `snowiki lint`
-- `snowiki export`
 - `snowiki fileback`
+
+### Advanced Passthrough
+- `snowiki export`
 - `snowiki benchmark`
 - `snowiki daemon`
 - `snowiki mcp`
 
-Current `fileback` subcommands:
-
-- `snowiki fileback preview`
-- `snowiki fileback apply`
+### Shipped CLI Support
+- `snowiki rebuild` (not a primary `/wiki` route)
 
 ## Skill role
 
