@@ -31,7 +31,7 @@
     - `06-sparse-language-routing-policy.md`
     - `07-topology-cache-ann-mode-parity.md`
   - Next action: Close the seven-document Step 4 planning packet before any execution-plan promotion; the candidate matrix and sparse/language policy are now explicit prerequisites.
-  - Blocker: (B) Step 2 still not proven, Step 4 remains blocked.
+  - Blocker: Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.
 
 - [x] **Step 5: Rust core migration path**
   - Status: Analysis complete. Decomposed into three sub-steps:
