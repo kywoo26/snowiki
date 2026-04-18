@@ -125,7 +125,7 @@ This analysis is further decomposed into four concern-based sub-steps that own t
 
 ---
 
-## 3. Proposed Skill Contract Design
+## 3. Skill Contract Synthesis
 
 The high-level design principles and route definitions are summarized below. Detailed contract ownership is delegated to the numbered sub-steps.
 
@@ -138,25 +138,15 @@ The high-level design principles and route definitions are summarized below. Det
 5. **Provenance-first**: Every query result must expose its source path or session ID.
 6. **Reviewable mutations**: Write operations default to a propose-then-apply posture unless the host explicitly relaxes this.
 
-### 3.2 Skill route definitions
+### 3.2 Route contract implications
 
-| Skill Route | Maps To | Runtime Path | Status |
-| :--- | :--- | :--- | :--- |
-| `wiki ingest <source>` | CLI `snowiki ingest` | `src/snowiki/cli/commands/ingest.py` | **Current** |
-| `wiki query <question>` | CLI `snowiki query --output json` | `src/snowiki/cli/commands/query.py` | **Current** |
-| `wiki recall <target>` | CLI `snowiki recall --output json` | `src/snowiki/cli/commands/recall.py` | **Current** |
-| `wiki status` | CLI `snowiki status --output json` | `src/snowiki/cli/commands/status.py` | **Current** |
-| `wiki lint` | CLI `snowiki lint --output json` | `src/snowiki/cli/commands/lint.py` | **Current** |
-| `wiki rebuild` | CLI `snowiki rebuild` | `src/snowiki/cli/commands/rebuild.py` | **Current** |
-| `wiki export` | CLI `snowiki export` | `src/snowiki/cli/commands/export.py` | **Current** |
-| `wiki search` (agent tool) | MCP `search` tool or CLI `snowiki query` | `src/snowiki/mcp/tools/search.py` | **Current** |
-| `wiki get_page <path>` | MCP `get_page` tool | `src/snowiki/mcp/tools/get_page.py` | **Current** |
-| `wiki resolve_links <path>` | MCP `resolve_links` tool | `src/snowiki/mcp/tools/resolve_links.py` | **Current** |
-| `wiki sync` | Deferred workflow | `skill/workflows/wiki.md` (Step 5) | **Deferred** |
-| `wiki edit <page>` | Deferred workflow | `skill/workflows/wiki.md` (Step 6) | **Deferred** |
-| `wiki merge <p1> <p2>` | Deferred workflow | `skill/workflows/wiki.md` (Step 7) | **Deferred** |
-| `wiki absorb <source>` | **New proposed route** | Wrapper around `ingest` + post-processing heuristics | **Future** |
-| `wiki cleanup` | **New proposed route** | Wrapper around `lint` + heuristic page removal proposals | **Future** |
+The authoritative mapping of skill routes to runtime commands is owned by the [Wiki Route Contract](01-wiki-route-contract.md). This analysis is intentionally subordinate to that contract and only summarizes the implementation consequences for Step 3 work.
+
+- **Primary current `/wiki` routes** are owned by the canonical contract: `ingest`, `query`, `recall`, `status`, `lint`, `fileback preview`, and `fileback apply`.
+- **Advanced passthrough surfaces** (`export`, `benchmark`, `daemon`, `mcp`) remain part of the shipped CLI surface, but the canonical contract decides how they are exposed through `/wiki`.
+- **Shipped CLI support** such as `rebuild` remains runtime support, not a primary `/wiki` route.
+- **Read-only MCP tools** such as `search`, `get_page`, `resolve_links`, and MCP-side recall support retrieval flows, but they are not standalone `/wiki` route definitions in this analysis.
+- **Deferred workflows** (`sync`, `edit`, `merge`, and graph-oriented workflows) stay deferred until the later maintenance/deferred-workflow contract owns them.
 
 ### 3.3 Input/output schema drafts
 
