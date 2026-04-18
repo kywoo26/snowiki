@@ -1,6 +1,6 @@
 # Claude Code `/wiki` Quickstart
 
-This guide is the shortest truthful path to using Snowiki’s current parity-plus `/wiki` workflow.
+This guide is the shortest truthful path to using Snowiki’s current parity-plus `/wiki` workflow. For the authoritative mapping of skill routes to runtime commands, see the [Wiki Route Contract](../roadmap/step3_wiki-skill-design/01-wiki-route-contract.md).
 
 The runtime truth is still the installed `snowiki` CLI. The Claude Code `/wiki` skill should mirror these commands and behaviors rather than invent a separate backend.
 

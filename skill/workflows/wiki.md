@@ -2,24 +2,30 @@
 
 ## Important
 
-This file is a workflow guide around the current Snowiki CLI.
+This file is a workflow guide around the current Snowiki CLI. For the authoritative mapping of skill routes to runtime commands, see the [Wiki Route Contract](../../docs/roadmap/step3_wiki-skill-design/01-wiki-route-contract.md).
 
 The authoritative shipped runtime contract is the installed `snowiki` command, not the older qmd-centric workflow assumptions. Do not assume a qmd update/embed loop is the current shipped behavior.
 
 Use this file to guide how an agent should orchestrate the shipped CLI, and treat any broader wiki workflow notes as deferred ideas unless the runtime explicitly exposes them.
 
 Current shipped CLI surface:
+
+### Primary Current Routes
 - `snowiki ingest`
-- `snowiki rebuild`
 - `snowiki query`
 - `snowiki recall`
 - `snowiki status`
 - `snowiki lint`
-- `snowiki export`
 - `snowiki fileback`
+
+### Advanced Passthrough
+- `snowiki export`
 - `snowiki benchmark`
 - `snowiki daemon`
 - `snowiki mcp`
+
+### Shipped CLI Support
+- `snowiki rebuild` (not a primary `/wiki` route)
 
 ## Step 0: Bootstrap
 

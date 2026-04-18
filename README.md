@@ -6,7 +6,7 @@ Snowiki’s current shipped runtime is **CLI-first**. The installed `snowiki` co
 
 ## Quick Start
 
-This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md`.
+This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md` and the [Wiki Route Contract](docs/roadmap/step3_wiki-skill-design/01-wiki-route-contract.md).
 
 ```bash
 # 1. Install Snowiki from a checkout
@@ -32,22 +32,22 @@ If you are working from a development checkout instead of a tool install, run th
 
 The current runtime exposes these top-level commands:
 
+### Primary Current Routes
 - `snowiki ingest`
-- `snowiki rebuild`
 - `snowiki query`
 - `snowiki recall`
 - `snowiki status`
 - `snowiki lint`
-- `snowiki export`
 - `snowiki fileback`
+
+### Advanced Passthrough
+- `snowiki export`
 - `snowiki benchmark`
 - `snowiki daemon`
 - `snowiki mcp`
 
-Current `fileback` subcommands:
-
-- `snowiki fileback preview`
-- `snowiki fileback apply`
+### Shipped CLI Support
+- `snowiki rebuild` (not a primary `/wiki` route)
 
 ## Claude Code `/wiki` status
 
