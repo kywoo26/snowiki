@@ -15,6 +15,10 @@ This index maps the authoritative and reference sources used to build the Snowik
 | Claude Code Hooks | Documentation | [code.claude.com/docs/en/hooks](https://code.claude.com/docs/en/hooks) | `.cache/research/claude-skills/code-claude-hooks.md` | Details lifecycle events that can be used to enforce skill behavior. |
 | Claude Code Permissions | Documentation | [code.claude.com/docs/en/permissions](https://code.claude.com/docs/en/permissions) | `.cache/research/claude-skills/code-claude-permissions.md` | Explains how `allowed-tools` and baseline permissions interact. |
 | Claude Code Settings | Documentation | [code.claude.com/docs/en/settings](https://code.claude.com/docs/en/settings) | `.cache/research/claude-skills/code-claude-settings.md` | Covers global settings like `disableSkillShellExecution`. |
+| Claude Blog Guide | Blog Post | [claude.com/blog/...](https://claude.com/blog/complete-guide-to-building-skills-for-claude) | `.cache/research/claude-skills/claude-blog-guide.md` | High-level overview and introduction to the authoritative PDF guide. |
+| Claude Code llms.txt | Documentation | [code.claude.com/docs/llms.txt](https://code.claude.com/docs/llms.txt) | `.cache/research/claude-skills/code-claude-llms-txt.txt` | Canonical index of Claude Code documentation for LLM consumption. |
+| Claude Code Commands | Documentation | [code.claude.com/docs/en/commands](https://code.claude.com/docs/en/commands) | `.cache/research/claude-skills/code-claude-commands.md` | Reference for built-in commands and bundled skills (e.g., `/batch`, `/loop`). |
+| Claude Code Features | Documentation | [code.claude.com/docs/en/features-overview](https://code.claude.com/docs/en/features-overview) | `.cache/research/claude-skills/code-claude-features-overview.md` | Comparative overview of extensions (Skills vs. Hooks vs. MCP). |
 
 ## 2. Reference Implementations (External Patterns)
 

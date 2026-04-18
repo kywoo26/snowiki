@@ -58,3 +58,22 @@ Claude Code extends the Agent Skills standard with specific fields:
 - **Vague Descriptions**: Descriptions like "Helps with documents" lead to poor discovery.
 - **Over-explaining**: Don't explain basic concepts (e.g., what a PDF is) to Claude.
 - **Implicit Writes**: Be cautious with skills that perform direct file writes without review, especially in knowledge-management contexts like Snowiki.
+
+## 7. Bundled Skills and Extension Selection
+
+### Bundled Skills as Reference Patterns
+Claude Code includes several **bundled skills** that serve as official patterns for complex workflows:
+- `/batch`: Orchestrates large-scale changes in parallel using subagents and worktrees.
+- `/loop`: Runs a prompt repeatedly (proactive maintenance).
+- `/debug`: Troubleshoots issues by reading session logs.
+- `/claude-api`: Injects language-specific API reference material.
+- `/less-permission-prompts`: Scans transcripts to auto-generate an allowlist for settings.
+
+### When to Use a Skill (vs. Other Extensions)
+Official guidance suggests a hierarchy for extending Claude Code:
+1. **CLAUDE.md**: For project-wide conventions and "always do X" rules.
+2. **Skill**: For reusable knowledge, reference docs, and repeatable multi-step workflows.
+3. **Subagent**: For context isolation and specialized workers (often triggered by a skill).
+4. **Hook**: For deterministic, non-LLM automation (e.g., running a linter after an edit).
+5. **MCP**: For connecting to external services and live data.
+6. **Plugin**: For packaging and distributing any of the above.
