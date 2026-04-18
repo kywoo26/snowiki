@@ -15,5 +15,13 @@ Scopes: cli, search, storage, skill, test, ci, deps
 - `feat` and `fix` require a scope.
 - `docs`, `test`, `ci`, `deps`, `refactor` may omit scope.
 - Imperative mood, no trailing period, max 72 chars.
-- Body required for `feat`, `fix`, `refactor`; explain why.
+- Body strongly recommended for `feat`, `fix`, `refactor`; explain why.
 - Footer: `Refs: #N`, `Fixes: #N`, `BREAKING CHANGE:`.
+
+## Enforcement
+
+The local `commit-msg` hook enforces:
+- Subject format, length, and trailing period.
+- Banned AI/agent markers anywhere in the message.
+
+Commit body structure remains advisory in this enforcement stage.
