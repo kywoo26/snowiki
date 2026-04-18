@@ -17,7 +17,6 @@ import re
 import sys
 from collections.abc import Sequence
 
-
 VALID_TYPES = {"feat", "fix", "refactor", "docs", "test", "ci", "deps"}
 VALID_SCOPES = {"cli", "search", "storage", "skill", "test", "ci", "deps"}
 TYPES_REQUIRING_SCOPE = {"feat", "fix"}

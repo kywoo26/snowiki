@@ -5,8 +5,6 @@ import sys
 from pathlib import Path
 from typing import Protocol, cast
 
-import pytest
-
 
 class PRGovernanceModule(Protocol):
     def validate(self, title: str, body: str) -> list[str]: ...

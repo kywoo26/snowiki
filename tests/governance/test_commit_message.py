@@ -5,8 +5,6 @@ import sys
 from pathlib import Path
 from typing import Protocol, cast
 
-import pytest
-
 
 class CommitMessageModule(Protocol):
     def validate(self, message: str) -> list[str]: ...

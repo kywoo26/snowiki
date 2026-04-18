@@ -15,7 +15,6 @@ import re
 import sys
 from collections.abc import Sequence
 
-
 VALID_TYPES = {"feat", "fix", "refactor", "docs", "test", "ci", "deps"}
 VALID_SCOPES = {"cli", "search", "storage", "skill", "test", "ci", "deps"}
 TYPES_REQUIRING_SCOPE = {"feat", "fix"}
@@ -124,11 +123,7 @@ def _is_placeholder_only(section_text: str) -> bool:
         "skip if no surface change",
     )
     lower = cleaned.lower()
-    if any(phrase in lower for phrase in skip_phrases):
-        if len(cleaned) < 60:
-            return True
-
-    return False
+    return any(phrase in lower for phrase in skip_phrases) and len(cleaned) < 60
 
 
 def _extract_section(body: str, heading: str) -> str | None:
