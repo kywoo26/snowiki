@@ -4,7 +4,7 @@
 
 This document synthesizes external reference research (Farzapedia, Karpathy’s LLM Wiki, `personal-os-skills`, and `seCall`) and maps their patterns onto Snowiki’s current runtime. The conclusion is that Snowiki’s `/wiki` skill should be a **thin, schema-first wrapper over the existing CLI and read-only MCP surfaces**, not a separate runtime backend.
 
-The current skill layer (`skill/SKILL.md`, `skill/workflows/wiki.md`) contains aspirational workflows that drift from the shipped CLI contract. The goal of this step is to define a deterministic skill contract that agents can rely on, with explicit input/output schemas, a clear maintenance loop, and governance tests that fail when the skill description diverges from the CLI.
+The current skill layer (`skill/SKILL.md`, `skill/workflows/wiki.md`) contains aspirational workflows that drift from the shipped CLI contract. This analysis is now a background synthesis surface: the numbered Step 3 documents own the route contract, schema/provenance contract, governance alignment, and maintenance/deferred workflow boundaries.
 
 ## Roadmap Decomposition
 
@@ -148,238 +148,17 @@ The authoritative mapping of skill routes to runtime commands is owned by the [W
 - **Read-only MCP tools** such as `search`, `get_page`, `resolve_links`, and MCP-side recall support retrieval flows, but they are not standalone `/wiki` route definitions in this analysis.
 - **Deferred workflows** (`sync`, `edit`, `merge`, and graph-oriented workflows) stay deferred until the later maintenance/deferred-workflow contract owns them.
 
-### 3.3 Input/output schema drafts
+### 3.3 Schema and provenance ownership handoff
 
-#### `wiki ingest`
+This analysis no longer carries draft route schemas or duplicate provenance tables. The canonical owner for current `/wiki` route-adjacent schema, provenance, display, error-envelope, and reviewable-write truth is [02: Schema and Provenance Contract](02-schema-and-provenance-contract.md).
 
-```yaml
-# skill/schemas/ingest-input.yaml
-name: ingest-input
-type: object
-required:
-  - source
-properties:
-  source:
-    type: string
-    description: URL, file path, or inline text to ingest
-  source_type:
-    type: string
-    enum: [auto, article, session, note]
-    default: auto
-  tags:
-    type: array
-    items:
-      type: string
-```
+Read that contract for the current CLI JSON minimums, MCP transport wrappers, fileback reviewed-write payload rules, provenance/display minimums, and failure semantics. Any future skill schema files should mirror that canonical contract instead of redefining it here.
 
-```yaml
-# skill/schemas/ingest-output.yaml
-name: ingest-output
-type: object
-required:
-  - ok
-  - source_path
-  - pages_created
-  - pages_updated
-properties:
-  ok:
-    type: boolean
-  source_path:
-    type: string
-  pages_created:
-    type: array
-    items:
-      type: string
-  pages_updated:
-    type: array
-    items:
-      type: string
-  errors:
-    type: array
-    items:
-      type: string
-```
+### 3.4 Maintenance loop ownership handoff
 
-#### `wiki query`
+This analysis intentionally does not finalize the agent maintenance loop or deferred workflow sequencing. That ownership belongs to [04: Maintenance Loop and Deferred Workflows](04-maintenance-loop-and-deferred-workflows.md).
 
-```yaml
-# skill/schemas/query-input.yaml
-name: query-input
-type: object
-required:
-  - question
-properties:
-  question:
-    type: string
-  output:
-    type: string
-    enum: [json, markdown, text]
-    default: json
-  limit:
-    type: integer
-    default: 5
-```
-
-```yaml
-# skill/schemas/query-output.yaml
-name: query-output
-type: object
-required:
-  - ok
-  - command
-  - result
-properties:
-  ok:
-    type: boolean
-  command:
-    type: string
-  result:
-    type: object
-    properties:
-      hits:
-        type: array
-        items:
-          type: object
-          properties:
-            path:
-              type: string
-            title:
-              type: string
-            score:
-              type: number
-            source_type:
-              type: string
-            summary:
-              type: string
-```
-
-#### `wiki recall`
-
-```yaml
-# skill/schemas/recall-input.yaml
-name: recall-input
-type: object
-required:
-  - target
-properties:
-  target:
-    type: string
-    description: Date expression, topic, or session identifier
-  mode:
-    type: string
-    enum: [auto, date, temporal, known_item, topic]
-    default: auto
-  limit:
-    type: integer
-    default: 5
-```
-
-```yaml
-# skill/schemas/recall-output.yaml
-name: recall-output
-type: object
-required:
-  - ok
-  - command
-  - result
-properties:
-  ok:
-    type: boolean
-  command:
-    type: string
-  result:
-    type: object
-    properties:
-      strategy:
-        type: string
-      hits:
-        type: array
-        items:
-          type: object
-          properties:
-            path:
-              type: string
-            title:
-              type: string
-            recorded_at:
-              type: string
-            source_type:
-              type: string
-      one_thing:
-        type: string
-        description: Synthesized highest-leverage next action
-```
-
-#### `wiki status`
-
-```yaml
-# skill/schemas/status-output.yaml
-name: status-output
-type: object
-required:
-  - ok
-  - pages
-  - sources
-  - health
-properties:
-  ok:
-    type: boolean
-  pages:
-    type: object
-    properties:
-      total:
-        type: integer
-      summaries:
-        type: integer
-      concepts:
-        type: integer
-      entities:
-        type: integer
-      topics:
-        type: integer
-      comparisons:
-        type: integer
-      questions:
-        type: integer
-  sources:
-    type: object
-    properties:
-      total:
-        type: integer
-      articles:
-        type: integer
-      sessions:
-        type: integer
-      notes:
-        type: integer
-  health:
-    type: object
-    properties:
-      errors:
-        type: integer
-      warnings:
-        type: integer
-```
-
-### 3.4 Maintenance loop design
-
-The agent-facing wiki workflow should follow this loop:
-
-```
-Ingest  ->  Absorb  ->  Lint/Cleanup  ->  Query  ->  (File Back)
-   ^                                            |
-   +--------------------------------------------+
-```
-
-**Ingest**: Acquire source (URL, file, text, session) and compile it into `sources/` and `wiki/summaries/`.
-
-**Absorb**: Post-ingest synthesis. The agent reads the summary and updates concept, entity, topic, comparison, and overview pages. This is currently agent-driven (via LLM reasoning), not a CLI command.
-
-**Lint/Cleanup**: Run `snowiki lint` to detect structural errors, broken links, orphan pages, and stale content. Propose cleanup actions (e.g., merge overlapping pages, remove stale questions).
-
-**Query**: Use `snowiki query` or MCP `search`/`recall` to answer user questions from the compiled wiki.
-
-**File Back** (optional): If an answer is valuable, the agent may propose creating a `wiki/questions/` page. This remains a propose-then-apply step.
+For this analysis, the durable takeaway is only the boundary: reads may use CLI JSON or the read-only MCP surface, while reviewed writes remain CLI-mediated through `fileback preview` and `fileback apply`.
 
 ---
 
@@ -405,15 +184,9 @@ This section maps the contract needs to the existing codebase. Detailed task own
 | Skill frontmatter | `skill/SKILL.md` |
 | Workflow descriptions | `skill/workflows/wiki.md` |
 
-### 4.2 What needs to be added or modified
+### 4.2 Ownership map for implementation follow-through
 
-| Task | Priority | Rationale |
-| :--- | :--- | :--- |
-| Create `skill/schemas/*.yaml` for all current routes | High | Schema files are the missing layer between agent and runtime. |
-| Add governance test `tests/governance/test_skill_contract_alignment.py` | High | Ensures `skill/workflows/wiki.md` never describes a non-existent CLI command. |
-| Update `skill/SKILL.md` argument-hint to match current CLI only | Medium | Remove deferred commands from the primary hint or mark them explicitly. |
-| Add `one_thing` synthesis guidance to `skill/workflows/wiki.md` | Medium | Formalize the "One Thing" pattern already practiced in recall workflows. |
-| Define `absorb` and `cleanup` as agent-level wrappers (not CLI commands) | Low | These are orchestration patterns, not runtime mutations. They belong in the skill workflow, not the CLI. |
+This analysis does not carry the implementation task list. Immediate follow-through belongs to the numbered Step 3 owners: route exposure in [01: Wiki Route Contract](01-wiki-route-contract.md), schema/provenance truth in [02: Schema and Provenance Contract](02-schema-and-provenance-contract.md), governance/mirror alignment in [03: Governance and Mirror Alignment](03-governance-and-mirror-alignment.md), and maintenance/deferred workflow boundaries in [04: Maintenance Loop and Deferred Workflows](04-maintenance-loop-and-deferred-workflows.md).
 
 ### 4.3 No new runtime backend required
 
@@ -456,37 +229,28 @@ The `step3_wiki-skill-design/roadmap.md` raised three open questions. This secti
 
 ---
 
-## 6. Synthesis: Snowiki vs. External Patterns
+## 6. Reference fit: Snowiki vs. external patterns
 
-| Pattern Source | Key Idea | Snowiki Adoption | Snowiki Adaptation |
-| :--- | :--- | :--- | :--- |
-| **Farzapedia** | Agent-owned wiki with maintenance loop | Maintenance loop (`ingest → absorb → lint → query`) | Require explicit approval for writes |
-| **Karpathy LLM Wiki** | Raw → wiki → schema layering | Reinforce `sources/`, `wiki/`, `CLAUDE.md` layering | Add lint as a mandatory loop step |
-| **personal-os-skills** | SKILL.md frontmatter + schema files | Add `skill/schemas/*.yaml` for all routes | Keep schemas versioned with the CLI |
-| **seCall** | Vault = source of truth; indexes are rebuildable | Agent should prefer file reads over derived indexes | Document `rebuild` as the index recovery path |
-| **qmd lineage** | Hybrid retrieval, MCP integration, session recall | Future design target for Steps 4–5 | Keep as reference, not current runtime contract |
+These external patterns remain background inputs, not current ownership surfaces:
+
+- **Farzapedia** contributed the maintenance-loop framing, but current loop ownership now lives in [04: Maintenance Loop and Deferred Workflows](04-maintenance-loop-and-deferred-workflows.md).
+- **Karpathy's LLM Wiki** reinforced the raw-to-derived layering already present in Snowiki's runtime and documentation.
+- **personal-os-skills** informed the schema-first skill packaging direction, while current schema/provenance truth now lives in [02: Schema and Provenance Contract](02-schema-and-provenance-contract.md).
+- **seCall** reinforced the file-tree-as-truth posture and rebuildability boundary for derived indexes.
+- **qmd lineage** remains reference lineage only, not current Snowiki runtime contract.
 
 ---
 
-## 7. Recommendations and Next Actions
+## 7. How to use this analysis now
 
-### Immediate next actions (before promoting to `.sisyphus/plans/`)
+Use this document as background synthesis for why Step 3 was split into numbered owners. For current contract truth and follow-through:
 
-1. **Create schema files** (`skill/schemas/`) for `ingest`, `query`, `recall`, `status`, and `lint` routes.
-2. **Write the governance test** `tests/governance/test_skill_contract_alignment.py` that parses `skill/workflows/wiki.md` and verifies every "Current" route exists in `src/snowiki/cli/commands/`.
-3. **Update `skill/SKILL.md`** to reflect the current CLI-only posture and remove deferred commands from the primary argument hint.
-4. **Add a maintenance-loop diagram** to `skill/workflows/wiki.md` clarifying which steps are CLI calls, which are agent reasoning, and which are deferred.
-
-### Promotion criteria checklist
-
-- [x] Scope is implementation-ready (schemas and governance tests are concrete).
-- [x] No new runtime backend is required.
-- [ ] Acceptance criteria are documented (this analysis provides them).
-- [ ] Verification commands are known (`pytest tests/governance/test_skill_contract_alignment.py`).
-- [ ] Dependencies (Step 1 lexical contract stabilization) are satisfied.
+- use [02: Schema and Provenance Contract](02-schema-and-provenance-contract.md) for schema/provenance, display, error-envelope, and reviewable-write truth
+- use [04: Maintenance Loop and Deferred Workflows](04-maintenance-loop-and-deferred-workflows.md) for maintenance-loop and deferred workflow ownership
+- use the numbered Step 3 documents and their deep plans, not this analysis, for execution-ready tasks and promotion criteria
 
 ### Conclusion
 
 Step 3 does not require deep architectural invention. It requires **contract discipline**: defining exactly what the `/wiki` skill promises, how it maps to the existing CLI/MCP runtime, and how it prevents drift. The external references (Farzapedia, Karpathy, personal-os-skills, seCall) provide the UX patterns and organizational principles, but the runtime truth remains Snowiki’s Python CLI. The skill should be a transparent, schema-first wrapper around that truth.
 
-Once the schema files and governance test are implemented, Step 3 is ready for promotion to `.sisyphus/plans/`.
+The lasting value of this analysis is the synthesis behind the numbered Step 3 documents, not ownership of the current contract or near-term action plan.
