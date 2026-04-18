@@ -29,7 +29,7 @@ After the architecture discussion in [discussion #26](https://github.com/kywoo26
 | :--- | :--- | :--- | :--- |
 | 1 | `step1_lexical-foundation/` | Lock the lexical retrieval contract, eliminate drift, and make policy promotion safe. | Now |
 | 2 | `step2_korean-tokenizer-selection/` | Benchmark and select the Korean / mixed-language lexical strategy. | Next |
-| 3 | `step3_wiki-skill-design/` | Design the agent-facing `/wiki` skill contract, workflows, and maintenance loop. | Parallel with Step 2 |
+| 3 | `step3_wiki-skill-design/` | Design the agent-facing `/wiki` skill contract, workflows, and maintenance loop (decomposed into sub-steps 01-04). | Parallel with Step 2 |
 | 4 | `step4_hybrid-retrieval-preparation/` | Define seams, evaluation gates, and fallback rules for hybrid retrieval without shipping it as default. | Medium-term |
 | 5 | `step5_rust-core-migration-path/` | Define when and how to move hot paths to a Rust extension. | Long-term |
 

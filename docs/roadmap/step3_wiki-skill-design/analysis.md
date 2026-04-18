@@ -6,6 +6,15 @@ This document synthesizes external reference research (Farzapedia, Karpathy’s 
 
 The current skill layer (`skill/SKILL.md`, `skill/workflows/wiki.md`) contains aspirational workflows that drift from the shipped CLI contract. The goal of this step is to define a deterministic skill contract that agents can rely on, with explicit input/output schemas, a clear maintenance loop, and governance tests that fail when the skill description diverges from the CLI.
 
+## Roadmap Decomposition
+
+This analysis is further decomposed into four concern-based sub-steps that own the detailed contracts. Future deep-planning follows the sequence **01 → 02 → 03 → 04**, starting with the route contract as the primary dependency.
+
+- [01: Wiki Route Contract](01-wiki-route-contract.md) — Taxonomy and CLI/MCP mapping. (**First Deep-Plan Target**)
+- [02: Schema and Provenance Contract](02-schema-and-provenance-contract.md) — I/O schemas and traceability.
+- [03: Governance and Mirror Alignment](03-governance-and-mirror-alignment.md) — Drift prevention and testing.
+- [04: Maintenance Loop and Deferred Workflows](04-maintenance-loop-and-deferred-workflows.md) — Lifecycle and future boundaries.
+
 ---
 
 ## 1. External Reference Synthesis
@@ -117,6 +126,8 @@ The current skill layer (`skill/SKILL.md`, `skill/workflows/wiki.md`) contains a
 ---
 
 ## 3. Proposed Skill Contract Design
+
+The high-level design principles and route definitions are summarized below. Detailed contract ownership is delegated to the numbered sub-steps.
 
 ### 3.1 Design principles
 
@@ -383,6 +394,8 @@ Ingest  ->  Absorb  ->  Lint/Cleanup  ->  Query  ->  (File Back)
 ---
 
 ## 4. Implementation Mapping to Snowiki Codebase
+
+This section maps the contract needs to the existing codebase. Detailed task ownership for these mappings is defined in the numbered sub-steps.
 
 ### 4.1 What already supports the contract
 

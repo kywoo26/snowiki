@@ -34,6 +34,21 @@ Out of scope:
 - Do not allow the skill to bypass the CLI/MCP contract.
 - Do not add agent write permissions without a review gate unless explicitly configured.
 
+## Sub-steps
+
+This initiative is decomposed into four concern-based sub-steps:
+
+1. [01: Wiki Route Contract](01-wiki-route-contract.md) — Canonical route taxonomy and CLI/MCP mapping.
+2. [02: Schema and Provenance Contract](02-schema-and-provenance-contract.md) — Input/output schemas and traceability rules.
+3. [03: Governance and Mirror Alignment](03-governance-and-mirror-alignment.md) — Drift prevention and automated alignment tests.
+4. [04: Maintenance Loop and Deferred Workflows](04-maintenance-loop-and-deferred-workflows.md) — Knowledge lifecycle and future workflow boundaries.
+
+## Future Planning Order
+
+To ensure a stable foundation, future deep-planning for this step will follow the numbered sequence: **01 → 02 → 03 → 04**.
+
+The **First Deep-Plan Target** is [01-wiki-route-contract.md](01-wiki-route-contract.md). All later Step 3 docs depend on a stable current-vs-deferred route map and canonical route ownership; deep-planning any later doc first would risk encoding unstable assumptions about what the `/wiki` skill actually wraps.
+
 ## Dependencies
 
 - **Step 1** must be complete so that the runtime contract the skill wraps is stable and canonical.
@@ -48,9 +63,10 @@ Out of scope:
 
 ## Deliverables
 
-1. **Skill contract document** defining each route, its arguments, and its output shape.
-2. **Schema files** for inputs/outputs (YAML or JSON) that both humans and agents can validate against.
-3. **Workflow map** showing how ingest, absorb, query, and lint interact.
+1. **Skill contract document** (see [01-wiki-route-contract.md](01-wiki-route-contract.md)) defining each route, its arguments, and its output shape.
+2. **Schema files** (see [02-schema-and-provenance-contract.md](02-schema-and-provenance-contract.md)) for inputs/outputs (YAML or JSON) that both humans and agents can validate against.
+3. **Workflow map** (see [04-maintenance-loop-and-deferred-workflows.md](04-maintenance-loop-and-deferred-workflows.md)) showing how ingest, absorb, query, and lint interact.
+4. **Governance tests** (see [03-governance-and-mirror-alignment.md](03-governance-and-mirror-alignment.md)) to prevent CLI/skill drift.
 
 ## TDD and verification plan
 

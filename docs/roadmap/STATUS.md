@@ -13,8 +13,12 @@
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
-  - Status: Analysis complete. External concepts mapped onto Snowiki skill/ + mcp/ structure.
-  - Next action: Promote to `.sisyphus/plans/` after Step 1 execution completes; create `skill/schemas/*.yaml` and `tests/governance/test_skill_contract_alignment.py`.
+  - Status: Analysis complete. Decomposed into four sub-steps:
+    - `01-wiki-route-contract.md`
+    - `02-schema-and-provenance-contract.md`
+    - `03-governance-and-mirror-alignment.md`
+    - `04-maintenance-loop-and-deferred-workflows.md`
+  - Next action: Close sub-steps before any `.sisyphus/plans/` promotion; Step 1 must complete first.
   - Blocker: Step 1 must complete first so the runtime contract is canonical.
 
 - [x] **Step 4: Hybrid fusion deep-dive**
