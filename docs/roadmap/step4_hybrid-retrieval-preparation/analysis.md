@@ -124,6 +124,68 @@ Option B — new `search/hybrid.py` module with a `HybridSearchService`
 | **Diversity** | Optional session cap (default 2) | `seCall` shows this prevents one source from flooding results. |
 | **Fallback** | BM25-only when vector/embedder unavailable | All three systems converge on this. |
 
+## Additional planning synthesis after deeper reference review
+
+### qmd vs seCall: which system should answer which Step 4 question?
+
+| Planning question | Primary reference | Why |
+| :--- | :--- | :--- |
+| Fusion / shortcut / rerank sequencing | **qmd** | qmd is more explicit about hybrid orchestration and benchmarkable hybrid behavior. |
+| Korean tokenizer and fallback posture | **seCall** | seCall is the closest sibling for Korean-aware local search and degraded-mode discipline. |
+| Vault / derived-cache discipline | **seCall** | seCall's source-of-truth model maps well to Snowiki's canonical artifact philosophy. |
+| Evaluation harness shape | **qmd** | qmd has stronger direct evidence for hybrid-vs-baseline testing. |
+| Multilingual model/hardware planning | **external model docs + qmd/seCall runtime evidence** | Dense model choice and CPU/GPU posture need both code and library guidance. |
+
+### Important correction from Step 2 closeout
+
+Step 2 did **not** prove a runtime sparse-branch promotion candidate. It ended as:
+- benchmark-only / no runtime promotion
+- useful evidence for Korean and mixed-language tradeoffs
+- insufficient grounds to treat the sparse branch as solved
+
+That means Step 4 should produce an implementation-grade plan, but the plan itself must preserve these truths:
+1. dense retrieval does not erase Step 2's lexical uncertainty
+2. exact-match and mixed-language sparse quality remain gating concerns
+3. hybrid promotion must still prove non-regression against the current lexical contract
+
+### Model-policy correction
+
+The earlier Step 4 notes leaned too hard toward picking one final embedder now.
+
+The stronger planning posture after the skeptical audit is:
+- **requirement**: the dense path must be multilingual-capable
+- **candidate set must remain open** across at least one heavier ceiling candidate and one simpler baseline
+- **operational fallback**: smaller multilingual CPU-safe baseline
+- **final implementation default**: still subject to benchmark evidence on Snowiki's mixed-language corpus
+
+This keeps the roadmap concrete without pretending the benchmark is already decided.
+
+### Additional split-search axes the first draft underplayed
+
+The audit also shows that embedder choice is only one of several still-open Step 4 decision buckets.
+
+At minimum, the roadmap should keep explicit room for deeper search on:
+1. sparse branch / language-routing policy
+2. embedding backend + quantization policy
+3. ANN / exact-scan transition gate
+4. query-expansion policy and cache eligibility
+5. reranker family and score semantics
+6. topology / collection routing / cache ownership
+7. cross-surface mode parity and benchmark artifact schema
+
+The first Step 4 packet is still useful, but it should now be read as a **planning skeleton**, not as a fully closed implementation split.
+
+### What Snowiki should deliberately do better than both references
+
+1. **Retrieval evaluation as a first-class surface**
+   - qmd is better here than seCall, but Snowiki should still make benchmark outputs durable and policy-gated.
+2. **Cross-surface contract sync**
+   - Step 4 must keep CLI, daemon, MCP, and benchmark semantics aligned.
+3. **Planning-to-execution traceability**
+   - seCall's plan/task/review structure is useful; Snowiki should adopt that discipline in its own roadmap-to-plan handoff.
+4. **Explicit CPU/GPU truthfulness**
+   - do not design around GPU assumptions while claiming local-first CPU accessibility.
+
 ## File references
 - `src/snowiki/search/semantic_abstraction.py` — semantic backend protocol stub
 - `src/snowiki/search/rerank.py` — rerank protocol and kind-blending
