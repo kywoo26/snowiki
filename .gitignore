@@ -49,6 +49,9 @@ quarantine/
 # Reports
 reports/
 
+# Research cache captures
+.cache/research/claude-skills/
+
 # Environment
 .env
 .env.local
