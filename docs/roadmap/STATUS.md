@@ -22,12 +22,15 @@
   - Blocker: Step 1 must complete first so the runtime contract is canonical.
 
 - [x] **Step 4: Hybrid fusion deep-dive**
-  - Status: Analysis complete. Decomposed into four sub-steps:
+  - Status: Analysis complete. Expanded into seven planning sub-steps / policy notes:
     - `01-chunker-vector-schema.md`
     - `02-embedder-lifecycle-model-policy.md`
     - `03-hybrid-fusion-shortcut-rerank.md`
     - `04-hybrid-evaluation-mode-plumbing.md`
-  - Next action: Close sub-steps before any `.sisyphus/plans/` promotion; Step 2 must be proven first.
+    - `05-embedding-candidate-matrix.md`
+    - `06-sparse-language-routing-policy.md`
+    - `07-topology-cache-ann-mode-parity.md`
+  - Next action: Close the seven-document Step 4 planning packet before any execution-plan promotion; the candidate matrix and sparse/language policy are now explicit prerequisites.
   - Blocker: (B) Step 2 still not proven, Step 4 remains blocked.
 
 - [x] **Step 5: Rust core migration path**
@@ -48,7 +51,9 @@
 - [x] Step 3 wiki skill design analysis
 - [x] Step 4 hybrid architecture memo (`hybrid-architecture.md`)
 - [x] Step 4 hybrid evaluation plan (`hybrid-evaluation-plan.md`)
-- [x] Step 4 decomposed into sub-steps (chunker, embedder, fusion, evaluation)
+- [x] Step 4 decomposed into sub-steps (chunker, embedder, fusion, evaluation, candidate matrix, sparse/language policy, topology/cache parity)
+- [x] Step 4 external note expansion (`qmd`, `seCall`, Damoang/seCall series, embedding/hardware policy)
+- [x] Step 4 substep execution protocol (deep plan -> execution/research/decision -> PR-ready closeout)
 - [x] Step 5 rust migration analysis (`step5_rust-core-migration-path/analysis.md`)
 - [x] Step 5 decision/evidence scaffolding (`rust-migration-decision-record.md`, `profiling-baseline.md`)
 - [x] Step 5 decomposed into sub-steps (profiling, boundary API, packaging)
