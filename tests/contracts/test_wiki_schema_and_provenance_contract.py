@@ -295,7 +295,7 @@ def test_fileback_reviewed_write_contract_requires_matching_apply_plan_and_prove
         "command": "fileback preview",
         "result": {"root": root.as_posix(), "proposal": proposal},
     }
-    mutated_payload = cast(dict[str, Any], copy.deepcopy(reviewed_payload))
+    mutated_payload = copy.deepcopy(reviewed_payload)
     mutated_payload["result"]["proposal"]["apply_plan"]["rebuild_required"] = False
 
     with pytest.raises(

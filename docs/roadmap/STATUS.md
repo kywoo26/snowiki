@@ -9,7 +9,7 @@
 
 - [x] **Step 2: Korean tokenizer deep-dive**
   - Status: Benchmark proof failed to reach promotion threshold; local outcome is `benchmark-only/no runtime promotion`.
-  - Next action: Closeout normalization / benchmark-surface hardening preparation.
+  - Next action: No further mandatory Step 2 closeout work. Reopen only if fresh evidence is intentionally collected under a new promotion program.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
@@ -48,6 +48,7 @@
 - [x] External notes infrastructure setup (`docs/roadmap/external/`)
 - [x] Step 1 lexical parity gap analysis; execution-planning-ready
 - [x] Step 2 decomposed into sub-steps (corpus, registry, candidate matrix)
+- [x] Step 2 gate audit / residual-program decision (`step2_korean-tokenizer-selection/04-gate-audit-and-residual-program.md`)
 - [x] Step 3 wiki skill design analysis
 - [x] Step 4 hybrid architecture memo (`hybrid-architecture.md`)
 - [x] Step 4 hybrid evaluation plan (`hybrid-evaluation-plan.md`)
