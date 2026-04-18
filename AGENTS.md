@@ -80,7 +80,7 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Maintain atomic commits by concern.
 - Use the PR template at `.github/pull_request_template.md`; fill Problem, Surfaces Touched, Verification, and Contract Sync.
 - Use conventional commits: `type(scope): subject`. See `.github/commit-message-rules.md` for the full rule set.
-- `feat` and `fix` require a scope and a body explaining why.
+- `feat` and `fix` require a scope. A body explaining why is strongly recommended.
 - Reference issues in the footer: `Refs: #N` or `Fixes: #N`.
 
 ## Branch Naming
