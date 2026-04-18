@@ -8,12 +8,9 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Analysis complete. Decomposed into three sub-steps:
-    - `01-mixed-language-benchmark-corpus.md`
-    - `02-tokenizer-abstraction-registry.md`
-    - `03-tokenizer-candidate-matrix.md`
-  - Next action: Close the three sub-steps (corpus freeze, registry decision, candidate matrix) before promoting to `.sisyphus/plans/`.
-  - Blocker: None
+  - Status: Benchmark proof failed to reach promotion threshold; local outcome is `benchmark-only/no runtime promotion`.
+  - Next action: Closeout normalization / benchmark-surface hardening preparation.
+  - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
   - Status: Analysis complete. External concepts mapped onto Snowiki skill/ + mcp/ structure.
@@ -27,7 +24,7 @@
     - `03-hybrid-fusion-shortcut-rerank.md`
     - `04-hybrid-evaluation-mode-plumbing.md`
   - Next action: Close sub-steps before any `.sisyphus/plans/` promotion; Step 2 must be proven first.
-  - Blocker: Step 2 sparse branch proven on mixed-language benchmark.
+  - Blocker: (B) Step 2 still not proven, Step 4 remains blocked.
 
 - [x] **Step 5: Rust core migration path**
   - Status: Analysis complete. Decomposed into three sub-steps:
@@ -73,4 +70,4 @@
 
 ## Last updated
 
-2026-04-16
+2026-04-18
