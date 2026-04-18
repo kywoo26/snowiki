@@ -79,3 +79,4 @@ Mutation remains CLI-mediated. MCP write support is not shipped.
 - `docs/architecture/skill-and-agent-interface-contract.md` — canonical agent/runtime contract
 - `docs/reference/claude-code-wiki-quickstart.md` — step-by-step Claude Code `/wiki` adoption guide
 - [qmd](https://github.com/tobi/qmd) — lineage/reference material, not the current Snowiki runtime
+# Validation marker
