@@ -80,6 +80,22 @@ The shortcut must not fire when:
 - rerank is optional; if no reranker is available, fused results are returned unchanged
 - rerank cache key follows the architecture memo: `sha256(model_id + "\0" + query + "\0" + chunk_content_hash)`
 
+### 6. Borrow / adapt / reject summary from qmd and seCall
+
+Borrow:
+- qmd's strong-signal shortcut posture
+- qmd's chunk-scoped rerank after fusion
+- seCall's diversity cap as an optional anti-flooding finalizer
+
+Adapt:
+- qmd's more hybrid-native runtime assumptions must be adapted to Snowiki's lexical-first default
+- seCall's session-shaped diversity logic must be adapted to Snowiki's document/page/record identities
+
+Reject for initial Step 4:
+- making query expansion part of the baseline hybrid path
+- always-on hybrid execution without a lexical shortcut
+- full-document reranking as the default precision layer
+
 ## Independent test contract
 
 ### Fusion tests
@@ -124,6 +140,31 @@ Minimum deterministic tests:
 2. a closed shortcut policy with exact deterministic thresholds
 3. a rerank placement and cache-key contract
 4. a test matrix proving fusion and shortcut logic can be validated independently
+
+## Implementation planning notes
+
+### Primary Snowiki files likely involved later
+- `src/snowiki/search/workspace.py`
+- `src/snowiki/search/rerank.py`
+- `src/snowiki/search/semantic_abstraction.py`
+- `src/snowiki/search/contract.py`
+- `src/snowiki/search/queries/topical.py`
+
+### Expected new runtime surface
+- `src/snowiki/search/hybrid.py`
+
+### Sequencing rule
+This substep should become executable only after:
+1. chunk identity and vector-store shape are frozen (`01`)
+2. embedder lifecycle and fallback behavior are frozen (`02`)
+
+Otherwise hybrid orchestration will be forced to guess at candidate identity and stale-state handling.
+
+### Minimum execution-plan decomposition expected later
+1. pure fusion utilities with deterministic unit tests
+2. shortcut evaluator with deterministic threshold tests
+3. hybrid service shell with BM25-only fallback
+4. optional rerank hook and cache plumbing
 
 ## Acceptance criteria
 

@@ -101,6 +101,52 @@ Schema rules:
 3. a finalized SQLite vector schema and backend decision
 4. a rebuild/invalidation note tying vector freshness to content identity plus `model_version`
 
+## Implementation planning notes
+
+### Primary Snowiki files likely involved later
+- `src/snowiki/compiler/taxonomy.py`
+- `src/snowiki/search/workspace.py`
+- `src/snowiki/search/indexer.py`
+- `src/snowiki/storage/zones.py`
+- `src/snowiki/daemon/warm_index.py`
+
+### Expected new runtime surfaces
+- `src/snowiki/search/chunker.py`
+- `src/snowiki/search/vector_store.py`
+
+### Sequencing rule
+Do **not** start by wiring embeddings directly into `workspace.py`.
+
+The correct order is:
+1. freeze chunk identity and provenance contract
+2. freeze vector-store schema and invalidation semantics
+3. only then let Step 2 and Step 4 execution plans decide how embedding writes enter the rebuild pipeline
+
+### Invalidation rule
+Vector rows become stale when **any** of the following changes:
+- content-derived identity of the source page/record
+- chunking policy version
+- embedder model/version
+- embedding normalization policy
+
+This is stricter than lexical invalidation on purpose. Dense rows should fail closed.
+
+### Benchmark requirements tied to this substep
+- indexing benchmark must separately report:
+  - chunk count
+  - average chunk length
+  - embedding build time
+  - vector-store disk size
+- query benchmarks should be blocked from using stale vector rows
+
+## Promotion-ready outputs expected from this substep
+
+This document is only "closed" for planning when it can hand an execution plan the following without reopening design debate:
+1. exact chunk identity fields
+2. exact staleness triggers
+3. exact storage location / backend posture
+4. exact provenance fields preserved into final hits
+
 ## Acceptance criteria
 
 - the chunker contract specifies how markdown, code, tables, and images are handled without dropping provenance
