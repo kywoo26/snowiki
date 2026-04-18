@@ -82,6 +82,17 @@ Run all of the following before hybrid is allowed to move toward runtime promoti
 4. rerank on vs off
 5. mixed-language tokenizer/back-end comparisons tied to Step 2 sparse decisions
 
+### 6.1 Required report artifacts
+
+Every hybrid benchmark run should save machine-readable outputs that let Snowiki compare runs over time.
+
+Minimum durable artifacts:
+- slice metrics JSON
+- ablation summary JSON
+- fallback / shortcut event counts
+- latency distribution summary
+- short human-readable summary suitable for roadmap closeout notes
+
 ### 7. Promotion gate posture
 
 `--mode hybrid` may ship as an opt-in capability before promotion, but hybrid must **not** become default until all Step 4 evaluation gates are met:
@@ -104,6 +115,29 @@ Run all of the following before hybrid is allowed to move toward runtime promoti
 2. integration-test requirements for degraded hybrid requests
 3. a benchmark matrix covering slices, variants, and ablations
 4. a promotion rule that keeps hybrid opt-in until evidence is complete
+
+## Implementation planning notes
+
+### Primary Snowiki files likely involved later
+- `src/snowiki/cli/commands/query.py`
+- `src/snowiki/cli/commands/recall.py`
+- `src/snowiki/cli/commands/benchmark.py`
+- `src/snowiki/mcp/server.py`
+- `src/snowiki/daemon/server.py`
+- `src/snowiki/bench/contract.py`
+- `src/snowiki/bench/presets.py`
+- `src/snowiki/bench/models.py`
+
+### Required new tests before runtime-default discussion
+1. `tests/search/test_semantic_abstraction.py`
+2. integration tests for hybrid-requested-but-embedder-unavailable fallback
+3. governance tests for mode parity across CLI / MCP / daemon
+4. benchmark artifact tests ensuring new hybrid reports remain machine-readable and stable
+
+### Key Step 4 discipline
+This substep is where Snowiki should deliberately exceed seCall's evaluation posture.
+
+The benchmark/evaluation layer is not a late polish step. It is the thing that makes hybrid promotion believable.
 
 ## Acceptance criteria
 
