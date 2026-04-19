@@ -55,9 +55,9 @@ def test_step2_gate_audit_stays_aligned_with_proof_and_status(repo_root: Path) -
     for marker in required_proof_markers:
         assert marker in proof
 
-    assert "No further mandatory Step 2 closeout work." in status
+    assert "Launch the fresh evidence program for Step 2." in status
     assert (
-        "Reopen only if fresh evidence is intentionally collected under a new promotion program."
+        "This is an intentional reopening under a new promotion program, not more mandatory closeout normalization."
         in status
     )
     assert "Step 2 sparse branch still not proven on mixed-language benchmark." in status
