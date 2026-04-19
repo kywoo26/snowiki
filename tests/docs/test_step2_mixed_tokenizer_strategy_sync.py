@@ -47,8 +47,8 @@ def test_step2_mixed_tokenizer_strategy_stays_aligned_with_proof_and_gate(
         assert marker in strategy
 
     required_proof_markers = [
-        "-0.027778",
-        "-0.111111",
+        "0.666667",
+        "0.712121",
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
     ]
