@@ -112,22 +112,35 @@ Step 4 remains blocked.
 
 The sparse branch is still not proven, and the stronger benchmark makes that conclusion more credible rather than less.
 
-## Next Step 2 lane
+## Subsequent Mecab reopening result
 
-The correct next lane is now **Substep 5 — final comparative proof and recommendation**.
+The later bounded Mecab reopening attempt did **not** reach implementation or benchmark execution.
+
+- **Representative target**: `python-mecab-ko`
+- **Artifact**: `12-mecab-feasibility-blocker.md`
+- **Outcome**: `blocked-with-artifact`
+- **Blocking reason**: Python 3.14 bounded install failed because `python-mecab-ko` fell into a native build path and errored on `mecab-config not found`
 
 That means:
-- do not reopen more Kiwi variants
-- do not expand the benchmark again
-- do not open Mecab in this same execution round without a later canonical reopening decision
-- close the program as `no stable winner` unless there is explicit evidence that Substep 3 must be reopened
+- HF/subword is the only executed external-family comparison lane in the finished comparison chain
+- Mecab did not consume a benchmark run because it failed before bounded implementation could begin
+- no further Mecab implementation work remains in this round
+
+## Current Step 2 closeout posture
+
+The current external-family outcomes are now fully known:
+
+- HF/subword: benchmarkable but rejected
+- Mecab: blocked-with-artifact at the bounded Python 3.14 feasibility gate
+
+The remaining overall Step 2 closeout question is whether to terminate the broader program as `no stable winner` or explicitly reopen Substep 3 under new evidence. The Mecab reopening program itself is closed.
 
 ## Step 4 Gate Decision
 
 - **Local Closeout Outcome**: benchmark-only/no runtime promotion
 - **Promoted Tokenizer**: [NONE]
 - **Step 4 Unblocked**: [NO]
-- **Rationale**: The strengthened benchmark substrate showed no stable winner in the current lexical roster, and the bounded HF/subword external-family lane is now benchmarkable but still fails the retrieval quality gate. Step 2 therefore remains benchmark-only/no runtime promotion and Step 4 remains blocked.
+- **Rationale**: The strengthened benchmark substrate showed no stable winner in the current lexical roster; HF/subword was benchmarkable but rejected; and the later Mecab reopening attempt closed as blocked-with-artifact before implementation. Step 2 therefore remains benchmark-only/no runtime promotion and Step 4 remains blocked.
 
 ---
 *This document is the durable strengthened-current-roster proof record for the lexical productionization program.*
