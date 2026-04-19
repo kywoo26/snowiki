@@ -26,8 +26,8 @@ Tokenizer-promotion operational evidence (memory/disk) is measured separately fr
 
 The following files define the canonical quality dataset:
 
-- `benchmarks/queries.json`: Bilingual query set (Korean, English, Mixed) covering known-item, topical, and temporal retrieval.
-- `benchmarks/judgments.json`: Gold relevance judgments for the query set.
+- `benchmarks/queries.json`: Bilingual query set (Korean, English, Mixed) covering known-item, topical, and temporal retrieval, with machine-checkable `tags` and optional `no_answer` flags.
+- `benchmarks/judgments.json`: Gold relevance judgments for the query set; no-answer queries are represented as queries with no relevant documents.
 
 ## Execution
 
@@ -85,7 +85,7 @@ The final line of the benchmark output provides a unified verdict:
 
 The benchmark produces two types of output:
 1.  **Human-readable summary**: Printed to stdout, including per-baseline metrics, threshold deltas, and the unified verdict.
-2.  **Machine-readable JSON**: Written to the path specified by `--output`. This report includes detailed metrics, threshold policies, and structural validation results.
+2.  **Machine-readable JSON**: Written to the path specified by `--output`. This report includes detailed metrics, threshold policies, structural validation results, multi-k metric maps, and subset slices when available.
 
 The stdout summary is intended to be concise and benchmark-focused. Backend library progress bars should not obscure the final structural, performance, retrieval, and unified verdict sections.
 
