@@ -43,5 +43,8 @@ def test_step2_operational_evidence_note_stays_aligned_with_policy(
     assert 'disk_size_evidence_status="not_measured"' in matrix
     assert 'evidence.memory_evidence_status == "measured"' in verdict
     assert 'evidence.disk_size_evidence_status == "measured"' in verdict
-    assert "Memory usage metrics." in benchmark_readme
+    assert (
+        "Tokenizer-promotion operational evidence (memory/disk) is measured separately"
+        in benchmark_readme
+    )
     assert "Operational Status**: FAIL (Memory and Disk usage not measured)" in proof
