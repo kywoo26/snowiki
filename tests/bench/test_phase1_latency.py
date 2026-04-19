@@ -81,6 +81,7 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
         "repetitions": 2,
         "query_mode": "lexical",
         "top_k": 5,
+        "top_ks": [1, 3, 5, 10, 20],
     }
     assert corpus["fixtures_indexed"] == 2
     assert corpus["queries_evaluated"] == 2
@@ -174,6 +175,7 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
         "repetitions": 1,
         "query_mode": "lexical",
         "top_k": 5,
+        "top_ks": [1, 3, 5, 10, 20],
     }
     assert list(get_preset("retrieval").baselines) == [
         "lexical",
@@ -230,6 +232,7 @@ def test_phase1_latency_keeps_benchmark_lexical_mode_and_shipped_query_hybrid_no
         "repetitions": 1,
         "query_mode": "lexical",
         "top_k": 5,
+        "top_ks": [1, 3, 5, 10, 20],
     }
     assert "semantic_backend" not in protocol
     assert len(benchmark_calls) == 1

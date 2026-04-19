@@ -54,12 +54,18 @@ class BenchmarkPreset:
     description: str
     query_kinds: tuple[str, ...]
     top_k: int = 5
+    top_ks: tuple[int, ...] = ()
     baselines: tuple[str, ...] = DEFAULT_BASELINES
 
     def __post_init__(self) -> None:
         object.__setattr__(
             self, "baselines", normalize_benchmark_baselines(self.baselines)
         )
+        if not self.top_ks:
+            object.__setattr__(self, "top_ks", (1, 3, 5, 10, 20))
+        else:
+            ordered = tuple(sorted({int(k) for k in self.top_ks if int(k) > 0}))
+            object.__setattr__(self, "top_ks", ordered or (self.top_k,))
 
 
 _PRESETS = {

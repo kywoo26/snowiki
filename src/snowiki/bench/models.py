@@ -54,10 +54,18 @@ class BenchmarkHit(BaseModel):
     score: float
 
 
+class BenchmarkQueryMetadata(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    tags: list[str] = Field(default_factory=list)
+    no_answer: bool = False
+
+
 class QueryResult(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
 
     query_id: str
+    metadata: BenchmarkQueryMetadata = Field(default_factory=BenchmarkQueryMetadata)
     hits: list[BenchmarkHit] = Field(default_factory=list)
 
     def to_legacy_dict(self) -> list[dict[str, object]]:
@@ -70,6 +78,8 @@ class PerQueryQuality(BaseModel):
     query_id: str
     ranked_ids: list[str] = Field(default_factory=list)
     relevant_ids: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    no_answer: bool = False
     recall_at_k: float
     reciprocal_rank: float
     ndcg_at_k: float
@@ -82,11 +92,26 @@ class QualityMetrics(BaseModel):
     mrr: float
     ndcg_at_k: float
     top_k: int
+    top_ks: list[int] = Field(default_factory=list)
+    metrics_by_k: dict[str, dict[str, float]] = Field(default_factory=dict)
     queries_evaluated: int
     per_query: list[PerQueryQuality] = Field(default_factory=list)
 
     def to_legacy_dict(self) -> dict[str, object]:
-        return self.model_dump(mode="json")
+        payload = self.model_dump(mode="json")
+        if not self.top_ks:
+            payload.pop("top_ks", None)
+        if not self.metrics_by_k:
+            payload.pop("metrics_by_k", None)
+        per_query = []
+        for item in payload.get("per_query", []):
+            if not item.get("tags"):
+                item.pop("tags", None)
+            if item.get("no_answer") is False:
+                item.pop("no_answer", None)
+            per_query.append(item)
+        payload["per_query"] = per_query
+        return payload
 
 
 class QualitySlices(BaseModel):
@@ -94,9 +119,10 @@ class QualitySlices(BaseModel):
 
     group: dict[str, QualityMetrics] = Field(default_factory=dict)
     kind: dict[str, QualityMetrics] = Field(default_factory=dict)
+    subset: dict[str, QualityMetrics] = Field(default_factory=dict)
 
     def to_legacy_dict(self) -> dict[str, dict[str, dict[str, object]]]:
-        return {
+        payload = {
             "group": {
                 name: metrics.to_legacy_dict() for name, metrics in self.group.items()
             },
@@ -104,6 +130,11 @@ class QualitySlices(BaseModel):
                 name: metrics.to_legacy_dict() for name, metrics in self.kind.items()
             },
         }
+        if self.subset:
+            payload["subset"] = {
+                name: metrics.to_legacy_dict() for name, metrics in self.subset.items()
+            }
+        return payload
 
 
 class ThresholdResult(BaseModel):
@@ -156,6 +187,7 @@ class PresetSummary(BaseModel):
     description: str
     query_kinds: list[str] = Field(default_factory=list)
     top_k: int
+    top_ks: list[int] = Field(default_factory=list)
     baselines: list[str] = Field(default_factory=list)
 
     @model_validator(mode="before")
@@ -393,6 +425,7 @@ def validate_baseline_result(payload: object) -> BaselineResult:
 __all__ = [
     "BaselineResult",
     "BenchmarkHit",
+    "BenchmarkQueryMetadata",
     "BenchmarkReport",
     "CandidateOperationalEvidence",
     "CandidateDecision",

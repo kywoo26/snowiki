@@ -106,6 +106,8 @@ class BenchmarkQuery:
     text: str
     group: str
     kind: str
+    tags: tuple[str, ...] = ()
+    no_answer: bool = False
 
 
 @dataclass(frozen=True)
@@ -154,6 +156,8 @@ def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
             text=str(row["text"]),
             group=str(row.get("group", "default")),
             kind=str(row.get("kind", "known-item")),
+            tags=tuple(_string_list(row.get("tags", []), label="benchmarks/queries.json tags must be a list")),
+            no_answer=bool(row.get("no_answer", False)),
         )
         for row in rows
     )
@@ -440,6 +444,7 @@ def _evaluate_baseline(
     judgments: dict[str, list[str]],
     search_fn: Callable[[str], list[SearchHit]],
     hit_lookup: dict[str, str],
+    top_ks: tuple[int, ...],
 ) -> BaselineResult:
     ranked_results: dict[str, list[str]] = {}
     hits_by_query: dict[str, list[SearchHit]] = {}
@@ -460,8 +465,10 @@ def _evaluate_baseline(
             judgments,
             query_groups={query.query_id: query.group for query in queries},
             query_kinds={query.query_id: query.kind for query in queries},
-            top_k=max((len(ranked) for ranked in ranked_results.values()), default=0)
-            or 1,
+            query_tags={query.query_id: query.tags for query in queries},
+            query_no_answer={query.query_id: query.no_answer for query in queries},
+            top_k=max((len(ranked) for ranked in ranked_results.values()), default=0) or 1,
+            top_ks=top_ks,
         )
     )
 
@@ -492,12 +499,16 @@ def _quality_metrics(summary: QualitySummary) -> QualityMetrics:
         mrr=summary.mrr,
         ndcg_at_k=summary.ndcg_at_k,
         top_k=summary.top_k,
+        top_ks=list(summary.top_ks),
+        metrics_by_k={metric: {str(k): value for k, value in values.items()} for metric, values in (summary.metrics_by_k or {}).items()},
         queries_evaluated=summary.queries_evaluated,
         per_query=[
             PerQueryQuality(
                 query_id=item.query_id,
                 ranked_ids=list(item.ranked_ids),
                 relevant_ids=list(item.relevant_ids),
+                tags=list(item.tags),
+                no_answer=item.no_answer,
                 recall_at_k=item.recall_at_k,
                 reciprocal_rank=item.reciprocal_rank,
                 ndcg_at_k=item.ndcg_at_k,
@@ -518,6 +529,10 @@ def _quality_report(summary: SlicedQualitySummary) -> QualityReport:
             kind={
                 name: _quality_metrics(metrics)
                 for name, metrics in summary.by_kind.items()
+            },
+            subset={
+                name: _quality_metrics(metrics)
+                for name, metrics in (summary.by_subset or {}).items()
             },
         ),
         thresholds=[
@@ -630,6 +645,7 @@ def run_baseline_comparison(
                     corpus.raw_index, query_text, preset.top_k
                 ),
                 hit_lookup=hit_lookup,
+                top_ks=preset.top_ks,
             )
             continue
         if baseline == "bm25s" or baseline.startswith("bm25s_kiwi"):
@@ -650,6 +666,7 @@ def run_baseline_comparison(
                     for hit in bm25_index.search(query_text, limit=preset.top_k)
                 ],
                 hit_lookup=hit_lookup,
+                top_ks=preset.top_ks,
             )
             continue
         raise ValueError(f"unsupported baseline: {baseline}")
@@ -665,6 +682,7 @@ def run_baseline_comparison(
             description=preset.description,
             query_kinds=list(preset.query_kinds),
             top_k=preset.top_k,
+            top_ks=list(preset.top_ks),
             baselines=list(normalized_baselines),
         ),
         corpus=CorpusSummary(
