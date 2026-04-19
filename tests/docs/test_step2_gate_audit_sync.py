@@ -55,8 +55,8 @@ def test_step2_gate_audit_stays_aligned_with_proof_and_status(repo_root: Path) -
     for marker in required_proof_markers:
         assert marker in proof
 
-    assert "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is now blocked pending explicit approval for inventory-sensitive benchmark asset strengthening." in status
-    assert "Obtain approval for one bounded benchmark-asset strengthening pass or close the reopening as blocked-with-artifact." in status
+    assert "Current candidate set remains closed at `benchmark-only/no runtime promotion`; the current reopening cycle is now canonically closed as blocked-with-artifact." in status
+    assert "Reopen execution only if one bounded benchmark-asset strengthening pass is explicitly approved under the frozen maturity bar." in status
     assert "Step 2 sparse branch still not proven on mixed-language benchmark." in status
     assert "Step 2 still not proven, Step 4 remains blocked." in status
 
