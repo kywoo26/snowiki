@@ -12,7 +12,7 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 ## Always
 
 - Execute all tools via `uv run`.
-- Run `uv run ruff check src/snowiki tests && uv run ty check` before every commit.
+- Run the relevant local verification commands before every commit.
 - Use explicit type hints for all function signatures.
 - Maintain 90%+ test coverage target for new logic.
 - Treat `uv run pytest` as the fast unit-test loop; run `uv run pytest -m integration` before opening a PR.
@@ -30,6 +30,19 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Manually edit generated artifacts in `compiled/` or `index/` zones.
 - Add agent co-author markers (e.g., `Co-authored-by:`, `Ultraworked with`) to commits.
 - Force-add or commit ignored internal artifacts (for example `.sisyphus/`, `.cache/`, or transient `reports/` content) unless an explicit tracked exception is already whitelisted by repo policy.
+
+
+## PR Discipline
+
+- Follow `.github/pull_request_template.md` when opening or updating a PR.
+- Follow `.github/commit-message-rules.md` for clear, descriptive commit messages that explain the change intent.
+- Maintain atomic commits by concern when practical.
+
+## Verification Flow
+
+- Use the verification matrix below to choose the right local checks for the scope of your change.
+- CI is the authoritative branch check for lint, type check, tests, integration, and coverage.
+- Keep pre-commit focused on unique local safety guards that CI does not replace.
 
 ## Verification Matrix
 
@@ -66,20 +79,3 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 
 - Access to repository assets (benchmarks, fixtures) must flow through approved helpers in `src/snowiki/config.py` and `src/snowiki/storage/zones.py`.
 - Avoid direct repo-root derivations or raw `cwd` coupling in production code.
-
-## PR Discipline
-
-- One canonical owner per fact; mirrors must be updated in the same PR.
-- Root AGENTS changes must be intentional; do not silently rewrite child AGENTS.
-- Maintain atomic commits by concern.
-- Use the PR template at `.github/pull_request_template.md`; fill Problem, Surfaces Touched, Verification, and Contract Sync.
-- Use conventional commits: `type(scope): subject`. See `.github/commit-message-rules.md` for the full rule set.
-- `feat` and `fix` require a scope. A body explaining why is strongly recommended.
-- Reference issues in the footer: `Refs: #N` or `Fixes: #N`.
-
-## Branch Naming
-
-Use `type/description` where type matches the commit type:
-`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `ci/`, `deps/`
-
-Example: `feat/search-architecture-hardening`, `docs/roadmap-reorganization`.
