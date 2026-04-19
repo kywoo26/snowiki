@@ -8,8 +8,8 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Current candidate set closed. Fresh evidence confirms `benchmark-only/no runtime promotion`; no tokenizer is promoted.
-  - Next action: No further mandatory Step 2 residual work for the current candidate set. Reopen only under a new bounded tokenizer hypothesis or candidate-family program.
+  - Status: Current candidate set remains closed at `benchmark-only/no runtime promotion`; a new bounded reopening program is now active.
+  - Next action: Freeze the reopening contract, then lock candidate-family scope and benchmark maturity rules before any new implementation lane.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
@@ -51,6 +51,7 @@
 - [x] Step 2 gate audit / residual-program decision (`step2_korean-tokenizer-selection/04-gate-audit-and-residual-program.md`)
 - [x] Step 2 gate reconciliation and fresh-evidence launch posture (`step2_korean-tokenizer-selection/04-gate-reconciliation-and-fresh-evidence-program.md`)
 - [x] Step 2 runtime-promotion decision package (`step2_korean-tokenizer-selection/07-runtime-promotion-decision.md`)
+- [x] Step 2 reopening contract (`step2_korean-tokenizer-selection/08-reopening-contract.md`)
 - [x] Step 3 wiki skill design analysis
 - [x] Step 4 hybrid architecture memo (`hybrid-architecture.md`)
 - [x] Step 4 hybrid evaluation plan (`hybrid-evaluation-plan.md`)
