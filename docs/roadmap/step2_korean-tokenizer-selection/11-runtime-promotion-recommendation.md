@@ -65,7 +65,15 @@ Because the sparse branch is still not proven and the strengthened current roste
 
 ## Next bounded lane
 
-### 7. The correct next move is Step 2 final comparative proof/recommendation with Mecab blocked
+### 7. Mecab reopening is already closed for this round
+
+From the perspective of the Mecab reopening program, no further implementation work remains.
+
+- HF/subword remains the only executed external-family benchmark lane
+- Mecab is already closed as blocked-with-artifact
+- no second Mecab representative or alternate install path opens implicitly from this result
+
+### 8. The broader Step 2 program still needs its final comparative proof/recommendation closeout
 
 The next canonical move is to close the final comparative proof/recommendation package with the current external-family outcomes recorded as:
 
