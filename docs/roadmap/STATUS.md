@@ -8,8 +8,8 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is now blocked pending explicit approval for inventory-sensitive benchmark asset strengthening.
-  - Next action: Obtain approval for one bounded benchmark-asset strengthening pass or close the reopening as blocked-with-artifact.
+  - Status: Current candidate set remains closed at `benchmark-only/no runtime promotion`; the current reopening cycle is now canonically closed as blocked-with-artifact.
+  - Next action: Reopen execution only if one bounded benchmark-asset strengthening pass is explicitly approved under the frozen maturity bar.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
@@ -51,6 +51,7 @@
 - [x] Step 2 gate audit / residual-program decision (`step2_korean-tokenizer-selection/04-gate-audit-and-residual-program.md`)
 - [x] Step 2 gate reconciliation and fresh-evidence launch posture (`step2_korean-tokenizer-selection/04-gate-reconciliation-and-fresh-evidence-program.md`)
 - [x] Step 2 runtime-promotion decision package (`step2_korean-tokenizer-selection/07-runtime-promotion-decision.md`)
+- [x] Step 2 reopening runtime-promotion recommendation (`step2_korean-tokenizer-selection/11-runtime-promotion-recommendation.md`)
 - [x] Step 2 reopening contract (`step2_korean-tokenizer-selection/08-reopening-contract.md`)
 - [x] Step 3 wiki skill design analysis
 - [x] Step 4 hybrid architecture memo (`hybrid-architecture.md`)
