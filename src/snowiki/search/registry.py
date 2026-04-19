@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from .kiwi_tokenizer import build_korean_tokenizer
+from .kiwi_tokenizer import build_bilingual_tokenizer
 from .tokenizer import build_regex_tokenizer
 
 type TokenizerScope = Literal["all", "benchmark", "runtime"]
@@ -129,7 +129,7 @@ TOKENIZER_REGISTRY.register(
         runtime_supported=False,
         benchmark_supported=True,
     ),
-    lambda: build_korean_tokenizer("morphology"),
+    lambda: build_bilingual_tokenizer("morphology"),
 )
 TOKENIZER_REGISTRY.register(
     TokenizerSpec(
@@ -139,7 +139,7 @@ TOKENIZER_REGISTRY.register(
         runtime_supported=False,
         benchmark_supported=True,
     ),
-    lambda: build_korean_tokenizer("nouns"),
+    lambda: build_bilingual_tokenizer("nouns"),
 )
 
 

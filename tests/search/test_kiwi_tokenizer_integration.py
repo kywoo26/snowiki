@@ -21,3 +21,11 @@ def test_bilingual_tokenize_korean_integration_smoke() -> None:
     tokenizer = BilingualTokenizer()
     result = tokenizer.tokenize("자연어 처리는 재미있습니다")
     assert result
+
+
+def test_bilingual_tokenize_mixed_text_integration_smoke() -> None:
+    tokenizer = BilingualTokenizer()
+    result = tokenizer.tokenize("자연어 Python 처리 README.md /src/app.py")
+    assert result
+    assert any(token == "python" for token in result)
+    assert any(token == "자연어" for token in result)

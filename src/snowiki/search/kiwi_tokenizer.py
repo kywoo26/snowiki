@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from kiwipiepy import Kiwi
 from kiwipiepy.utils import Stopwords
 
+from .tokenizer import normalize_text as regex_normalize_text
+
 KiwiLexicalCandidateMode = Literal["morphology", "nouns"]
 KIWI_LEXICAL_CANDIDATE_MODES: frozenset[KiwiLexicalCandidateMode] = frozenset(
     ["morphology", "nouns"]
 )
+
+
+_NON_KOREAN_TOKEN_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 
 def _token_forms(
@@ -27,6 +33,26 @@ def _token_forms(
             continue
         result.append(form)
     return result
+
+
+def _is_hangul_token(token: str) -> bool:
+    return bool(token) and all("가" <= char <= "힣" for char in token)
+
+
+def _ordered_unique(tokens: tuple[str, ...]) -> tuple[str, ...]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for token in tokens:
+        if not token or token in seen:
+            continue
+        seen.add(token)
+        ordered.append(token)
+    return tuple(ordered)
+
+
+def _preserve_non_korean_tokens(text: str) -> tuple[str, ...]:
+    normalized = regex_normalize_text(text)
+    return tuple(match.group(0) for match in _NON_KOREAN_TOKEN_RE.finditer(normalized))
 
 
 def build_korean_tokenizer(
@@ -53,28 +79,31 @@ def build_korean_tokenizer(
     )
 
 
+def build_bilingual_tokenizer(
+    mode: KiwiLexicalCandidateMode = "morphology",
+    *,
+    num_workers: int | None = None,
+    use_stopwords: bool = False,
+) -> BilingualTokenizer:
+    """Build a bilingual tokenizer that preserves non-Korean lexical signal."""
+    if mode not in KIWI_LEXICAL_CANDIDATE_MODES:
+        raise ValueError(
+            f"Invalid Kiwi lexical candidate mode: {mode}. "
+            + f"Must be one of {sorted(KIWI_LEXICAL_CANDIDATE_MODES)}"
+        )
+    return BilingualTokenizer(
+        num_workers=num_workers,
+        extract_nouns_only=mode == "nouns",
+        use_stopwords=use_stopwords,
+    )
+
+
 class KoreanTokenizer:
     """Korean morphological analyzer using Kiwi library.
 
     This tokenizer performs morphological analysis on Korean text,
     extracting meaningful tokens (nouns, verbs, adjectives) and
     normalizing them to their dictionary forms.
-
-    Args:
-        num_workers: Number of parallel workers for tokenization.
-            None means use all available cores.
-        extract_nouns_only: If True, extract only nouns (NNG, NNP).
-            If False, extract nouns, verbs (VV), and adjectives (VA).
-        normalize_coda: Normalize coda characters like "될까욬ㅋㅋ" → "될까요"
-        split_complex: Split complex words like "고마움" → "고맙" + "음"
-        use_stopwords: If True, filter out common stopwords.
-
-    Example:
-        >>> tokenizer = KoreanTokenizer()
-        >>> tokenizer.tokenize("자연어 처리는 재미있습니다")
-        ('자연어', '처리', '재미있')
-        >>> tokenizer.tokenize("해도 되나요?")
-        ('하', '되')
     """
 
     NOUN_TAGS = frozenset(["NNG", "NNP"])
@@ -153,11 +182,16 @@ class BilingualTokenizer:
         """Tokenize mixed Korean-English text."""
         if not text or not text.strip():
             return ()
-        return self.korean_tokenizer.tokenize(text)
+        preserved = _preserve_non_korean_tokens(text)
+        korean = self.korean_tokenizer.tokenize(text)
+        return _ordered_unique(preserved + korean)
 
     def __call__(self, text: str) -> list[str]:
         """Make tokenizer callable for bm25s compatibility."""
         return list(self.tokenize(text))
+
+    def normalize(self, text: str) -> str:
+        return regex_normalize_text(text)
 
 
 def tokenize_text(text: str) -> tuple[str, ...]:

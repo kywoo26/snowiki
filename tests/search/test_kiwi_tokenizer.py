@@ -45,6 +45,10 @@ def fake_kiwi(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
                     _token("hello", "SL"),
                     _token("world", "SL"),
                 ],
+                "자연어 Python 처리 README.md /src/app.py": [
+                    _token("자연어", "NNG"),
+                    _token("처리", "NNG"),
+                ],
                 "될까욬ㅋㅋ": [
                     _token("될까요", "VV"),
                 ],
@@ -136,5 +140,13 @@ class TestBilingualTokenizer:
     def test_callable(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = BilingualTokenizer()
         result = tokenizer("Hello world")
-        assert result == []
+        assert result == ["hello", "world"]
         assert fake_kiwi[1]["text"] == "Hello world"
+
+    def test_tokenize_true_mixed_text_preserves_english_and_paths(
+        self, fake_kiwi: list[dict[str, object]]
+    ) -> None:
+        tokenizer = BilingualTokenizer()
+        result = tokenizer.tokenize("자연어 Python 처리 README.md /src/app.py")
+        assert result == ("python", "readme", "md", "src", "app", "py", "자연어", "처리")
+        assert fake_kiwi[1]["text"] == "자연어 Python 처리 README.md /src/app.py"
