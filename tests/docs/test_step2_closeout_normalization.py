@@ -86,7 +86,7 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
     required_proof_markers = [
         "- **Benchmark Presets**: `retrieval` (blocking), `core` (informational), `full` (informational)",
         "The `core` and `full` presets provide additional context but do not block the gate.",
-        "The `full` preset still fails due to `kiwi_nouns_v1` overall recall (`0.716667 < 0.72` threshold).",
+        "The redesigned mixed tokenizer path causes both Kiwi candidates to fail the `core` preset overall MRR threshold (`0.643519 < 0.70`).",
         "- **Local Closeout Outcome**: benchmark-only/no runtime promotion",
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
@@ -103,8 +103,8 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
     assert "It will be populated once benchmark runs are complete." not in proof
 
     required_status_markers = [
-        "Fresh local proof refreshed with measured operational evidence; local outcome remains `benchmark-only/no runtime promotion`.",
-        "Mixed-language tokenizer redesign remains the next evidence-generating lane; operational evidence is no longer the primary blocker.",
+        "Post-redesign local proof confirms measured operational evidence but worsened tokenizer quality; local outcome remains `benchmark-only/no runtime promotion`.",
+        "Derive the Step 2 runtime-promotion decision package from the failed redesign attempt and decide whether another tokenizer iteration is justified.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first.",
         "Step 2 still not proven, Step 4 remains blocked.",
@@ -117,12 +117,12 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
 
     if plan is not None:
         assert (
-            "ko-018" in proof and "claude_large_output" in proof
+            "-0.111111" in proof and "regress the mixed slice" in proof
         ) or (
             "docs/roadmap/step2_korean-tokenizer-selection/tokenizer-benchmark-proof.md"
             in plan_task6
             and "kiwi_nouns_v1" in proof_info
-            and "0.716667 < 0.72" in proof_info
+            and "0.643519 < 0.70" in proof_info
         )
     else:
-        assert "ko-018" in proof and "claude_large_output" in proof
+        assert "-0.111111" in proof and "regress the mixed slice" in proof
