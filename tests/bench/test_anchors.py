@@ -430,14 +430,22 @@ def test_snowiki_shaped_manifest_excludes_removed_benchmark_self_reference_terms
                 str(cast(dict[str, object], document.get("metadata", {})).get("title", ""))
                 for document in manifest.documents
             ),
+            *(
+                str(cast(dict[str, object], document.get("metadata", {})).get("summary", ""))
+                for document in manifest.documents
+            ),
+            *(str(query.get("text", "")) for query in manifest.queries or []),
         ]
-    )
+    ).casefold()
 
     forbidden_terms = (
-        "benchmark_triage_sheet",
-        "snowiki benchmark CLI",
-        "quarterly benchmark freeze",
-        "benchmark assets changed",
+        "benchmark",
+        "retrieval",
+        "snowiki",
+        "snowiki.bench",
+        "load_miracl_ko_sample",
+        "evaluation",
+        "testing",
     )
 
     assert all(term not in rendered for term in forbidden_terms)
