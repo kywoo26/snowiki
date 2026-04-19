@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from .kiwi_tokenizer import build_bilingual_tokenizer
+from .mecab_tokenizer import build_mecab_tokenizer
 from .subword_tokenizer import build_wordpiece_tokenizer
 from .tokenizer import build_regex_tokenizer
 
@@ -16,10 +17,13 @@ _BENCHMARK_ALIAS_MAP = {
     "bm25s_kiwi_full": "kiwi_morphology_v1",
     "bm25s_kiwi_morphology": "kiwi_morphology_v1",
     "bm25s_kiwi_nouns": "kiwi_nouns_v1",
+    "bm25s_mecab": "mecab_morphology_v1",
+    "bm25s_mecab_full": "mecab_morphology_v1",
     "bm25s_hf_wordpiece": "hf_wordpiece_v1",
     "regex": "regex_v1",
     "hf_wordpiece": "hf_wordpiece_v1",
     "kiwi": "kiwi_morphology_v1",
+    "mecab": "mecab_morphology_v1",
 }
 
 
@@ -143,6 +147,16 @@ TOKENIZER_REGISTRY.register(
         benchmark_supported=True,
     ),
     lambda: build_bilingual_tokenizer("nouns"),
+)
+TOKENIZER_REGISTRY.register(
+    TokenizerSpec(
+        name="mecab_morphology_v1",
+        family="mecab",
+        version=1,
+        runtime_supported=False,
+        benchmark_supported=True,
+    ),
+    build_mecab_tokenizer,
 )
 TOKENIZER_REGISTRY.register(
     TokenizerSpec(

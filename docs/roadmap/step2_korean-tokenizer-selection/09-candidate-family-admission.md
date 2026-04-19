@@ -35,13 +35,17 @@ A family may be admitted only if it satisfies all of the following:
   - serves as the continuity baseline for whether a family-level reopening adds value beyond the prior failed line
 - **What is deferred**: `kiwi_nouns_v1` is not a separate reopening representative because it already failed more strongly and does not add enough family diversity
 
-### 3. Mecab family — admitted in principle
-- **Representative target**: `python-mecab-ko` as the bounded Mecab-family representative for Korean morphology
+### 3. Mecab family — executed on corrected representative path
+- **Representative target**: `mecab-python3` + `python-mecab-ko-dic` as the bounded Mecab-family representative for Korean morphology
 - **Role**: alternate morphology-first family with strong external retrieval reputation
 - **Why admitted**:
   - external Korean retrieval evidence suggests Mecab-like morphology remains a serious family-level baseline
   - it is the strongest contrast to Kiwi within the morphology family class
-- **Special note**: implementation depends on dependency/governance feasibility. The current bounded reopening attempt failed on Python 3.14 because `python-mecab-ko` fell into a native build path requiring `mecab-config`, so this representative is now closed as blocked-with-artifact for the current round.
+- **Execution result**:
+  - the first bounded reopening attempt used the wrong representative package (`python-mecab-ko`) and failed because that package has no Python 3.14 wheel path here
+  - the corrected bounded route via `mecab-python3` + `python-mecab-ko-dic` installed and ran successfully
+  - canonical tokenizer identity: `mecab_morphology_v1`
+  - final retrieval result on the frozen gate: `overall_quality_gate_failed`
 
 ### 4. Subword/HF family — executed in this round
 - **Representative target**: `huggingface/tokenizers` represented by `BertWordPieceTokenizer` as the bounded multilingual subword representative
@@ -91,7 +95,7 @@ Hard constraints still apply:
 | :--- | :--- | :--- | :--- |
 | Control | `regex_v1` | admitted | required baseline |
 | Kiwi | `kiwi_morphology_v1` | admitted | strongest incumbent family representative |
-| Mecab | `python-mecab-ko` | blocked in this round | Python 3.14 install fell through to native build and failed on `mecab-config` |
+| Mecab | `mecab-python3` + `python-mecab-ko-dic` | executed in this round | bounded Python 3.14 path exists, benchmarkable, but rejected on retrieval quality |
 | HF / subword | `huggingface/tokenizers` (`BertWordPieceTokenizer`) | executed in this round | mixed-language/code-heavy comparison family; benchmarkable but rejected |
 | Okt / social-text | TBD | deferred | only if corpus evidence justifies it |
 

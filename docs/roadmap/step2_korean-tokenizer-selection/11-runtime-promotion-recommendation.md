@@ -47,15 +47,16 @@ That means:
 - no runtime promotion in that lane
 - no second family lane opens implicitly from this result
 
-### 5. Mecab reopening closed as blocked-with-artifact
+### 5. Mecab corrected representative lane is now complete
 
-Mecab remains part of the frozen admission packet as an **admitted-in-principle** family, but the bounded reopening attempt for `python-mecab-ko` failed at the Python 3.14 feasibility gate.
+Mecab remains part of the frozen admission packet as an **admitted-in-principle** family, and deeper package/runtime search showed that the first failure was specific to `python-mecab-ko`, not to the Mecab family itself.
 
 That means:
 - HF/subword remains the completed prior lane and is not being retried
-- the current Mecab representative is closed as `blocked-with-artifact`
-- the lane did not proceed to tokenizer implementation or benchmark execution
-- any future Mecab attempt requires a later explicit reopening decision plus a bounded Python 3.14-compatible install path
+- `mecab-python3` provides a Python 3.14 wheel-backed MeCab wrapper path
+- `python-mecab-ko-dic` provides packaged Korean dictionary assets for that wrapper
+- the corrected Mecab lane is now benchmarkable
+- the corrected Mecab lane still fails the blocking retrieval quality gate
 
 ## Step 4 implication
 
@@ -65,20 +66,12 @@ Because the sparse branch is still not proven and the strengthened current roste
 
 ## Next bounded lane
 
-### 7. Mecab reopening is already closed for this round
-
-From the perspective of the Mecab reopening program, no further implementation work remains.
-
-- HF/subword remains the only executed external-family benchmark lane
-- Mecab is already closed as blocked-with-artifact
-- no second Mecab representative or alternate install path opens implicitly from this result
-
-### 8. The broader Step 2 program still needs its final comparative proof/recommendation closeout
+### 7. The correct next move is Step 2 final comparative proof/recommendation
 
 The next canonical move is to close the final comparative proof/recommendation package with the current external-family outcomes recorded as:
 
 - HF/subword: benchmarkable but rejected
-- Mecab: blocked-with-artifact at the bounded Python 3.14 feasibility gate
+- Mecab (`mecab-python3` + `python-mecab-ko-dic`): benchmarkable but rejected
 
 ## Acceptance criteria
 
@@ -86,4 +79,4 @@ The next canonical move is to close the final comparative proof/recommendation p
 - the note explicitly states that no runtime-promotion recommendation is issued
 - the note explicitly preserves the existing Step 2 benchmark-only closeout
 - the note explicitly records the bounded HF/subword lane result
-- the note explicitly records the Mecab blocked-with-artifact result
+- the note explicitly records the corrected Mecab lane as benchmarkable but rejected

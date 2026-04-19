@@ -13,6 +13,7 @@ _BASELINE_CANDIDATE_MAP = {
     "bm25s": "regex_v1",
     "bm25s_kiwi_full": "kiwi_morphology_v1",
     "bm25s_kiwi_nouns": "kiwi_nouns_v1",
+    "bm25s_mecab_full": "mecab_morphology_v1",
     "bm25s_hf_wordpiece": "hf_wordpiece_v1",
 }
 
@@ -46,6 +47,7 @@ DEFAULT_BASELINES = (
     "bm25s",
     "bm25s_kiwi_nouns",
     "bm25s_kiwi_full",
+    "bm25s_mecab_full",
     "bm25s_hf_wordpiece",
 )
 

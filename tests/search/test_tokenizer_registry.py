@@ -53,8 +53,9 @@ def test_canonical_names_contract() -> None:
     assert "regex_v1" in CANONICAL_NAMES
     assert "kiwi_morphology_v1" in CANONICAL_NAMES
     assert "kiwi_nouns_v1" in CANONICAL_NAMES
+    assert "mecab_morphology_v1" in CANONICAL_NAMES
     assert "hf_wordpiece_v1" in CANONICAL_NAMES
-    assert len(CANONICAL_NAMES) == 4
+    assert len(CANONICAL_NAMES) == 5
 
 
 def test_default_runtime_tokenizer_contract() -> None:
@@ -71,6 +72,7 @@ def test_candidate_listing_by_scope() -> None:
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
+        "mecab_morphology_v1",
         "hf_wordpiece_v1",
     }
 
@@ -168,6 +170,10 @@ def test_benchmark_alias_mapping() -> None:
         resolve_legacy_tokenizer(benchmark_alias="bm25s_hf_wordpiece")
         == "hf_wordpiece_v1"
     )
+    assert (
+        resolve_legacy_tokenizer(benchmark_alias="bm25s_mecab_full")
+        == "mecab_morphology_v1"
+    )
 
 
 def test_engine_labels_are_not_tokenizer_identities() -> None:
@@ -188,3 +194,12 @@ def test_create_uses_wordpiece_tokenizer_for_benchmark_candidate() -> None:
     tokenizer = create("hf_wordpiece_v1")
 
     assert tokenizer.tokenize("Python README.md")
+
+
+def test_create_uses_mecab_tokenizer_for_benchmark_candidate() -> None:
+    tokenizer = create("mecab_morphology_v1")
+
+    tokens = tokenizer.tokenize("안녕하세요 Snowiki 입니다")
+
+    assert "snowiki" in tokens
+    assert any(token in {"안녕", "하", "세요", "입니다"} for token in tokens)

@@ -21,9 +21,10 @@ def test_candidate_matrix_roster() -> None:
     assert "regex_v1" in names
     assert "kiwi_morphology_v1" in names
     assert "kiwi_nouns_v1" in names
+    assert "mecab_morphology_v1" in names
     assert "hf_wordpiece_v1" in names
     assert "lindera_ko_v1" in names
-    assert len(CANDIDATE_MATRIX) == 5
+    assert len(CANDIDATE_MATRIX) == 6
 
 
 def test_regex_v1_is_control() -> None:
@@ -72,6 +73,7 @@ def test_admitted_candidates_filter() -> None:
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
+        "mecab_morphology_v1",
         "hf_wordpiece_v1",
     }
     assert "lindera_ko_v1" not in names
@@ -251,6 +253,13 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
                     "queries": [],
                 }
             ),
+            "bm25s_mecab_full": BaselineResult.model_validate(
+                {
+                    "name": "bm25s_mecab_full",
+                    "tokenizer_name": "mecab_morphology_v1",
+                    "queries": [],
+                }
+            ),
         }
     )
 
@@ -260,6 +269,7 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
         "hf_wordpiece_v1",
+        "mecab_morphology_v1",
         "lindera_ko_v1",
     ]
     assert [entry.evidence_baseline for entry in matrix.candidates] == [
@@ -268,6 +278,7 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
         "bm25s_kiwi_full",
         "bm25s_kiwi_nouns",
         "bm25s_hf_wordpiece",
+        "bm25s_mecab_full",
         None,
     ]
     assert matrix.candidates[0].control is True
@@ -311,6 +322,7 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
+        "mecab_morphology_v1",
         "hf_wordpiece_v1",
         "lindera_ko_v1",
     ]
@@ -336,6 +348,7 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
     assert decisions["kiwi_morphology_v1"].disposition == "reject"
     assert decisions["kiwi_morphology_v1"].reasons == ["overall_quality_gate_failed"]
     assert decisions["kiwi_nouns_v1"].disposition == "reject"
+    assert decisions["mecab_morphology_v1"].disposition == "reject"
     assert decisions["hf_wordpiece_v1"].disposition == "reject"
     assert decisions["lindera_ko_v1"].disposition == "reject"
     assert decisions["lindera_ko_v1"].reasons == ["missing_benchmark_evidence"]
@@ -346,6 +359,14 @@ def test_hf_wordpiece_candidate_is_admitted() -> None:
 
     assert candidate.admission_status == "admitted"
     assert candidate.evidence_baseline == "bm25s_hf_wordpiece"
+
+
+def test_mecab_candidate_is_admitted() -> None:
+    candidate = get_candidate("mecab_morphology_v1")
+
+    assert candidate.admission_status == "admitted"
+    assert candidate.evidence_baseline == "bm25s_mecab_full"
+    assert candidate.operational_evidence.platform_support.linux_x86_64 == "supported"
 
 
 def test_missing_operational_evidence_still_blocks_promote() -> None:

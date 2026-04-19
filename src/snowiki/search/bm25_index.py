@@ -65,7 +65,13 @@ class BM25SearchIndex:
     _SHOW_PROGRESS = False
     _LEAVE_PROGRESS = False
     _TOKENIZER_NAMES: frozenset[str] = frozenset(
-        ["regex_v1", "kiwi_morphology_v1", "kiwi_nouns_v1", "hf_wordpiece_v1"]
+        [
+            "regex_v1",
+            "kiwi_morphology_v1",
+            "kiwi_nouns_v1",
+            "mecab_morphology_v1",
+            "hf_wordpiece_v1",
+        ]
     )
 
     def __init__(
@@ -161,6 +167,8 @@ class BM25SearchIndex:
             return False, cls.DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE
         if tokenizer_name == "kiwi_nouns_v1":
             return True, "nouns"
+        if tokenizer_name == "mecab_morphology_v1":
+            return True, "morphology"
         if tokenizer_name == "hf_wordpiece_v1":
             return True, "morphology"
         return True, "morphology"
