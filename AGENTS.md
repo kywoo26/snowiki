@@ -36,6 +36,7 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Manually modify or delete files in `SNOWIKI_ROOT/quarantine/`.
 - Manually edit generated artifacts in `compiled/` or `index/` zones.
 - Add agent co-author markers (e.g., `Co-authored-by:`, `Ultraworked with`) to commits.
+- Force-add or commit ignored internal artifacts (for example `.sisyphus/`, `.cache/`, or transient `reports/` content) unless an explicit tracked exception is already whitelisted by repo policy.
 
 ## Verification Matrix
 
