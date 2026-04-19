@@ -359,3 +359,40 @@ def test_candidate_policy_marks_benchmark_only_when_operational_evidence_is_miss
     }
     assert decisions["kiwi_morphology_v1"].latency_p95_ratio == 1.1
     assert "missing_operational_evidence" in decisions["kiwi_morphology_v1"].reasons
+
+
+def test_evaluate_quality_counts_no_answer_queries_and_exposes_multi_k() -> None:
+    quality, _ = _load_quality_symbols()
+    summary = quality.evaluate_quality(
+        {"q1": ["a"], "q2": ["x", "y"]},
+        {"q1": ["a"], "q2": []},
+        top_k=5,
+        top_ks=(1, 3, 5),
+        query_no_answer={"q2": True},
+        query_tags={"q1": ("known-answer",), "q2": ("no-answer",)},
+    )
+
+    assert summary.queries_evaluated == 2
+    assert summary.top_ks == (1, 3, 5)
+    assert summary.metrics_by_k is not None
+    assert set(summary.metrics_by_k) == {"recall_at_k", "mrr", "ndcg_at_k"}
+    assert summary.per_query[1].no_answer is True
+    assert summary.per_query[1].tags == ("no-answer",)
+
+
+def test_evaluate_sliced_quality_emits_subset_slices_from_tags_and_no_answer() -> None:
+    quality, _ = _load_quality_symbols()
+    summary = quality.evaluate_sliced_quality(
+        {"q1": ["a"], "q2": ["x"], "q3": ["c"]},
+        {"q1": ["a"], "q2": [], "q3": ["c"]},
+        query_groups={"q1": "ko", "q2": "mixed", "q3": "en"},
+        query_kinds={"q1": "known-item", "q2": "topical", "q3": "temporal"},
+        query_tags={"q1": ("identifier",), "q2": ("ambiguous",), "q3": ("path",)},
+        query_no_answer={"q2": True},
+        top_k=5,
+        top_ks=(1, 5),
+    )
+
+    assert summary.by_subset is not None
+    assert set(summary.by_subset) >= {"identifier", "ambiguous", "path", "no-answer", "has-answer"}
+    assert summary.by_subset["no-answer"].queries_evaluated == 1
