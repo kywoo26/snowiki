@@ -55,10 +55,8 @@ def test_step2_gate_audit_stays_aligned_with_proof_and_status(repo_root: Path) -
     for marker in required_proof_markers:
         assert marker in proof
 
-    assert (
-        "Derive the Step 2 runtime-promotion decision package from the failed redesign attempt and decide whether another tokenizer iteration is justified."
-        in status
-    )
+    assert "No further mandatory Step 2 residual work for the current candidate set." in status
+    assert "Reopen only under a new bounded tokenizer hypothesis or candidate-family program." in status
     assert "Step 2 sparse branch still not proven on mixed-language benchmark." in status
     assert "Step 2 still not proven, Step 4 remains blocked." in status
 
