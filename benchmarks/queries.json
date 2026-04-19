@@ -1,71 +1,648 @@
 {
   "metadata": {
-    "benchmark_id": "snowiki-v2-wave1-task2-queries",
+    "benchmark_id": "snowiki-v3-wave1-production-queries",
     "created": "2026-04-08",
-    "updated": "2026-04-08",
-    "sources": ["synthetic://snowiki-v2/wave1/task2"],
-    "description": "Bilingual retrieval benchmark query set for Snowiki V2 fixture corpus."
+    "updated": "2026-04-19",
+    "sources": [
+      "synthetic://snowiki-v3/wave1/productionization"
+    ],
+    "description": "Bilingual retrieval benchmark query set for Snowiki productionization wave 1."
   },
   "queries": [
-    {"id":"ko-001","group":"ko","kind":"known-item","text":"Snowiki를 개인 위키로 설명하는 가장 기본 Claude 세션은 무엇인가?"},
-    {"id":"ko-002","group":"ko","kind":"known-item","text":"qmd search를 Bash tool_use로 실행한 Claude 세션은 무엇인가?"},
-    {"id":"ko-003","group":"ko","kind":"known-item","text":"design-notes.md와 queries.csv 첨부 파일이 있는 세션은 무엇인가?"},
-    {"id":"ko-004","group":"ko","kind":"known-item","text":"branch-audit sidechain slug가 등장하는 Claude 세션은 무엇인가?"},
-    {"id":"ko-005","group":"ko","kind":"known-item","text":"resume_continuation 마커가 있는 Claude 세션은 무엇인가?"},
-    {"id":"ko-006","group":"ko","kind":"known-item","text":"대용량 fixture generation log를 담은 Claude 세션은 무엇인가?"},
-    {"id":"ko-007","group":"ko","kind":"known-item","text":"synthetic API key와 password가 함께 들어 있는 privacy 테스트 세션은 무엇인가?"},
-    {"id":"ko-008","group":"ko","kind":"known-item","text":"fixture inventory 계약 테스트를 다루는 기본 OMO 세션은 무엇인가?"},
-    {"id":"ko-009","group":"ko","kind":"known-item","text":"todo에 한국어 query 검증 작업이 들어 있는 OMO 세션은 무엇인가?"},
-    {"id":"ko-010","group":"ko","kind":"known-item","text":"benchmarks/judgments.json diff가 포함된 OMO 세션은 무엇인가?"},
-    {"id":"ko-011","group":"ko","kind":"known-item","text":"privacy gate reasoning 파트가 있는 OMO 세션은 무엇인가?"},
-    {"id":"ko-012","group":"ko","kind":"known-item","text":"compaction marker가 있는 OMO 세션은 무엇인가?"},
-    {"id":"ko-013","group":"ko","kind":"topical","text":"지식을 축적하는 개인 위키 개념을 다루는 자료를 찾아줘."},
-    {"id":"ko-014","group":"ko","kind":"topical","text":"benchmark coverage나 query inventory 계획을 다루는 자료는 무엇인가?"},
-    {"id":"ko-015","group":"ko","kind":"topical","text":"privacy gate, secret redaction, 민감정보 차단을 다루는 자료는 무엇인가?"},
-    {"id":"ko-016","group":"ko","kind":"topical","text":"resume context와 continuation 흐름을 다루는 자료는 무엇인가?"},
-    {"id":"ko-017","group":"ko","kind":"topical","text":"sidechain branch metadata를 보여주는 자료를 찾아줘."},
-    {"id":"ko-018","group":"ko","kind":"topical","text":"대용량 로그 출력이나 긴 tool_result 응답을 가진 세션을 찾아줘."},
-    {"id":"ko-019","group":"ko","kind":"temporal","text":"2026-04-02에 qmd search 실행이 있었던 세션은 무엇인가?"},
-    {"id":"ko-020","group":"ko","kind":"temporal","text":"2026-04-05에 이전 세션을 이어서 작업한 자료는 무엇인가?"},
-    {"id":"en-001","group":"en","kind":"known-item","text":"Which Claude session gives the minimal one-line description of Snowiki as a personal wiki?"},
-    {"id":"en-002","group":"en","kind":"known-item","text":"Which Claude session contains a Bash tool_use that runs qmd search?"},
-    {"id":"en-003","group":"en","kind":"known-item","text":"Which session includes the design-notes.md and queries.csv attachments?"},
-    {"id":"en-004","group":"en","kind":"known-item","text":"Which Claude session contains the branch-audit sidechain metadata?"},
-    {"id":"en-005","group":"en","kind":"known-item","text":"Which Claude session contains a resume continuation marker?"},
-    {"id":"en-006","group":"en","kind":"known-item","text":"Which Claude fixture is meant to stress large tool output handling?"},
-    {"id":"en-007","group":"en","kind":"known-item","text":"Which session intentionally contains synthetic API keys and passwords for privacy testing?"},
-    {"id":"en-008","group":"en","kind":"known-item","text":"Which OpenCode fixture talks about the fixture inventory contract itself?"},
-    {"id":"en-009","group":"en","kind":"known-item","text":"Which OpenCode fixture stores todo items for Korean and English benchmark work?"},
-    {"id":"en-010","group":"en","kind":"known-item","text":"Which OpenCode fixture stores a code diff touching benchmarks/judgments.json?"},
-    {"id":"en-011","group":"en","kind":"known-item","text":"Which OpenCode fixture includes explicit reasoning about the privacy gate?"},
-    {"id":"en-012","group":"en","kind":"known-item","text":"Which OpenCode fixture includes compaction markers or compaction timing?"},
-    {"id":"en-013","group":"en","kind":"topical","text":"Find sessions about compounding knowledge into a personal wiki."},
-    {"id":"en-014","group":"en","kind":"topical","text":"Find sessions about benchmark coverage, query sets, or evaluation planning."},
-    {"id":"en-015","group":"en","kind":"topical","text":"Find sessions about secrets, privacy gates, and rejection behavior."},
-    {"id":"en-016","group":"en","kind":"topical","text":"Find sessions about resume flows, carry-over context, or continuation markers."},
-    {"id":"en-017","group":"en","kind":"topical","text":"Find sessions that show branch sidechains or branch-specific metadata."},
-    {"id":"en-018","group":"en","kind":"topical","text":"Find sessions with very large generated logs or oversized tool results."},
-    {"id":"en-019","group":"en","kind":"temporal","text":"What relevant fixture happened on 2026-04-03 and centered on attachments?"},
-    {"id":"en-020","group":"en","kind":"temporal","text":"What relevant fixture happened on 2026-04-04 and centered on privacy reasoning?"},
-    {"id":"mix-001","group":"mixed","kind":"known-item","text":"Snowiki personal wiki를 설명하는 basic session은 뭐야?"},
-    {"id":"mix-002","group":"mixed","kind":"known-item","text":"qmd search tool_use가 있는 Claude session 찾아줘."},
-    {"id":"mix-003","group":"mixed","kind":"known-item","text":"design-notes.md attachment가 포함된 session은?"},
-    {"id":"mix-004","group":"mixed","kind":"known-item","text":"branch-audit sidechain metadata가 들어간 Claude session은?"},
-    {"id":"mix-005","group":"mixed","kind":"known-item","text":"resume continuation marker가 있는 session은 뭐야?"},
-    {"id":"mix-006","group":"mixed","kind":"known-item","text":"large tool output stress fixture는 어떤 session이야?"},
-    {"id":"mix-007","group":"mixed","kind":"known-item","text":"synthetic secrets for privacy gate 테스트가 있는 session은?"},
-    {"id":"mix-008","group":"mixed","kind":"known-item","text":"fixture inventory contract를 말하는 OMO session은?"},
-    {"id":"mix-009","group":"mixed","kind":"known-item","text":"todo parts로 Korean/English benchmark work를 담은 OMO session은?"},
-    {"id":"mix-010","group":"mixed","kind":"known-item","text":"benchmarks/judgments.json diff part가 있는 OMO session은?"},
-    {"id":"mix-011","group":"mixed","kind":"known-item","text":"privacy gate reasoning part가 있는 OMO session은?"},
-    {"id":"mix-012","group":"mixed","kind":"known-item","text":"compaction marker가 저장된 OMO session은?"},
-    {"id":"mix-013","group":"mixed","kind":"topical","text":"knowledge compounding personal wiki 관련 자료를 찾아줘."},
-    {"id":"mix-014","group":"mixed","kind":"topical","text":"benchmark coverage, query inventory, evaluation planning 자료는?"},
-    {"id":"mix-015","group":"mixed","kind":"topical","text":"secret rejection, privacy gate, 민감정보 차단 관련 session은?"},
-    {"id":"mix-016","group":"mixed","kind":"topical","text":"resume flow, continuation, carry-over context 관련 자료는?"},
-    {"id":"mix-017","group":"mixed","kind":"topical","text":"sidechain branch metadata example을 보여주는 자료는?"},
-    {"id":"mix-018","group":"mixed","kind":"topical","text":"oversized tool_result 또는 large generation log가 있는 자료는?"},
-    {"id":"mix-019","group":"mixed","kind":"temporal","text":"2026-04-05에 resumed work가 있었던 session은 뭐야?"},
-    {"id":"mix-020","group":"mixed","kind":"temporal","text":"2026-04-03에 attachment-based planning이 있었던 session은 뭐야?"}
+    {
+      "id": "ko-001",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "Snowiki를 개인 위키로 설명하는 가장 기본 Claude 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-002",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "qmd search를 Bash tool_use로 실행한 Claude 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-003",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "design-notes.md와 queries.csv 첨부 파일이 있는 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-004",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "branch-audit sidechain slug가 등장하는 Claude 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-005",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "resume_continuation 마커가 있는 Claude 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-006",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "대용량 fixture generation log를 담은 Claude 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-007",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "synthetic API key와 password가 함께 들어 있는 privacy 테스트 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-008",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "fixture inventory 계약 테스트를 다루는 기본 OMO 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-009",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "todo에 한국어 query 검증 작업이 들어 있는 OMO 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-010",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "benchmarks/judgments.json diff가 포함된 OMO 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-011",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "privacy gate reasoning 파트가 있는 OMO 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-012",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "compaction marker가 있는 OMO 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-013",
+      "group": "ko",
+      "kind": "topical",
+      "text": "지식을 축적하는 개인 위키 개념을 다루는 자료를 찾아줘."
+    },
+    {
+      "id": "ko-014",
+      "group": "ko",
+      "kind": "topical",
+      "text": "benchmark coverage나 query inventory 계획을 다루는 자료는 무엇인가?"
+    },
+    {
+      "id": "ko-015",
+      "group": "ko",
+      "kind": "topical",
+      "text": "privacy gate, secret redaction, 민감정보 차단을 다루는 자료는 무엇인가?"
+    },
+    {
+      "id": "ko-016",
+      "group": "ko",
+      "kind": "topical",
+      "text": "resume context와 continuation 흐름을 다루는 자료는 무엇인가?"
+    },
+    {
+      "id": "ko-017",
+      "group": "ko",
+      "kind": "topical",
+      "text": "sidechain branch metadata를 보여주는 자료를 찾아줘."
+    },
+    {
+      "id": "ko-018",
+      "group": "ko",
+      "kind": "topical",
+      "text": "대용량 로그 출력이나 긴 tool_result 응답을 가진 세션을 찾아줘."
+    },
+    {
+      "id": "ko-019",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-02에 qmd search 실행이 있었던 세션은 무엇인가?"
+    },
+    {
+      "id": "ko-020",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-05에 이전 세션을 이어서 작업한 자료는 무엇인가?"
+    },
+    {
+      "id": "en-001",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which Claude session gives the minimal one-line description of Snowiki as a personal wiki?"
+    },
+    {
+      "id": "en-002",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which Claude session contains a Bash tool_use that runs qmd search?"
+    },
+    {
+      "id": "en-003",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which session includes the design-notes.md and queries.csv attachments?"
+    },
+    {
+      "id": "en-004",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which Claude session contains the branch-audit sidechain metadata?"
+    },
+    {
+      "id": "en-005",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which Claude session contains a resume continuation marker?"
+    },
+    {
+      "id": "en-006",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which Claude fixture is meant to stress large tool output handling?"
+    },
+    {
+      "id": "en-007",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which session intentionally contains synthetic API keys and passwords for privacy testing?"
+    },
+    {
+      "id": "en-008",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which OpenCode fixture talks about the fixture inventory contract itself?"
+    },
+    {
+      "id": "en-009",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which OpenCode fixture stores todo items for Korean and English benchmark work?"
+    },
+    {
+      "id": "en-010",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which OpenCode fixture stores a code diff touching benchmarks/judgments.json?"
+    },
+    {
+      "id": "en-011",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which OpenCode fixture includes explicit reasoning about the privacy gate?"
+    },
+    {
+      "id": "en-012",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which OpenCode fixture includes compaction markers or compaction timing?"
+    },
+    {
+      "id": "en-013",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find sessions about compounding knowledge into a personal wiki."
+    },
+    {
+      "id": "en-014",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find sessions about benchmark coverage, query sets, or evaluation planning."
+    },
+    {
+      "id": "en-015",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find sessions about secrets, privacy gates, and rejection behavior."
+    },
+    {
+      "id": "en-016",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find sessions about resume flows, carry-over context, or continuation markers."
+    },
+    {
+      "id": "en-017",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find sessions that show branch sidechains or branch-specific metadata."
+    },
+    {
+      "id": "en-018",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find sessions with very large generated logs or oversized tool results."
+    },
+    {
+      "id": "en-019",
+      "group": "en",
+      "kind": "temporal",
+      "text": "What relevant fixture happened on 2026-04-03 and centered on attachments?"
+    },
+    {
+      "id": "en-020",
+      "group": "en",
+      "kind": "temporal",
+      "text": "What relevant fixture happened on 2026-04-04 and centered on privacy reasoning?"
+    },
+    {
+      "id": "mix-001",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "Snowiki personal wiki를 설명하는 basic session은 뭐야?"
+    },
+    {
+      "id": "mix-002",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "qmd search tool_use가 있는 Claude session 찾아줘."
+    },
+    {
+      "id": "mix-003",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "design-notes.md attachment가 포함된 session은?"
+    },
+    {
+      "id": "mix-004",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "branch-audit sidechain metadata가 들어간 Claude session은?"
+    },
+    {
+      "id": "mix-005",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "resume continuation marker가 있는 session은 뭐야?"
+    },
+    {
+      "id": "mix-006",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "large tool output stress fixture는 어떤 session이야?"
+    },
+    {
+      "id": "mix-007",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "synthetic secrets for privacy gate 테스트가 있는 session은?"
+    },
+    {
+      "id": "mix-008",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "fixture inventory contract를 말하는 OMO session은?"
+    },
+    {
+      "id": "mix-009",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "todo parts로 Korean/English benchmark work를 담은 OMO session은?"
+    },
+    {
+      "id": "mix-010",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "benchmarks/judgments.json diff part가 있는 OMO session은?"
+    },
+    {
+      "id": "mix-011",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "privacy gate reasoning part가 있는 OMO session은?"
+    },
+    {
+      "id": "mix-012",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "compaction marker가 저장된 OMO session은?"
+    },
+    {
+      "id": "mix-013",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "knowledge compounding personal wiki 관련 자료를 찾아줘."
+    },
+    {
+      "id": "mix-014",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "benchmark coverage, query inventory, evaluation planning 자료는?"
+    },
+    {
+      "id": "mix-015",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "secret rejection, privacy gate, 민감정보 차단 관련 session은?"
+    },
+    {
+      "id": "mix-016",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "resume flow, continuation, carry-over context 관련 자료는?"
+    },
+    {
+      "id": "mix-017",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "sidechain branch metadata example을 보여주는 자료는?"
+    },
+    {
+      "id": "mix-018",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "oversized tool_result 또는 large generation log가 있는 자료는?"
+    },
+    {
+      "id": "mix-019",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-05에 resumed work가 있었던 session은 뭐야?"
+    },
+    {
+      "id": "mix-020",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-03에 attachment-based planning이 있었던 session은 뭐야?"
+    },
+    {
+      "id": "ko-021",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "fixtures/claude/with_tools.jsonl 경로를 가진 fixture는 무엇인가?",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "ko-022",
+      "group": "ko",
+      "kind": "known-item",
+      "text": "fixtures/opencode/with_reasoning.db path를 가진 fixture는 무엇인가?",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "ko-023",
+      "group": "ko",
+      "kind": "topical",
+      "text": "gold judgments dataset와 benchmarks/judgments.json diff를 함께 다루는 자료를 찾아줘.",
+      "tags": [
+        "ambiguous"
+      ]
+    },
+    {
+      "id": "ko-024",
+      "group": "ko",
+      "kind": "topical",
+      "text": "Benchmark queries dataset를 설명하는 자료를 찾아줘.",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "ko-025",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-02에 qmd search tool_use를 실행한 fixture는 무엇인가?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "ko-026",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-02에 benchmark todo tracking을 담은 fixture는 무엇인가?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "ko-027",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-03에 attachment-based planning을 기록한 fixture는 무엇인가?",
+      "tags": [
+        "ambiguous"
+      ]
+    },
+    {
+      "id": "ko-028",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-03에 benchmarks/judgments.json diff planning을 담은 fixture는 무엇인가?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "ko-029",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-04에 privacy gate reasoning을 다룬 fixture는 무엇인가?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "ko-030",
+      "group": "ko",
+      "kind": "temporal",
+      "text": "2026-04-05에 resumed work와 compaction을 함께 보여주는 자료는 무엇인가?",
+      "tags": [
+        "ambiguous"
+      ]
+    },
+    {
+      "id": "en-021",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which fixture lives at fixtures/claude/with_tools.jsonl?",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "en-022",
+      "group": "en",
+      "kind": "known-item",
+      "text": "Which fixture lives at fixtures/opencode/with_reasoning.db?",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "en-023",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find materials about benchmark labels, gold judgments, and the judgments diff session.",
+      "tags": [
+        "ambiguous"
+      ]
+    },
+    {
+      "id": "en-024",
+      "group": "en",
+      "kind": "topical",
+      "text": "Find documentation for a benchmark coverage session on 2026-04-10.",
+      "tags": [
+        "no-answer"
+      ],
+      "no_answer": true
+    },
+    {
+      "id": "en-025",
+      "group": "en",
+      "kind": "temporal",
+      "text": "Which fixture on 2026-04-02 centered on qmd search tool_use?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "en-026",
+      "group": "en",
+      "kind": "temporal",
+      "text": "Which fixture on 2026-04-02 centered on benchmark todo tracking?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "en-027",
+      "group": "en",
+      "kind": "temporal",
+      "text": "What fixture on 2026-04-06 captured attachment planning work?",
+      "tags": [
+        "no-answer"
+      ],
+      "no_answer": true
+    },
+    {
+      "id": "en-028",
+      "group": "en",
+      "kind": "temporal",
+      "text": "What fixture on 2026-04-09 captured privacy reasoning work?",
+      "tags": [
+        "no-answer"
+      ],
+      "no_answer": true
+    },
+    {
+      "id": "en-029",
+      "group": "en",
+      "kind": "temporal",
+      "text": "What fixture on 2026-04-10 captured compaction timing work?",
+      "tags": [
+        "no-answer"
+      ],
+      "no_answer": true
+    },
+    {
+      "id": "en-030",
+      "group": "en",
+      "kind": "temporal",
+      "text": "What fixture on 2026-04-11 captured benchmark labels maintenance?",
+      "tags": [
+        "no-answer"
+      ],
+      "no_answer": true
+    },
+    {
+      "id": "mix-021",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "fixtures/claude/with_tools.jsonl path 가진 fixture는 뭐야?",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "mix-022",
+      "group": "mixed",
+      "kind": "known-item",
+      "text": "fixtures/opencode/with_reasoning.db path를 가진 fixture는 뭐야?",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "mix-023",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "gold judgments dataset랑 benchmarks/judgments.json diff session 자료를 찾아줘.",
+      "tags": [
+        "ambiguous"
+      ]
+    },
+    {
+      "id": "mix-024",
+      "group": "mixed",
+      "kind": "topical",
+      "text": "Benchmark queries dataset를 설명하는 자료는 뭐야?",
+      "tags": [
+        "identifier-path-code-heavy"
+      ]
+    },
+    {
+      "id": "mix-025",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-02에 qmd search tool_use를 한 fixture는 뭐야?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "mix-026",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-02에 benchmark todo tracking을 담은 fixture는 뭐야?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "mix-027",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-03에 attachment-based planning을 기록한 fixture는 뭐야?",
+      "tags": [
+        "ambiguous"
+      ]
+    },
+    {
+      "id": "mix-028",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-03에 benchmarks/judgments.json diff planning 자료는 뭐야?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "mix-029",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-04에 privacy gate reasoning을 다룬 fixture는 뭐야?",
+      "tags": [
+        "hard-negative"
+      ]
+    },
+    {
+      "id": "mix-030",
+      "group": "mixed",
+      "kind": "temporal",
+      "text": "2026-04-05에 resumed work와 compaction을 함께 보여주는 자료는 뭐야?",
+      "tags": [
+        "ambiguous"
+      ]
+    }
   ]
 }

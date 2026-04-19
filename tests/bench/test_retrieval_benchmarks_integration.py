@@ -114,7 +114,7 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
     assert decisions["kiwi_nouns_v1"].evidence_baseline == "bm25s_kiwi_nouns"
     assert decisions["lindera_ko_v1"].evidence_baseline is None
     assert set(legacy_baselines) == set(report.baselines)
-    assert report.corpus.queries_evaluated == 60
+    assert report.corpus.queries_evaluated == 90
     assert "semantic_slots" not in legacy
     assert "token_reduction" not in legacy
 
@@ -123,7 +123,7 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
         legacy_payload = cast(dict[str, object], legacy_baselines[baseline_name])
         legacy_quality = cast(dict[str, object], legacy_payload["quality"])
         legacy_overall = cast(dict[str, object], legacy_quality["overall"])
-        assert quality.overall.queries_evaluated == 60
+        assert quality.overall.queries_evaluated == 90
         assert set(quality.slices.group) == {"ko", "en", "mixed"}
         assert set(quality.slices.kind) == {
             "known-item",
@@ -139,7 +139,7 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
         assert quality.overall.top_k == 5
         assert payload.name == baseline_name
         assert payload.latency.mean_ms >= payload.latency.min_ms
-        assert legacy_overall["queries_evaluated"] == 60
+        assert legacy_overall["queries_evaluated"] == 90
         assert "semantic_slots" not in payload.to_legacy_dict()
         assert "token_usage" not in payload.to_legacy_dict()
         assert legacy_payload["name"] == baseline_name

@@ -36,7 +36,13 @@ EXPECTED_CORRUPTED_OPENCODE = {
 }
 
 VALID_DOC_IDS = set(EXPECTED_CLAUDE.values()) | set(EXPECTED_OPENCODE.values())
-VALID_DOC_IDS.add("claude_secret")
+VALID_DOC_IDS.update({
+    "claude_secret",
+    "benchmarks/queries.json",
+    "benchmarks/judgments.json",
+    "wiki-benchmark-overview",
+    "wiki-mixed-search-overview",
+})
 
 JSONDict = dict[str, Any]
 
@@ -232,7 +238,7 @@ def test_benchmark_query_and_judgment_inventory(
         assert metadata["sources"]
 
     query_items = queries["queries"]
-    assert len(query_items) == 60
+    assert len(query_items) == 90
 
     groups = {"ko": 0, "en": 0, "mixed": 0}
     ids = []
@@ -242,8 +248,8 @@ def test_benchmark_query_and_judgment_inventory(
         assert item["kind"] in {"known-item", "topical", "temporal"}
         assert item["text"]
 
-    assert groups == {"ko": 20, "en": 20, "mixed": 20}
-    assert len(set(ids)) == 60
+    assert groups == {"ko": 30, "en": 30, "mixed": 30}
+    assert len(set(ids)) == 90
 
     gold = judgments["judgments"]
     canonical_query_ids = {
@@ -252,11 +258,20 @@ def test_benchmark_query_and_judgment_inventory(
     canonical_judgment_ids = {
         query_id for query_id in gold if query_id.startswith(("ko-", "mix-"))
     }
-    assert len(canonical_query_ids) == 40
-    assert len(canonical_judgment_ids) == 40
+    assert len(canonical_query_ids) == 60
+    assert len(canonical_judgment_ids) == 60
     assert canonical_query_ids == canonical_judgment_ids
     assert set(ids) == set(gold)
+    query_lookup = {item["id"]: item for item in query_items}
+    tagged_queries = [item for item in query_items if item.get("tags")]
+    no_answer_queries = [item for item in query_items if item.get("no_answer") is True]
+    assert len(tagged_queries) >= 18
+    assert len(no_answer_queries) >= 5
     for query_id, relevant_doc_ids in gold.items():
         assert query_id
-        assert relevant_doc_ids
-        assert set(relevant_doc_ids).issubset(VALID_DOC_IDS)
+        query = query_lookup[query_id]
+        if query.get("no_answer") is True:
+            assert relevant_doc_ids == []
+        else:
+            assert relevant_doc_ids
+            assert set(relevant_doc_ids).issubset(VALID_DOC_IDS)

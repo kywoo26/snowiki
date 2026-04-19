@@ -462,7 +462,7 @@ def normalized_records() -> tuple[dict[str, object], ...]:
             "record_type": "benchmark",
             "recorded_at": recorded_at,
             "summary": "Benchmark query metadata.",
-            "text": "queries.json stores all benchmark queries. Total benchmark query count is 60. Korean benchmark queries count is 20. English and mixed-language queries are included. 한국어 질의 benchmark는 20개이고 전체는 60개이며 영문과 혼합 질의도 포함된다.",
+            "text": "queries.json stores all benchmark queries. Total benchmark query count is 90. Korean benchmark queries count is 30. English and mixed-language queries are included, with explicit tags and no-answer cases. 한국어 질의 benchmark는 30개이고 전체는 90개이며 태그와 no-answer case를 포함한다.",
             "aliases": [
                 "queries.json",
                 "benchmark queries",
@@ -539,7 +539,7 @@ def compiled_pages() -> tuple[dict[str, object], ...]:
             "path": "compiled/wiki/benchmarks/overview.md",
             "title": "Benchmark corpus overview",
             "summary": "Overview of the retrieval benchmark corpus.",
-            "body": "The benchmark corpus contains 60 queries split across Korean, English, and mixed-language prompts. 벤치마크는 Korean English mixed query coverage를 가진다.",
+            "body": "The benchmark corpus contains 90 queries split across Korean, English, and mixed-language prompts with richer edge-case coverage. 벤치마크는 Korean English mixed query coverage와 edge-case judged set을 가진다.",
             "aliases": ["benchmark overview", "corpus metadata"],
             "updated_at": "2026-04-08T12:00:00Z",
         },
