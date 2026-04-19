@@ -103,8 +103,9 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
     assert "It will be populated once benchmark runs are complete." not in proof
 
     required_status_markers = [
-        "Post-redesign local proof confirms measured operational evidence but worsened tokenizer quality; local outcome remains `benchmark-only/no runtime promotion`.",
-        "Derive the Step 2 runtime-promotion decision package from the failed redesign attempt and decide whether another tokenizer iteration is justified.",
+        "Current candidate set closed. Fresh evidence confirms `benchmark-only/no runtime promotion`; no tokenizer is promoted.",
+        "No further mandatory Step 2 residual work for the current candidate set.",
+        "Reopen only under a new bounded tokenizer hypothesis or candidate-family program.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first.",
         "Step 2 still not proven, Step 4 remains blocked.",
