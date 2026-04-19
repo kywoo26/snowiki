@@ -39,8 +39,8 @@ def test_step2_benchmark_maturity_packet_stays_aligned_with_status_and_contract(
     assert 'No stable winner' in contract
 
     required_status_markers = [
-        'Current candidate set remains closed at `benchmark-only/no runtime promotion`; the current reopening cycle is now canonically closed as blocked-with-artifact.',
-        'Reopen execution only if one bounded benchmark-asset strengthening pass is explicitly approved under the frozen maturity bar.',
+        'Strengthened benchmark substrate now shows no stable winner in the current lexical roster; Step 2 remains `benchmark-only/no runtime promotion`.',
+        'Open one bounded external-family comparison lane under the frozen family admission packet.',
         'Step 2 sparse branch still not proven on mixed-language benchmark.',
         'Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.',
     ]

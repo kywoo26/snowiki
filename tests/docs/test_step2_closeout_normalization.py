@@ -86,7 +86,7 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
     required_proof_markers = [
         "- **Benchmark Presets**: `retrieval` (blocking), `core` (informational), `full` (informational)",
         "The `core` and `full` presets provide additional context but do not block the gate.",
-        "The redesigned mixed tokenizer path causes both Kiwi candidates to fail the `core` preset overall MRR threshold (`0.643519 < 0.70`).",
+        "The strengthened current-roster result does **not** produce a stable winner among the current roster.",
         "- **Local Closeout Outcome**: benchmark-only/no runtime promotion",
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
@@ -103,8 +103,8 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
     assert "It will be populated once benchmark runs are complete." not in proof
 
     required_status_markers = [
-        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; the current reopening cycle is now canonically closed as blocked-with-artifact.",
-        "Reopen execution only if one bounded benchmark-asset strengthening pass is explicitly approved under the frozen maturity bar.",
+        "Strengthened benchmark substrate now shows no stable winner in the current lexical roster; Step 2 remains `benchmark-only/no runtime promotion`.",
+        "Open one bounded external-family comparison lane under the frozen family admission packet.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first.",
         "Step 2 still not proven, Step 4 remains blocked.",
@@ -122,7 +122,7 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
             "docs/roadmap/step2_korean-tokenizer-selection/tokenizer-benchmark-proof.md"
             in plan_task6
             and "kiwi_nouns_v1" in proof_info
-            and "0.643519 < 0.70" in proof_info
+            and "No stable winner in the strengthened current roster" in proof_info
         )
     else:
-        assert "-0.111111" in proof and "regress the mixed slice" in proof
+        assert "current lexical roster" in proof and "Step 4 Unblocked**: [NO]" in proof

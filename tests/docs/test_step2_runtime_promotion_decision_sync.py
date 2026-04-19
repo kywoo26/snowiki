@@ -37,14 +37,14 @@ def test_step2_runtime_promotion_decision_stays_aligned_with_status_and_proof(
         "- **Local Closeout Outcome**: benchmark-only/no runtime promotion",
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
-        "-0.111111",
+        "0.666667",
     ]
     for marker in required_proof_markers:
         assert marker in proof
 
     required_status_markers = [
-        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; the current reopening cycle is now canonically closed as blocked-with-artifact.",
-        "Reopen execution only if one bounded benchmark-asset strengthening pass is explicitly approved under the frozen maturity bar.",
+        "Strengthened benchmark substrate now shows no stable winner in the current lexical roster; Step 2 remains `benchmark-only/no runtime promotion`.",
+        "Open one bounded external-family comparison lane under the frozen family admission packet.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]
