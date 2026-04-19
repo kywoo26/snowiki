@@ -45,8 +45,8 @@ def test_step2_reopening_contract_stays_aligned_with_status_and_decision(
         assert marker in decision
 
     required_status_markers = [
-        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the benchmark maturity bar is now frozen.",
-        "Benchmark asset strengthening is now the mandatory next lane before any decisive family comparison.",
+        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is now blocked pending explicit approval for inventory-sensitive benchmark asset strengthening.",
+        "Obtain approval for one bounded benchmark-asset strengthening pass or close the reopening as blocked-with-artifact.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]
