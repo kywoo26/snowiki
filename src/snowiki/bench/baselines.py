@@ -415,7 +415,7 @@ def _tokenizer_name_for_baseline(baseline: str) -> str:
         if resolved is None:
             raise ValueError(f"could not resolve tokenizer for baseline: {baseline}")
         return resolved
-    if normalized_baseline.startswith("bm25s_kiwi"):
+    if normalized_baseline.startswith("bm25s_kiwi") or normalized_baseline == "bm25s_hf_wordpiece":
         resolved = resolve_legacy_tokenizer(benchmark_alias=normalized_baseline)
         if resolved is None:
             raise ValueError(f"unsupported baseline: {baseline}")
@@ -648,7 +648,7 @@ def run_baseline_comparison(
                 top_ks=preset.top_ks,
             )
             continue
-        if baseline == "bm25s" or baseline.startswith("bm25s_kiwi"):
+        if baseline == "bm25s" or baseline.startswith("bm25s_"):
             tokenizer_name = _tokenizer_name_for_baseline(baseline)
             if tokenizer_name not in bm25_indexes:
                 bm25_indexes[tokenizer_name] = _build_bm25_index(

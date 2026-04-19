@@ -112,6 +112,28 @@ CANDIDATE_MATRIX: tuple[TokenizerCandidate, ...] = (
         ),
     ),
     TokenizerCandidate(
+        candidate_name="hf_wordpiece_v1",
+        evidence_baseline="bm25s_hf_wordpiece",
+        role="candidate",
+        admission_status="admitted",
+        control=False,
+        operational_evidence=CandidateOperationalEvidence(
+            memory_peak_rss_mb=None,
+            memory_evidence_status="not_measured",
+            disk_size_mb=None,
+            disk_size_evidence_status="not_measured",
+            platform_support=_SUPPORTED_PLATFORM_SET,
+            install_ergonomics=InstallErgonomicsEvidence(
+                prebuilt_available=True,
+                build_from_source_required=False,
+                hidden_bootstrap_steps=False,
+                operational_complexity="medium",
+            ),
+            zero_cost_admission=True,
+            admission_reason="admitted_subword_candidate",
+        ),
+    ),
+    TokenizerCandidate(
         candidate_name="lindera_ko_v1",
         evidence_baseline=None,
         role="candidate",
