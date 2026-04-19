@@ -57,8 +57,8 @@ def test_step2_gate_reconciliation_stays_aligned_with_proof_and_status(
         assert marker in reconciliation
 
     required_status_markers = [
-        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is now blocked pending explicit approval for inventory-sensitive benchmark asset strengthening.",
-        "Obtain approval for one bounded benchmark-asset strengthening pass or close the reopening as blocked-with-artifact.",
+        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; the current reopening cycle is now canonically closed as blocked-with-artifact.",
+        "Reopen execution only if one bounded benchmark-asset strengthening pass is explicitly approved under the frozen maturity bar.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]
