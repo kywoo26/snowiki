@@ -57,8 +57,8 @@ def test_step2_gate_reconciliation_stays_aligned_with_proof_and_status(
         assert marker in reconciliation
 
     required_status_markers = [
-        "Strengthened benchmark substrate now shows no stable winner in the current lexical roster; Step 2 remains `benchmark-only/no runtime promotion`.",
-        "Open one bounded external-family comparison lane under the frozen family admission packet.",
+        "Strengthened benchmark substrate shows no stable winner in the current lexical roster; the next external-family lane is blocked pending dependency approval.",
+        "Reopen execution only if one admitted-in-principle external family is explicitly approved for runtime dependency addition.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]
