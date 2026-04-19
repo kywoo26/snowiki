@@ -55,8 +55,8 @@ def test_step2_gate_audit_stays_aligned_with_proof_and_status(repo_root: Path) -
     for marker in required_proof_markers:
         assert marker in proof
 
-    assert "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the representative family set is now frozen." in status
-    assert "Freeze the benchmark maturity bar and decide whether benchmark asset changes are mandatory before family comparison proceeds." in status
+    assert "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the benchmark maturity bar is now frozen." in status
+    assert "Benchmark asset strengthening is now the mandatory next lane before any decisive family comparison." in status
     assert "Step 2 sparse branch still not proven on mixed-language benchmark." in status
     assert "Step 2 still not proven, Step 4 remains blocked." in status
 
