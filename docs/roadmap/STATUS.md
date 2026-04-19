@@ -8,8 +8,8 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Fresh local proof refreshed with measured operational evidence; local outcome remains `benchmark-only/no runtime promotion`.
-  - Next action: Mixed-language tokenizer redesign remains the next evidence-generating lane; operational evidence is no longer the primary blocker.
+  - Status: Post-redesign local proof confirms measured operational evidence but worsened tokenizer quality; local outcome remains `benchmark-only/no runtime promotion`.
+  - Next action: Derive the Step 2 runtime-promotion decision package from the failed redesign attempt and decide whether another tokenizer iteration is justified.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
