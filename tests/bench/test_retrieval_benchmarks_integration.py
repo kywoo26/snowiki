@@ -95,6 +95,16 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
     assert candidate_entries[-1].candidate_name == "lindera_ko_v1"
     assert candidate_entries[-1].evidence_baseline is None
     assert candidate_entries[-1].baseline is None
+    measured_entries = [
+        entry
+        for entry in candidate_entries
+        if entry.evidence_baseline is not None and entry.operational_evidence is not None
+    ]
+    assert measured_entries
+    assert all(
+        entry.operational_evidence.disk_size_evidence_status == "measured"
+        for entry in measured_entries
+    )
     decisions = {
         decision.candidate_name: decision
         for decision in report.candidate_matrix.decisions

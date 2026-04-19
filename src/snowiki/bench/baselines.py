@@ -31,6 +31,7 @@ from .models import (
     BenchmarkReport,
     CandidateMatrixEntry,
     CandidateMatrixReport,
+    CandidateOperationalEvidence,
     CorpusSummary,
     LatencyMetrics,
     PageModel,
@@ -43,6 +44,7 @@ from .models import (
     RecordModel,
     ThresholdResult,
 )
+from .operational import measure_bm25_candidate_build, measure_regex_candidate_build
 from .presets import (
     BenchmarkPreset,
     candidate_name_for_benchmark_baseline,
@@ -550,8 +552,11 @@ def _query_result(query_id: str, hits: list[SearchHit]) -> QueryResult:
 
 def _assemble_candidate_matrix(
     baseline_results: Mapping[str, BaselineResult],
+    *,
+    operational_evidence: Mapping[str, CandidateOperationalEvidence] | None = None,
 ) -> CandidateMatrixReport:
     candidates: list[CandidateMatrixEntry] = []
+    evidence_map = operational_evidence or {}
 
     for evidence_baseline, baseline_result in baseline_results.items():
         candidate = get_candidate(
@@ -564,7 +569,9 @@ def _assemble_candidate_matrix(
                 role=candidate.role,
                 admission_status=candidate.admission_status,
                 control=candidate.control,
-                operational_evidence=candidate.operational_evidence,
+                operational_evidence=evidence_map.get(
+                    candidate.candidate_name, candidate.operational_evidence
+                ),
                 baseline=baseline_result,
             )
         )
@@ -579,7 +586,9 @@ def _assemble_candidate_matrix(
                 role=candidate.role,
                 admission_status=candidate.admission_status,
                 control=candidate.control,
-                operational_evidence=candidate.operational_evidence,
+                operational_evidence=evidence_map.get(
+                    candidate.candidate_name, candidate.operational_evidence
+                ),
             )
         )
 
@@ -602,6 +611,9 @@ def run_baseline_comparison(
         raise ValueError(f"preset '{preset.name}' did not match any benchmark queries")
 
     raw_documents = tuple(corpus.raw_index.documents.values())
+    raw_record_payloads = [
+        record.model_dump(mode="python") for record in corpus.records
+    ]
     hit_lookup = _benchmark_hit_lookup(corpus)
     normalized_baselines = normalize_benchmark_baselines(preset.baselines)
     bm25_indexes: dict[str, BM25SearchIndex] = {}
@@ -642,6 +654,11 @@ def run_baseline_comparison(
             continue
         raise ValueError(f"unsupported baseline: {baseline}")
 
+    operational_evidence = _measure_operational_evidence(
+        records=raw_record_payloads,
+        bm25_indexes=bm25_indexes,
+    )
+
     return BenchmarkReport(
         preset=PresetSummary(
             name=preset.name,
@@ -658,5 +675,57 @@ def run_baseline_comparison(
             queries_evaluated=len(queries),
         ),
         baselines=results,
-        candidate_matrix=_assemble_candidate_matrix(results),
+        candidate_matrix=_assemble_candidate_matrix(
+            results, operational_evidence=operational_evidence
+        ),
     )
+
+
+def _with_measured_operational_evidence(
+    candidate_name: str,
+    *,
+    memory_peak_rss_mb: float | None,
+    disk_size_mb: float,
+) -> CandidateOperationalEvidence:
+    candidate = get_candidate(candidate_name)
+    base = candidate.operational_evidence
+    return base.model_copy(
+        update={
+            "memory_peak_rss_mb": memory_peak_rss_mb,
+            "memory_evidence_status": (
+                "measured" if memory_peak_rss_mb is not None else "not_measured"
+            ),
+            "disk_size_mb": disk_size_mb,
+            "disk_size_evidence_status": "measured",
+        }
+    )
+
+
+def _measure_operational_evidence(
+    *,
+    records: list[dict[str, object]],
+    bm25_indexes: Mapping[str, object],
+) -> dict[str, CandidateOperationalEvidence]:
+    evidence: dict[str, CandidateOperationalEvidence] = {}
+    regex_peak_rss_mb, regex_disk_size_mb = measure_regex_candidate_build(
+        records=records
+    )
+    evidence["regex_v1"] = _with_measured_operational_evidence(
+        "regex_v1",
+        memory_peak_rss_mb=regex_peak_rss_mb,
+        disk_size_mb=regex_disk_size_mb,
+    )
+
+    for tokenizer_name, bm25_index in bm25_indexes.items():
+        if not isinstance(bm25_index, BM25SearchIndex):
+            continue
+        peak_rss_mb, disk_size_mb = measure_bm25_candidate_build(
+            documents=bm25_index.documents,
+            tokenizer_name=tokenizer_name,
+        )
+        evidence[tokenizer_name] = _with_measured_operational_evidence(
+            tokenizer_name,
+            memory_peak_rss_mb=peak_rss_mb,
+            disk_size_mb=disk_size_mb,
+        )
+    return evidence
