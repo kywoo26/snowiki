@@ -611,6 +611,7 @@ def test_benchmark_help_mentions_isolated_temp_root() -> None:
 
     assert result.exit_code == 0, result.output
     assert "hidden_holdout" in result.output
+    assert "beir_small" not in result.output
     assert "defaults to an isolated" in result.output
     assert "temporary benchmark root" in result.output
 

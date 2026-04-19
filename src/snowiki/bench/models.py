@@ -87,7 +87,7 @@ class BenchmarkProvenance(BaseModel):
 
     @model_validator(mode="after")
     def _validate_provenance_rules(self) -> BenchmarkProvenance:
-        restricted_assistant_tiers = {"public_anchor", "hidden_holdout"}
+        restricted_assistant_tiers = {"public_anchor", "snowiki_shaped", "hidden_holdout"}
         authoritative_tiers = {"public_anchor", "snowiki_shaped", "hidden_holdout"}
 
         if (
@@ -95,7 +95,7 @@ class BenchmarkProvenance(BaseModel):
             and self.authority_tier in restricted_assistant_tiers
         ):
             raise ValueError(
-                "assistant-generated assets cannot be marked as public anchors or hidden holdouts"
+                "assistant-generated assets cannot be marked as authoritative benchmark assets"
             )
         if (
             self.visibility_tier == "hidden_holdout"

@@ -15,7 +15,7 @@
     - No-answer scoring policy and generic qrel scoring layer to support abstention-aware evaluation across all tiers.
   - Maintenance posture:
     - New benchmark datasets must include `BenchmarkProvenance` with `visibility_tier` and `family_dedupe_key` to prevent cross-tier contamination.
-    - The `beir_small` dataset is reserved but not yet wired; connect it when a compact BEIR multi-dataset manifest is ready.
+    - Compact English public-anchor coverage is currently provided by `beir_scifact` and `beir_nfcorpus`; add another manifest-backed English anchor only if those suites stop being sufficient for local iteration.
     - Threshold calibration for public anchors and snowiki_shaped remains open; do not reuse regression-tier thresholds for release-quality claims.
     - The real hidden holdout (not the synthetic facsimile) must be established before any final-proof claim can be made.
   - Blocker: None

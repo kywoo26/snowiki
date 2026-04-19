@@ -1195,3 +1195,604 @@ def test_generate_report_rejects_authoritative_assets_without_required_provenanc
 
     with pytest.raises(ValidationError):
         _ = generate_report(tmp_path, preset_name="retrieval")
+
+
+def _baseline_payload_for_verdict(
+    *,
+    name: str,
+    mixed_value: float = 0.9,
+    ko_value: float = 0.9,
+    en_value: float = 0.9,
+    p95_ms: float = 10.0,
+    overall_fail: bool = False,
+    include_overall_threshold: bool = True,
+) -> dict[str, object]:
+    thresholds: list[dict[str, object]] = []
+    if include_overall_threshold:
+        thresholds.append(
+            {
+                "gate": "overall",
+                "metric": "mrr",
+                "value": mixed_value,
+                "delta": mixed_value - 0.7,
+                "verdict": "FAIL" if overall_fail else "PASS",
+                "threshold": 0.7,
+                "warnings": [],
+            }
+        )
+
+    def _group_payload(value: float) -> dict[str, object]:
+        return {
+            "recall_at_k": value,
+            "mrr": value,
+            "ndcg_at_k": value,
+            "top_k": 5,
+            "queries_evaluated": 1,
+            "per_query": [],
+        }
+
+    return {
+        "name": name,
+        "latency": {
+            "p50_ms": min(p95_ms, 5.0),
+            "p95_ms": p95_ms,
+            "mean_ms": p95_ms,
+            "min_ms": min(p95_ms, 5.0),
+            "max_ms": p95_ms,
+        },
+        "quality": {
+            "overall": {
+                "recall_at_k": mixed_value,
+                "mrr": mixed_value,
+                "ndcg_at_k": mixed_value,
+                "top_k": 5,
+                "queries_evaluated": 1,
+                "per_query": [],
+            },
+            "slices": {
+                "group": {
+                    "mixed": _group_payload(mixed_value),
+                    "ko": _group_payload(ko_value),
+                    "en": _group_payload(en_value),
+                },
+                "kind": {},
+            },
+            "thresholds": thresholds,
+        },
+        "queries": [],
+    }
+
+
+def _operational_evidence_payload(*, measured: bool) -> dict[str, object]:
+    status = "measured" if measured else "not_measured"
+    return {
+        "memory_peak_rss_mb": 1.0 if measured else None,
+        "memory_evidence_status": status,
+        "disk_size_mb": 1.0 if measured else None,
+        "disk_size_evidence_status": status,
+        "platform_support": {
+            "macos": "supported",
+            "linux_x86_64": "supported",
+            "linux_aarch64": "supported",
+            "windows": "supported",
+            "fallback_behavior": "none",
+        },
+        "install_ergonomics": {
+            "prebuilt_available": True,
+            "build_from_source_required": False,
+            "hidden_bootstrap_steps": False,
+            "operational_complexity": "low",
+        },
+        "zero_cost_admission": True,
+        "admission_reason": "test",
+    }
+
+
+def test_report_internal_helpers_cover_coercion_redaction_and_empty_audit() -> None:
+    report_module, benchmark_report = _load_report_symbols()
+
+    assert report_module._coerce_int(True) == 1
+    assert report_module._coerce_int(7) == 7
+    assert report_module._coerce_int(7.9) == 7
+    assert report_module._coerce_int("8") == 8
+    assert report_module._coerce_int("bad", default=9) == 9
+    assert report_module._coerce_int(object(), default=9) == 9
+
+    redacted = report_module._redact_hidden_holdout_retrieval_payload(
+        {
+            "baselines": {
+                "lexical": {
+                    "queries": {"q1": [{"id": "doc-1"}]},
+                    "quality": {
+                        "overall": {"per_query": [{"query_id": "q1"}]},
+                        "slices": {
+                            "group": {"hidden": {"per_query": [{"query_id": "q1"}]}},
+                            "kind": {"raw": "keep"},
+                            "subset": {"hidden": {"per_query": [{"query_id": "q1"}]}},
+                        },
+                    },
+                },
+                "raw": "keep-me",
+            }
+        }
+    )
+
+    baselines = cast(dict[str, object], redacted["baselines"])
+    lexical = cast(dict[str, object], baselines["lexical"])
+    quality = cast(dict[str, object], lexical["quality"])
+    overall = cast(dict[str, object], quality["overall"])
+    slices = cast(dict[str, object], quality["slices"])
+
+    assert redacted["sealed_holdout"] is True
+    assert lexical["queries"] == {}
+    assert overall["per_query"] == []
+    assert cast(dict[str, object], cast(dict[str, object], slices["group"])["hidden"])[
+        "per_query"
+    ] == []
+    assert cast(dict[str, object], cast(dict[str, object], slices["subset"])["hidden"])[
+        "per_query"
+    ] == []
+    assert cast(dict[str, object], slices["kind"])["raw"] == "keep"
+    assert baselines["raw"] == "keep-me"
+
+    assert report_module.generate_audit_report(benchmark_report.model_validate({})) == {}
+
+
+def test_dataset_payload_from_manifest_covers_regression_visible_and_hidden_paths() -> None:
+    from snowiki.bench.anchors.hidden_holdout import load_hidden_holdout_suite
+    from snowiki.bench.anchors.korean import load_miracl_ko_sample
+
+    report_module, _ = _load_report_symbols()
+
+    regression_payload = report_module._dataset_payload_from_manifest(
+        None,
+        dataset_name="regression",
+    )
+    assert regression_payload == {
+        "id": "regression",
+        "name": "Phase 1 regression fixtures",
+        "tier": "regression",
+        "description": (
+            "Deterministic local regression fixtures used for "
+            "candidate-screening benchmark runs."
+        ),
+    }
+
+    visible_payload = report_module._dataset_payload_from_manifest(
+        load_miracl_ko_sample(size=2),
+        dataset_name="miracl_ko",
+    )
+    assert visible_payload["tier"] == "public_anchor"
+    assert "provenance" in visible_payload
+
+    hidden_payload = report_module._dataset_payload_from_manifest(
+        load_hidden_holdout_suite(size=2),
+        dataset_name="hidden_holdout",
+    )
+    assert hidden_payload["tier"] == "hidden_holdout"
+    assert "provenance" not in hidden_payload
+    assert cast(dict[str, object], hidden_payload["provenance_status"])["sealed"] is True
+
+
+def test_baselines_parsing_helpers_cover_error_and_path_resolution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+
+    baselines = import_module("snowiki.bench.baselines")
+
+    absolute_path = tmp_path / "absolute.json"
+    absolute_path.write_text("{}", encoding="utf-8")
+    resolved_path, label = baselines._resolve_benchmark_asset_path(
+        tmp_path,
+        absolute_path,
+        default_relative_path="ignored.json",
+    )
+    assert resolved_path == absolute_path
+    assert label == absolute_path.as_posix()
+
+    root_relative = tmp_path / "queries.json"
+    root_relative.write_text("{}", encoding="utf-8")
+    resolved_path, label = baselines._resolve_benchmark_asset_path(
+        tmp_path,
+        "queries.json",
+        default_relative_path="ignored.json",
+    )
+    assert resolved_path == root_relative
+    assert label == root_relative.as_posix()
+
+    repo_fallback = tmp_path / "repo-queries.json"
+    repo_fallback.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(baselines, "resolve_repo_asset_path", lambda relative: repo_fallback)
+    resolved_path, label = baselines._resolve_benchmark_asset_path(
+        tmp_path,
+        None,
+        default_relative_path="benchmarks/queries.json",
+    )
+    assert resolved_path == repo_fallback
+    assert label == "benchmarks/queries.json"
+
+    assert baselines._parse_qrel_entry("q1", "doc-1", label="qrels").doc_id == "doc-1"
+    assert baselines._parse_qrel_entry(
+        "q1",
+        {"query_id": "q1", "doc_id": "doc-2", "relevance": "2"},
+        label="qrels",
+    ).relevance == 2
+
+    with pytest.raises(ValueError):
+        _ = baselines._require_mapping_rows("bad", label="rows")
+    with pytest.raises(ValueError):
+        _ = baselines._require_mapping_rows(["bad"], label="rows")
+    with pytest.raises(ValueError):
+        _ = baselines._string_list("bad", label="strings")
+    with pytest.raises(ValueError):
+        _ = baselines._parse_qrel_entry(
+            "q1",
+            {"query_id": "other", "doc_id": "doc-1"},
+            label="qrels",
+        )
+    with pytest.raises(ValueError):
+        _ = baselines._parse_qrel_entry(
+            "q1",
+            {"query_id": "q1", "doc_id": "", "relevance": 1},
+            label="qrels",
+        )
+    with pytest.raises(ValueError):
+        _ = baselines._parse_qrel_entry(
+            "q1",
+            {"query_id": "q1", "doc_id": "doc-1", "relevance": "bad"},
+            label="qrels",
+        )
+    with pytest.raises(ValueError):
+        _ = baselines._parse_qrel_entry(
+            "q1",
+            {"query_id": "q1", "doc_id": "doc-1", "relevance": 1.5},
+            label="qrels",
+        )
+    with pytest.raises(ValueError):
+        _ = baselines._parse_qrel_entries("q1", "bad", label="qrels")
+
+    judgments_path = tmp_path / "judgments.json"
+    judgments_path.write_text(
+        json.dumps(
+            {
+                "judgments": [
+                    {"query_id": "q1", "doc_id": "doc-1", "relevance": 1},
+                    {
+                        "query_id": "q2",
+                        "qrels": [
+                            {"query_id": "q2", "doc_id": "doc-2", "relevance": 2}
+                        ],
+                    },
+                    {"query_id": "q3", "relevant_paths": ["doc-3", "doc-4"]},
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    qrels = baselines.load_qrels(judgments_path)
+    assert [entry.doc_id for entry in qrels["q3"]] == ["doc-3", "doc-4"]
+    assert qrels["q2"][0].relevance == 2
+
+    monkeypatch.setattr(
+        baselines,
+        "load_qrels",
+        lambda path: (_ for _ in ()).throw(ValueError("bad qrels")),
+    )
+    with pytest.raises(ValueError, match="must contain a 'judgments' mapping or list rows"):
+        _ = baselines._load_judgments(tmp_path, judgments_path)
+
+
+def test_baselines_lookup_tokenizer_and_operational_helpers_cover_edge_cases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    baselines = import_module("snowiki.bench.baselines")
+    from snowiki.search.indexer import SearchDocument, SearchHit
+
+    path_hit = SearchHit(
+        document=SearchDocument(
+            id="",
+            path="compiled/path-doc.md",
+            kind="page",
+            title="Path Doc",
+            content="content",
+        ),
+        score=1.0,
+        matched_terms=(),
+    )
+    assert baselines._hit_identifier(path_hit) == "compiled/path-doc.md"
+    assert baselines._match_benchmark_hit(
+        path_hit,
+        [baselines.QrelEntry(query_id="q1", doc_id="fixture-a")],
+        {"compiled/path-doc.md": "fixture-a"},
+    ) == "fixture-a"
+
+    duplicate_ids = baselines._ranked_doc_ids(
+        [path_hit, path_hit],
+        [baselines.QrelEntry(query_id="q1", doc_id="fixture-a")],
+        hit_lookup={"compiled/path-doc.md": "fixture-a"},
+    )
+    assert duplicate_ids == ["fixture-a"]
+
+    monkeypatch.setattr(baselines, "resolve_legacy_tokenizer", lambda **kwargs: None)
+    with pytest.raises(ValueError, match="could not resolve tokenizer"):
+        _ = baselines._tokenizer_name_for_baseline("bm25s")
+    with pytest.raises(ValueError, match="unsupported baseline"):
+        _ = baselines._tokenizer_name_for_baseline("bm25s_kiwi_full")
+    with pytest.raises(ValueError, match="unsupported baseline"):
+        _ = baselines._tokenizer_name_for_baseline("bogus")
+
+    monkeypatch.setattr(
+        baselines,
+        "measure_regex_candidate_build",
+        lambda *, records: (1.0, 2.0),
+    )
+    monkeypatch.setattr(
+        baselines,
+        "measure_bm25_candidate_build",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("unexpected bm25 measurement")),
+    )
+    evidence = baselines._measure_operational_evidence(
+        records=[],
+        bm25_indexes={"not-a-bm25-index": object()},
+    )
+    assert evidence["regex_v1"].disk_size_mb == 2.0
+
+
+def test_phase1_latency_helper_branches_are_covered(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    phase1_latency = import_module("snowiki.bench.phase1_latency")
+    presets = import_module("snowiki.bench.presets")
+    preset = presets.get_preset("retrieval")
+
+    rows: list[dict[str, object]] = [
+        {
+            "id": "q1",
+            "text": "alpha",
+            "kind": "known-item",
+            "group": "ko",
+            "tags": ["keep", ""],
+        },
+        {"id": "q2", "text": " ", "kind": "known-item"},
+        {"id": "q3", "text": "skip", "kind": "temporal"},
+    ]
+    query_specs = phase1_latency._query_specs_from_rows(rows, preset=preset)
+    assert query_specs == ({"text": "alpha", "kind": "known-item", "id": "q1", "group": "ko", "tags": ["keep"]},)
+
+    payload_path = tmp_path / "queries.json"
+    payload_path.write_text('{"queries": []}', encoding="utf-8")
+    assert phase1_latency._load_json(payload_path) == {"queries": []}
+
+    monkeypatch.setattr(phase1_latency, "_load_json", lambda path: {"queries": rows})
+    loaded_specs = phase1_latency._load_query_specs_for_preset(preset)
+    assert loaded_specs == query_specs
+
+    assert phase1_latency._requested_latency_policy(
+        "public_anchor",
+        query_count=60,
+        latency_sample="fixed_sample",
+    ).mode == "fixed_sample"
+    assert phase1_latency._requested_latency_policy(
+        "public_anchor",
+        query_count=60,
+        latency_sample="stratified",
+    ).mode == "stratified"
+    assert phase1_latency._requested_latency_policy(
+        "public_anchor",
+        query_count=60,
+        latency_sample="exhaustive",
+    ).mode == "exhaustive"
+
+    assert phase1_latency._derive_latency_strata(
+        (
+            {"text": "alpha", "kind": "known-item", "group": "shared"},
+            {"text": "beta", "kind": "topical", "group": "shared"},
+        )
+    ) == ["known-item", "topical"]
+    assert phase1_latency._derive_latency_strata(
+        ({"text": "alpha", "kind": "", "group": ""},)
+    ) == ["all"]
+
+    materialized = phase1_latency._materialize_latency_policy(
+        phase1_latency.LatencySamplingPolicy(mode="stratified"),
+        queries=(
+            {"text": "alpha", "kind": "known-item", "group": "shared"},
+            {"text": "beta", "kind": "topical", "group": "shared"},
+        ),
+    )
+    assert materialized.strata == ["known-item", "topical"]
+    assert phase1_latency._materialize_latency_policy(
+        phase1_latency.LatencySamplingPolicy(mode="stratified", strata=["preset"]),
+        queries=query_specs,
+    ).strata == ["preset"]
+
+    assert phase1_latency._evenly_spaced_positions(0, 3) == []
+    assert phase1_latency._evenly_spaced_positions(3, 5) == [0, 1, 2]
+    assert phase1_latency._fixed_sample_query_positions(3, 5) == [0, 1, 2]
+    assert phase1_latency._stratified_sample_query_positions((), strata=["ko"]) == []
+    assert phase1_latency._stratified_sample_query_positions(query_specs, strata=[]) == [0]
+    assert phase1_latency._stratified_sample_query_positions(
+        query_specs,
+        strata=["missing"],
+    ) == [0]
+
+    mixed_queries = cast(
+        tuple[object, ...],
+        tuple(
+            {
+                "text": f"q{index}",
+                "kind": "known-item",
+                "group": "ko" if index == 0 else "other",
+            }
+            for index in range(5)
+        ),
+    )
+    assert phase1_latency._stratified_sample_query_positions(
+        cast(Any, mixed_queries),
+        strata=["ko"],
+    ) == [0, 1, 2, 3, 4]
+
+
+def test_verdict_internal_helpers_cover_edge_cases() -> None:
+    verdict = import_module("snowiki.bench.verdict")
+    models = import_module("snowiki.bench.models")
+
+    assert verdict._report_tier({"metadata": {"dataset_tier": "public_anchor"}}) == "public_anchor"
+    assert verdict._report_tier({"dataset": {"tier": "snowiki_shaped"}}) == "snowiki_shaped"
+    assert verdict._report_tier({}) == "regression"
+
+    assert verdict.performance_threshold_failure_count({"performance_thresholds": "bad"}) == 0
+    assert verdict.retrieval_threshold_failure_count({"retrieval": {"baselines": "bad"}}) == 0
+    assert verdict.benchmark_exit_code({"benchmark_verdict": {"exit_code": True}}) == 1
+    assert verdict.benchmark_exit_code({"benchmark_verdict": {"exit_code": 2}}) == 2
+    assert verdict.benchmark_exit_code({}) == 0
+
+    missing_control = verdict._control_decision(None)
+    assert missing_control.reasons == ["missing_control_evidence"]
+
+    control_without_measurements = verdict._control_decision(
+        models.CandidateMatrixEntry.model_validate(
+            {
+                "candidate_name": "regex_v1",
+                "evidence_baseline": "lexical",
+                "role": "control",
+                "admission_status": "admitted",
+                "control": True,
+                "operational_evidence": _operational_evidence_payload(measured=False),
+                "baseline": _baseline_payload_for_verdict(name="lexical"),
+            }
+        )
+    )
+    assert control_without_measurements.disposition == "benchmark_only"
+    assert control_without_measurements.reasons == ["missing_operational_evidence"]
+
+    control_entry = models.CandidateMatrixEntry.model_validate(
+        {
+            "candidate_name": "regex_v1",
+            "evidence_baseline": "lexical",
+            "role": "control",
+            "admission_status": "admitted",
+            "control": True,
+            "operational_evidence": _operational_evidence_payload(measured=True),
+            "baseline": _baseline_payload_for_verdict(
+                name="lexical",
+                mixed_value=0.80,
+                ko_value=0.80,
+                en_value=0.80,
+                p95_ms=10.0,
+            ),
+        }
+    )
+
+    assert verdict._candidate_decision(
+        None,
+        control_entry,
+        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        candidate_name="kiwi_morphology_v1",
+        evidence_baseline="bm25s_kiwi_full",
+    ).reasons == ["missing_benchmark_evidence"]
+
+    overall_fail_entry = models.CandidateMatrixEntry.model_validate(
+        {
+            "candidate_name": "kiwi_morphology_v1",
+            "evidence_baseline": "bm25s_kiwi_full",
+            "role": "candidate",
+            "admission_status": "admitted",
+            "control": False,
+            "operational_evidence": _operational_evidence_payload(measured=True),
+            "baseline": _baseline_payload_for_verdict(
+                name="bm25s_kiwi_full",
+                mixed_value=0.85,
+                ko_value=0.85,
+                en_value=0.85,
+                p95_ms=11.0,
+                overall_fail=True,
+            ),
+        }
+    )
+    assert verdict._candidate_decision(
+        overall_fail_entry,
+        control_entry,
+        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        candidate_name="kiwi_morphology_v1",
+        evidence_baseline="bm25s_kiwi_full",
+    ).reasons == ["overall_quality_gate_failed"]
+
+    no_improvement_entry = models.CandidateMatrixEntry.model_validate(
+        {
+            "candidate_name": "kiwi_morphology_v1",
+            "evidence_baseline": "bm25s_kiwi_full",
+            "role": "candidate",
+            "admission_status": "admitted",
+            "control": False,
+            "operational_evidence": _operational_evidence_payload(measured=True),
+            "baseline": _baseline_payload_for_verdict(
+                name="bm25s_kiwi_full",
+                mixed_value=0.80,
+                ko_value=0.80,
+                en_value=0.80,
+                p95_ms=10.0,
+            ),
+        }
+    )
+    assert verdict._candidate_decision(
+        no_improvement_entry,
+        control_entry,
+        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        candidate_name="kiwi_morphology_v1",
+        evidence_baseline="bm25s_kiwi_full",
+    ).reasons == ["no_material_mixed_improvement"]
+
+    benchmark_only_entry = models.CandidateMatrixEntry.model_validate(
+        {
+            "candidate_name": "kiwi_morphology_v1",
+            "evidence_baseline": "bm25s_kiwi_full",
+            "role": "candidate",
+            "admission_status": "admitted",
+            "control": False,
+            "operational_evidence": _operational_evidence_payload(measured=False),
+            "baseline": _baseline_payload_for_verdict(
+                name="bm25s_kiwi_full",
+                mixed_value=0.81,
+                ko_value=0.78,
+                en_value=0.78,
+                p95_ms=15.0,
+            ),
+        }
+    )
+    benchmark_only = verdict._candidate_decision(
+        benchmark_only_entry,
+        control_entry,
+        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        candidate_name="kiwi_morphology_v1",
+        evidence_baseline="bm25s_kiwi_full",
+    )
+    assert benchmark_only.disposition == "benchmark_only"
+    assert benchmark_only.reasons == [
+        "mixed_delta_below_promotion_threshold",
+        "slice_recall_non_regression_failed",
+        "latency_ratio_guard_failed",
+        "missing_operational_evidence",
+    ]
+
+    baseline_without_overall = models.BaselineResult.model_validate(
+        _baseline_payload_for_verdict(
+            name="lexical",
+            include_overall_threshold=False,
+        )
+    )
+    assert verdict._passes_overall_quality_gates(baseline_without_overall) is False
+    assert verdict._group_metric(baseline_without_overall, "missing", "mrr") == 0.0
+    assert verdict._latency_ratio(
+        models.BaselineResult.model_validate(
+            _baseline_payload_for_verdict(name="candidate", p95_ms=5.0)
+        ),
+        models.BaselineResult.model_validate(
+            _baseline_payload_for_verdict(name="control", p95_ms=0.0)
+        ),
+    ) == float("inf")
+    assert verdict._baseline_p95(
+        models.BaselineResult.model_validate({"name": "empty", "queries": []})
+    ) == 0.0

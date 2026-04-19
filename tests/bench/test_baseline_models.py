@@ -234,27 +234,29 @@ def test_benchmark_provenance_accepts_valid_authoritative_payload() -> None:
     assert manifest.to_report_dict()["provenance"] == _provenance_payload()
 
 
-def test_assistant_generated_assets_cannot_be_public_anchors_or_hidden_holdouts() -> None:
-    with pytest.raises(ValidationError):
-        _ = BenchmarkAssetManifest.model_validate(
-            _asset_manifest_payload(
-                provenance=_provenance_payload(
-                    authoring_method="assistant_generated",
-                    authority_tier="public_anchor",
-                )
-            )
-        )
+def test_assistant_generated_assets_cannot_be_authoritative() -> None:
+    payloads = (
+        _provenance_payload(
+            authoring_method="assistant_generated",
+            authority_tier="public_anchor",
+        ),
+        _provenance_payload(
+            authoring_method="assistant_generated",
+            authority_tier="snowiki_shaped",
+            visibility_tier="developer_visible",
+        ),
+        _provenance_payload(
+            authoring_method="assistant_generated",
+            authority_tier="hidden_holdout",
+            visibility_tier="hidden_holdout",
+        ),
+    )
 
-    with pytest.raises(ValidationError):
-        _ = BenchmarkAssetManifest.model_validate(
-            _asset_manifest_payload(
-                provenance=_provenance_payload(
-                    authoring_method="assistant_generated",
-                    authority_tier="hidden_holdout",
-                    visibility_tier="hidden_holdout",
-                )
+    for provenance in payloads:
+        with pytest.raises(ValidationError):
+            _ = BenchmarkAssetManifest.model_validate(
+                _asset_manifest_payload(provenance=provenance)
             )
-        )
 
 
 def test_hidden_holdout_requires_clean_contamination_status() -> None:

@@ -54,10 +54,10 @@ _MIXED_LANGUAGE_FAMILIES: tuple[_FamilyTemplate, ...] = (
         "pipeline operator guidance",
     ),
     _FamilyTemplate(
-        "benchmark_triage_sheet",
-        "벤치마크 triage sheet",
-        "candidate_matrix review",
-        "retrieval regression tracing",
+        "search_support_sheet",
+        "검색 support sheet",
+        "incident keyword map",
+        "retrieval issue triage",
     ),
     _FamilyTemplate(
         "api_glossary_bridge",
@@ -70,8 +70,8 @@ _MIXED_LANGUAGE_FAMILIES: tuple[_FamilyTemplate, ...] = (
 _CODE_DOC_FAMILIES: tuple[_FamilyTemplate, ...] = (
     _FamilyTemplate(
         "cli_reference",
-        "snowiki benchmark CLI",
-        "dataset flag reference",
+        "snowiki query CLI",
+        "search flag reference",
         "command help and examples",
     ),
     _FamilyTemplate(
@@ -137,7 +137,7 @@ _TEMPORAL_FAMILIES: tuple[_FamilyTemplate, ...] = (
     _FamilyTemplate(
         "release_calendar",
         "release calendar",
-        "quarterly benchmark freeze",
+        "quarterly maintenance window",
         "dated program schedule",
     ),
     _FamilyTemplate(
@@ -395,7 +395,7 @@ def _build_temporal_document(
     title = f"{family.label} {family.subtitle} {ordinal:02d}"
     content = (
         f"{title} captures a dated update window. On {year}-{month:02d}-15 the team published a refresh covering {family.focus}. "
-        f"A follow-up checkpoint on {year}-{month:02d}-28 confirmed which benchmark assets changed and what operators should revisit next."
+        f"A follow-up checkpoint on {year}-{month:02d}-28 confirmed which reference materials changed and what operators should revisit next."
     )
     return {
         "id": document_id,
