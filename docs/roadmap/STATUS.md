@@ -8,8 +8,8 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Current candidate set remains closed at `benchmark-only/no runtime promotion`; a new bounded reopening program is now active.
-  - Next action: Freeze the reopening contract, then lock candidate-family scope and benchmark maturity rules before any new implementation lane.
+  - Status: Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the representative family set is now frozen.
+  - Next action: Freeze the benchmark maturity bar and decide whether benchmark asset changes are mandatory before family comparison proceeds.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
