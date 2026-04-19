@@ -10,6 +10,7 @@
   - `regex_v1` (Control)
   - `kiwi_morphology_v1`
   - `kiwi_nouns_v1`
+  - `hf_wordpiece_v1`
 
 > **Note on Transient Reports**: Raw JSON artifacts under `reports/` are transient and not committed to the repository. This memo is the durable roadmap-facing record of the strengthened local benchmark evidence after the canonical 90-query judged-set expansion.
 
@@ -81,14 +82,28 @@ Instead, it shows that:
 - the current roster is exhausted on that stronger substrate
 - another bounded lane is required if Step 2 is to move forward
 
-## Next Step 2 lane
+## Substep 4 external-family result
 
-The correct next lane is **one bounded external-family comparison** under the already-frozen family admission packet.
+The bounded external-family comparison lane has now been executed with the admitted-in-principle **HF/subword** representative.
 
-That means:
-- do not reopen more Kiwi variants
-- do not expand the benchmark again
-- admit one external family representative only if it can be integrated within bounded scope
+- **Chosen family**: HF / subword via `huggingface/tokenizers`
+- **Representative**: `hf_wordpiece_v1`
+- **PR**: `#71 feat(search): add hf wordpiece benchmark comparison lane`
+- **Artifact type**: implementation artifact
+- **Benchmarkability**: PASS — the family integrates cleanly and runs on the blocking `retrieval` preset
+- **Quality result**: REJECT — `overall_quality_gate_failed`
+
+Representative blocking retrieval result on the 66-query slice:
+
+| Candidate | Recall@k | MRR | nDCG@k | Result |
+| :--- | :--- | :--- | :--- | :--- |
+| `hf_wordpiece_v1` | 0.684343 | 0.641414 | 0.626323 | reject |
+
+Interpretation:
+- the external-family budget for this round has been spent on one admitted-in-principle family
+- the lane succeeded as a bounded implementation/benchmark comparison
+- the result still does not produce a stable lexical winner
+- this does **not** justify silently opening Mecab in the same round
 
 ## Step 4 implication
 
@@ -96,12 +111,22 @@ Step 4 remains blocked.
 
 The sparse branch is still not proven, and the stronger benchmark makes that conclusion more credible rather than less.
 
+## Next Step 2 lane
+
+The correct next lane is now **Substep 5 — final comparative proof and recommendation**.
+
+That means:
+- do not reopen more Kiwi variants
+- do not expand the benchmark again
+- do not open Mecab in this same execution round without a later canonical reopening decision
+- close the program as `no stable winner` unless there is explicit evidence that Substep 3 must be reopened
+
 ## Step 4 Gate Decision
 
 - **Local Closeout Outcome**: benchmark-only/no runtime promotion
 - **Promoted Tokenizer**: [NONE]
 - **Step 4 Unblocked**: [NO]
-- **Rationale**: The strengthened benchmark substrate now shows no stable winner in the current lexical roster. The current roster is exhausted on the stronger judged set, so Step 2 remains benchmark-only/no runtime promotion and the next bounded lane is one external-family comparison under the frozen family admission packet. Step 4 therefore remains blocked.
+- **Rationale**: The strengthened benchmark substrate showed no stable winner in the current lexical roster, and the bounded HF/subword external-family lane is now benchmarkable but still fails the retrieval quality gate. Step 2 therefore remains benchmark-only/no runtime promotion and Step 4 remains blocked.
 
 ---
 *This document is the durable strengthened-current-roster proof record for the lexical productionization program.*

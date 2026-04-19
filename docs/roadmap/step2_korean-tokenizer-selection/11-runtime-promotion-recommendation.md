@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Record the current recommendation after the strengthened current-roster proof rerun.
+Record the current recommendation after the strengthened current-roster proof rerun and the bounded external-family comparison lane.
 
 ## Current rerun outcome
 
@@ -29,27 +29,46 @@ The prior Step 2 closeout still stands:
 - promoted tokenizer: `NONE`
 - Step 4 remains blocked
 
-## Next bounded lane
+## External-family lane result
 
-### 4. Open one bounded external-family comparison lane
+### 4. The bounded HF/subword external-family lane is now complete
 
-The correct next move is **one bounded external-family comparison** under the already frozen family admission packet.
+The bounded external-family comparison lane has been executed with the admitted-in-principle HF/subword representative:
+
+- chosen family: `huggingface/tokenizers` / WordPiece
+- canonical tokenizer identity: `hf_wordpiece_v1`
+- merged implementation PR: `#71`
+- result: benchmarkable, but `overall_quality_gate_failed`
 
 That means:
 - no more Kiwi variant churn
 - no more benchmark growth beyond the maturity bar
-- one external family only
+- one external family only **was used in this round**
 - no runtime promotion in that lane
+- no second family lane opens implicitly from this result
+
+### 5. Mecab remains admitted in principle, not active in this round
+
+Mecab is still part of the frozen admission packet as an **admitted-in-principle** family, but it is **not** part of the current execution round anymore because the one-family external lane budget was already spent on HF/subword.
+
+If Mecab is ever reopened, that must happen through a later explicit canonical decision rather than by silently broadening this substep.
 
 ## Step 4 implication
 
-### 5. Step 4 remains blocked
+### 6. Step 4 remains blocked
 
 Because the sparse branch is still not proven and the strengthened current roster has no stable winner, Step 4 runtime work remains blocked.
+
+## Next bounded lane
+
+### 7. The correct next move is Substep 5 final comparative proof/recommendation
+
+The next canonical move is to close the final comparative proof package for the HF result and determine whether Step 2 now terminates as **no stable winner** or explicitly reopens Substep 3 under evidence.
 
 ## Acceptance criteria
 
 - the note explicitly states that the strengthened current roster has no stable winner
 - the note explicitly states that no runtime-promotion recommendation is issued
 - the note explicitly preserves the existing Step 2 benchmark-only closeout
-- the note explicitly names the next bounded lane as one external-family comparison
+- the note explicitly records the bounded HF/subword lane result
+- the note explicitly names Substep 5 as the next canonical move
