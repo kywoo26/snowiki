@@ -7,7 +7,12 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from .contract import MetricThreshold, ReportEntry
+from .contract import (
+    DEFAULT_NO_ANSWER_SCORING_POLICY,
+    MetricThreshold,
+    NoAnswerScoringPolicy,
+    ReportEntry,
+)
 
 
 def recall_at_k(relevant_ids: set[str], ranked_ids: list[str], k: int) -> float:
@@ -116,6 +121,30 @@ def _normalize_top_ks(top_k: int, top_ks: tuple[int, ...] | list[int] | None) ->
     return tuple(sorted(values))
 
 
+def _score_no_answer_query(
+    ranked_ids: list[str],
+    *,
+    policy: NoAnswerScoringPolicy,
+) -> dict[str, float] | None:
+    if policy.mode == 'ignore':
+        return None
+
+    if policy.mode == 'require_abstention':
+        abstention_score = 1.0
+        false_positive_score = 0.0
+    else:
+        abstention_score = 1.0
+        if policy.abstention_bonus is not None:
+            abstention_score = max(0.0, min(1.0, abstention_score + policy.abstention_bonus))
+        false_positive_score = max(0.0, min(1.0, 1.0 - policy.false_positive_penalty))
+    score = abstention_score if not ranked_ids else false_positive_score
+    return {
+        'recall_at_k': score,
+        'mrr': score,
+        'ndcg_at_k': score,
+    }
+
+
 def evaluate_quality(
     ranked_results: dict[str, list[str]],
     judgments: dict[str, list[str]],
@@ -124,12 +153,13 @@ def evaluate_quality(
     top_ks: tuple[int, ...] | list[int] | None = None,
     query_tags: dict[str, tuple[str, ...]] | None = None,
     query_no_answer: dict[str, bool] | None = None,
+    no_answer_policy: NoAnswerScoringPolicy = DEFAULT_NO_ANSWER_SCORING_POLICY,
 ) -> QualitySummary:
     per_query: list[QueryQualityResult] = []
     ks = _normalize_top_ks(top_k, top_ks)
-    recall_totals = defaultdict(float)
-    mrr_totals = defaultdict(float)
-    ndcg_totals = defaultdict(float)
+    recall_totals: defaultdict[int, float] = defaultdict(float)
+    mrr_totals: defaultdict[int, float] = defaultdict(float)
+    ndcg_totals: defaultdict[int, float] = defaultdict(float)
     evaluated = 0
     query_tags = query_tags or {}
     query_no_answer = query_no_answer or {}
@@ -137,16 +167,25 @@ def evaluate_quality(
     for query_id, relevant in judgments.items():
         relevant_ids = {str(item) for item in relevant}
         no_answer = bool(query_no_answer.get(query_id, False))
-        if not relevant_ids and not no_answer:
-            continue
         ranked_ids = [str(item) for item in ranked_results.get(query_id, [])]
-        metrics_per_k = {}
+        no_answer_metrics: dict[str, float] | None = None
+        if no_answer:
+            no_answer_metrics = _score_no_answer_query(ranked_ids, policy=no_answer_policy)
+            if no_answer_metrics is None:
+                continue
+        elif not relevant_ids:
+            continue
+        metrics_per_k: dict[int, dict[str, float]] = {}
         for k in ks:
-            metrics_per_k[k] = {
-                'recall_at_k': recall_at_k(relevant_ids, ranked_ids, k),
-                'mrr': reciprocal_rank(relevant_ids, ranked_ids, k=k),
-                'ndcg_at_k': ndcg_at_k(relevant_ids, ranked_ids, k),
-            }
+            if no_answer:
+                assert no_answer_metrics is not None
+                metrics_per_k[k] = no_answer_metrics.copy()
+            else:
+                metrics_per_k[k] = {
+                    'recall_at_k': recall_at_k(relevant_ids, ranked_ids, k),
+                    'mrr': reciprocal_rank(relevant_ids, ranked_ids, k=k),
+                    'ndcg_at_k': ndcg_at_k(relevant_ids, ranked_ids, k),
+                }
             recall_totals[k] += metrics_per_k[k]['recall_at_k']
             mrr_totals[k] += metrics_per_k[k]['mrr']
             ndcg_totals[k] += metrics_per_k[k]['ndcg_at_k']
@@ -207,6 +246,7 @@ def _evaluate_slice(
     top_ks: tuple[int, ...] | list[int] | None,
     query_tags: dict[str, tuple[str, ...]],
     query_no_answer: dict[str, bool],
+    no_answer_policy: NoAnswerScoringPolicy,
 ) -> QualitySummary:
     filtered_ranked_results = {query_id: ranked_results.get(query_id, []) for query_id in query_ids}
     filtered_judgments = {query_id: judgments.get(query_id, []) for query_id in query_ids}
@@ -217,6 +257,7 @@ def _evaluate_slice(
         top_ks=top_ks,
         query_tags={query_id: query_tags.get(query_id, ()) for query_id in query_ids},
         query_no_answer={query_id: query_no_answer.get(query_id, False) for query_id in query_ids},
+        no_answer_policy=no_answer_policy,
     )
 
 
@@ -230,13 +271,23 @@ def evaluate_sliced_quality(
     top_ks: tuple[int, ...] | list[int] | None = None,
     query_tags: dict[str, tuple[str, ...]] | None = None,
     query_no_answer: dict[str, bool] | None = None,
+    no_answer_policy: NoAnswerScoringPolicy = DEFAULT_NO_ANSWER_SCORING_POLICY,
     group_labels: tuple[str, ...] = ('ko', 'en', 'mixed'),
     kind_labels: tuple[str, ...] = ('known-item', 'topical', 'temporal'),
 ) -> SlicedQualitySummary:
     query_ids = [query_id for query_id in query_groups if query_id in ranked_results or query_id in judgments]
     query_tags = query_tags or {}
     query_no_answer = query_no_answer or {}
-    overall = _evaluate_slice(ranked_results, judgments, query_ids, top_k=top_k, top_ks=top_ks, query_tags=query_tags, query_no_answer=query_no_answer)
+    overall = _evaluate_slice(
+        ranked_results,
+        judgments,
+        query_ids,
+        top_k=top_k,
+        top_ks=top_ks,
+        query_tags=query_tags,
+        query_no_answer=query_no_answer,
+        no_answer_policy=no_answer_policy,
+    )
     ordered_groups = _ordered_labels(query_groups, query_ids, group_labels)
     ordered_kinds = _ordered_labels(query_kinds, query_ids, kind_labels)
     by_group = {
@@ -248,6 +299,7 @@ def evaluate_sliced_quality(
             top_ks=top_ks,
             query_tags=query_tags,
             query_no_answer=query_no_answer,
+            no_answer_policy=no_answer_policy,
         )
         for group in ordered_groups
     }
@@ -260,6 +312,7 @@ def evaluate_sliced_quality(
             top_ks=top_ks,
             query_tags=query_tags,
             query_no_answer=query_no_answer,
+            no_answer_policy=no_answer_policy,
         )
         for kind in ordered_kinds
     }
@@ -281,6 +334,7 @@ def evaluate_sliced_quality(
             top_ks=top_ks,
             query_tags=query_tags,
             query_no_answer=query_no_answer,
+            no_answer_policy=no_answer_policy,
         )
         for name, ids in sorted(subset_ids.items())
     }

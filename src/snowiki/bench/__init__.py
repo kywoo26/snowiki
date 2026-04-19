@@ -2,19 +2,23 @@ from __future__ import annotations
 
 from importlib import import_module
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Literal, Protocol, cast
 
 from .contract import (
+    DEFAULT_NO_ANSWER_SCORING_POLICY,
     PHASE_1_CORPUS,
     PHASE_1_THRESHOLDS,
     MetricThreshold,
+    NoAnswerScoringPolicy,
     ReportEntry,
     get_phase_1_contract,
 )
 from .corpus import (
     CANONICAL_BENCHMARK_FIXTURE_PATHS,
+    BenchmarkCorpusManifest,
     BenchmarkFixture,
     canonical_benchmark_fixtures,
+    load_corpus_from_manifest,
     seed_canonical_benchmark_root,
 )
 from .latency import LatencySummary, measure_latency
@@ -52,7 +56,16 @@ class _RenderReportText(Protocol):
 
 
 class _GenerateReport(Protocol):
-    def __call__(self, root: Path, *, preset_name: str) -> dict[str, object]: ...
+    def __call__(
+        self,
+        root: Path,
+        *,
+        preset_name: str,
+        manifest: BenchmarkCorpusManifest | None = None,
+        dataset_name: str = "regression",
+        isolated_root: bool = True,
+        latency_sample: Literal["exhaustive", "stratified", "fixed_sample"] | None = None,
+    ) -> dict[str, object]: ...
 
 
 class _ReportToInt(Protocol):
@@ -60,7 +73,9 @@ class _ReportToInt(Protocol):
 
 
 class _ReportToDict(Protocol):
-    def __call__(self, report: dict[str, object]) -> dict[str, object]: ...
+    def __call__(
+        self, report: dict[str, object], *, tier: str | None = None
+    ) -> dict[str, object]: ...
 
 
 render_report_text = cast(_RenderReportText, _RENDER.render_report_text)
@@ -78,6 +93,7 @@ structural_failure_count = cast(_ReportToInt, _VERDICT.structural_failure_count)
 
 __all__ = [
     "BenchmarkFixture",
+    "BenchmarkCorpusManifest",
     "BenchmarkHit",
     "BenchmarkPreset",
     "BenchmarkReport",
@@ -85,9 +101,12 @@ __all__ = [
     "CANONICAL_BENCHMARK_FIXTURE_PATHS",
     "CorpusSummary",
     "canonical_benchmark_fixtures",
+    "load_corpus_from_manifest",
+    "DEFAULT_NO_ANSWER_SCORING_POLICY",
     "LatencyMetrics",
     "LatencySummary",
     "MetricThreshold",
+    "NoAnswerScoringPolicy",
     "PHASE_1_CORPUS",
     "PHASE_1_THRESHOLDS",
     "PageModel",

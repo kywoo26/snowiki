@@ -19,7 +19,7 @@ from snowiki.search.workspace import (
     load_normalized_records,
 )
 
-from .contract import PHASE_1_THRESHOLDS
+from .contract import PHASE_1_CORPUS, PHASE_1_THRESHOLDS
 from .corpus import CANONICAL_BENCHMARK_FIXTURE_PATHS
 from .latency import LatencySummary, measure_latency
 from .matrix import CANDIDATE_MATRIX, get_candidate
@@ -118,6 +118,13 @@ class CorpusBundle:
     blended_index: InvertedIndex
 
 
+@dataclass(frozen=True)
+class QrelEntry:
+    query_id: str
+    doc_id: str
+    relevance: int = 1
+
+
 def _load_json(path: Path) -> object:
     return json.loads(path.read_text(encoding="utf-8"))
 
@@ -143,12 +150,25 @@ def _string_list(value: object, *, label: str) -> list[str]:
     return [str(item) for item in value]
 
 
-def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
-    del root
-    payload = _load_json(resolve_repo_asset_path("benchmarks/queries.json"))
+def _resolve_benchmark_asset_path(
+    root: Path, configured_path: str | Path | None, *, default_relative_path: str
+) -> tuple[Path, str]:
+    raw_path = configured_path or default_relative_path
+    candidate = Path(raw_path)
+    if candidate.is_absolute():
+        return candidate, candidate.as_posix()
+    root_candidate = root / candidate
+    if root_candidate.exists():
+        return root_candidate, root_candidate.as_posix()
+    return resolve_repo_asset_path(candidate.as_posix()), candidate.as_posix()
+
+
+def _queries_from_payload(
+    payload: object, *, path_label: str
+) -> tuple[BenchmarkQuery, ...]:
     rows = _require_mapping_rows(
         _mapping_rows(payload, "queries"),
-        label="benchmarks/queries.json must contain a 'queries' list",
+        label=f"{path_label} must contain a 'queries' list",
     )
     return tuple(
         BenchmarkQuery(
@@ -156,46 +176,137 @@ def _load_queries(root: Path) -> tuple[BenchmarkQuery, ...]:
             text=str(row["text"]),
             group=str(row.get("group", "default")),
             kind=str(row.get("kind", "known-item")),
-            tags=tuple(_string_list(row.get("tags", []), label="benchmarks/queries.json tags must be a list")),
+            tags=tuple(
+                _string_list(
+                    row.get("tags", []),
+                    label=f"{path_label} tags must be a list",
+                )
+            ),
             no_answer=bool(row.get("no_answer", False)),
         )
         for row in rows
     )
 
 
-def _load_judgments(root: Path) -> dict[str, list[str]]:
-    del root
-    payload = _load_json(resolve_repo_asset_path("benchmarks/judgments.json"))
+def _load_queries(
+    root: Path, queries_path: str | Path | None = None
+) -> tuple[BenchmarkQuery, ...]:
+    resolved_path, path_label = _resolve_benchmark_asset_path(
+        root,
+        queries_path,
+        default_relative_path=PHASE_1_CORPUS["queries"],
+    )
+    payload = _load_json(resolved_path)
+    return _queries_from_payload(payload, path_label=path_label)
+
+
+def _parse_qrel_entry(query_id: str, value: object, *, label: str) -> QrelEntry:
+    if isinstance(value, QrelEntry):
+        return value
+    if isinstance(value, str):
+        return QrelEntry(query_id=query_id, doc_id=value)
+    if not isinstance(value, Mapping):
+        raise ValueError(label)
+    row = cast(Mapping[str, object], value)
+
+    row_query_id = row.get("query_id", query_id)
+    if str(row_query_id) != query_id:
+        raise ValueError(label)
+
+    doc_id = row.get("doc_id")
+    if not isinstance(doc_id, str) or not doc_id.strip():
+        raise ValueError(label)
+
+    relevance_raw = row.get("relevance", 1)
+    if isinstance(relevance_raw, bool):
+        relevance = int(relevance_raw)
+    elif isinstance(relevance_raw, int):
+        relevance = relevance_raw
+    elif isinstance(relevance_raw, str):
+        try:
+            relevance = int(relevance_raw)
+        except ValueError as exc:
+            raise ValueError(label) from exc
+    else:
+        raise ValueError(label)
+
+    return QrelEntry(query_id=query_id, doc_id=doc_id, relevance=relevance)
+
+
+def _parse_qrel_entries(query_id: str, values: object, *, label: str) -> list[QrelEntry]:
+    if not isinstance(values, list):
+        raise ValueError(label)
+    return [_parse_qrel_entry(query_id, value, label=label) for value in values]
+
+
+def load_qrels(path: Path) -> dict[str, list[QrelEntry]]:
+    payload = _load_json(path)
     rows = _mapping_rows(payload, "judgments")
+    label = f"{path.as_posix()} must contain a 'judgments' mapping or list rows"
     if isinstance(rows, Mapping):
         return {
-            str(key): _string_list(
-                value,
-                label=(
-                    "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
-                ),
-            )
+            str(key): _parse_qrel_entries(str(key), value, label=label)
             for key, value in rows.items()
         }
     if isinstance(rows, list):
-        mapping_rows = _require_mapping_rows(
-            rows,
-            label=(
-                "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
-            ),
-        )
-        return {
-            str(row["query_id"]): _string_list(
-                row.get("relevant_paths", []),
-                label=(
-                    "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
-                ),
+        mapping_rows = _require_mapping_rows(rows, label=label)
+        qrels: dict[str, list[QrelEntry]] = {}
+        for row in mapping_rows:
+            query_id = str(row["query_id"])
+            if "doc_id" in row:
+                qrels.setdefault(query_id, []).append(
+                    _parse_qrel_entry(query_id, row, label=label)
+                )
+                continue
+
+            if "qrels" in row:
+                qrels.setdefault(query_id, []).extend(
+                    _parse_qrel_entries(query_id, row["qrels"], label=label)
+                )
+                continue
+
+            qrels.setdefault(query_id, []).extend(
+                QrelEntry(query_id=query_id, doc_id=doc_id)
+                for doc_id in _string_list(row.get("relevant_paths", []), label=label)
             )
-            for row in mapping_rows
-        }
-    raise ValueError(
-        "benchmarks/judgments.json must contain a 'judgments' mapping or list rows"
+        return qrels
+    raise ValueError(label)
+
+
+def _load_judgments(
+    root: Path, judgments_path: str | Path | None = None
+) -> dict[str, list[QrelEntry]]:
+    resolved_path, path_label = _resolve_benchmark_asset_path(
+        root,
+        judgments_path,
+        default_relative_path=PHASE_1_CORPUS["judgments"],
     )
+    try:
+        return load_qrels(resolved_path)
+    except ValueError as exc:
+        raise ValueError(
+            f"{path_label} must contain a 'judgments' mapping or list rows"
+        ) from exc
+
+
+def _normalize_qrels(
+    judgments: Mapping[str, object], *, label: str = "judgments"
+) -> dict[str, list[QrelEntry]]:
+    return {
+        str(query_id): _parse_qrel_entries(
+            str(query_id),
+            entries,
+            label=f"{label} must map query ids to qrel lists",
+        )
+        for query_id, entries in judgments.items()
+    }
+
+
+def _relevant_doc_ids(judgments: Mapping[str, list[QrelEntry]]) -> dict[str, list[str]]:
+    return {
+        query_id: [qrel.doc_id for qrel in qrels if qrel.relevance > 0]
+        for query_id, qrels in judgments.items()
+    }
 
 
 def _build_corpus(root: Path) -> CorpusBundle:
@@ -256,12 +367,12 @@ def _hit_identifier(hit: SearchHit) -> str:
     return hit.document.id
 
 
-def _match_judgment(hit: SearchHit, relevant_ids: list[str]) -> str:
+def _match_judgment(hit: SearchHit, relevant_ids: list[QrelEntry]) -> str:
     candidates = _document_candidates(hit.document)
     for relevant_id in relevant_ids:
-        normalized = str(relevant_id).casefold()
+        normalized = relevant_id.doc_id.casefold()
         if normalized in candidates:
-            return str(relevant_id)
+            return relevant_id.doc_id
     return _hit_identifier(hit)
 
 
@@ -336,28 +447,31 @@ def _benchmark_hit_lookup(corpus: CorpusBundle) -> dict[str, str]:
 
 
 def _match_benchmark_hit(
-    hit: SearchHit, relevant_ids: list[str], hit_lookup: dict[str, str]
+    hit: SearchHit,
+    relevant_ids: list[QrelEntry],
+    hit_lookup: Mapping[str, str] | None,
 ) -> str:
-    fixture_id = hit_lookup.get(hit.document.id) or hit_lookup.get(hit.document.path)
-    if fixture_id is not None:
-        return fixture_id
+    if hit_lookup is not None:
+        fixture_id = hit_lookup.get(hit.document.id) or hit_lookup.get(hit.document.path)
+        if fixture_id is not None:
+            return fixture_id
     return _match_judgment(hit, relevant_ids)
 
 
-def _ranked_fixture_ids(
+def _ranked_doc_ids(
     hits: list[SearchHit],
-    relevant_ids: list[str],
+    relevant_ids: list[QrelEntry],
     *,
-    hit_lookup: dict[str, str],
+    hit_lookup: Mapping[str, str] | None = None,
 ) -> list[str]:
     ranked_ids: list[str] = []
     seen: set[str] = set()
     for hit in hits:
-        fixture_id = _match_benchmark_hit(hit, relevant_ids, hit_lookup)
-        if fixture_id in seen:
+        doc_id = _match_benchmark_hit(hit, relevant_ids, hit_lookup)
+        if doc_id in seen:
             continue
-        ranked_ids.append(fixture_id)
-        seen.add(fixture_id)
+        ranked_ids.append(doc_id)
+        seen.add(doc_id)
     return ranked_ids
 
 
@@ -444,18 +558,19 @@ def _evaluate_baseline(
     name: str,
     tokenizer_name: str | None = None,
     queries: tuple[BenchmarkQuery, ...],
-    judgments: dict[str, list[str]],
+    judgments: dict[str, list[QrelEntry]],
     search_fn: Callable[[str], list[SearchHit]],
-    hit_lookup: dict[str, str],
+    hit_lookup: Mapping[str, str] | None,
     top_ks: tuple[int, ...],
 ) -> BaselineResult:
     ranked_results: dict[str, list[str]] = {}
     hits_by_query: dict[str, list[SearchHit]] = {}
+    relevant_doc_ids = _relevant_doc_ids(judgments)
 
     for query in queries:
         hits = list(search_fn(query.text))
         hits_by_query[query.query_id] = hits
-        ranked_results[query.query_id] = _ranked_fixture_ids(
+        ranked_results[query.query_id] = _ranked_doc_ids(
             hits,
             judgments.get(query.query_id, []),
             hit_lookup=hit_lookup,
@@ -465,7 +580,7 @@ def _evaluate_baseline(
     quality = _attach_threshold_report(
         evaluate_sliced_quality(
             ranked_results,
-            judgments,
+            relevant_doc_ids,
             query_groups={query.query_id: query.group for query in queries},
             query_kinds={query.query_id: query.kind for query in queries},
             query_tags={query.query_id: query.tags for query in queries},
@@ -619,11 +734,41 @@ def _assemble_candidate_matrix(
 def run_baseline_comparison(
     root: Path,
     preset: BenchmarkPreset,
+    *,
+    queries_path: str | Path | None = None,
+    judgments_path: str | Path | None = None,
+    queries_data: object | None = None,
+    judgments_data: Mapping[str, object] | None = None,
+    use_generic_scoring: bool = False,
 ) -> BenchmarkReport:
     corpus = _build_corpus(root)
-    judgments = _load_judgments(root)
+    loaded_judgments = (
+        _load_judgments(root)
+        if judgments_path is None
+        else _load_judgments(root, judgments_path)
+    )
+    if judgments_data is not None:
+        loaded_judgments = judgments_data
+    judgments = _normalize_qrels(
+        loaded_judgments,
+        label=(
+            "inline benchmark judgments must map query ids to qrel lists"
+            if judgments_data is not None
+            else "judgments"
+        ),
+    )
+    loaded_queries = (
+        _load_queries(root)
+        if queries_path is None
+        else _load_queries(root, queries_path)
+    )
+    if queries_data is not None:
+        loaded_queries = _queries_from_payload(
+            queries_data,
+            path_label="inline benchmark queries",
+        )
     queries = tuple(
-        query for query in _load_queries(root) if query.kind in preset.query_kinds
+        query for query in loaded_queries if query.kind in preset.query_kinds
     )
     if not queries:
         raise ValueError(f"preset '{preset.name}' did not match any benchmark queries")
@@ -632,7 +777,7 @@ def run_baseline_comparison(
     raw_record_payloads = [
         record.model_dump(mode="python") for record in corpus.records
     ]
-    hit_lookup = _benchmark_hit_lookup(corpus)
+    hit_lookup = None if use_generic_scoring else _benchmark_hit_lookup(corpus)
     normalized_baselines = normalize_benchmark_baselines(preset.baselines)
     bm25_indexes: dict[str, BM25SearchIndex] = {}
 

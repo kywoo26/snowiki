@@ -2,6 +2,24 @@
 
 ## Active tracks
 
+- [x] **Benchmark Dataset Overhaul Program**
+  - Status: Complete. All four authority tiers are implemented, documented, and wired into the benchmark CLI.
+  - Deliverables:
+    - Four-tier authority taxonomy defined and canonical in `benchmarks/README.md` and `benchmarks/AGENTS.md`: `regression`, `public_anchor`, `snowiki_shaped`, `hidden_holdout`.
+    - 90-query set explicitly demoted to `regression` / candidate-screening only; it is no longer treated as the main truth source for release-quality claims.
+    - Korean public anchors: MIRACL Korean (`miracl_ko`) and Mr. TyDi Korean (`mr_tydi_ko`) with stable IDs, inline qrels, and explicit provenance.
+    - English public anchors: BEIR SciFact (`beir_scifact`) and BEIR NFCorpus (`beir_nfcorpus`) with compact deterministic samples and explicit provenance.
+    - Snowiki-shaped suite (`snowiki_shaped`) with deterministic coverage quotas: 30% mixed-language, 25% code/doc, 30% topical, 10% temporal, 5% no-answer, 0% LLM-generated.
+    - Hidden holdout review architecture (`hidden_holdout`) with synthetic workflow facsimile, sealed provenance, pooled-review disagreement handling, and audit sampling.
+    - Tier-aware latency sampling: exhaustive for regression, stratified for large public/scripted tiers, fixed 20-query sample for hidden holdout.
+    - No-answer scoring policy and generic qrel scoring layer to support abstention-aware evaluation across all tiers.
+  - Maintenance posture:
+    - New benchmark datasets must include `BenchmarkProvenance` with `visibility_tier` and `family_dedupe_key` to prevent cross-tier contamination.
+    - The `beir_small` dataset is reserved but not yet wired; connect it when a compact BEIR multi-dataset manifest is ready.
+    - Threshold calibration for public anchors and snowiki_shaped remains open; do not reuse regression-tier thresholds for release-quality claims.
+    - The real hidden holdout (not the synthetic facsimile) must be established before any final-proof claim can be made.
+  - Blocker: None
+
 - [x] **Step 1: Lexical contract stabilization**
   - Status: Analysis complete. Ready for execution planning.
   - Next action: Recreate the execution plan locally (not in git) and execute parity tests, shared contract seam, rebuild hardening, and the promotion gate.
@@ -84,4 +102,4 @@
 
 ## Last updated
 
-2026-04-19
+2026-04-20

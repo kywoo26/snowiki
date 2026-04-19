@@ -25,6 +25,7 @@ def _fake_report(
     retrieval_fail: bool = False,
     performance_fail: bool = False,
     warning_only: bool = False,
+    retrieval_blocking: bool = True,
 ) -> dict[str, object]:
     warning_count = 1 if warning_only else 0
     structural_failures = (
@@ -327,17 +328,21 @@ def _fake_report(
         "benchmark_verdict": {
             "verdict": (
                 "FAIL"
-                if structural_fail or retrieval_fail or performance_fail
+                if structural_fail
+                or performance_fail
+                or (retrieval_fail and retrieval_blocking)
                 else "PASS"
             ),
             "exit_code": 1
-            if structural_fail or retrieval_fail or performance_fail
+            if structural_fail
+            or performance_fail
+            or (retrieval_fail and retrieval_blocking)
             else 0,
             "blocking_stage": (
                 "structural"
                 if structural_fail
                 else "phase1_thresholds"
-                if retrieval_fail or performance_fail
+                if performance_fail or (retrieval_fail and retrieval_blocking)
                 else None
             ),
             "order": [
@@ -357,7 +362,7 @@ def _fake_report(
                 {
                     "name": "retrieval_thresholds",
                     "verdict": "FAIL" if retrieval_fail else "PASS",
-                    "blocking": True,
+                    "blocking": retrieval_blocking,
                     "failure_count": 1 if retrieval_fail else 0,
                 },
                 {
@@ -527,6 +532,44 @@ def test_benchmark_returns_non_zero_when_performance_threshold_fails(
     assert report_path.exists()
 
 
+def test_benchmark_non_regression_retrieval_failures_are_non_blocking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    report_path = tmp_path / "reports" / "benchmark.json"
+    monkeypatch.setattr(benchmark_command, "_ensure_seeded_root", lambda root, dataset: None)
+    monkeypatch.setattr(
+        benchmark_command,
+        "generate_report",
+        lambda *args, **kwargs: _fake_report(
+            retrieval_fail=True,
+            retrieval_blocking=False,
+        ),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "--preset",
+            "retrieval",
+            "--dataset",
+            "snowiki_shaped",
+            "--output",
+            str(report_path),
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path / "root")},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Retrieval threshold failures:" in result.output
+    assert "Retrieval threshold verdict: FAIL (1 failures)" in result.output
+    assert (
+        "Unified benchmark verdict: PASS (blocking_stage=None, exit_code=0)"
+        in result.output
+    )
+
+
 def test_benchmark_structural_failures_take_precedence_over_threshold_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -567,5 +610,36 @@ def test_benchmark_help_mentions_isolated_temp_root() -> None:
     result = runner.invoke(app, ["benchmark", "--help"])
 
     assert result.exit_code == 0, result.output
+    assert "hidden_holdout" in result.output
     assert "defaults to an isolated" in result.output
     assert "temporary benchmark root" in result.output
+
+
+def test_benchmark_hidden_holdout_dataset_warns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    report_path = tmp_path / "reports" / "benchmark.json"
+    monkeypatch.setattr(benchmark_command, "_ensure_seeded_root", lambda root, dataset: None)
+    monkeypatch.setattr(
+        benchmark_command,
+        "generate_report",
+        lambda *args, **kwargs: _fake_report(),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "--preset",
+            "core",
+            "--dataset",
+            "hidden_holdout",
+            "--output",
+            str(report_path),
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path / "root")},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (
+        "Warning: hidden_holdout is a development-only synthetic facsimile" in result.output
+    )
