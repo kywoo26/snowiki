@@ -10,19 +10,19 @@ Freeze the minimum judged-set and evaluation maturity required before the Step 2
 
 ## Current maturity assessment
 
-The current benchmark harness is credible, but the benchmark assets are **not yet mature enough** for the reopened family-comparison goal.
+The current benchmark harness is credible, and the strengthened benchmark assets are now mature enough for the reopened family-comparison goal.
 
 The current strengths are:
 - canonical `queries.json` / `judgments.json`
 - stable `ko / en / mixed` language slices
 - stable `known-item / topical / temporal` intent slices
 - candidate-matrix and proof discipline already in place
+- strengthened canonical 90-query asset set already landed
+- explicit `retrieval` blocking gate with `core` / `full` informational context already in use
 
 The current weaknesses are:
-- total judged query volume is still too small for a production-confidence family decision
-- ambiguous and hard-negative cases are underrepresented
-- identifier/path/code-heavy golden queries are not yet guaranteed at a sufficient density
-- no explicit no-answer slice policy is frozen for the reopening
+- the current lexical family roster is still not proven even on the strengthened substrate
+- stronger benchmark maturity alone did not create a stable winner
 
 ## Frozen maturity bar
 
@@ -66,25 +66,25 @@ The reopening program requires the following minimum benchmark maturity before t
 
 ## Maturity decision
 
-### 1. Current assets are insufficient
+### 1. Current assets now satisfy the maturity bar
 
-The current benchmark assets do **not** meet the reopening bar.
+The current canonical benchmark assets now meet the reopening bar for a decisive family comparison.
 
-That means a family comparison run performed on the current assets may still be informative, but it would not be strong enough to justify a production-confidence winner recommendation.
+That means the Mecab reopening lane must run on the already-strengthened substrate rather than reopening benchmark-asset growth again.
 
-### 2. Benchmark-asset changes are mandatory before the decisive family comparison
+### 2. The decisive blocking gate remains the `retrieval` preset
 
-Because the current assets are below the frozen bar, the reopening program requires a bounded benchmark-asset strengthening step before the decisive cross-family comparison.
+The decisive gate for the Mecab reopening lane is the blocking `retrieval` preset on the current 66-query slice.
+
+The `core` and `full` presets remain useful informational context, but they do not replace the blocking `retrieval` gate.
 
 ## Governance implication
 
 This packet does **not** modify benchmark assets by itself.
 
-However, it does establish that benchmark-asset changes are mandatory for the reopening program to proceed to a decisive comparison.
+However, it now establishes that the current strengthened benchmark state is the canonical Mecab comparison substrate and that benchmark-asset growth is no longer the next blocker for this lane.
 
-Because `benchmarks/queries.json` and `benchmarks/judgments.json` are inventory-sensitive, the later benchmark-asset substep must either:
-1. proceed only with the required approval/governance path, or
-2. close as blocked-with-artifact if that approval is unavailable
+Because `benchmarks/queries.json` and `benchmarks/judgments.json` are already strengthened and canonical, the Mecab reopening lane must not reopen benchmark-asset changes unless a later separate canonical decision explicitly changes the benchmark program again.
 
 ## Stop rule
 
@@ -94,8 +94,8 @@ If the strengthened set still fails to discriminate tokenizer families stably, t
 
 ## Acceptance criteria
 
-- the note states that current assets are insufficient
+- the note states that the current strengthened assets satisfy the maturity bar
 - the note freezes the minimum judged-set bar numerically
 - the note freezes edge-case and slice coverage requirements
-- the note states that benchmark-asset changes are mandatory before the decisive family comparison
-- the note explicitly ties that later asset work to governance constraints
+- the note states that the Mecab reopening lane must use the current strengthened benchmark state without new asset growth
+- the note explicitly defines `retrieval` as the blocking preset and `core` / `full` as informational
