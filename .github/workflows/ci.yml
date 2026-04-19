@@ -30,10 +30,6 @@ jobs:
       - name: Type check (ty)
         run: uv run ty check
 
-      - name: Governance advisory report
-        if: always()
-        run: uv run python scripts/check_governance.py --report
-
   unit-tests:
     runs-on: ubuntu-latest
 
