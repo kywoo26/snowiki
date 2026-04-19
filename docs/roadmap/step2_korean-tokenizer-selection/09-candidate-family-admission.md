@@ -36,7 +36,7 @@ A family may be admitted only if it satisfies all of the following:
 - **What is deferred**: `kiwi_nouns_v1` is not a separate reopening representative because it already failed more strongly and does not add enough family diversity
 
 ### 3. Mecab family — admitted in principle
-- **Representative target**: one Mecab-family tokenizer for Korean morphology
+- **Representative target**: `python-mecab-ko` as the bounded Mecab-family representative for Korean morphology
 - **Role**: alternate morphology-first family with strong external retrieval reputation
 - **Why admitted**:
   - external Korean retrieval evidence suggests Mecab-like morphology remains a serious family-level baseline
@@ -44,7 +44,7 @@ A family may be admitted only if it satisfies all of the following:
 - **Special note**: implementation depends on dependency/governance feasibility. If no safe bounded path exists, this family must close as blocked-with-artifact rather than silently expanding scope.
 
 ### 4. Subword/HF family — admitted in principle
-- **Representative target**: one multilingual subword tokenizer usable as a lexical segmentation baseline
+- **Representative target**: `huggingface/tokenizers` represented by `BertWordPieceTokenizer` as the bounded multilingual subword representative
 - **Role**: mixed-language/code-heavy comparison family
 - **Why admitted**:
   - external benchmark practice suggests mixed-language and identifier-heavy corpora can favor subword-style segmentation over morphology-only strategies
@@ -89,8 +89,8 @@ The reopening program must not silently broaden scope to force those families in
 | :--- | :--- | :--- | :--- |
 | Control | `regex_v1` | admitted | required baseline |
 | Kiwi | `kiwi_morphology_v1` | admitted | strongest incumbent family representative |
-| Mecab | TBD | admitted in principle | strong Korean morphology family baseline |
-| HF / subword | TBD | admitted in principle | mixed-language/code-heavy comparison family |
+| Mecab | `python-mecab-ko` | admitted in principle | strong Korean morphology family baseline |
+| HF / subword | `huggingface/tokenizers` (`BertWordPieceTokenizer`) | admitted in principle | mixed-language/code-heavy comparison family |
 | Okt / social-text | TBD | deferred | only if corpus evidence justifies it |
 
 ## Acceptance criteria
