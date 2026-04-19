@@ -1,71 +1,297 @@
 {
   "metadata": {
-    "benchmark_id": "snowiki-v2-wave1-task2-judgments",
+    "benchmark_id": "snowiki-v3-wave1-production-judgments",
     "created": "2026-04-08",
-    "updated": "2026-04-08",
-    "sources": ["synthetic://snowiki-v2/wave1/task2"],
-    "description": "Gold relevance judgments for the Wave 1 fixture benchmark queries."
+    "updated": "2026-04-19",
+    "sources": [
+      "synthetic://snowiki-v3/wave1/productionization"
+    ],
+    "description": "Gold relevance judgments for the Snowiki productionization wave 1 query set."
   },
   "judgments": {
-    "ko-001": ["claude_basic"],
-    "ko-002": ["claude_tools"],
-    "ko-003": ["claude_attachments"],
-    "ko-004": ["claude_sidechains"],
-    "ko-005": ["claude_resumed"],
-    "ko-006": ["claude_large_output"],
-    "ko-007": ["claude_secret"],
-    "ko-008": ["omo_basic"],
-    "ko-009": ["omo_todos"],
-    "ko-010": ["omo_diffs"],
-    "ko-011": ["omo_reasoning"],
-    "ko-012": ["omo_compaction"],
-    "ko-013": ["claude_basic", "omo_basic"],
-    "ko-014": ["claude_attachments", "omo_todos", "omo_diffs"],
-    "ko-015": ["claude_secret", "omo_reasoning"],
-    "ko-016": ["claude_resumed", "omo_compaction"],
-    "ko-017": ["claude_sidechains"],
-    "ko-018": ["claude_large_output"],
-    "ko-019": ["claude_tools", "omo_todos"],
-    "ko-020": ["claude_resumed", "omo_compaction"],
-    "en-001": ["claude_basic"],
-    "en-002": ["claude_tools"],
-    "en-003": ["claude_attachments"],
-    "en-004": ["claude_sidechains"],
-    "en-005": ["claude_resumed"],
-    "en-006": ["claude_large_output"],
-    "en-007": ["claude_secret"],
-    "en-008": ["omo_basic"],
-    "en-009": ["omo_todos"],
-    "en-010": ["omo_diffs"],
-    "en-011": ["omo_reasoning"],
-    "en-012": ["omo_compaction"],
-    "en-013": ["claude_basic", "omo_basic"],
-    "en-014": ["claude_attachments", "omo_todos", "omo_diffs"],
-    "en-015": ["claude_secret", "omo_reasoning"],
-    "en-016": ["claude_resumed", "omo_compaction"],
-    "en-017": ["claude_sidechains"],
-    "en-018": ["claude_large_output"],
-    "en-019": ["claude_attachments", "omo_diffs"],
-    "en-020": ["omo_reasoning"],
-    "mix-001": ["claude_basic"],
-    "mix-002": ["claude_tools"],
-    "mix-003": ["claude_attachments"],
-    "mix-004": ["claude_sidechains"],
-    "mix-005": ["claude_resumed"],
-    "mix-006": ["claude_large_output"],
-    "mix-007": ["claude_secret"],
-    "mix-008": ["omo_basic"],
-    "mix-009": ["omo_todos"],
-    "mix-010": ["omo_diffs"],
-    "mix-011": ["omo_reasoning"],
-    "mix-012": ["omo_compaction"],
-    "mix-013": ["claude_basic", "omo_basic"],
-    "mix-014": ["claude_attachments", "omo_todos", "omo_diffs"],
-    "mix-015": ["claude_secret", "omo_reasoning"],
-    "mix-016": ["claude_resumed", "omo_compaction"],
-    "mix-017": ["claude_sidechains"],
-    "mix-018": ["claude_large_output"],
-    "mix-019": ["claude_resumed", "omo_compaction"],
-    "mix-020": ["claude_attachments"]
+    "ko-001": [
+      "claude_basic"
+    ],
+    "ko-002": [
+      "claude_tools"
+    ],
+    "ko-003": [
+      "claude_attachments"
+    ],
+    "ko-004": [
+      "claude_sidechains"
+    ],
+    "ko-005": [
+      "claude_resumed"
+    ],
+    "ko-006": [
+      "claude_large_output"
+    ],
+    "ko-007": [
+      "claude_secret"
+    ],
+    "ko-008": [
+      "omo_basic"
+    ],
+    "ko-009": [
+      "omo_todos"
+    ],
+    "ko-010": [
+      "omo_diffs"
+    ],
+    "ko-011": [
+      "omo_reasoning"
+    ],
+    "ko-012": [
+      "omo_compaction"
+    ],
+    "ko-013": [
+      "claude_basic",
+      "omo_basic"
+    ],
+    "ko-014": [
+      "claude_attachments",
+      "omo_todos",
+      "omo_diffs"
+    ],
+    "ko-015": [
+      "claude_secret",
+      "omo_reasoning"
+    ],
+    "ko-016": [
+      "claude_resumed",
+      "omo_compaction"
+    ],
+    "ko-017": [
+      "claude_sidechains"
+    ],
+    "ko-018": [
+      "claude_large_output"
+    ],
+    "ko-019": [
+      "claude_tools",
+      "omo_todos"
+    ],
+    "ko-020": [
+      "claude_resumed",
+      "omo_compaction"
+    ],
+    "en-001": [
+      "claude_basic"
+    ],
+    "en-002": [
+      "claude_tools"
+    ],
+    "en-003": [
+      "claude_attachments"
+    ],
+    "en-004": [
+      "claude_sidechains"
+    ],
+    "en-005": [
+      "claude_resumed"
+    ],
+    "en-006": [
+      "claude_large_output"
+    ],
+    "en-007": [
+      "claude_secret"
+    ],
+    "en-008": [
+      "omo_basic"
+    ],
+    "en-009": [
+      "omo_todos"
+    ],
+    "en-010": [
+      "omo_diffs"
+    ],
+    "en-011": [
+      "omo_reasoning"
+    ],
+    "en-012": [
+      "omo_compaction"
+    ],
+    "en-013": [
+      "claude_basic",
+      "omo_basic"
+    ],
+    "en-014": [
+      "claude_attachments",
+      "omo_todos",
+      "omo_diffs"
+    ],
+    "en-015": [
+      "claude_secret",
+      "omo_reasoning"
+    ],
+    "en-016": [
+      "claude_resumed",
+      "omo_compaction"
+    ],
+    "en-017": [
+      "claude_sidechains"
+    ],
+    "en-018": [
+      "claude_large_output"
+    ],
+    "en-019": [
+      "claude_attachments",
+      "omo_diffs"
+    ],
+    "en-020": [
+      "omo_reasoning"
+    ],
+    "mix-001": [
+      "claude_basic"
+    ],
+    "mix-002": [
+      "claude_tools"
+    ],
+    "mix-003": [
+      "claude_attachments"
+    ],
+    "mix-004": [
+      "claude_sidechains"
+    ],
+    "mix-005": [
+      "claude_resumed"
+    ],
+    "mix-006": [
+      "claude_large_output"
+    ],
+    "mix-007": [
+      "claude_secret"
+    ],
+    "mix-008": [
+      "omo_basic"
+    ],
+    "mix-009": [
+      "omo_todos"
+    ],
+    "mix-010": [
+      "omo_diffs"
+    ],
+    "mix-011": [
+      "omo_reasoning"
+    ],
+    "mix-012": [
+      "omo_compaction"
+    ],
+    "mix-013": [
+      "claude_basic",
+      "omo_basic"
+    ],
+    "mix-014": [
+      "claude_attachments",
+      "omo_todos",
+      "omo_diffs"
+    ],
+    "mix-015": [
+      "claude_secret",
+      "omo_reasoning"
+    ],
+    "mix-016": [
+      "claude_resumed",
+      "omo_compaction"
+    ],
+    "mix-017": [
+      "claude_sidechains"
+    ],
+    "mix-018": [
+      "claude_large_output"
+    ],
+    "mix-019": [
+      "claude_resumed",
+      "omo_compaction"
+    ],
+    "mix-020": [
+      "claude_attachments"
+    ],
+    "ko-021": [
+      "claude_tools"
+    ],
+    "ko-022": [
+      "omo_reasoning"
+    ],
+    "ko-023": [
+      "benchmarks/judgments.json",
+      "omo_diffs"
+    ],
+    "ko-024": [
+      "benchmarks/queries.json"
+    ],
+    "ko-025": [
+      "claude_tools"
+    ],
+    "ko-026": [
+      "omo_todos"
+    ],
+    "ko-027": [
+      "claude_attachments"
+    ],
+    "ko-028": [
+      "omo_diffs"
+    ],
+    "ko-029": [
+      "omo_reasoning"
+    ],
+    "ko-030": [
+      "claude_resumed",
+      "omo_compaction"
+    ],
+    "en-021": [
+      "claude_tools"
+    ],
+    "en-022": [
+      "omo_reasoning"
+    ],
+    "en-023": [
+      "benchmarks/judgments.json",
+      "omo_diffs"
+    ],
+    "en-024": [],
+    "en-025": [
+      "claude_tools"
+    ],
+    "en-026": [
+      "omo_todos"
+    ],
+    "en-027": [],
+    "en-028": [],
+    "en-029": [],
+    "en-030": [],
+    "mix-021": [
+      "claude_tools"
+    ],
+    "mix-022": [
+      "omo_reasoning"
+    ],
+    "mix-023": [
+      "benchmarks/judgments.json",
+      "omo_diffs"
+    ],
+    "mix-024": [
+      "benchmarks/queries.json"
+    ],
+    "mix-025": [
+      "claude_tools"
+    ],
+    "mix-026": [
+      "omo_todos"
+    ],
+    "mix-027": [
+      "claude_attachments"
+    ],
+    "mix-028": [
+      "omo_diffs"
+    ],
+    "mix-029": [
+      "omo_reasoning"
+    ],
+    "mix-030": [
+      "claude_resumed",
+      "omo_compaction"
+    ]
   }
 }
