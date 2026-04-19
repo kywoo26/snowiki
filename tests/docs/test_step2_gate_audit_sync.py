@@ -49,14 +49,14 @@ def test_step2_gate_audit_stays_aligned_with_proof_and_status(repo_root: Path) -
         "- **Local Closeout Outcome**: benchmark-only/no runtime promotion",
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
-        "+0.027778",
+        "-0.027778",
         "Operational Status**: PASS (memory and disk usage are now measured)",
     ]
     for marker in required_proof_markers:
         assert marker in proof
 
     assert (
-        "Mixed-language tokenizer redesign remains the next evidence-generating lane; operational evidence is no longer the primary blocker."
+        "Derive the Step 2 runtime-promotion decision package from the failed redesign attempt and decide whether another tokenizer iteration is justified."
         in status
     )
     assert "Step 2 sparse branch still not proven on mixed-language benchmark." in status
