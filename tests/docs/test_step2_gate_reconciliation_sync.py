@@ -57,9 +57,8 @@ def test_step2_gate_reconciliation_stays_aligned_with_proof_and_status(
         assert marker in reconciliation
 
     required_status_markers = [
-        "Current candidate set closed. Fresh evidence confirms `benchmark-only/no runtime promotion`; no tokenizer is promoted.",
-        "No further mandatory Step 2 residual work for the current candidate set.",
-        "Reopen only under a new bounded tokenizer hypothesis or candidate-family program.",
+        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; a new bounded reopening program is now active.",
+        "Freeze the reopening contract, then lock candidate-family scope and benchmark maturity rules before any new implementation lane.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]
