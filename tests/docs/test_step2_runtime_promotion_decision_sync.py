@@ -43,8 +43,8 @@ def test_step2_runtime_promotion_decision_stays_aligned_with_status_and_proof(
         assert marker in proof
 
     required_status_markers = [
-        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; a new bounded reopening program is now active.",
-        "Freeze the reopening contract, then lock candidate-family scope and benchmark maturity rules before any new implementation lane.",
+        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the representative family set is now frozen.",
+        "Freeze the benchmark maturity bar and decide whether benchmark asset changes are mandatory before family comparison proceeds.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]

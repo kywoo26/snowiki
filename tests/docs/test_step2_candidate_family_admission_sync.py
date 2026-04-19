@@ -3,9 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def test_step2_reopening_contract_stays_aligned_with_status_and_decision(
+def test_step2_candidate_family_admission_stays_aligned_with_status_and_reopening_contract(
     repo_root: Path,
 ) -> None:
+    admission = (
+        repo_root
+        / "docs"
+        / "roadmap"
+        / "step2_korean-tokenizer-selection"
+        / "09-candidate-family-admission.md"
+    ).read_text(encoding="utf-8")
     contract = (
         repo_root
         / "docs"
@@ -13,36 +20,25 @@ def test_step2_reopening_contract_stays_aligned_with_status_and_decision(
         / "step2_korean-tokenizer-selection"
         / "08-reopening-contract.md"
     ).read_text(encoding="utf-8")
-    decision = (
-        repo_root
-        / "docs"
-        / "roadmap"
-        / "step2_korean-tokenizer-selection"
-        / "07-runtime-promotion-decision.md"
-    ).read_text(encoding="utf-8")
     status = (repo_root / "docs" / "roadmap" / "STATUS.md").read_text(
         encoding="utf-8"
     )
 
-    required_contract_markers = [
-        "This reopening is a **new bounded evidence program**, not residual cleanup on the old line.",
-        "A small, representative tokenizer-family comparison on a strengthened judged set",
-        "Stable winner recommendation",
-        "No stable winner",
-        "Blocked-with-artifact",
-        "runtime promotion",
-        "Step 4 remains blocked",
+    required_admission_markers = [
+        "regex_v1",
+        "kiwi_morphology_v1",
+        "Mecab family — admitted in principle",
+        "Subword/HF family — admitted in principle",
+        "Okt / social-text morphology — deferred",
+        "Additional Kiwi variants — excluded",
+        "This admission packet does **not** approve dependency changes by itself.",
     ]
-    for marker in required_contract_markers:
-        assert marker in contract
+    for marker in required_admission_markers:
+        assert marker in admission
 
-    required_decision_markers = [
-        "No tokenizer is promoted from the current candidate set",
-        "There is no further mandatory residual work for the current candidate set",
-        "Reopen Step 2 only under a new bounded hypothesis",
-    ]
-    for marker in required_decision_markers:
-        assert marker in decision
+    assert "Stable winner recommendation" in contract
+    assert "No stable winner" in contract
+    assert "Blocked-with-artifact" in contract
 
     required_status_markers = [
         "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the representative family set is now frozen.",
