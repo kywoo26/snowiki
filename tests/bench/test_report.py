@@ -215,6 +215,8 @@ def test_generate_report_exposes_unified_benchmark_gate(
         "mrr",
         "ndcg_at_k",
     }
+    assert report["report_version"] == "1.3"
+    assert cast(dict[str, Any], report["preset"])["top_ks"] == [1, 3, 5, 10, 20]
     assert threshold_policy["slices"] == {
         "known-item": [
             {"metric": "recall_at_k", "value": 0.7, "operator": ">="},
@@ -270,6 +272,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
     assert "Performance threshold verdict: FAIL (1 failures)" in rendered
     assert "Retrieval threshold failures:" in rendered
     assert "Retrieval threshold verdict: FAIL (1 failures)" in rendered
+    assert "top_ks=[1, 3, 5, 10, 20]" in rendered
     assert (
         "Unified benchmark verdict: FAIL (blocking_stage=phase1_thresholds, exit_code=1)"
         in rendered

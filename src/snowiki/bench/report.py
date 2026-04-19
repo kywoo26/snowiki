@@ -106,12 +106,13 @@ def generate_report(
     retrieval = _legacy_retrieval_payload(retrieval_result)
     report: dict[str, object] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-        "report_version": "1.2",
+        "report_version": "1.3",
         "preset": {
             "name": preset.name,
             "description": preset.description,
             "query_kinds": list(preset.query_kinds),
             "top_k": preset.top_k,
+            "top_ks": list(preset.top_ks),
         },
         "structural": structural,
         "performance": performance["performance"],

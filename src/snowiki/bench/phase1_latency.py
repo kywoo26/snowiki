@@ -176,6 +176,7 @@ def run_phase1_latency_evaluation(
             "repetitions": PHASE_1_REPETITIONS,
             "query_mode": PHASE_1_QUERY_MODE,
             "top_k": preset.top_k,
+            "top_ks": list(preset.top_ks),
         },
         "performance": performance,
     }

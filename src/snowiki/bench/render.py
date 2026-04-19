@@ -140,7 +140,7 @@ def render_report_text(report: dict[str, object]) -> str:
             f"warmups={protocol['warmups']}, "
             f"repetitions={protocol['repetitions']}, "
             f"query_mode={protocol['query_mode']}, "
-            f"top_k={protocol['top_k']}"
+            f"top_k={protocol['top_k']}, top_ks={protocol.get('top_ks', preset.get('top_ks', [protocol['top_k']]))}"
         ),
         (
             "Structural verdict: "

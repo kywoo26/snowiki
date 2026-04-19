@@ -108,12 +108,13 @@ def _fake_report(
     ]
     return {
         "generated_at": "2026-04-10T00:00:00Z",
-        "report_version": "1.2",
+        "report_version": "1.3",
         "preset": {
             "name": "retrieval",
             "description": "Known-item and topical retrieval benchmark coverage.",
             "query_kinds": ["known-item", "topical"],
             "top_k": 5,
+            "top_ks": [1, 3, 5, 10, 20],
         },
         "structural": {
             "ok": not structural_fail,
@@ -374,6 +375,8 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
         {"metric": "p50_ms", "value": 5950.0, "operator": "<="},
         {"metric": "p95_ms", "value": 6300.0, "operator": "<="},
     ]
+    assert payload["report_version"] == "1.3"
+    assert payload["preset"]["top_ks"] == [1, 3, 5, 10, 20]
     assert retrieval["threshold_policy"]["overall"] == [
         {"metric": "recall_at_k", "value": 0.72, "operator": ">="},
         {"metric": "mrr", "value": 0.7, "operator": ">="},
@@ -411,6 +414,7 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     )
     assert "Candidate Decisions:" in result.output
     assert "- kiwi_morphology_v1: PROMOTE (beats_regex)" in result.output
+    assert "top_ks=[1, 3, 5, 10, 20]" in result.output
     assert (
         "Unified benchmark verdict: PASS (blocking_stage=None, exit_code=0)"
         in result.output
