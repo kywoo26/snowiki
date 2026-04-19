@@ -16,6 +16,7 @@ from .index_lexical import LexicalIndex, build_lexical_index
 from .index_wiki import WikiIndex, build_wiki_index
 from .indexer import InvertedIndex, SearchDocument, SearchHit, build_blended_index
 from .kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
+from .mecab_tokenizer import MecabSearchTokenizer
 from .queries.known_item import known_item_lookup
 from .queries.temporal import temporal_recall
 from .queries.topical import topical_recall
@@ -46,6 +47,7 @@ __all__ = [
     "InvertedIndex",
     "KoreanTokenizer",
     "LexicalIndex",
+    "MecabSearchTokenizer",
     "NoOpReranker",
     "TEMPORAL_KEYWORDS",
     "DEFAULT_TOKENIZER_NAME",
