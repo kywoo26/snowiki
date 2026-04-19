@@ -180,21 +180,19 @@ class BM25SearchIndex:
             text = f"{doc.title}\n{doc.content}\n{doc.summary}"
             corpus.append(text)
 
-        corpus_tokens = cast(
-            list[list[str]],
-            bm25s.tokenize(
-                corpus,
-                stopwords="en",
-                return_ids=False,
-                show_progress=self._SHOW_PROGRESS,
-                leave=self._LEAVE_PROGRESS,
-            ),
-        )
-
         if self.tokenizer is not None:
-            for i, tokens in enumerate(corpus_tokens):
-                korean_tokens = list(self.tokenizer.tokenize(corpus[i]))
-                tokens.extend(korean_tokens)
+            corpus_tokens = [list(self.tokenizer.tokenize(text)) for text in corpus]
+        else:
+            corpus_tokens = cast(
+                list[list[str]],
+                bm25s.tokenize(
+                    corpus,
+                    stopwords="en",
+                    return_ids=False,
+                    show_progress=self._SHOW_PROGRESS,
+                    leave=self._LEAVE_PROGRESS,
+                ),
+            )
 
         self.corpus_tokens = corpus_tokens
         self.bm25 = bm25s.BM25(method=self.method, k1=self.k1, b=self.b)
@@ -213,19 +211,20 @@ class BM25SearchIndex:
         if not self.documents:
             return []
 
-        tokenized = cast(
-            list[list[str]],
-            bm25s.tokenize(
-                query,
-                stopwords="en",
-                return_ids=False,
-                show_progress=self._SHOW_PROGRESS,
-                leave=self._LEAVE_PROGRESS,
-            ),
-        )
-        query_tokens_nested: list[list[str]] = [list(tokenized[0])]
         if self.tokenizer is not None:
-            query_tokens_nested[0].extend(self.tokenizer.tokenize(query))
+            query_tokens_nested: list[list[str]] = [list(self.tokenizer.tokenize(query))]
+        else:
+            tokenized = cast(
+                list[list[str]],
+                bm25s.tokenize(
+                    query,
+                    stopwords="en",
+                    return_ids=False,
+                    show_progress=self._SHOW_PROGRESS,
+                    leave=self._LEAVE_PROGRESS,
+                ),
+            )
+            query_tokens_nested = [list(tokenized[0])]
 
         if not query_tokens_nested[0]:
             return []

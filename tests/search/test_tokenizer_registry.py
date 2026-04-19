@@ -37,6 +37,10 @@ def fake_kiwi(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
                     _token("자연어", "NNG"),
                     _token("처리", "NNG"),
                     _token("재미있", "VA"),
+                ],
+                "자연어 Python 처리 README.md /src/app.py": [
+                    _token("자연어", "NNG"),
+                    _token("처리", "NNG"),
                 ]
             }
             return fixtures.get(text, [])
@@ -104,6 +108,24 @@ def test_create_uses_kiwi_modes_with_fresh_instances(
         "자연어 처리는 재미있습니다",
         "자연어 처리는 재미있습니다",
     ]
+
+
+def test_kiwi_registry_candidates_preserve_mixed_language_signal(
+    fake_kiwi: list[dict[str, object]],
+) -> None:
+    morphology = create("kiwi_morphology_v1")
+
+    assert morphology.tokenize("자연어 Python 처리 README.md /src/app.py") == (
+        "python",
+        "readme",
+        "md",
+        "src",
+        "app",
+        "py",
+        "자연어",
+        "처리",
+    )
+
 
 
 def test_legacy_normalization_mapping() -> None:
