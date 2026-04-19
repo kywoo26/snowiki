@@ -8,8 +8,8 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the benchmark maturity bar is now frozen.
-  - Next action: Benchmark asset strengthening is now the mandatory next lane before any decisive family comparison.
+  - Status: Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is now blocked pending explicit approval for inventory-sensitive benchmark asset strengthening.
+  - Next action: Obtain approval for one bounded benchmark-asset strengthening pass or close the reopening as blocked-with-artifact.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
