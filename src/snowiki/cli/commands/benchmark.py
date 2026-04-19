@@ -39,7 +39,6 @@ DATASET_NAMES = (
     "beir_nfcorpus",
     "snowiki_shaped",
     "hidden_holdout",
-    "beir_small",
 )
 
 
@@ -61,10 +60,6 @@ def _load_dataset_manifest(dataset: str) -> BenchmarkCorpusManifest | None:
         return load_snowiki_shaped_suite()
     if dataset == "hidden_holdout":
         return load_hidden_holdout_suite()
-    if dataset == "beir_small":
-        raise ValueError(
-            "dataset 'beir_small' is reserved but does not have a loader yet"
-        )
     return None
 
 

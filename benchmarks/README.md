@@ -113,7 +113,7 @@ uv run snowiki benchmark --preset full --output reports/full.json
 
 ### Dataset Selection
 
-`snowiki benchmark` now accepts `--dataset regression|miracl_ko|mr_tydi_ko|beir_scifact|beir_nfcorpus|snowiki_shaped|hidden_holdout|beir_small`.
+`snowiki benchmark` now accepts `--dataset regression|miracl_ko|mr_tydi_ko|beir_scifact|beir_nfcorpus|snowiki_shaped|hidden_holdout`.
 
 - `regression` keeps using the deterministic Phase 1 local fixtures.
 - `miracl_ko` loads a deterministic MIRACL Korean public-anchor sample with preserved stable IDs, inline qrels, and explicit provenance metadata.
@@ -122,7 +122,6 @@ uv run snowiki benchmark --preset full --output reports/full.json
 - `beir_nfcorpus` loads a compact deterministic English topical public-anchor sample shaped after BEIR NFCorpus for long-tail flavored local iteration.
 - `snowiki_shaped` loads a deterministic internal scripted-crawl facsimile with mixed Korean+English, code/doc, topical, temporal, and no-answer coverage for Snowiki-shaped evaluation.
 - `hidden_holdout` loads a deterministic synthetic sealed-holdout facsimile for development-time verification of visibility-tier sealing, pooled review, blind adjudication, disagreement escalation, and audit sampling. It is not the real release holdout and must not be cited as final proof.
-- `beir_small` is reserved for a future manifest-backed public anchor and is not yet wired to a loader.
 
 To keep tiers isolated, manifest-backed datasets are seeded only into empty isolated benchmark roots. They do not reuse or silently mix with the regression fixtures.
 
@@ -175,11 +174,10 @@ The stdout summary is intended to be concise and benchmark-focused. Backend libr
 
 The following items remain open for the benchmark program to reach a fully durable maintenance posture:
 
-1. **Wire `beir_small` manifest loader**: `beir_small` is reserved in the `--dataset` enum but not yet connected to a concrete manifest loader. Connect it once a compact BEIR multi-dataset manifest is ready.
-2. **Threshold calibration for public anchors**: The retrieval gate thresholds (Recall@k >= 0.72, MRR >= 0.70, nDCG@k >= 0.67) are frozen for the regression tier. Public-anchor and snowiki_shaped tiers need tier-specific or dataset-specific threshold policies so that release-quality claims are calibrated against external baselines, not the 90-query regression ceiling.
-3. **Real hidden holdout sealing**: The current `hidden_holdout` dataset is a synthetic workflow facsimile. Establish a genuine held-out query/judgment set that is never visible during development and is only unsealed during release adjudication.
-4. **Precision@K and P99 latency metrics**: These are excluded from Phase 1 and planned for future benchmark evolution once the tier model is stable.
-5. **Benchmark asset update policy**: Define a lightweight PR checklist for adding or modifying benchmark manifests so that provenance, family dedupe, and tier isolation are maintained without regressing existing suites.
+1. **Threshold calibration for public anchors**: The retrieval gate thresholds (Recall@k >= 0.72, MRR >= 0.70, nDCG@k >= 0.67) are frozen for the regression tier. Public-anchor and snowiki_shaped tiers need tier-specific or dataset-specific threshold policies so that release-quality claims are calibrated against external baselines, not the 90-query regression ceiling.
+2. **Real hidden holdout sealing**: The current `hidden_holdout` dataset is a synthetic workflow facsimile. Establish a genuine held-out query/judgment set that is never visible during development and is only unsealed during release adjudication.
+3. **Precision@K and P99 latency metrics**: These are excluded from Phase 1 and planned for future benchmark evolution once the tier model is stable.
+4. **Benchmark asset update policy**: Define a lightweight PR checklist for adding or modifying benchmark manifests so that provenance, family dedupe, and tier isolation are maintained without regressing existing suites.
 
 ## Verification
 

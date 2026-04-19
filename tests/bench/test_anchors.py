@@ -419,3 +419,25 @@ def test_snowiki_shaped_llm_generated_content_is_disabled() -> None:
     assert manifest.dataset_metadata["llm_generated_share_pct"] == LLM_GENERATED_QUOTA
     assert manifest.dataset_metadata["llm_generated_used"] is False
     assert manifest.dataset_metadata["llm_generated_role"] == "auxiliary_only"
+
+
+def test_snowiki_shaped_manifest_excludes_removed_benchmark_self_reference_terms() -> None:
+    manifest = load_snowiki_shaped_suite(size=20)
+    rendered = " ".join(
+        [
+            *(str(document["content"]) for document in manifest.documents),
+            *(
+                str(cast(dict[str, object], document.get("metadata", {})).get("title", ""))
+                for document in manifest.documents
+            ),
+        ]
+    )
+
+    forbidden_terms = (
+        "benchmark_triage_sheet",
+        "snowiki benchmark CLI",
+        "quarterly benchmark freeze",
+        "benchmark assets changed",
+    )
+
+    assert all(term not in rendered for term in forbidden_terms)
