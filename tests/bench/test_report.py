@@ -11,6 +11,7 @@ _EXPANDED_BASELINES = [
     "bm25s",
     "bm25s_kiwi_nouns",
     "bm25s_kiwi_full",
+    "bm25s_hf_wordpiece",
 ]
 
 
@@ -180,6 +181,29 @@ def test_generate_report_exposes_unified_benchmark_gate(
                                 "recall_at_k": 0.84,
                                 "mrr": 0.72,
                                 "ndcg_at_k": 0.77,
+                                "top_k": 5,
+                                "queries_evaluated": 18,
+                                "per_query": [],
+                            },
+                            "slices": {"group": {}, "kind": {}},
+                            "thresholds": [],
+                        },
+                        "queries": [],
+                    },
+                    "bm25s_hf_wordpiece": {
+                        "name": "bm25s_hf_wordpiece",
+                        "latency": {
+                            "p50_ms": 1.25,
+                            "p95_ms": 2.25,
+                            "mean_ms": 1.75,
+                            "min_ms": 1.25,
+                            "max_ms": 2.25,
+                        },
+                        "quality": {
+                            "overall": {
+                                "recall_at_k": 0.79,
+                                "mrr": 0.69,
+                                "ndcg_at_k": 0.73,
                                 "top_k": 5,
                                 "queries_evaluated": 18,
                                 "per_query": [],
