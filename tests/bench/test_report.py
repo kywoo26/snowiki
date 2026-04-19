@@ -11,6 +11,7 @@ _EXPANDED_BASELINES = [
     "bm25s",
     "bm25s_kiwi_nouns",
     "bm25s_kiwi_full",
+    "bm25s_mecab_full",
     "bm25s_hf_wordpiece",
 ]
 
@@ -181,6 +182,29 @@ def test_generate_report_exposes_unified_benchmark_gate(
                                 "recall_at_k": 0.84,
                                 "mrr": 0.72,
                                 "ndcg_at_k": 0.77,
+                                "top_k": 5,
+                                "queries_evaluated": 18,
+                                "per_query": [],
+                            },
+                            "slices": {"group": {}, "kind": {}},
+                            "thresholds": [],
+                        },
+                        "queries": [],
+                    },
+                    "bm25s_mecab_full": {
+                        "name": "bm25s_mecab_full",
+                        "latency": {
+                            "p50_ms": 1.35,
+                            "p95_ms": 2.35,
+                            "mean_ms": 1.85,
+                            "min_ms": 1.35,
+                            "max_ms": 2.35,
+                        },
+                        "quality": {
+                            "overall": {
+                                "recall_at_k": 0.78,
+                                "mrr": 0.67,
+                                "ndcg_at_k": 0.72,
                                 "top_k": 5,
                                 "queries_evaluated": 18,
                                 "per_query": [],
