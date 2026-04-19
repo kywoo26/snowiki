@@ -30,18 +30,18 @@ def test_step2_reopening_terminal_closeout_stays_aligned_with_status(
     ).read_text(encoding="utf-8")
 
     required_recommendation_markers = [
-        'Current reopening outcome: blocked-with-artifact',
+        'Current rerun outcome: no stable winner in the strengthened current roster',
         'No runtime-promotion recommendation is issued from this reopening cycle',
         'The current candidate set remains canonically closed',
-        'permission for **one bounded benchmark-asset strengthening pass**',
+        'one bounded external-family comparison lane',
         'Step 4 remains blocked',
     ]
     for marker in required_recommendation_markers:
         assert marker in recommendation
 
     required_status_markers = [
-        'Current candidate set remains closed at `benchmark-only/no runtime promotion`; the current reopening cycle is now canonically closed as blocked-with-artifact.',
-        'Reopen execution only if one bounded benchmark-asset strengthening pass is explicitly approved under the frozen maturity bar.',
+        'Strengthened benchmark substrate now shows no stable winner in the current lexical roster; Step 2 remains `benchmark-only/no runtime promotion`.',
+        'Open one bounded external-family comparison lane under the frozen family admission packet.',
         'Step 2 sparse branch still not proven on mixed-language benchmark.',
         'Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.',
     ]

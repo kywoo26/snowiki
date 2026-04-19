@@ -48,4 +48,4 @@ def test_step2_operational_evidence_note_stays_aligned_with_policy(
         in benchmark_readme
     )
     assert "Operational Status**: PASS (memory and disk usage are now measured)" in proof
-    assert "Operational evidence is now measured, but the remaining blocker is tokenizer quality." in proof or "regress the mixed slice" in proof
+    assert "no stable winner among the current roster" in proof or "stronger benchmark" in proof
