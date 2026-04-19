@@ -34,8 +34,11 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
     )
     monkeypatch.setattr(
         phase1_latency,
-        "_load_queries_for_preset",
-        lambda _preset: ("first query", "second query"),
+        "_load_query_specs_for_preset",
+        lambda _preset, manifest=None: (
+            {"text": "first query", "kind": "known-item"},
+            {"text": "second query", "kind": "known-item"},
+        ),
     )
 
     ingest_roots: list[Path] = []
@@ -82,8 +85,17 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
         "query_mode": "lexical",
         "top_k": 5,
         "top_ks": [1, 3, 5, 10, 20],
+        "sampling_policy": {
+            "mode": "exhaustive",
+            "population_query_count": 2,
+            "sampled_query_count": 2,
+            "sampled": False,
+        },
     }
+    assert corpus["dataset"] == "regression"
+    assert corpus["tier"] == "regression"
     assert corpus["fixtures_indexed"] == 2
+    assert corpus["queries_available"] == 2
     assert corpus["queries_evaluated"] == 2
     assert set(performance) == {"ingest", "rebuild", "query"}
     assert performance["ingest"] == {
@@ -127,8 +139,13 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
     def fake_canonical_fixtures() -> tuple[dict[str, object], ...]:
         return ({"source": "claude", "path": claude_fixture},)
 
-    def fake_load_queries_for_preset(_preset: object) -> tuple[str, str]:
-        return ("first query", "second query")
+    def fake_load_query_specs_for_preset(
+        _preset: object, manifest=None
+    ) -> tuple[dict[str, object], dict[str, object]]:
+        return (
+            {"text": "first query", "kind": "known-item"},
+            {"text": "second query", "kind": "topical"},
+        )
 
     def fake_ingest(path: Path, *, source: str, root: Path) -> dict[str, object]:
         return {"path": path.as_posix(), "source": source, "root": root.as_posix()}
@@ -140,7 +157,9 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
     monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 1)
     monkeypatch.setattr(phase1_latency, "_canonical_fixtures", fake_canonical_fixtures)
     monkeypatch.setattr(
-        phase1_latency, "_load_queries_for_preset", fake_load_queries_for_preset
+        phase1_latency,
+        "_load_query_specs_for_preset",
+        fake_load_query_specs_for_preset,
     )
 
     query_calls: list[dict[str, object]] = []
@@ -176,6 +195,12 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
         "query_mode": "lexical",
         "top_k": 5,
         "top_ks": [1, 3, 5, 10, 20],
+        "sampling_policy": {
+            "mode": "exhaustive",
+            "population_query_count": 2,
+            "sampled_query_count": 2,
+            "sampled": False,
+        },
     }
     assert list(get_preset("retrieval").baselines) == [
         "lexical",
@@ -204,8 +229,8 @@ def test_phase1_latency_keeps_benchmark_lexical_mode_and_shipped_query_hybrid_no
     )
     monkeypatch.setattr(
         phase1_latency,
-        "_load_queries_for_preset",
-        lambda _preset: ("comparison query",),
+        "_load_query_specs_for_preset",
+        lambda _preset, manifest=None: ({"text": "comparison query", "kind": "known-item"},),
     )
 
     benchmark_calls: list[dict[str, object]] = []
@@ -235,6 +260,12 @@ def test_phase1_latency_keeps_benchmark_lexical_mode_and_shipped_query_hybrid_no
         "query_mode": "lexical",
         "top_k": 5,
         "top_ks": [1, 3, 5, 10, 20],
+        "sampling_policy": {
+            "mode": "exhaustive",
+            "population_query_count": 1,
+            "sampled_query_count": 1,
+            "sampled": False,
+        },
     }
     assert "semantic_backend" not in protocol
     assert len(benchmark_calls) == 1

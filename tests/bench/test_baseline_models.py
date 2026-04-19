@@ -6,8 +6,11 @@ import pytest
 from pydantic import ValidationError
 
 from snowiki.bench.models import (
+    BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER,
     PAGE_LIST_ADAPTER,
     RECORD_LIST_ADAPTER,
+    BenchmarkAssetManifest,
+    BenchmarkProvenance,
     BenchmarkReport,
     CandidateMatrixReport,
     validate_baseline_result,
@@ -71,6 +74,31 @@ def _baseline_payload() -> dict[str, object]:
             ]
         },
     }
+
+
+def _provenance_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "source_class": "public_dataset",
+        "authoring_method": "human_only",
+        "license": "CC-BY-4.0",
+        "collection_method": "miracl_official",
+        "visibility_tier": "public",
+        "contamination_status": "clean",
+        "family_dedupe_key": "family-a",
+        "authority_tier": "public_anchor",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _asset_manifest_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "asset_id": "asset-1",
+        "path": "benchmarks/corpus/doc-1.json",
+        "provenance": _provenance_payload(),
+    }
+    payload.update(overrides)
+    return payload
 
 
 def test_record_model_accepts_text_alias_and_is_frozen() -> None:
@@ -154,6 +182,7 @@ def test_benchmark_report_legacy_serializer_preserves_shape() -> None:
                 "queries_evaluated": 1,
             },
             "baselines": {"lexical": _baseline_payload()},
+            "corpus_assets": [_asset_manifest_payload()],
             "candidate_matrix": {
                 "candidates": [
                     {
@@ -191,7 +220,73 @@ def test_benchmark_report_legacy_serializer_preserves_shape() -> None:
             ]
         }
     )
+    assert report.corpus_assets == [
+        BenchmarkAssetManifest.model_validate(_asset_manifest_payload())
+    ]
     assert "candidate_matrix" not in legacy
+    assert "corpus_assets" not in legacy
+
+
+def test_benchmark_provenance_accepts_valid_authoritative_payload() -> None:
+    manifest = BenchmarkAssetManifest.model_validate(_asset_manifest_payload())
+
+    assert manifest.provenance == BenchmarkProvenance.model_validate(_provenance_payload())
+    assert manifest.to_report_dict()["provenance"] == _provenance_payload()
+
+
+def test_assistant_generated_assets_cannot_be_public_anchors_or_hidden_holdouts() -> None:
+    with pytest.raises(ValidationError):
+        _ = BenchmarkAssetManifest.model_validate(
+            _asset_manifest_payload(
+                provenance=_provenance_payload(
+                    authoring_method="assistant_generated",
+                    authority_tier="public_anchor",
+                )
+            )
+        )
+
+    with pytest.raises(ValidationError):
+        _ = BenchmarkAssetManifest.model_validate(
+            _asset_manifest_payload(
+                provenance=_provenance_payload(
+                    authoring_method="assistant_generated",
+                    authority_tier="hidden_holdout",
+                    visibility_tier="hidden_holdout",
+                )
+            )
+        )
+
+
+def test_hidden_holdout_requires_clean_contamination_status() -> None:
+    with pytest.raises(ValidationError):
+        _ = BenchmarkAssetManifest.model_validate(
+            _asset_manifest_payload(
+                provenance=_provenance_payload(
+                    visibility_tier="hidden_holdout",
+                    contamination_status="suspected",
+                    authority_tier="hidden_holdout",
+                )
+            )
+        )
+
+
+def test_authoritative_assets_fail_closed_when_provenance_fields_are_missing() -> None:
+    payload = _asset_manifest_payload(
+        provenance={
+            "source_class": "public_dataset",
+            "authoring_method": "human_only",
+            "license": "CC-BY-4.0",
+            "collection_method": "miracl_official",
+            "contamination_status": "clean",
+            "authority_tier": "public_anchor",
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        _ = BenchmarkAssetManifest.model_validate(payload)
+
+    with pytest.raises(ValidationError):
+        _ = BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER.validate_python([payload])
 
 
 def test_record_list_adapter_rejects_malformed_record_metadata() -> None:

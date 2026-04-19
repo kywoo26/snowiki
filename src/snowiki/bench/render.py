@@ -66,6 +66,24 @@ def _format_performance_threshold_entry(entry: dict[str, object]) -> str:
     )
 
 
+def _format_latency_sampling_policy(policy: dict[str, object]) -> str:
+    mode = str(policy.get("mode", "exhaustive"))
+    sampled_query_count = policy.get("sampled_query_count")
+    population_query_count = policy.get("population_query_count")
+    parts = [f"mode={mode}"]
+    if sampled_query_count is not None and population_query_count is not None:
+        parts.append(f"queries={sampled_query_count}/{population_query_count}")
+    elif sampled_query_count is not None:
+        parts.append(f"queries={sampled_query_count}")
+    sample_size = policy.get("sample_size")
+    if sample_size is not None:
+        parts.append(f"sample_size={sample_size}")
+    strata = policy.get("strata")
+    if isinstance(strata, list) and strata:
+        parts.append(f"strata={strata}")
+    return ", ".join(parts)
+
+
 def _render_candidate_matrix(matrix: dict[str, object]) -> list[str]:
     candidates = cast(list[dict[str, object]], matrix.get("candidates", []))
     if not candidates:
@@ -113,6 +131,8 @@ def render_report_text(report: dict[str, object]) -> str:
     Returns:
         A newline-delimited text summary of the report.
     """
+    dataset = cast(dict[str, object], report.get("dataset", {}))
+    metadata = cast(dict[str, object], report.get("metadata", {}))
     preset = cast(dict[str, object], report["preset"])
     corpus = cast(dict[str, object], report["corpus"])
     protocol = cast(dict[str, object], report["protocol"])
@@ -129,11 +149,18 @@ def render_report_text(report: dict[str, object]) -> str:
     unified_verdict = cast(dict[str, object], report.get("benchmark_verdict", {}))
     structural_failures = structural_failure_count(report)
     structural_warnings = informational_warning_count(report)
+    dataset_label = str(dataset.get("name", dataset.get("id", "unknown")))
+    dataset_id = dataset.get("id")
+    dataset_tier = dataset.get("tier")
     lines = [
         f"Benchmark preset: {preset['name']}",
+        (
+            f"Benchmark dataset: {dataset_label}"
+            + (f" (id={dataset_id})" if dataset_id else "")
+            + (f", tier={dataset_tier}" if dataset_tier else "")
+        ),
         f"Description: {preset['description']}",
         f"Queries evaluated: {corpus['queries_evaluated']}",
-        f"Canonical fixtures: {corpus['fixtures_indexed']}",
         (
             "Protocol: "
             f"isolated_root={protocol['isolated_root']}, "
@@ -141,6 +168,11 @@ def render_report_text(report: dict[str, object]) -> str:
             f"repetitions={protocol['repetitions']}, "
             f"query_mode={protocol['query_mode']}, "
             f"top_k={protocol['top_k']}, top_ks={protocol.get('top_ks', preset.get('top_ks', [protocol['top_k']]))}"
+            + (
+                f", dataset_mode={protocol.get('dataset_mode')}"
+                if protocol.get("dataset_mode")
+                else ""
+            )
         ),
         (
             "Structural verdict: "
@@ -148,6 +180,54 @@ def render_report_text(report: dict[str, object]) -> str:
             f"({structural_failures} failures, {structural_warnings} warnings)"
         ),
     ]
+    sampling_policy = cast(
+        dict[str, object], metadata.get("latency_sampling_policy", {})
+    )
+    if not sampling_policy:
+        sampling_policy = cast(dict[str, object], protocol.get("sampling_policy", {}))
+    lines.append(
+        f"Latency sampling: {_format_latency_sampling_policy(sampling_policy)}"
+    )
+    report_limits = cast(dict[str, object], metadata.get("report_limits", {}))
+    if report_limits.get("applied"):
+        lines.append(
+            "Report detail limit: "
+            f"per-query details capped at {report_limits.get('per_query_detail_limit')} entries "
+            f"for baselines {report_limits.get('baselines_truncated', [])}"
+        )
+    dataset_metadata = cast(dict[str, object], dataset.get("metadata", {}))
+    if dataset.get("description"):
+        lines.append(f"Dataset description: {dataset['description']}")
+    if dataset_metadata.get("source_url"):
+        lines.append(f"Dataset source: {dataset_metadata['source_url']}")
+    if dataset_metadata.get("license"):
+        lines.append(f"Dataset license: {dataset_metadata['license']}")
+    if dataset_metadata.get("language"):
+        lines.append(f"Dataset language: {dataset_metadata['language']}")
+    dataset_provenance = cast(dict[str, object], dataset.get("provenance", {}))
+    provenance_status = cast(dict[str, object], dataset.get("provenance_status", {}))
+    if dataset_provenance:
+        provenance_parts = [
+            f"source_class={dataset_provenance.get('source_class', 'unknown')}",
+            f"authoring_method={dataset_provenance.get('authoring_method', 'unknown')}",
+            f"family_dedupe_key={dataset_provenance.get('family_dedupe_key', 'n/a')}",
+        ]
+        lines.append(f"Dataset provenance: {', '.join(provenance_parts)}")
+    elif provenance_status:
+        lines.append(
+            "Dataset provenance: sealed "
+            f"(visibility_tier={provenance_status.get('visibility_tier', 'unknown')}, "
+            f"authority_tier={provenance_status.get('authority_tier', 'unknown')}, "
+            f"dev_report_excludes_assets={provenance_status.get('dev_report_excludes_assets', False)})"
+        )
+    if "fixtures_indexed" in corpus:
+        lines.append(f"Canonical fixtures: {corpus['fixtures_indexed']}")
+    if "documents_seeded" in corpus:
+        lines.append(f"Manifest documents seeded: {corpus['documents_seeded']}")
+    if "records_indexed" in corpus:
+        lines.append(f"Records indexed: {corpus['records_indexed']}")
+    if "pages_indexed" in corpus:
+        lines.append(f"Pages indexed: {corpus['pages_indexed']}")
     failures = structural.get("failures", [])
     if isinstance(failures, list) and failures:
         lines.append("Structural failures:")
@@ -165,9 +245,12 @@ def render_report_text(report: dict[str, object]) -> str:
         lines.extend(_render_candidate_matrix(candidate_matrix))
         lines.extend(_render_candidate_decisions(candidate_matrix))
 
-    lines.append("Performance:")
-    for name, latency in performance.items():
-        lines.append(f"- {name}: P50={latency['p50_ms']}ms, P95={latency['p95_ms']}ms")
+    if performance:
+        lines.append("Performance:")
+        for name, latency in performance.items():
+            lines.append(f"- {name}: P50={latency['p50_ms']}ms, P95={latency['p95_ms']}ms")
+    else:
+        lines.append("Performance: unavailable")
     if performance_threshold_policy:
         lines.append("Performance threshold policy:")
         lines.append(f"- overall: {_render_thresholds(performance_threshold_policy)}")
@@ -221,6 +304,28 @@ def render_report_text(report: dict[str, object]) -> str:
         failure_count = retrieval_threshold_failure_count(report)
         lines.append(
             f"Retrieval threshold verdict: {'FAIL' if failure_count else 'PASS'} ({failure_count} failures)"
+        )
+    audit = cast(dict[str, object], report.get("audit", {}))
+    if audit:
+        samples = cast(dict[str, object], audit.get("samples", {}))
+        pooled_review = cast(dict[str, object], audit.get("pooled_review", {}))
+        provenance_quota = cast(dict[str, object], audit.get("provenance_quota", {}))
+        lines.append("Audit sampling:")
+        lines.append(
+            "- samples="
+            f"{samples.get('count', 0)}, reviewer_assignments={samples.get('reviewer_assignments', 0)}, "
+            f"mean_agreement_score={samples.get('mean_agreement_score', 'n/a')}"
+        )
+        lines.append(
+            "- pooled_review="
+            f"queries={pooled_review.get('query_count', 0)}, "
+            f"disagreements={pooled_review.get('disagreement_count', 0)}, "
+            f"blind_human_adjudication={pooled_review.get('blind_human_adjudication', False)}"
+        )
+        lines.append(
+            "- provenance_quota="
+            f"assets={provenance_quota.get('asset_count', 0)}, "
+            f"hidden_holdout_assets={provenance_quota.get('hidden_holdout_asset_count', 0)}"
         )
     lines.append(
         "Unified benchmark verdict: "

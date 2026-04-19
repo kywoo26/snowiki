@@ -1,3 +1,15 @@
+"""Benchmark contract definitions and scoring semantics.
+
+Benchmark semantics:
+- Retrieval unit: a single query-document pair scored by the retrieval engine.
+- Relevance unit: a binary judgment of whether a document is relevant to a query.
+- Reporting unit: a query together with its full ranked result set and aggregated
+  metrics.
+- No-answer semantics: a no-answer query is one where the correct engine behavior
+  is to return no relevant documents. The engine should abstain or reject; any
+  returned document is a false positive.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,6 +32,15 @@ class ReportEntry:
     verdict: Literal["PASS", "FAIL", "WARN"]
     threshold: float | str | None
     warnings: list[str]
+
+
+@dataclass(frozen=True)
+class NoAnswerScoringPolicy:
+    """Controls how no-answer benchmark queries contribute to quality metrics."""
+
+    mode: Literal["ignore", "penalize_false_positives", "require_abstention"]
+    false_positive_penalty: float = 1.0
+    abstention_bonus: float | None = None
 
 
 class CorpusContract(TypedDict):
@@ -103,6 +124,10 @@ STEP_03_CANDIDATE_POLICY: Step3CandidatePolicyContract = {
         latency_p95_ratio_max=1.25,
     ),
 }
+
+DEFAULT_NO_ANSWER_SCORING_POLICY = NoAnswerScoringPolicy(
+    mode="penalize_false_positives"
+)
 
 
 def get_phase_1_contract() -> Phase1Contract:

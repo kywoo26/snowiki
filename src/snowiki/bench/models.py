@@ -61,6 +61,96 @@ class BenchmarkQueryMetadata(BaseModel):
     no_answer: bool = False
 
 
+class BenchmarkProvenance(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    source_class: Literal[
+        "public_dataset", "scripted_crawl", "human_curated", "synthetic", "mixed"
+    ]
+    authoring_method: Literal[
+        "human_only",
+        "human_reviewed",
+        "assistant_generated",
+        "automated",
+        "unknown",
+    ]
+    license: str
+    collection_method: str
+    visibility_tier: Literal["public", "developer_visible", "hidden_holdout"]
+    contamination_status: Literal[
+        "clean", "suspected", "confirmed_contaminated", "unknown"
+    ]
+    family_dedupe_key: str | None = None
+    authority_tier: Literal[
+        "regression", "public_anchor", "snowiki_shaped", "hidden_holdout"
+    ]
+
+    @model_validator(mode="after")
+    def _validate_provenance_rules(self) -> BenchmarkProvenance:
+        restricted_assistant_tiers = {"public_anchor", "hidden_holdout"}
+        authoritative_tiers = {"public_anchor", "snowiki_shaped", "hidden_holdout"}
+
+        if (
+            self.authoring_method == "assistant_generated"
+            and self.authority_tier in restricted_assistant_tiers
+        ):
+            raise ValueError(
+                "assistant-generated assets cannot be marked as public anchors or hidden holdouts"
+            )
+        if (
+            self.visibility_tier == "hidden_holdout"
+            and self.contamination_status != "clean"
+        ):
+            raise ValueError(
+                "hidden holdout assets must declare a clean contamination status"
+            )
+        if self.authority_tier in authoritative_tiers and not self.visibility_tier:
+            raise ValueError(
+                "authoritative provenance requires an explicit visibility tier"
+            )
+        return self
+
+
+class BenchmarkAssetManifest(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    asset_id: str
+    path: str | None = None
+    provenance: BenchmarkProvenance
+
+    def to_report_dict(self) -> dict[str, object]:
+        payload = self.model_dump(mode="json")
+        if self.path is None:
+            payload.pop("path", None)
+        return payload
+
+
+class AuditSample(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    query_id: str
+    adjudicated_relevance: int
+    reviewer_count: int = Field(ge=2)
+    agreement_score: float = Field(ge=0.0, le=1.0)
+
+
+class PooledReview(BaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+
+    query_id: str
+    judgments_from_systems: dict[str, dict[str, int]] = Field(default_factory=dict)
+    final_adjudication: dict[str, int] = Field(default_factory=dict)
+    disagreement_flag: bool
+
+    @model_validator(mode="after")
+    def _validate_review_payload(self) -> PooledReview:
+        if not self.judgments_from_systems:
+            raise ValueError("pooled review requires at least one contributing system")
+        if not self.final_adjudication:
+            raise ValueError("pooled review requires a final adjudication")
+        return self
+
+
 class QueryResult(BaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
 
@@ -376,6 +466,13 @@ class BenchmarkReport(BaseModel):
     preset: PresetSummary | None = None
     corpus: CorpusSummary | None = None
     baselines: dict[str, BaselineResult] = Field(default_factory=dict)
+    corpus_assets: list[BenchmarkAssetManifest] = Field(default_factory=list)
+    query_assets: list[BenchmarkAssetManifest] = Field(default_factory=list)
+    judgment_assets: list[BenchmarkAssetManifest] = Field(default_factory=list)
+    pooled_reviews: list[PooledReview] = Field(default_factory=list)
+    audit_samples: list[AuditSample] = Field(default_factory=list)
+    review_policy: dict[str, JsonValue] = Field(default_factory=dict)
+    audit_policy: dict[str, JsonValue] = Field(default_factory=dict)
     candidate_matrix: CandidateMatrixReport | None = None
 
     @model_validator(mode="before")
@@ -407,6 +504,7 @@ class BenchmarkReport(BaseModel):
 
 RECORD_LIST_ADAPTER = TypeAdapter(list[RecordModel])
 PAGE_LIST_ADAPTER = TypeAdapter(list[PageModel])
+BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER = TypeAdapter(list[BenchmarkAssetManifest])
 QUERY_RESULT_LIST_ADAPTER = TypeAdapter(list[QueryResult])
 
 
@@ -423,8 +521,12 @@ def validate_baseline_result(payload: object) -> BaselineResult:
 
 
 __all__ = [
+    "AuditSample",
     "BaselineResult",
+    "BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER",
+    "BenchmarkAssetManifest",
     "BenchmarkHit",
+    "BenchmarkProvenance",
     "BenchmarkQueryMetadata",
     "BenchmarkReport",
     "CandidateOperationalEvidence",
@@ -439,6 +541,7 @@ __all__ = [
     "PAGE_LIST_ADAPTER",
     "PageModel",
     "PerQueryQuality",
+    "PooledReview",
     "PresetSummary",
     "PlatformSupportEvidence",
     "QUERY_RESULT_LIST_ADAPTER",

@@ -225,7 +225,25 @@ def test_loaders_fail_fast_on_malformed_top_level_fixture_shapes(
         baselines._load_judgments(repo_root)
 
 
-def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring(
+def test_load_judgments_converts_legacy_fixture_lists_to_qrels(tmp_path: Path) -> None:
+    baselines, _, _ = _load_benchmark_modules()
+    judgments_path = tmp_path / "judgments.json"
+    _ = judgments_path.write_text(
+        '{"judgments": {"q1": ["fixture-a", "fixture-b"]}}',
+        encoding="utf-8",
+    )
+
+    judgments = baselines.load_qrels(judgments_path)
+
+    assert judgments == {
+        "q1": [
+            baselines.QrelEntry(query_id="q1", doc_id="fixture-a"),
+            baselines.QrelEntry(query_id="q1", doc_id="fixture-b"),
+        ]
+    }
+
+
+def test_ranked_doc_ids_deduplicate_mapped_hits_before_scoring(
     repo_root: Path,
 ) -> None:
     baselines, _, _ = _load_benchmark_modules()
@@ -267,9 +285,12 @@ def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring(
         ),
     ]
 
-    ranked_ids = baselines._ranked_fixture_ids(
+    ranked_ids = baselines._ranked_doc_ids(
         hits,
-        ["fixture-a", "fixture-b"],
+        [
+            baselines.QrelEntry(query_id="q1", doc_id="fixture-a"),
+            baselines.QrelEntry(query_id="q1", doc_id="fixture-b"),
+        ],
         hit_lookup={
             "record-a": "fixture-a",
             "compiled/a.md": "fixture-a",
@@ -288,6 +309,78 @@ def test_ranked_fixture_ids_deduplicate_mapped_hits_before_scoring(
         ).overall.ndcg_at_k
         == 1.0
     )
+
+
+def test_run_baseline_comparison_uses_generic_qrels_without_fixture_lookup(
+    monkeypatch, repo_root: Path
+) -> None:
+    baselines, _, _ = _load_benchmark_modules()
+    from snowiki.search.indexer import SearchDocument, SearchHit
+
+    document = SearchDocument(
+        id="public-doc-7",
+        path="corpus/public-doc-7.md",
+        kind="page",
+        title="Public corpus note",
+        content="nebula retrieval token",
+    )
+    hit = SearchHit(document=document, score=1.0, matched_terms=("nebula",))
+    corpus = baselines.CorpusBundle(
+        records=(),
+        pages=(),
+        raw_index=SimpleNamespace(
+            documents={document.id: document},
+            size=1,
+            search=lambda query, limit: [hit],
+        ),
+        blended_index=SimpleNamespace(size=1),
+    )
+
+    monkeypatch.setattr(baselines, "_build_corpus", lambda root: corpus)
+    monkeypatch.setattr(
+        baselines,
+        "_load_queries",
+        lambda root: (
+            baselines.BenchmarkQuery(
+                query_id="q1",
+                text="nebula retrieval token",
+                group="en",
+                kind="known-item",
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        baselines,
+        "_load_judgments",
+        lambda root: {
+            "q1": [baselines.QrelEntry(query_id="q1", doc_id="public-doc-7")]
+        },
+    )
+
+    def fail_hit_lookup(_corpus: object) -> None:
+        raise AssertionError("generic scoring must not call fixture lookup")
+
+    monkeypatch.setattr(baselines, "_benchmark_hit_lookup", fail_hit_lookup)
+
+    report = baselines.run_baseline_comparison(
+        repo_root,
+        baselines.BenchmarkPreset(
+            name="generic-qrels",
+            description="Score generic qrels directly.",
+            query_kinds=("known-item",),
+            baselines=("lexical",),
+            top_k=5,
+            top_ks=(1, 5),
+        ),
+        use_generic_scoring=True,
+    )
+
+    lexical = report.baselines["lexical"]
+    assert lexical.quality.overall.recall_at_k == 1.0
+    assert lexical.quality.overall.mrr == 1.0
+    assert lexical.quality.overall.ndcg_at_k == 1.0
+    assert lexical.quality.overall.per_query[0].relevant_ids == ["public-doc-7"]
+    assert lexical.quality.overall.per_query[0].ranked_ids == ["public-doc-7"]
 
 
 def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(

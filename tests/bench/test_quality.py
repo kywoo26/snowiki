@@ -58,6 +58,132 @@ def test_evaluate_quality_aggregates_query_results(repo_root: Path) -> None:
     assert [item.query_id for item in summary.per_query] == ["q1", "q2"]
 
 
+def test_evaluate_quality_scores_no_answer_abstention_as_perfect() -> None:
+    quality, _ = _load_quality_symbols()
+
+    summary = quality.evaluate_quality(
+        {"q1": []},
+        {"q1": []},
+        top_k=3,
+        query_no_answer={"q1": True},
+    )
+
+    assert summary.queries_evaluated == 1
+    assert summary.recall_at_k == 1.0
+    assert summary.mrr == 1.0
+    assert summary.ndcg_at_k == 1.0
+    assert summary.per_query[0].no_answer is True
+    assert summary.per_query[0].ranked_ids == ()
+
+
+def test_evaluate_quality_scores_no_answer_false_positive_as_zero() -> None:
+    quality, _ = _load_quality_symbols()
+
+    summary = quality.evaluate_quality(
+        {"q1": ["false-positive"]},
+        {"q1": []},
+        top_k=3,
+        query_no_answer={"q1": True},
+    )
+
+    assert summary.queries_evaluated == 1
+    assert summary.recall_at_k == 0.0
+    assert summary.mrr == 0.0
+    assert summary.ndcg_at_k == 0.0
+    assert summary.per_query[0].ranked_ids == ("false-positive",)
+
+
+def test_evaluate_quality_aggregates_regular_and_no_answer_queries() -> None:
+    quality, _ = _load_quality_symbols()
+
+    summary = quality.evaluate_quality(
+        {"q1": ["x", "a", "b"], "q2": []},
+        {"q1": ["a", "b"], "q2": []},
+        top_k=3,
+        query_no_answer={"q2": True},
+    )
+
+    assert summary.queries_evaluated == 2
+    assert summary.recall_at_k == 1.0
+    assert summary.mrr == 0.75
+    assert round(summary.ndcg_at_k, 6) == 0.846713
+    assert summary.per_query[0].relevant_ids == ("a", "b")
+
+
+def test_evaluate_quality_can_ignore_no_answer_queries_via_policy() -> None:
+    quality, contract = _load_quality_symbols()
+
+    summary = quality.evaluate_quality(
+        {"q1": ["a"], "q2": []},
+        {"q1": ["a"], "q2": []},
+        top_k=3,
+        query_no_answer={"q2": True},
+        no_answer_policy=contract.NoAnswerScoringPolicy(mode="ignore"),
+    )
+
+    assert summary.queries_evaluated == 1
+    assert summary.recall_at_k == 1.0
+    assert summary.mrr == 1.0
+    assert summary.ndcg_at_k == 1.0
+    assert [item.query_id for item in summary.per_query] == ["q1"]
+
+
+def test_evaluate_quality_require_abstention_stays_binary() -> None:
+    quality, contract = _load_quality_symbols()
+
+    abstaining = quality.evaluate_quality(
+        {"q1": []},
+        {"q1": []},
+        top_k=3,
+        query_no_answer={"q1": True},
+        no_answer_policy=contract.NoAnswerScoringPolicy(
+            mode="require_abstention",
+            false_positive_penalty=0.25,
+            abstention_bonus=-0.5,
+        ),
+    )
+    false_positive = quality.evaluate_quality(
+        {"q1": ["fp"]},
+        {"q1": []},
+        top_k=3,
+        query_no_answer={"q1": True},
+        no_answer_policy=contract.NoAnswerScoringPolicy(
+            mode="require_abstention",
+            false_positive_penalty=0.25,
+            abstention_bonus=-0.5,
+        ),
+    )
+
+    assert abstaining.recall_at_k == 1.0
+    assert abstaining.mrr == 1.0
+    assert abstaining.ndcg_at_k == 1.0
+    assert false_positive.recall_at_k == 0.0
+    assert false_positive.mrr == 0.0
+    assert false_positive.ndcg_at_k == 0.0
+
+
+def test_evaluate_sliced_quality_passes_non_default_no_answer_policy() -> None:
+    quality, contract = _load_quality_symbols()
+
+    summary = quality.evaluate_sliced_quality(
+        {"q1": ["a"], "q2": ["fp"]},
+        {"q1": ["a"], "q2": []},
+        query_groups={"q1": "ko", "q2": "mixed"},
+        query_kinds={"q1": "known-item", "q2": "topical"},
+        top_k=3,
+        query_no_answer={"q2": True},
+        no_answer_policy=contract.NoAnswerScoringPolicy(
+            mode="penalize_false_positives",
+            false_positive_penalty=0.25,
+        ),
+    )
+
+    assert summary.overall.queries_evaluated == 2
+    assert summary.overall.recall_at_k == 0.875
+    assert summary.by_subset is not None
+    assert summary.by_subset["no-answer"].recall_at_k == 0.75
+
+
 def test_evaluate_sliced_quality_emits_overall_and_slice_metrics(
     repo_root: Path,
 ) -> None:
@@ -373,9 +499,15 @@ def test_evaluate_quality_counts_no_answer_queries_and_exposes_multi_k() -> None
     )
 
     assert summary.queries_evaluated == 2
+    assert summary.recall_at_k == 0.5
+    assert summary.mrr == 0.5
+    assert summary.ndcg_at_k == 0.5
     assert summary.top_ks == (1, 3, 5)
     assert summary.metrics_by_k is not None
     assert set(summary.metrics_by_k) == {"recall_at_k", "mrr", "ndcg_at_k"}
+    assert summary.metrics_by_k["recall_at_k"] == {1: 0.5, 3: 0.5, 5: 0.5}
+    assert summary.metrics_by_k["mrr"] == {1: 0.5, 3: 0.5, 5: 0.5}
+    assert summary.metrics_by_k["ndcg_at_k"] == {1: 0.5, 3: 0.5, 5: 0.5}
     assert summary.per_query[1].no_answer is True
     assert summary.per_query[1].tags == ("no-answer",)
 

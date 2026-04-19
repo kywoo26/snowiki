@@ -194,20 +194,28 @@ def performance_threshold_failure_count(report: dict[str, object]) -> int:
     return sum(1 for entry in entries if _entry_verdict(entry) == "FAIL")
 
 
-def benchmark_verdict(report: dict[str, object]) -> dict[str, object]:
-    """Compute the overall benchmark verdict.
+def _report_tier(report: dict[str, object]) -> str:
+    metadata = cast(dict[str, object], report.get("metadata", {}))
+    dataset_tier = metadata.get("dataset_tier")
+    if isinstance(dataset_tier, str) and dataset_tier:
+        return dataset_tier
 
-    Args:
-        report: Benchmark report dictionary.
+    dataset = cast(dict[str, object], report.get("dataset", {}))
+    dataset_tier = dataset.get("tier")
+    if isinstance(dataset_tier, str) and dataset_tier:
+        return dataset_tier
+    return "regression"
 
-    Returns:
-        A dictionary describing the benchmark verdict and stage ordering.
-    """
-    structural_failures = structural_failure_count(report)
-    retrieval_failures = retrieval_threshold_failure_count(report)
-    performance_failures = performance_threshold_failure_count(report)
-    warnings = informational_warning_count(report)
-    stages: list[dict[str, object]] = [
+
+def _evaluate_policy_stages(
+    *,
+    structural_failures: int,
+    retrieval_failures: int,
+    performance_failures: int,
+    warnings: int,
+    tier: str,
+) -> list[dict[str, object]]:
+    return [
         {
             "name": "structural",
             "verdict": "FAIL" if structural_failures else "PASS",
@@ -218,7 +226,7 @@ def benchmark_verdict(report: dict[str, object]) -> dict[str, object]:
         {
             "name": "retrieval_thresholds",
             "verdict": "FAIL" if retrieval_failures else "PASS",
-            "blocking": True,
+            "blocking": tier == "regression",
             "failure_count": retrieval_failures,
         },
         {
@@ -234,6 +242,32 @@ def benchmark_verdict(report: dict[str, object]) -> dict[str, object]:
             "warning_count": warnings,
         },
     ]
+
+
+def benchmark_verdict(
+    report: dict[str, object], *, tier: str | None = None
+) -> dict[str, object]:
+    """Compute the overall benchmark verdict.
+
+    Args:
+        report: Benchmark report dictionary.
+        tier: Optional dataset tier override.
+
+    Returns:
+        A dictionary describing the benchmark verdict and stage ordering.
+    """
+    dataset_tier = tier or _report_tier(report)
+    structural_failures = structural_failure_count(report)
+    retrieval_failures = retrieval_threshold_failure_count(report)
+    performance_failures = performance_threshold_failure_count(report)
+    warnings = informational_warning_count(report)
+    stages = _evaluate_policy_stages(
+        structural_failures=structural_failures,
+        retrieval_failures=retrieval_failures,
+        performance_failures=performance_failures,
+        warnings=warnings,
+        tier=dataset_tier,
+    )
     if structural_failures:
         return {
             "verdict": "FAIL",
@@ -242,7 +276,7 @@ def benchmark_verdict(report: dict[str, object]) -> dict[str, object]:
             "order": [stage["name"] for stage in stages],
             "stages": stages,
         }
-    if retrieval_failures or performance_failures:
+    if performance_failures or (dataset_tier == "regression" and retrieval_failures):
         return {
             "verdict": "FAIL",
             "exit_code": 1,
