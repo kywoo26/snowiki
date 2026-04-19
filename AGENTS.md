@@ -22,7 +22,6 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 
 ## Ask First
 
-- Adding or updating dependencies in `pyproject.toml`.
 - Modifying core storage interfaces, Pydantic models, or `SchemaVersion`.
 - Changing CLI command signatures or arguments.
 
