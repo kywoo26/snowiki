@@ -91,12 +91,12 @@ def test_root_agents_contract_policies(repo_root):
 
     content_no_backticks = content.replace("`", "")
 
-    assert ".sisyphus" not in content_no_backticks.lower()
     assert "shared repo" not in content_no_backticks.lower()
     for statement in [
         "repo-wide rules",
         "child AGENTS are delta-only",
         "inherit root policy",
+        "Force-add or commit ignored internal artifacts",
     ]:
         assert statement.lower() in content_no_backticks.lower(), (
             f"Missing required policy statement: {statement}"
