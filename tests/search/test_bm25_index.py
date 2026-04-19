@@ -46,8 +46,16 @@ def fake_bm25_backend(
                 }
             )
             tokens: list[str] = []
+            if "Python" in text or "python" in text:
+                tokens.append("python")
+            if "README.md" in text or "readme.md" in text:
+                tokens.extend(["readme", "md"])
+            if "/src/app.py" in text or "/src/app.py" in text.casefold():
+                tokens.extend(["src", "app", "py"])
             if "자연어" in text:
                 tokens.append("자연어")
+            if not self.extract_nouns_only and ("처리" in text):
+                tokens.append("처리")
             if not self.extract_nouns_only and ("재미있" in text or "재미있는" in text):
                 tokens.append("재미있")
             return tuple(tokens)
@@ -209,6 +217,37 @@ class TestBM25SearchIndex:
             call.get("text") == "자연어" for call in fake_bm25_backend["registry"]
         )
 
+    def test_mixed_language_tokens_preserve_english_identifiers(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="자연어 Python 처리",
+                content="README.md /src/app.py 를 참고하세요.",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="kiwi_morphology_v1")
+        _ = index.search("Python README.md")
+
+        first_index_call = cast(dict[str, Any], fake_bm25_backend["index"][0])
+        first_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][0])
+
+        assert first_index_call["corpus_tokens"][0] == [
+            "python",
+            "readme",
+            "md",
+            "src",
+            "app",
+            "py",
+            "자연어",
+            "처리",
+        ]
+        assert first_retrieve_call["query_tokens"] == [["python", "readme", "md"]]
+
     def test_kiwi_candidate_mode_changes_index_and_query_tokens(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
@@ -237,7 +276,6 @@ class TestBM25SearchIndex:
         first_index_call = cast(dict[str, Any], fake_bm25_backend["index"][0])
         second_index_call = cast(dict[str, Any], fake_bm25_backend["index"][1])
         first_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][0])
-        second_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][1])
 
         assert fake_bm25_backend["resolve"][:2] == [
             {
@@ -249,29 +287,12 @@ class TestBM25SearchIndex:
                 "kiwi_lexical_candidate_mode": "nouns",
             },
         ]
-        assert first_index_call["corpus_tokens"][0] == [
-            "자연어",
-            "처리",
-            "자연어",
-            "처리는",
-            "재미있는",
-            "분야입니다",
-            "자연어",
-            "재미있",
-        ]
-        assert second_index_call["corpus_tokens"][0] == [
-            "자연어",
-            "처리",
-            "자연어",
-            "처리는",
-            "재미있는",
-            "분야입니다",
-            "자연어",
-        ]
-        assert first_retrieve_call["query_tokens"] == [["재미있다", "재미있"]]
-        assert second_retrieve_call["query_tokens"] == [["재미있다"]]
-        assert morphology_results[0].matched_terms == ("재미있다", "재미있")
-        assert nouns_results[0].matched_terms == ("재미있다",)
+        assert first_index_call["corpus_tokens"][0] == ["자연어", "처리", "재미있"]
+        assert second_index_call["corpus_tokens"][0] == ["자연어"]
+        assert first_retrieve_call["query_tokens"] == [["재미있"]]
+        assert len(fake_bm25_backend["retrieve"]) == 1
+        assert morphology_results[0].matched_terms == ("재미있",)
+        assert nouns_results == []
 
     def test_save_and_load_preserve_kiwi_candidate_mode(
         self,
@@ -474,7 +495,7 @@ class TestBM25SearchIndex:
             )
             for i in range(10)
         ]
-        index = BM25SearchIndex(docs)
+        index = BM25SearchIndex(docs, use_kiwi_tokenizer=False)
         results = index.search("topic", limit=5)
         assert len(results) <= 5
         assert fake_bm25_backend["retrieve"][0]["k"] == 5
