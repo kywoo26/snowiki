@@ -20,11 +20,6 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Use `tmp_path` fixture for all tests that write to the filesystem.
 - Ensure child AGENTS are delta-only and inherit root policy.
 
-## Ask First
-
-- Modifying core storage interfaces, Pydantic models, or `SchemaVersion`.
-- Changing CLI command signatures or arguments.
-
 ## Never
 
 - Commit secrets, credentials, or `.env` files.

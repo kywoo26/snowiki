@@ -68,7 +68,7 @@ A family may be admitted only if it satisfies all of the following:
   - useful for typo/OCR-heavy corpora, but not yet justified by current Snowiki benchmark slices
   - may be reconsidered only if benchmark strengthening shows that typo/noise-heavy retrieval is materially underrepresented
 
-## Dependency and governance rule
+## External-family execution rule
 
 This admission packet allows one bounded external-family lane to add the minimum runtime dependencies required for exactly one admitted-in-principle family representative.
 
