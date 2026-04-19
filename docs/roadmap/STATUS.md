@@ -8,8 +8,8 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Strengthened benchmark substrate now shows no stable winner in the current lexical roster; Step 2 remains `benchmark-only/no runtime promotion`.
-  - Next action: Open one bounded external-family comparison lane under the frozen family admission packet.
+  - Status: Strengthened benchmark substrate shows no stable winner in the current lexical roster; the next external-family lane is blocked pending dependency approval.
+  - Next action: Reopen execution only if one admitted-in-principle external family is explicitly approved for runtime dependency addition.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**
