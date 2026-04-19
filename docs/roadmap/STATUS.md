@@ -8,9 +8,9 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Strengthened benchmark substrate showed no stable winner in the current lexical roster, and the bounded HF/subword external-family lane completed as a rejected benchmark-only comparison; Step 2 remains `benchmark-only/no runtime promotion`.
-  - Next action: Reopen Step 2 for one bounded Mecab-family comparison lane under a new explicit reopening decision, then decide whether Step 2 ends as `no stable winner`, `blocked-with-artifact`, or a future runtime-promotion recommendation package.
-  - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
+  - Status: Strengthened benchmark substrate showed no stable winner in the current lexical roster; the bounded HF/subword lane completed as a rejected benchmark-only comparison; the bounded Mecab reopening lane then closed as `blocked-with-artifact` at the Python 3.14 feasibility gate.
+  - Next action: No further Mecab implementation work in this round. Any future Mecab reopening requires a bounded Python 3.14-compatible install path or a newly approved Mecab representative.
+  - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark, and the current Mecab representative is not bounded on Python 3.14.
 
 - [x] **Step 3: Wiki skill contract draft**
   - Status: Analysis complete. Decomposed into four sub-steps:

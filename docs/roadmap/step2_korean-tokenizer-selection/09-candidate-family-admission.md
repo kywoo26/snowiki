@@ -41,7 +41,7 @@ A family may be admitted only if it satisfies all of the following:
 - **Why admitted**:
   - external Korean retrieval evidence suggests Mecab-like morphology remains a serious family-level baseline
   - it is the strongest contrast to Kiwi within the morphology family class
-- **Special note**: implementation depends on dependency/governance feasibility. If no safe bounded path exists, this family must close as blocked-with-artifact rather than silently expanding scope.
+- **Special note**: implementation depends on dependency/governance feasibility. The current bounded reopening attempt failed on Python 3.14 because `python-mecab-ko` fell into a native build path requiring `mecab-config`, so this representative is now closed as blocked-with-artifact for the current round.
 
 ### 4. Subword/HF family — executed in this round
 - **Representative target**: `huggingface/tokenizers` represented by `BertWordPieceTokenizer` as the bounded multilingual subword representative
@@ -91,7 +91,7 @@ Hard constraints still apply:
 | :--- | :--- | :--- | :--- |
 | Control | `regex_v1` | admitted | required baseline |
 | Kiwi | `kiwi_morphology_v1` | admitted | strongest incumbent family representative |
-| Mecab | `python-mecab-ko` | admitted in principle | strong Korean morphology family baseline |
+| Mecab | `python-mecab-ko` | blocked in this round | Python 3.14 install fell through to native build and failed on `mecab-config` |
 | HF / subword | `huggingface/tokenizers` (`BertWordPieceTokenizer`) | executed in this round | mixed-language/code-heavy comparison family; benchmarkable but rejected |
 | Okt / social-text | TBD | deferred | only if corpus evidence justifies it |
 

@@ -47,15 +47,15 @@ That means:
 - no runtime promotion in that lane
 - no second family lane opens implicitly from this result
 
-### 5. Mecab is now reopened as one new bounded lane
+### 5. Mecab reopening closed as blocked-with-artifact
 
-Mecab remains part of the frozen admission packet as an **admitted-in-principle** family, and it is now the single active external-family reopening lane for the next bounded Step 2 program.
+Mecab remains part of the frozen admission packet as an **admitted-in-principle** family, but the bounded reopening attempt for `python-mecab-ko` failed at the Python 3.14 feasibility gate.
 
 That means:
 - HF/subword remains the completed prior lane and is not being retried
-- Mecab may open exactly once as the next bounded external-family comparison
-- the Mecab lane remains benchmark-only unless a later separate runtime-promotion package is justified
-- this reopening does not authorize any second external family beyond Mecab in the same round
+- the current Mecab representative is closed as `blocked-with-artifact`
+- the lane did not proceed to tokenizer implementation or benchmark execution
+- any future Mecab attempt requires a later explicit reopening decision plus a bounded Python 3.14-compatible install path
 
 ## Step 4 implication
 
@@ -65,11 +65,12 @@ Because the sparse branch is still not proven and the strengthened current roste
 
 ## Next bounded lane
 
-### 7. The correct next move is the bounded Mecab reopening lane
+### 7. The correct next move is Step 2 final comparative proof/recommendation with Mecab blocked
 
-The next canonical move is to execute one bounded Mecab-family reopening lane, beginning with benchmark-state reconciliation and a Python 3.14 feasibility gate.
+The next canonical move is to close the final comparative proof/recommendation package with the current external-family outcomes recorded as:
 
-Only after that Mecab lane closes should Step 2 move to the final comparative proof/recommendation package.
+- HF/subword: benchmarkable but rejected
+- Mecab: blocked-with-artifact at the bounded Python 3.14 feasibility gate
 
 ## Acceptance criteria
 
@@ -77,4 +78,4 @@ Only after that Mecab lane closes should Step 2 move to the final comparative pr
 - the note explicitly states that no runtime-promotion recommendation is issued
 - the note explicitly preserves the existing Step 2 benchmark-only closeout
 - the note explicitly records the bounded HF/subword lane result
-- the note explicitly names the bounded Mecab reopening lane as the next canonical move
+- the note explicitly records the Mecab blocked-with-artifact result
