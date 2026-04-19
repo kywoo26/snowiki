@@ -68,20 +68,15 @@ A family may be admitted only if it satisfies all of the following:
   - useful for typo/OCR-heavy corpora, but not yet justified by current Snowiki benchmark slices
   - may be reconsidered only if benchmark strengthening shows that typo/noise-heavy retrieval is materially underrepresented
 
-## Dependency and governance rule
+## External-family execution rule
 
-This admission packet does **not** approve dependency changes by itself.
+This admission packet allows one bounded external-family lane to add the minimum runtime dependencies required for exactly one admitted-in-principle family representative.
 
-If the Mecab-family or subword/HF representative requires:
-- new dependencies
-- inventory-sensitive benchmark asset changes
-- broader packaging/platform work
-
-then the later implementation substep must either:
-1. find a safe bounded path that stays within governance rules, or
-2. close that family lane as blocked-with-artifact
-
-The reopening program must not silently broaden scope to force those families in.
+Hard constraints still apply:
+- only one family may be opened at a time
+- dependency changes must remain bounded to that one family lane
+- benchmark asset changes and docs/tests must still ship in the same PR sequence when relevant
+- the reopening program must not silently broaden scope into multiple family integrations at once
 
 ## Current reopening roster
 

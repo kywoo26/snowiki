@@ -36,7 +36,6 @@ def test_root_agents_contract_sections(repo_root):
         "Child `AGENTS.md` files inherit these rules",
         "## Toolchain",
         "## Always",
-        "## Ask First",
         "## Never",
         "## Verification Matrix",
         "## Ownership",

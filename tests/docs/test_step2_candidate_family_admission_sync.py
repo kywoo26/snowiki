@@ -31,7 +31,7 @@ def test_step2_candidate_family_admission_stays_aligned_with_status_and_reopenin
         "Subword/HF family — admitted in principle",
         "Okt / social-text morphology — deferred",
         "Additional Kiwi variants — excluded",
-        "This admission packet does **not** approve dependency changes by itself.",
+        "This admission packet allows one bounded external-family lane to add the minimum runtime dependencies required for exactly one admitted-in-principle family representative.",
     ]
     for marker in required_admission_markers:
         assert marker in admission
