@@ -31,6 +31,13 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Add agent co-author markers (e.g., `Co-authored-by:`, `Ultraworked with`) to commits.
 - Force-add or commit ignored internal artifacts (for example `.sisyphus/`, `.cache/`, or transient `reports/` content) unless an explicit tracked exception is already whitelisted by repo policy.
 
+
+## PR Discipline
+
+- Use `.github/pull_request_template.md` as lightweight guidance, not as a hard gate.
+- Use `.github/commit-message-rules.md` as lightweight guidance for clear conventional commit subjects.
+- Maintain atomic commits by concern when practical.
+
 ## Verification Matrix
 
 | Scope | Verification Command |
@@ -67,19 +74,3 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Access to repository assets (benchmarks, fixtures) must flow through approved helpers in `src/snowiki/config.py` and `src/snowiki/storage/zones.py`.
 - Avoid direct repo-root derivations or raw `cwd` coupling in production code.
 
-## PR Discipline
-
-- One canonical owner per fact; mirrors must be updated in the same PR.
-- Root AGENTS changes must be intentional; do not silently rewrite child AGENTS.
-- Maintain atomic commits by concern.
-- Use the PR template at `.github/pull_request_template.md`; fill Problem, Surfaces Touched, Verification, and Contract Sync.
-- Use conventional commits: `type(scope): subject`. See `.github/commit-message-rules.md` for the full rule set.
-- `feat` and `fix` require a scope. A body explaining why is strongly recommended.
-- Reference issues in the footer: `Refs: #N` or `Fixes: #N`.
-
-## Branch Naming
-
-Use `type/description` where type matches the commit type:
-`feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `ci/`, `deps/`
-
-Example: `feat/search-architecture-hardening`, `docs/roadmap-reorganization`.

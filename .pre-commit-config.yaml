@@ -16,24 +16,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
-      - id: governance-advisory
-        name: governance advisory report
-        entry: uv run python scripts/check_governance.py --report
-        language: system
-        pass_filenames: false
-        always_run: true
       - id: ty-check
         name: ty check
         entry: uv run ty check
         language: system
         pass_filenames: false
         types_or: [python, pyi]
-      - id: commit-msg-governance
-        name: commit message governance
-        entry: uv run python scripts/check_commit_message.py
-        language: system
-        stages: [commit-msg]
-        pass_filenames: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

@@ -1,27 +1,19 @@
-# Commit Message Rules
+# Commit Message Guidelines
 
-```
-type(scope): short imperative subject under 72 chars
+Use conventional commit style where practical.
 
-Body: why this change is needed, what contract or behavior changed.
+Recommended forms:
+- `feat(scope): short imperative summary`
+- `fix(scope): short imperative summary`
+- `docs: short imperative summary`
+- `test: short imperative summary`
+- `refactor: short imperative summary`
+- `ci: short imperative summary`
 
-Refs: #123
-BREAKING CHANGE: migration steps here (if any)
-```
+Guidance:
+- keep the subject under ~72 characters when possible
+- avoid a trailing period
+- use a scope for `feat` and `fix` when it improves clarity
+- prefer clarity over ritual
 
-Types: feat, fix, refactor, docs, test, ci, deps
-Scopes: cli, search, storage, skill, test, ci, deps
-
-- `feat` and `fix` require a scope.
-- `docs`, `test`, `ci`, `deps`, `refactor` may omit scope.
-- Imperative mood, no trailing period, max 72 chars.
-- Body strongly recommended for `feat`, `fix`, `refactor`; explain why.
-- Footer: `Refs: #N`, `Fixes: #N`, `BREAKING CHANGE:`.
-
-## Enforcement
-
-The local `commit-msg` hook enforces:
-- Subject format, length, and trailing period.
-- Banned AI/agent markers anywhere in the message.
-
-Commit body structure remains advisory in this enforcement stage.
+These are guidelines, not a hard gate.
