@@ -11,7 +11,7 @@ The governed benchmark asset surface lives in `benchmarks/`. Runtime benchmark i
 ## Assets & Provenance
 
 - `benchmarks/queries.json` and `benchmarks/judgments.json` are the canonical Phase 1 quality dataset.
-- Do not modify these assets without an explicit "Ask First" trigger for inventory-sensitive updates.
+- Benchmark asset updates are allowed only when they are part of an explicitly bounded benchmark program with canonical docs/tests updated in the same PR.
 - Benchmark reports in `reports/` are transient artifacts and should not be committed unless specifically requested for evidence.
 
 ## Execution & Isolation
