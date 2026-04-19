@@ -2,85 +2,106 @@
 
 ## Run Metadata
 
-- **Commit SHA**: `7911895673d8487083cb9a43842853cbaaf69524`
+- **Commit SHA**: `1148fa522f69e5ce6e1a9b81aa4f09d42b4e9c63`
 - **Benchmark Presets**: `retrieval` (blocking), `core` (informational), `full` (informational)
-- **Local Transient Report Paths**: `reports/step2-proof/retrieval.json`, `reports/step2-proof/core.json`, `reports/step2-proof/full.json`
+- **Local Transient Report Paths**: `reports/substep2/retrieval.json`, `reports/substep2/core.json`, `reports/substep2/full.json`
 - **GitHub Artifact Name**: `benchmark-retrieval-report` (blocking preset)
 - **Canonical Candidate Identities**:
   - `regex_v1` (Control)
   - `kiwi_morphology_v1`
   - `kiwi_nouns_v1`
 
-> **Note on Transient Reports**: Raw JSON artifacts under `reports/` are transient and not committed to the repository. This memo is the durable roadmap-facing record of the current local benchmark evidence after the first mixed-tokenizer redesign attempt.
+> **Note on Transient Reports**: Raw JSON artifacts under `reports/` are transient and not committed to the repository. This memo is the durable roadmap-facing record of the strengthened local benchmark evidence after the canonical 90-query judged-set expansion.
 
 ## Blocking Evidence
 
 The `retrieval` preset remains the blocking gate for Step 2.
 
-### Mixed-Slice Delta Table
+### Strengthened current-roster result
 
-| Candidate | Recall@k | MRR | nDCG@k | Delta (vs regex_v1) | Result |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `regex_v1` | 0.740741 | 0.722222 | 0.689731 | 0.00 | CONTROL |
-| `kiwi_morphology_v1` | 0.712963 | 0.733333 | 0.685411 | Recall `-0.027778`, MRR `+0.011111`, nDCG `-0.004320` | reject |
-| `kiwi_nouns_v1` | 0.712963 | 0.733333 | 0.685411 | Recall `-0.027778`, MRR `+0.011111`, nDCG `-0.004320` | reject |
+The strengthened current-roster result does **not** produce a stable winner among the current roster.
 
-### Ko/En Guardrail Table
+No stable winner in the strengthened current roster.
 
-| Candidate | Slice | Recall@k | Delta (vs regex_v1) | Status |
+Current rerun result on the 66-query blocking `retrieval` slice:
+
+| Candidate | Recall@k | MRR | nDCG@k | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| `kiwi_morphology_v1` | `ko` | 0.712963 | 0.000000 | PASS |
-| `kiwi_morphology_v1` | `en` | 0.685185 | -0.111111 | FAIL |
-| `kiwi_nouns_v1` | `ko` | 0.712963 | 0.000000 | PASS |
-| `kiwi_nouns_v1` | `en` | 0.685185 | -0.111111 | FAIL |
+| `regex_v1` | 0.712121 | 0.713384 | 0.677320 | reject |
+| `kiwi_morphology_v1` | 0.666667 | 0.672222 | 0.628733 | reject |
+| `kiwi_nouns_v1` | 0.666667 | 0.664646 | 0.623141 | reject |
+
+### Ko/En/Mixed interpretation
+
+- The stronger judged set confirms that the current roster is not merely “close.”
+- `regex_v1` itself now fails the blocking overall recall threshold on the strengthened set.
+- Both Kiwi candidates still fail more strongly than the control baseline on the blocking retrieval slice.
+- The current roster therefore does not justify a runtime-promotion recommendation.
 
 ## Informational Evidence
 
 The `core` and `full` presets provide additional context but do not block the gate.
 
-### Core Preset Regression Summary
+### Core preset summary
 
-The redesigned mixed tokenizer path causes both Kiwi candidates to fail the `core` preset overall MRR threshold (`0.643519 < 0.70`). This means the redesign does not merely miss promotion narrowly; it degrades a known-item-focused informational guardrail as well.
+The 42-query `core` preset still favors the control baseline and rejects both Kiwi candidates because their MRR remains below the frozen threshold.
 
-### Full Preset Regression Anatomy
+### Full preset summary
 
-The `full` preset continues to fail for both Kiwi candidates, and the redesigned path broadens the failure shape:
+The 90-query `full` preset also rejects the entire current roster under the strengthened substrate.
 
-- `kiwi_morphology_v1` now fails overall recall (`0.675 < 0.72`) and overall nDCG (`0.641309 < 0.67`)
-- `kiwi_nouns_v1` now fails overall recall (`0.675 < 0.72`), overall MRR (`0.697778 < 0.70`), overall nDCG (`0.635158 < 0.67`), and temporal recall (`0.416667 < 0.47`)
+This is useful, not catastrophic: it means the stronger benchmark is doing its job by exposing that the current lexical family set is still not production-credible.
 
-### Latency Ratio Table
+No stable winner in the strengthened current roster.
 
-| Candidate | P50 (ms) | P95 (ms) | Ratio (vs regex_v1) | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| `regex_v1` | 0.771994 | 1.052875 | 1.00x | CONTROL |
-| `kiwi_morphology_v1` | 0.196453 | 0.415828 | 0.39x | PASS |
-| `kiwi_nouns_v1` | 0.159842 | 0.340549 | 0.32x | PASS |
+### Latency / operational evidence
 
-## Operational Evidence
+Operational evidence remains measured and acceptable.
 
-- **Platform Coverage**: macOS / Linux x86_64 / Linux aarch64 supported; Windows unknown.
-- **Install Ergonomics**: Prebuilt wheels available; build-from-source not required.
-- **Measured Build Evidence**:
-  - `regex_v1`: memory `945.390625 MB`, disk `0.052922 MB`
-  - `kiwi_morphology_v1`: memory `1364.519531 MB`, disk `0.054637 MB`
-  - `kiwi_nouns_v1`: memory `1323.605469 MB`, disk `0.054499 MB`
+Representative retrieval run operational evidence:
+- `regex_v1`: memory `945.757812 MB`, disk `0.049595 MB`
+- `kiwi_morphology_v1`: memory `1363.722656 MB`, disk `0.05131 MB`
+- `kiwi_nouns_v1`: memory `1323.261719 MB`, disk `0.051171 MB`
 - **Operational Status**: PASS (memory and disk usage are now measured)
 
-## GitHub Reproduction
+## Current recommendation
 
-- **Workflow Run URL**: [PENDING]
-- **Parity Status**: [PENDING]
-- **Reproduction Rationale**: Local evidence is refreshed on the redesigned tokenizer path. GitHub/manual parity is still required before any future gate relaxation, but current local evidence is already sufficient to keep Step 2 blocked.
+### Local closeout for the current roster
 
-> **Gate Rule**: Step 4 cannot be unblocked without both local blocking evidence and GitHub reproduction parity.
+- **Local Closeout Outcome**: no stable winner in the strengthened current roster
+- **Promoted Tokenizer**: [NONE]
+- **Step 4 Unblocked**: [NO]
+
+### Why this is the correct interpretation
+
+The strengthened benchmark no longer supports the idea that the current roster is near promotion.
+
+Instead, it shows that:
+- the benchmark substrate is now stricter and more credible
+- the current roster is exhausted on that stronger substrate
+- another bounded lane is required if Step 2 is to move forward
+
+## Next Step 2 lane
+
+The correct next lane is **one bounded external-family comparison** under the already-frozen family admission packet.
+
+That means:
+- do not reopen more Kiwi variants
+- do not expand the benchmark again
+- admit one external family representative only if it can be integrated within bounded scope
+
+## Step 4 implication
+
+Step 4 remains blocked.
+
+The sparse branch is still not proven, and the stronger benchmark makes that conclusion more credible rather than less.
 
 ## Step 4 Gate Decision
 
 - **Local Closeout Outcome**: benchmark-only/no runtime promotion
 - **Promoted Tokenizer**: [NONE]
 - **Step 4 Unblocked**: [NO]
-- **Rationale**: The redesigned mixed tokenizer path does not justify promotion. Operational evidence is now measured, but both Kiwi candidates regress the mixed slice relative to `regex_v1` and fail the `en` non-regression guardrail by `-0.111111`. `kiwi_morphology_v1` and `kiwi_nouns_v1` both fail the blocking `retrieval` preset overall quality gate, and `kiwi_nouns_v1` also fails more severely on `full`. Step 2 therefore remains `benchmark-only/no runtime promotion`, and Step 4 remains blocked.
+- **Rationale**: The strengthened benchmark substrate now shows no stable winner in the current lexical roster. The current roster is exhausted on the stronger judged set, so Step 2 remains benchmark-only/no runtime promotion and the next bounded lane is one external-family comparison under the frozen family admission packet. Step 4 therefore remains blocked.
 
 ---
-*This document is the durable Step 2 local proof refresh record for the benchmark evidence captured above.*
+*This document is the durable strengthened-current-roster proof record for the lexical productionization program.*
