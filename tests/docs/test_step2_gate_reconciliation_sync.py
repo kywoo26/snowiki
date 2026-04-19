@@ -57,8 +57,8 @@ def test_step2_gate_reconciliation_stays_aligned_with_proof_and_status(
         assert marker in reconciliation
 
     required_status_markers = [
-        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the representative family set is now frozen.",
-        "Freeze the benchmark maturity bar and decide whether benchmark asset changes are mandatory before family comparison proceeds.",
+        "Current candidate set remains closed at `benchmark-only/no runtime promotion`; bounded reopening is active and the benchmark maturity bar is now frozen.",
+        "Benchmark asset strengthening is now the mandatory next lane before any decisive family comparison.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]
