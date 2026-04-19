@@ -10,6 +10,7 @@ def test_candidate_matrix_roadmap_roster_is_closed() -> None:
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
+        "mecab_morphology_v1",
         "hf_wordpiece_v1",
         "lindera_ko_v1",
     ]
@@ -17,11 +18,13 @@ def test_candidate_matrix_roadmap_roster_is_closed() -> None:
         "lexical",
         "bm25s_kiwi_full",
         "bm25s_kiwi_nouns",
+        "bm25s_mecab_full",
         "bm25s_hf_wordpiece",
         None,
     ]
     assert [candidate.control for candidate in CANDIDATE_MATRIX] == [
         True,
+        False,
         False,
         False,
         False,
@@ -42,6 +45,7 @@ def test_lindera_remains_reference_candidate_until_zero_cost_admission_exists() 
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
+        "mecab_morphology_v1",
         "hf_wordpiece_v1",
     }
 
@@ -67,5 +71,6 @@ def test_policy_governance_preserves_dual_identity_and_control_path() -> None:
     assert decisions["regex_v1"].disposition == "reject"
     assert decisions["kiwi_morphology_v1"].disposition == "reject"
     assert decisions["kiwi_nouns_v1"].disposition == "reject"
+    assert decisions["mecab_morphology_v1"].disposition == "reject"
     assert decisions["hf_wordpiece_v1"].disposition == "reject"
     assert decisions["lindera_ko_v1"].disposition == "reject"

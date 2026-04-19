@@ -41,6 +41,14 @@ _KIWI_PLATFORM_SET = PlatformSupportEvidence(
     fallback_behavior="unknown",
 )
 
+_MECAB_PLATFORM_SET = PlatformSupportEvidence(
+    macos="unknown",
+    linux_x86_64="supported",
+    linux_aarch64="unknown",
+    windows="unknown",
+    fallback_behavior="unknown",
+)
+
 _LINDERA_ZERO_COST_ADMISSION = False
 
 
@@ -109,6 +117,28 @@ CANDIDATE_MATRIX: tuple[TokenizerCandidate, ...] = (
             ),
             zero_cost_admission=True,
             admission_reason="admitted_kiwi_candidate",
+        ),
+    ),
+    TokenizerCandidate(
+        candidate_name="mecab_morphology_v1",
+        evidence_baseline="bm25s_mecab_full",
+        role="candidate",
+        admission_status="admitted",
+        control=False,
+        operational_evidence=CandidateOperationalEvidence(
+            memory_peak_rss_mb=None,
+            memory_evidence_status="not_measured",
+            disk_size_mb=None,
+            disk_size_evidence_status="not_measured",
+            platform_support=_MECAB_PLATFORM_SET,
+            install_ergonomics=InstallErgonomicsEvidence(
+                prebuilt_available=True,
+                build_from_source_required=False,
+                hidden_bootstrap_steps=False,
+                operational_complexity="medium",
+            ),
+            zero_cost_admission=True,
+            admission_reason="admitted_mecab_candidate",
         ),
     ),
     TokenizerCandidate(

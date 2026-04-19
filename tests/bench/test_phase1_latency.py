@@ -182,6 +182,7 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
         "bm25s",
         "bm25s_kiwi_nouns",
         "bm25s_kiwi_full",
+        "bm25s_mecab_full",
         "bm25s_hf_wordpiece",
     ]
     assert [call["mode"] for call in query_calls] == ["lexical", "lexical"]
