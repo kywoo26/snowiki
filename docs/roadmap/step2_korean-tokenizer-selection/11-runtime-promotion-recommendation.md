@@ -47,11 +47,15 @@ That means:
 - no runtime promotion in that lane
 - no second family lane opens implicitly from this result
 
-### 5. Mecab remains admitted in principle, not active in this round
+### 5. Mecab is now reopened as one new bounded lane
 
-Mecab is still part of the frozen admission packet as an **admitted-in-principle** family, but it is **not** part of the current execution round anymore because the one-family external lane budget was already spent on HF/subword.
+Mecab remains part of the frozen admission packet as an **admitted-in-principle** family, and it is now the single active external-family reopening lane for the next bounded Step 2 program.
 
-If Mecab is ever reopened, that must happen through a later explicit canonical decision rather than by silently broadening this substep.
+That means:
+- HF/subword remains the completed prior lane and is not being retried
+- Mecab may open exactly once as the next bounded external-family comparison
+- the Mecab lane remains benchmark-only unless a later separate runtime-promotion package is justified
+- this reopening does not authorize any second external family beyond Mecab in the same round
 
 ## Step 4 implication
 
@@ -61,9 +65,11 @@ Because the sparse branch is still not proven and the strengthened current roste
 
 ## Next bounded lane
 
-### 7. The correct next move is Substep 5 final comparative proof/recommendation
+### 7. The correct next move is the bounded Mecab reopening lane
 
-The next canonical move is to close the final comparative proof package for the HF result and determine whether Step 2 now terminates as **no stable winner** or explicitly reopens Substep 3 under evidence.
+The next canonical move is to execute one bounded Mecab-family reopening lane, beginning with benchmark-state reconciliation and a Python 3.14 feasibility gate.
+
+Only after that Mecab lane closes should Step 2 move to the final comparative proof/recommendation package.
 
 ## Acceptance criteria
 
@@ -71,4 +77,4 @@ The next canonical move is to close the final comparative proof package for the 
 - the note explicitly states that no runtime-promotion recommendation is issued
 - the note explicitly preserves the existing Step 2 benchmark-only closeout
 - the note explicitly records the bounded HF/subword lane result
-- the note explicitly names Substep 5 as the next canonical move
+- the note explicitly names the bounded Mecab reopening lane as the next canonical move
