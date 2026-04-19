@@ -19,7 +19,8 @@ The following items are explicitly excluded from Phase 1 and are planned for Pha
 - Claim-level citations and epistemic integrity checks.
 - P99 latency metrics (Phase 1 uses P50 and P95).
 - Precision@K metrics (Phase 1 uses Recall@K, MRR, and nDCG@K).
-- Memory usage metrics.
+
+Tokenizer-promotion operational evidence (memory/disk) is measured separately from the Phase 1 benchmark pass/fail gate and is no longer treated as a future-only exclusion.
 
 ## Benchmark Assets
 

@@ -76,8 +76,17 @@ def _render_candidate_matrix(matrix: dict[str, object]) -> list[str]:
         role = candidate.get("role", "unknown")
         status = candidate.get("admission_status", "unknown")
         baseline = candidate.get("evidence_baseline")
+        operational = cast(dict[str, object], candidate.get("operational_evidence", {}))
         baseline_str = f", baseline={baseline}" if baseline else ""
-        lines.append(f"- {name}: role={role}, status={status}{baseline_str}")
+        memory_str = ""
+        disk_str = ""
+        if operational.get("memory_evidence_status") == "measured":
+            memory_str = f", memory_peak_rss_mb={operational.get('memory_peak_rss_mb')}"
+        if operational.get("disk_size_evidence_status") == "measured":
+            disk_str = f", disk_size_mb={operational.get('disk_size_mb')}"
+        lines.append(
+            f"- {name}: role={role}, status={status}{baseline_str}{memory_str}{disk_str}"
+        )
     return lines
 
 
