@@ -50,14 +50,13 @@ def test_step2_gate_audit_stays_aligned_with_proof_and_status(repo_root: Path) -
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
         "+0.027778",
-        "Operational Status**: FAIL (Memory and Disk usage not measured)",
+        "Operational Status**: PASS (memory and disk usage are now measured)",
     ]
     for marker in required_proof_markers:
         assert marker in proof
 
-    assert "Launch the fresh evidence program for Step 2." in status
     assert (
-        "This is an intentional reopening under a new promotion program, not more mandatory closeout normalization."
+        "Mixed-language tokenizer redesign remains the next evidence-generating lane; operational evidence is no longer the primary blocker."
         in status
     )
     assert "Step 2 sparse branch still not proven on mixed-language benchmark." in status

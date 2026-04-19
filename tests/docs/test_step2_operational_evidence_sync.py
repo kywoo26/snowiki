@@ -47,4 +47,4 @@ def test_step2_operational_evidence_note_stays_aligned_with_policy(
         "Tokenizer-promotion operational evidence (memory/disk) is measured separately"
         in benchmark_readme
     )
-    assert "Operational Status**: FAIL (Memory and Disk usage not measured)" in proof
+    assert "Operational Status**: PASS (memory and disk usage are now measured)" in proof

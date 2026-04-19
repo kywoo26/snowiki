@@ -86,7 +86,7 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
     required_proof_markers = [
         "- **Benchmark Presets**: `retrieval` (blocking), `core` (informational), `full` (informational)",
         "The `core` and `full` presets provide additional context but do not block the gate.",
-        "The `full` preset failed due to `kiwi_nouns_v1` overall recall (0.716667 < 0.72 threshold).",
+        "The `full` preset still fails due to `kiwi_nouns_v1` overall recall (`0.716667 < 0.72` threshold).",
         "- **Local Closeout Outcome**: benchmark-only/no runtime promotion",
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
@@ -103,7 +103,8 @@ def test_step2_closeout_contract_is_normalized(repo_root: Path) -> None:
     assert "It will be populated once benchmark runs are complete." not in proof
 
     required_status_markers = [
-        "Benchmark proof failed to reach promotion threshold; local outcome is `benchmark-only/no runtime promotion`.",
+        "Fresh local proof refreshed with measured operational evidence; local outcome remains `benchmark-only/no runtime promotion`.",
+        "Mixed-language tokenizer redesign remains the next evidence-generating lane; operational evidence is no longer the primary blocker.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first.",
         "Step 2 still not proven, Step 4 remains blocked.",

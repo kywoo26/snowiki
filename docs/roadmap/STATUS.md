@@ -8,8 +8,8 @@
   - Blocker: None
 
 - [x] **Step 2: Korean tokenizer deep-dive**
-  - Status: Benchmark proof failed to reach promotion threshold; local outcome is `benchmark-only/no runtime promotion`.
-  - Next action: Launch the fresh evidence program for Step 2. This is an intentional reopening under a new promotion program, not more mandatory closeout normalization.
+  - Status: Fresh local proof refreshed with measured operational evidence; local outcome remains `benchmark-only/no runtime promotion`.
+  - Next action: Mixed-language tokenizer redesign remains the next evidence-generating lane; operational evidence is no longer the primary blocker.
   - Blocker: Step 2 sparse branch still not proven on mixed-language benchmark.
 
 - [x] **Step 3: Wiki skill contract draft**

@@ -2,7 +2,7 @@
 
 ## Run Metadata
 
-- **Commit SHA**: `1757d8edee77198fd2555bda315dc8adf2bc2678`
+- **Commit SHA**: `e001145ec284d580425d7f1a2d9745ed6c2a13f1`
 - **Benchmark Presets**: `retrieval` (blocking), `core` (informational), `full` (informational)
 - **Local Transient Report Paths**: `reports/step2-proof/retrieval.json`, `reports/step2-proof/core.json`, `reports/step2-proof/full.json`
 - **GitHub Artifact Name**: `benchmark-retrieval-report` (blocking preset)
@@ -11,19 +11,19 @@
   - `kiwi_morphology_v1`
   - `kiwi_nouns_v1`
 
-> **Note on Transient Reports**: Raw JSON artifacts under `reports/` are transient and not committed to the repository. This memo serves as the durable roadmap-facing record of the benchmark results.
+> **Note on Transient Reports**: Raw JSON artifacts under `reports/` are transient and not committed to the repository. This memo is the durable roadmap-facing record of the current local benchmark evidence.
 
 ## Blocking Evidence
 
-The `retrieval` preset serves as the blocking gate for Step 2.
+The `retrieval` preset remains the blocking gate for Step 2.
 
 ### Mixed-Slice Delta Table
 
 | Candidate | Recall@k | MRR | nDCG@k | Delta (vs regex_v1) | Result |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `regex_v1` | 0.740741 | 0.722222 | 0.689731 | 0.00 | CONTROL |
-| `kiwi_morphology_v1` | 0.768519 | 0.779630 | 0.725761 | +0.027778 | benchmark-only/no runtime promotion |
-| `kiwi_nouns_v1` | 0.768519 | 0.779630 | 0.725761 | +0.027778 | benchmark-only/no runtime promotion |
+| `kiwi_morphology_v1` | 0.768519 | 0.779630 | 0.725761 | Recall `+0.027778`, MRR `+0.057408`, nDCG `+0.036030` | benchmark-only/no runtime promotion |
+| `kiwi_nouns_v1` | 0.768519 | 0.779630 | 0.725761 | Recall `+0.027778`, MRR `+0.057408`, nDCG `+0.036030` | benchmark-only/no runtime promotion |
 
 ### Ko/En Guardrail Table
 
@@ -38,17 +38,20 @@ The `retrieval` preset serves as the blocking gate for Step 2.
 
 The `core` and `full` presets provide additional context but do not block the gate.
 
+### Core Preset Summary
+
+The `core` preset passed for all compared baselines. It remains informational because Step 2 promotion is decided on `retrieval`, not the narrower known-item-only slice.
+
 ### Full Preset Regression Anatomy
 
-The `full` preset failed due to `kiwi_nouns_v1` overall recall (0.716667 < 0.72 threshold). This failure is localized to a specific regression case:
+The `full` preset still fails due to `kiwi_nouns_v1` overall recall (`0.716667 < 0.72` threshold). This failure remains localized to the previously documented regression case:
 
 - **Query ID**: `ko-018`
 - **Query Text**: "대용량 로그 출력이나 긴 tool_result 응답을 가진 세션을 찾아줘."
 - **Gold Fixture**: `claude_large_output` (`fixtures/claude/large_output.jsonl`)
 - **Regression Contrast**:
-  - `kiwi_morphology_v1`: **HIT** (Correctly retrieved the large output fixture)
-  - `kiwi_nouns_v1`: **MISS** (Failed to retrieve the fixture)
-- **Root Cause**: The `kiwi_nouns_v1` candidate, which focuses on noun extraction, failed to capture the relevant tokens in the large tool output log, whereas the full morphology-based `kiwi_morphology_v1` succeeded.
+  - `kiwi_morphology_v1`: **HIT**
+  - `kiwi_nouns_v1`: **MISS**
 
 ### Latency Ratio Table
 
@@ -62,13 +65,17 @@ The `full` preset failed due to `kiwi_nouns_v1` overall recall (0.716667 < 0.72 
 
 - **Platform Coverage**: macOS / Linux x86_64 / Linux aarch64 supported; Windows unknown.
 - **Install Ergonomics**: Prebuilt wheels available; build-from-source not required.
-- **Operational Status**: FAIL (Memory and Disk usage not measured)
+- **Measured Build Evidence**:
+  - `regex_v1`: memory `947.292969 MB`, disk `0.050795 MB`
+  - `kiwi_morphology_v1`: memory `1364.843750 MB`, disk `0.051425 MB`
+  - `kiwi_nouns_v1`: memory `1324.417969 MB`, disk `0.051287 MB`
+- **Operational Status**: PASS (memory and disk usage are now measured)
 
 ## GitHub Reproduction
 
-- **Workflow Run URL**: `https://github.com/kywoo26/snowiki/actions/runs/24583376836`
-- **Parity Status**: MATCH
-- **Reproduction Nuance**: The initial dispatch attempt against the local branch ref (`feat/pr-governance-templates`) failed with HTTP 422 because the branch had not yet been pushed to the remote. Parity was successfully verified by falling back to a manual dispatch against the reachable `main` remote ref.
+- **Workflow Run URL**: [PENDING]
+- **Parity Status**: [PENDING]
+- **Reproduction Rationale**: Local evidence is now refreshed. A follow-up parity substep may still be required before any gate relaxation, but this local proof is already sufficient to show that operational evidence is no longer the primary blocker.
 
 > **Gate Rule**: Step 4 cannot be unblocked without both local blocking evidence and GitHub reproduction parity.
 
@@ -77,7 +84,7 @@ The `full` preset failed due to `kiwi_nouns_v1` overall recall (0.716667 < 0.72 
 - **Local Closeout Outcome**: benchmark-only/no runtime promotion
 - **Promoted Tokenizer**: [NONE]
 - **Step 4 Unblocked**: [NO]
-- **Rationale**: No candidate reached the promotion threshold. Both Kiwi candidates failed the mixed-slice delta threshold (+0.03 required, +0.0278 achieved) and the non-regression guardrails for `en` (and `ko` for `kiwi_nouns_v1`). Additionally, operational evidence (memory/disk) remains unmeasured, which blocks promotion by policy. Step 2 local closeout outcome is benchmark-only/no runtime promotion.
+- **Rationale**: Operational evidence is no longer the blocking issue. However, no candidate reached runtime promotion. `kiwi_morphology_v1` still misses the mixed-slice recall promotion threshold (`+0.03` required, `+0.027778` achieved) and still fails the `en` non-regression guardrail. `kiwi_nouns_v1` still fails both the `ko` and `en` recall guardrails and also fails the `full` preset overall recall threshold. Step 2 therefore remains `benchmark-only/no runtime promotion`, and Step 4 remains blocked.
 
 ---
-*This document is the durable Step 2 closeout record for the benchmark evidence captured above.*
+*This document is the durable Step 2 local proof refresh record for the benchmark evidence captured above.*
