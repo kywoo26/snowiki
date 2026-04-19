@@ -100,6 +100,8 @@ def fake_bm25_backend(
             or (
                 "hf_wordpiece_v1"
                 if kwargs.get("benchmark_alias") == "bm25s_hf_wordpiece"
+                else "mecab_morphology_v1"
+                if kwargs.get("benchmark_alias") == "bm25s_mecab_full"
                 else "kiwi_nouns_v1"
                 if kwargs.get("kiwi_lexical_candidate_mode") == "nouns"
                 or kwargs.get("benchmark_alias") == "bm25s_kiwi_nouns"
@@ -596,4 +598,22 @@ class TestBM25SearchIndex:
         index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
 
         assert index.tokenizer_name == "hf_wordpiece_v1"
+        assert index.use_kiwi_tokenizer is True
+
+    def test_init_accepts_mecab_tokenizer_name(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="안녕하세요 Snowiki",
+                content="README.md path",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="mecab_morphology_v1")
+
+        assert index.tokenizer_name == "mecab_morphology_v1"
         assert index.use_kiwi_tokenizer is True
