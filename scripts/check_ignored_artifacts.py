@@ -9,6 +9,11 @@ import sys
 ALLOWED_PREFIXES = (
     '.sisyphus/rules/',
 )
+POLICY_PREFIXES = (
+    '.sisyphus/',
+    '.cache/',
+    'reports/',
+)
 
 
 def _staged_paths() -> list[str]:
@@ -23,6 +28,10 @@ def _is_allowed(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in ALLOWED_PREFIXES)
 
 
+def _is_policy_target(path: str) -> bool:
+    return any(path.startswith(prefix) for prefix in POLICY_PREFIXES)
+
+
 def _is_ignored_by_policy(path: str) -> bool:
     result = subprocess.run(
         ['git', 'check-ignore', '--no-index', '-q', path],
@@ -35,7 +44,9 @@ def main() -> int:
     offenders = [
         path
         for path in _staged_paths()
-        if _is_ignored_by_policy(path) and not _is_allowed(path)
+        if _is_policy_target(path)
+        and _is_ignored_by_policy(path)
+        and not _is_allowed(path)
     ]
     if not offenders:
         return 0
