@@ -33,6 +33,7 @@ from .registry import (
 )
 from .rerank import NoOpReranker
 from .semantic_abstraction import DisabledSemanticBackend, SemanticBackend
+from .subword_tokenizer import WordPieceSearchTokenizer
 from .tokenizer import tokenize_text
 from .workspace import RetrievalService, RetrievalSnapshot
 
@@ -55,6 +56,7 @@ __all__ = [
     "SearchHit",
     "SemanticBackend",
     "TokenizerSpec",
+    "WordPieceSearchTokenizer",
     "WikiIndex",
     "all_candidates",
     "build_blended_index",

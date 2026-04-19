@@ -53,7 +53,8 @@ def test_canonical_names_contract() -> None:
     assert "regex_v1" in CANONICAL_NAMES
     assert "kiwi_morphology_v1" in CANONICAL_NAMES
     assert "kiwi_nouns_v1" in CANONICAL_NAMES
-    assert len(CANONICAL_NAMES) == 3
+    assert "hf_wordpiece_v1" in CANONICAL_NAMES
+    assert len(CANONICAL_NAMES) == 4
 
 
 def test_default_runtime_tokenizer_contract() -> None:
@@ -70,6 +71,7 @@ def test_candidate_listing_by_scope() -> None:
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
+        "hf_wordpiece_v1",
     }
 
 
@@ -162,6 +164,10 @@ def test_benchmark_alias_mapping() -> None:
     assert (
         resolve_legacy_tokenizer(benchmark_alias="bm25s_kiwi_nouns") == "kiwi_nouns_v1"
     )
+    assert (
+        resolve_legacy_tokenizer(benchmark_alias="bm25s_hf_wordpiece")
+        == "hf_wordpiece_v1"
+    )
 
 
 def test_engine_labels_are_not_tokenizer_identities() -> None:
@@ -176,3 +182,9 @@ def test_missing_identity_fail_closed() -> None:
     assert is_tokenizer_compatible("regex_v1", "kiwi_morphology_v1") is False
 
     assert is_tokenizer_compatible("regex_v1", "regex_v1") is True
+
+
+def test_create_uses_wordpiece_tokenizer_for_benchmark_candidate() -> None:
+    tokenizer = create("hf_wordpiece_v1")
+
+    assert tokenizer.tokenize("Python README.md")

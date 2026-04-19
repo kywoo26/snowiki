@@ -14,6 +14,7 @@ _EXPANDED_BASELINES = [
     "bm25s",
     "bm25s_kiwi_nouns",
     "bm25s_kiwi_full",
+    "bm25s_hf_wordpiece",
 ]
 
 
@@ -196,6 +197,12 @@ def _fake_report(
                         "admission_status": "admitted",
                         "evidence_baseline": "bm25s_kiwi_full",
                     },
+                    {
+                        "candidate_name": "hf_wordpiece_v1",
+                        "role": "candidate",
+                        "admission_status": "admitted",
+                        "evidence_baseline": "bm25s_hf_wordpiece",
+                    },
                 ],
                 "decisions": [
                     {
@@ -272,6 +279,19 @@ def _fake_report(
                 "bm25s_kiwi_full": {
                     "name": "bm25s_kiwi_full",
                     "tokenizer_name": "kiwi_morphology_v1",
+                    "latency": {
+                        "p50_ms": 0,
+                        "p95_ms": 0,
+                        "mean_ms": 0,
+                        "min_ms": 0,
+                        "max_ms": 0,
+                    },
+                    "queries": [],
+                    "quality": {"thresholds": []},
+                },
+                "bm25s_hf_wordpiece": {
+                    "name": "bm25s_hf_wordpiece",
+                    "tokenizer_name": "hf_wordpiece_v1",
                     "latency": {
                         "p50_ms": 0,
                         "p95_ms": 0,

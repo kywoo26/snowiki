@@ -13,6 +13,7 @@ dependencies = [
   "kiwipiepy>=0.21.0",
   "bm25s>=0.2.0",
   "numpy>=1.24.0",
+  "tokenizers>=0.22.2",
 ]
 
 [project.scripts]

@@ -295,7 +295,15 @@ def evaluate_candidate_policy(
         if candidate.control:
             decisions.append(_control_decision(entry))
             continue
-        decisions.append(_candidate_decision(entry, control_entry, thresholds))
+        decisions.append(
+            _candidate_decision(
+                entry,
+                control_entry,
+                thresholds,
+                candidate_name=candidate.candidate_name,
+                evidence_baseline=candidate.evidence_baseline,
+            )
+        )
 
     return tuple(decisions)
 
@@ -364,6 +372,9 @@ def _candidate_decision(
     entry: CandidateMatrixEntry | None,
     control_entry: CandidateMatrixEntry | None,
     thresholds: object,
+    *,
+    candidate_name: str,
+    evidence_baseline: str | None,
 ) -> CandidateDecision:
     mixed_metrics = tuple(STEP_03_CANDIDATE_POLICY["mixed_delta_metrics"])
     if (
@@ -373,8 +384,8 @@ def _candidate_decision(
         or control_entry.baseline is None
     ):
         return CandidateDecision(
-            candidate_name=entry.candidate_name if entry else "unknown",
-            evidence_baseline=entry.evidence_baseline if entry else None,
+            candidate_name=entry.candidate_name if entry else candidate_name,
+            evidence_baseline=entry.evidence_baseline if entry else evidence_baseline,
             disposition="reject",
             overall_quality_gate_passed=False,
             operational_evidence_present=bool(entry and entry.operational_evidence),

@@ -80,12 +80,14 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
         "bm25s",
         "bm25s_kiwi_nouns",
         "bm25s_kiwi_full",
+        "bm25s_hf_wordpiece",
     ]
     assert [entry.evidence_baseline for entry in candidate_entries] == [
         "lexical",
         "bm25s",
         "bm25s_kiwi_nouns",
         "bm25s_kiwi_full",
+        "bm25s_hf_wordpiece",
         None,
     ]
     assert [entry.candidate_name for entry in regex_entries] == ["regex_v1", "regex_v1"]
@@ -112,6 +114,7 @@ def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
     assert decisions["regex_v1"].evidence_baseline == "lexical"
     assert decisions["kiwi_morphology_v1"].evidence_baseline == "bm25s_kiwi_full"
     assert decisions["kiwi_nouns_v1"].evidence_baseline == "bm25s_kiwi_nouns"
+    assert decisions["hf_wordpiece_v1"].evidence_baseline == "bm25s_hf_wordpiece"
     assert decisions["lindera_ko_v1"].evidence_baseline is None
     assert set(legacy_baselines) == set(report.baselines)
     assert report.corpus.queries_evaluated == 90
@@ -198,6 +201,7 @@ def test_run_baseline_comparison_does_not_call_shipped_query_entrypoint(
         "bm25s",
         "bm25s_kiwi_nouns",
         "bm25s_kiwi_full",
+        "bm25s_hf_wordpiece",
     ]
 
 
@@ -380,5 +384,6 @@ def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
+        "hf_wordpiece_v1",
         "lindera_ko_v1",
     ]

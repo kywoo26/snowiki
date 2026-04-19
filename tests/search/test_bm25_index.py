@@ -98,7 +98,9 @@ def fake_bm25_backend(
         lambda **kwargs: (
             calls["resolve"].append(kwargs)
             or (
-                "kiwi_nouns_v1"
+                "hf_wordpiece_v1"
+                if kwargs.get("benchmark_alias") == "bm25s_hf_wordpiece"
+                else "kiwi_nouns_v1"
                 if kwargs.get("kiwi_lexical_candidate_mode") == "nouns"
                 or kwargs.get("benchmark_alias") == "bm25s_kiwi_nouns"
                 else "regex_v1"
@@ -577,3 +579,21 @@ class TestBM25SearchIndex:
                 "leave_progress": False,
             }
         ]
+
+    def test_init_accepts_subword_tokenizer_name(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Python README",
+                content="README.md path",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
+
+        assert index.tokenizer_name == "hf_wordpiece_v1"
+        assert index.use_kiwi_tokenizer is True
