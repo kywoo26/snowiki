@@ -11,9 +11,9 @@ from snowiki.bench.models import BenchmarkAssetManifest, BenchmarkProvenance
 SNOWIKI_SHAPED_METADATA: dict[str, str] = {
     "name": "Snowiki Shaped Scripted Crawl",
     "description": (
-        "Deterministic Snowiki-shaped benchmark manifest simulating a scripted/crawled "
-        "internal corpus with mixed Korean+English retrieval, code/doc lookup, topical "
-        "knowledge pages, temporal coverage, and explicit abstention cases."
+        "Deterministic scripted-crawl manifest simulating an internal corpus with mixed "
+        "Korean+English technical notes, code/doc references, topical knowledge pages, "
+        "temporal coverage, and explicit abstention cases."
     ),
     "tier": "snowiki_shaped",
 }
@@ -38,8 +38,8 @@ _MIXED_LANGUAGE_FAMILIES: tuple[_FamilyTemplate, ...] = (
     _FamilyTemplate(
         "hybrid_search_playbook",
         "하이브리드 검색 playbook",
-        "BM25 fallback tuning",
-        "mixed ko+en retrieval debugging",
+        "fallback tuning",
+        "mixed ko+en search debugging",
     ),
     _FamilyTemplate(
         "release_incident_digest",
@@ -48,8 +48,8 @@ _MIXED_LANGUAGE_FAMILIES: tuple[_FamilyTemplate, ...] = (
         "developer-visible service note",
     ),
     _FamilyTemplate(
-        "wiki_ingest_runbook",
-        "위키 ingest runbook",
+        "wiki_import_runbook",
+        "위키 import runbook",
         "attachment parsing notes",
         "pipeline operator guidance",
     ),
@@ -57,26 +57,26 @@ _MIXED_LANGUAGE_FAMILIES: tuple[_FamilyTemplate, ...] = (
         "search_support_sheet",
         "검색 support sheet",
         "incident keyword map",
-        "retrieval issue triage",
+        "search issue triage",
     ),
     _FamilyTemplate(
         "api_glossary_bridge",
         "API glossary bridge",
         "query normalization",
-        "Korean operator wording with English API nouns",
+        "Korean operator wording with English technical nouns",
     ),
 )
 
 _CODE_DOC_FAMILIES: tuple[_FamilyTemplate, ...] = (
     _FamilyTemplate(
         "cli_reference",
-        "snowiki query CLI",
+        "database query CLI",
         "search flag reference",
         "command help and examples",
     ),
     _FamilyTemplate(
         "python_api_notes",
-        "retrieval service API",
+        "data service API",
         "constructor contract",
         "typed Python integration note",
     ),
@@ -94,9 +94,9 @@ _CODE_DOC_FAMILIES: tuple[_FamilyTemplate, ...] = (
     ),
     _FamilyTemplate(
         "quality_scoring",
-        "quality scoring guide",
+        "quality reference guide",
         "no-answer semantics",
-        "evaluation contract excerpt",
+        "interface contract excerpt",
     ),
 )
 
@@ -297,16 +297,16 @@ def _build_mixed_language_document(
     title = f"{family.label} {family.subtitle} {ordinal:02d}"
     content = (
         f"{title} 문서는 scripted crawl로 수집된 internal developer note를 모사합니다. "
-        f"Korean 운영 설명과 English retrieval vocabulary가 함께 나타나며, {family.focus}를 중심으로 "
-        f"search quality, fallback ranking, query rewrite hints, and evidence trail을 정리합니다. "
-        "운영자는 mixed-language query가 들어오면 title keyword와 body의 API noun을 함께 활용해 관련 문서를 찾을 수 있습니다."
+        f"Korean 운영 설명과 English technical vocabulary가 함께 나타나며, {family.focus}를 중심으로 "
+        "related examples, operator notes, and an evidence trail을 정리합니다. "
+        "운영자는 mixed-language note를 읽을 때 title keyword와 body의 API noun을 함께 활용해 관련 내용을 파악할 수 있습니다."
     )
     return {
         "id": document_id,
         "content": content,
         "metadata": {
             "title": title,
-            "summary": "Mixed Korean+English scripted-crawl digest for Snowiki-shaped retrieval checks.",
+            "summary": "Mixed Korean+English scripted-crawl digest for bilingual reference work.",
             "recorded_at": recorded_at,
             "language": "ko+en",
             "coverage_bucket": "mixed_language",
@@ -330,18 +330,20 @@ def _build_code_doc_document(
         f"{title} is a scripted crawl excerpt from technical documentation. "
         f"It explains {family.focus} and includes a compact code sample:\n"
         "```python\n"
-        "from snowiki.bench.anchors import load_miracl_ko_sample\n"
-        "manifest = load_miracl_ko_sample(size=10)\n"
-        "print(manifest.dataset_name)\n"
+        "note = {\n"
+        "    \"title\": \"Bridge maintenance note\",\n"
+        "    \"status\": \"active\",\n"
+        "}\n"
+        "print(note[\"title\"])\n"
         "```\n"
-        "The note highlights CLI flags, API signatures, and implementation constraints for code/document retrieval evaluation."
+        "The note highlights interface fields, API signatures, and implementation constraints for code/document system integration."
     )
     return {
         "id": document_id,
         "content": content,
         "metadata": {
             "title": title,
-            "summary": "Code and technical documentation snippet for authoritative snowiki_shaped evaluation.",
+            "summary": "Code and technical documentation snippet for general system integration.",
             "recorded_at": recorded_at,
             "language": "en",
             "coverage_bucket": "code_doc",
@@ -363,15 +365,15 @@ def _build_topical_document(
     title = f"{family.label} {family.subtitle} {ordinal:02d}"
     content = (
         f"{title} is a general-knowledge topical page shaped after scripted crawl outputs. "
-        f"It summarizes {family.focus} with concise factual prose, definitions, notable examples, and common retrieval terms. "
-        "The page is intentionally compact so benchmark runs stay fast while still resembling a realistic knowledge article."
+        f"It summarizes {family.focus} with concise factual prose, definitions, notable examples, and common reference terms. "
+        "The page is intentionally compact so system operations stay lightweight while still resembling a realistic knowledge article."
     )
     return {
         "id": document_id,
         "content": content,
         "metadata": {
             "title": title,
-            "summary": "General topical page for knowledge-style retrieval coverage.",
+            "summary": "General topical page for broad subject coverage.",
             "recorded_at": recorded_at,
             "language": "en",
             "coverage_bucket": "topical",
@@ -402,7 +404,7 @@ def _build_temporal_document(
         "content": content,
         "metadata": {
             "title": title,
-            "summary": "Time-sensitive operational update for temporal retrieval checks.",
+            "summary": "Time-sensitive operational update for data verification.",
             "recorded_at": recorded_at,
             "language": "en",
             "coverage_bucket": "temporal",
@@ -452,7 +454,7 @@ def _build_query(
     dedupe_key: str,
 ) -> dict[str, object]:
     if bucket == "mixed_language":
-        text = f"{family.label}에서 {family.subtitle} 관련 English retrieval hint 정리된 문서 찾아줘"
+        text = f"{family.label}에서 {family.subtitle} 관련 English search hint 정리된 문서 찾아줘"
         kind = "topical" if ordinal % 2 == 0 else "known-item"
         group = "mixed_ko_en"
     elif bucket == "code_doc":
