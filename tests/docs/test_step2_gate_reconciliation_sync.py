@@ -57,8 +57,8 @@ def test_step2_gate_reconciliation_stays_aligned_with_proof_and_status(
         assert marker in reconciliation
 
     required_status_markers = [
-        "Benchmark proof failed to reach promotion threshold; local outcome is `benchmark-only/no runtime promotion`.",
-        "Launch the fresh evidence program for Step 2",
+        "Fresh local proof refreshed with measured operational evidence; local outcome remains `benchmark-only/no runtime promotion`.",
+        "Mixed-language tokenizer redesign remains the next evidence-generating lane; operational evidence is no longer the primary blocker.",
         "Step 2 sparse branch still not proven on mixed-language benchmark.",
         "Step 2 must be proven first. Step 2 still not proven, Step 4 remains blocked.",
     ]
@@ -69,7 +69,7 @@ def test_step2_gate_reconciliation_stays_aligned_with_proof_and_status(
         "- **Local Closeout Outcome**: benchmark-only/no runtime promotion",
         "- **Promoted Tokenizer**: [NONE]",
         "- **Step 4 Unblocked**: [NO]",
-        "memory/disk",
+        "memory and disk usage are now measured",
     ]
     for marker in required_proof_markers:
         assert marker in proof
