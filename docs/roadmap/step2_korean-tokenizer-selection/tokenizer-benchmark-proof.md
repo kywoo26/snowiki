@@ -2,17 +2,18 @@
 
 ## Run Metadata
 
-- **Commit SHA**: `1148fa522f69e5ce6e1a9b81aa4f09d42b4e9c63`
-- **Benchmark Presets**: `retrieval` (blocking), `core` (informational), `full` (informational)
-- **Local Transient Report Paths**: `reports/substep2/retrieval.json`, `reports/substep2/core.json`, `reports/substep2/full.json`
-- **GitHub Artifact Name**: `benchmark-retrieval-report` (blocking preset)
+- **Current Main SHA after Substep 4 closeout**: `139ce3567f4eaa8dc7d404421832c283d677d843`
+- **Substep 4 implementation merge SHA**: `27c54dfd3859d427dc9487e5f0ca2a95407df408`
+- **Benchmark Preset for the external-family lane**: `retrieval` (blocking)
+- **Local Transient Report Path**: `reports/retrieval.json`
+- **Merged Implementation PR**: `#71 feat(search): add hf wordpiece benchmark comparison lane`
 - **Canonical Candidate Identities**:
   - `regex_v1` (Control)
   - `kiwi_morphology_v1`
   - `kiwi_nouns_v1`
   - `hf_wordpiece_v1`
 
-> **Note on Transient Reports**: Raw JSON artifacts under `reports/` are transient and not committed to the repository. This memo is the durable roadmap-facing record of the strengthened local benchmark evidence after the canonical 90-query judged-set expansion.
+> **Note on Transient Reports**: Raw JSON artifacts under `reports/` are transient and not committed to the repository. This memo is the durable roadmap-facing record for the merged HF/subword external-family comparison on top of the strengthened 90-query judged set.
 
 ## Blocking Evidence
 

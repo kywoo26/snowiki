@@ -43,12 +43,17 @@ A family may be admitted only if it satisfies all of the following:
   - it is the strongest contrast to Kiwi within the morphology family class
 - **Special note**: implementation depends on dependency/governance feasibility. If no safe bounded path exists, this family must close as blocked-with-artifact rather than silently expanding scope.
 
-### 4. Subword/HF family — admitted in principle
+### 4. Subword/HF family — executed in this round
 - **Representative target**: `huggingface/tokenizers` represented by `BertWordPieceTokenizer` as the bounded multilingual subword representative
 - **Role**: mixed-language/code-heavy comparison family
 - **Why admitted**:
   - external benchmark practice suggests mixed-language and identifier-heavy corpora can favor subword-style segmentation over morphology-only strategies
   - Snowiki needs one family that is not morphology-first to test whether the mixed-language problem is fundamentally family-related
+- **Execution result**:
+  - merged in `#71 feat(search): add hf wordpiece benchmark comparison lane`
+  - canonical tokenizer identity: `hf_wordpiece_v1`
+  - benchmarkable on the blocking retrieval preset
+  - final result for this round: `overall_quality_gate_failed`
 - **Special note**: this is still a lexical-family comparison, not a semantic embedding experiment.
 
 ## Deferred or excluded families
@@ -72,6 +77,8 @@ A family may be admitted only if it satisfies all of the following:
 
 This admission packet allows one bounded external-family lane to add the minimum runtime dependencies required for exactly one admitted-in-principle family representative.
 
+That lane has now been spent on the HF/subword representative in `#71`. Any future Mecab-family execution would require a later explicit canonical reopening decision rather than silent scope broadening inside the same round.
+
 Hard constraints still apply:
 - only one family may be opened at a time
 - dependency changes must remain bounded to that one family lane
@@ -85,7 +92,7 @@ Hard constraints still apply:
 | Control | `regex_v1` | admitted | required baseline |
 | Kiwi | `kiwi_morphology_v1` | admitted | strongest incumbent family representative |
 | Mecab | `python-mecab-ko` | admitted in principle | strong Korean morphology family baseline |
-| HF / subword | `huggingface/tokenizers` (`BertWordPieceTokenizer`) | admitted in principle | mixed-language/code-heavy comparison family |
+| HF / subword | `huggingface/tokenizers` (`BertWordPieceTokenizer`) | executed in this round | mixed-language/code-heavy comparison family; benchmarkable but rejected |
 | Okt / social-text | TBD | deferred | only if corpus evidence justifies it |
 
 ## Acceptance criteria
@@ -93,4 +100,4 @@ Hard constraints still apply:
 - the note freezes the family-level roster clearly
 - it distinguishes admitted, admitted-in-principle, deferred, and excluded families
 - it explicitly prevents the reopening from turning into a variant sweep of Kiwi
-- it explicitly states that dependency/governance approval is still separate from family admission
+- it explicitly states that only one external family may execute in a round unless a later canonical reopening expands scope
