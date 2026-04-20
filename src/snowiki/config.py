@@ -8,6 +8,7 @@ from snowiki.storage.zones import StoragePaths
 
 DEFAULT_SNOWIKI_ROOT = Path("~/.snowiki")
 SNOWIKI_ROOT_ENV_VAR = "SNOWIKI_ROOT"
+SNOWIKI_BENCHMARK_DATA_ROOT_ENV_VAR = "SNOWIKI_BENCHMARK_DATA_ROOT"
 
 
 def _discover_repo_root(start: Path) -> Path:
@@ -26,6 +27,12 @@ def _prepare_root(root: Path) -> Path:
     return resolved_root
 
 
+def _prepare_directory(root: Path) -> Path:
+    resolved_root = root.expanduser().resolve()
+    resolved_root.mkdir(parents=True, exist_ok=True)
+    return resolved_root
+
+
 def get_snowiki_root() -> Path:
     env_root = os.environ.get(SNOWIKI_ROOT_ENV_VAR)
     return _prepare_root(Path(env_root) if env_root else DEFAULT_SNOWIKI_ROOT)
@@ -35,6 +42,16 @@ def resolve_snowiki_root(root: Path | None) -> Path:
     if root is None:
         return get_snowiki_root()
     return _prepare_root(root)
+
+
+def get_benchmark_data_root(root: Path | None = None) -> Path:
+    if root is not None:
+        return _prepare_directory(root)
+
+    env_root = os.environ.get(SNOWIKI_BENCHMARK_DATA_ROOT_ENV_VAR)
+    if env_root:
+        return _prepare_directory(Path(env_root))
+    return _prepare_directory(get_snowiki_root() / "benchmarks")
 
 
 @lru_cache(maxsize=1)
