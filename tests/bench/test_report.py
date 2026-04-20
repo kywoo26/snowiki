@@ -123,7 +123,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
                     "queries_evaluated": 18,
                 },
                 "baselines": {
-                    "lexical": {
+                "lexical": {
                         "name": "lexical",
                         "latency": {
                             "p50_ms": 1.1,
@@ -133,6 +133,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
                             "max_ms": 2.1,
                         },
                         "quality": {
+                            "tokenizer_name": "regex_v1",
                             "overall": {
                                 "recall_at_k": 0.83,
                                 "mrr": 0.71,
@@ -148,6 +149,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
                     },
                     "bm25s": {
                         "name": "bm25s",
+                        "tokenizer_name": "kiwi_morphology_v1",
                         "latency": {
                             "p50_ms": 1.0,
                             "p95_ms": 2.0,
@@ -181,6 +183,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
                     },
                     "bm25s_kiwi_nouns": {
                         "name": "bm25s_kiwi_nouns",
+                        "tokenizer_name": "kiwi_nouns_v1",
                         "latency": {
                             "p50_ms": 1.2,
                             "p95_ms": 2.2,
@@ -363,6 +366,11 @@ def test_generate_report_exposes_unified_benchmark_gate(
     assert "Performance threshold verdict: FAIL (1 failures)" in rendered
     assert "Retrieval threshold failures:" in rendered
     assert "Retrieval threshold verdict: FAIL (1 failures)" in rendered
+    assert "Tokenizer comparison:" in rendered
+    assert "| Baseline" in rendered
+    assert "| bm25s_kiwi_nouns" in rendered
+    assert "| bm25s" in rendered
+    assert "| kiwi_morphology_v1" in rendered
     assert "top_ks=[1, 3, 5, 10, 20]" in rendered
     assert (
         "Unified benchmark verdict: FAIL (blocking_stage=phase1_thresholds, exit_code=1)"
@@ -659,6 +667,7 @@ def test_generate_report_non_regression_retrieval_failures_are_informational(
     }
     rendered = render_report_text(report)
     assert "Retrieval threshold failures:" in rendered
+    assert "Dataset sample mode:" not in rendered
     assert (
         "Unified benchmark verdict: PASS (blocking_stage=None, exit_code=0)"
         in rendered
@@ -728,6 +737,7 @@ def test_generate_report_includes_provenance_metadata_when_present(
                 "baselines": {
                     "lexical": {
                         "name": "lexical",
+                        "tokenizer_name": "regex_v1",
                         "latency": {
                             "p50_ms": 1.1,
                             "p95_ms": 2.1,
@@ -1117,6 +1127,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
     )
     metadata = cast(dict[str, Any], report["metadata"])
     dataset_metadata = cast(dict[str, Any], cast(dict[str, Any], report["dataset"])["metadata"])
+    rendered = report_module.render_report_text(report)
 
     assert dataset_metadata["sample_mode"] == "quick"
     assert dataset_metadata["queries_available"] == 812
@@ -1131,6 +1142,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
         "sampled": True,
         "strata": ["known-item"],
     }
+    assert "Dataset sample mode: quick (200/812 queries)" in rendered
 
 
 def test_report_size_is_bounded_for_large_tiers(

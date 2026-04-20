@@ -46,6 +46,97 @@ def _format_threshold_entry(baseline: str, entry: dict[str, object]) -> str:
     return ", ".join(parts)
 
 
+def _format_table_value(value: object) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return f"{value:.3f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
+def _baseline_tokenizer_name(baseline: dict[str, object]) -> str | None:
+    tokenizer_name = baseline.get("tokenizer_name")
+    if isinstance(tokenizer_name, str) and tokenizer_name.strip():
+        return tokenizer_name.strip()
+
+    quality = baseline.get("quality")
+    if isinstance(quality, dict):
+        quality_dict = cast(dict[str, object], quality)
+        quality_tokenizer_name = quality_dict.get("tokenizer_name")
+        if isinstance(quality_tokenizer_name, str) and quality_tokenizer_name.strip():
+            return quality_tokenizer_name.strip()
+
+        thresholds = quality_dict.get("thresholds")
+        if isinstance(thresholds, list):
+            for entry in thresholds:
+                if not isinstance(entry, dict):
+                    continue
+                threshold_entry = cast(dict[str, object], entry)
+                threshold_tokenizer_name = threshold_entry.get("tokenizer_name")
+                if (
+                    isinstance(threshold_tokenizer_name, str)
+                    and threshold_tokenizer_name.strip()
+                ):
+                    return threshold_tokenizer_name.strip()
+
+    return None
+
+
+def _render_tokenizer_comparison(baselines: dict[str, object]) -> list[str]:
+    rows: list[list[str]] = []
+    for baseline_name, baseline_payload in baselines.items():
+        if not isinstance(baseline_payload, dict):
+            continue
+        baseline = cast(dict[str, object], baseline_payload)
+        tokenizer_name = _baseline_tokenizer_name(baseline)
+        if tokenizer_name is None:
+            continue
+
+        quality = baseline.get("quality")
+        overall: dict[str, object] = {}
+        if isinstance(quality, dict):
+            quality_dict = cast(dict[str, object], quality)
+            overall_payload = quality_dict.get("overall")
+            if isinstance(overall_payload, dict):
+                overall = cast(dict[str, object], overall_payload)
+
+        rows.append(
+            [
+                str(baseline_name),
+                tokenizer_name,
+                _format_table_value(overall.get("recall_at_k")),
+                _format_table_value(overall.get("mrr")),
+                _format_table_value(overall.get("ndcg_at_k")),
+            ]
+        )
+
+    if not rows:
+        return []
+
+    headers = ["Baseline", "Tokenizer", "Recall@k", "MRR", "nDCG@k"]
+    widths = [
+        max(len(row[index]) for row in [headers, *rows])
+        for index in range(len(headers))
+    ]
+
+    def _render_row(values: list[str]) -> str:
+        return "| " + " | ".join(
+            value.ljust(widths[index]) for index, value in enumerate(values)
+        ) + " |"
+
+    lines = ["Tokenizer comparison:", _render_row(headers)]
+    lines.append(
+        "| "
+        + " | ".join("-" * width for width in widths)
+        + " |"
+    )
+    for row in rows:
+        lines.append(_render_row(row))
+    return lines
+
+
 def _format_structural_issue(entry: dict[str, object]) -> str:
     return (
         f"- {entry.get('stage', 'structural')} {entry.get('code', 'unknown')}: "
@@ -202,6 +293,13 @@ def render_report_text(report: dict[str, object]) -> str:
         lines.append(f"Dataset source: {dataset_metadata['source_url']}")
     if dataset_metadata.get("license"):
         lines.append(f"Dataset license: {dataset_metadata['license']}")
+    sample_mode = dataset_metadata.get("sample_mode")
+    if sample_mode:
+        lines.append(
+            "Dataset sample mode: "
+            f"{sample_mode} ({dataset_metadata.get('sample_size', 'n/a')}/"
+            f"{dataset_metadata.get('queries_available', 'n/a')} queries)"
+        )
     if dataset_metadata.get("language"):
         lines.append(f"Dataset language: {dataset_metadata['language']}")
     dataset_provenance = cast(dict[str, object], dataset.get("provenance", {}))
@@ -305,6 +403,11 @@ def render_report_text(report: dict[str, object]) -> str:
         lines.append(
             f"Retrieval threshold verdict: {'FAIL' if failure_count else 'PASS'} ({failure_count} failures)"
         )
+    tokenizer_comparison = _render_tokenizer_comparison(
+        cast(dict[str, object], retrieval.get("baselines", {}))
+    )
+    if tokenizer_comparison:
+        lines.extend(tokenizer_comparison)
     audit = cast(dict[str, object], report.get("audit", {}))
     if audit:
         samples = cast(dict[str, object], audit.get("samples", {}))

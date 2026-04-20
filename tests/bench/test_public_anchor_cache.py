@@ -401,6 +401,7 @@ def test_cached_public_anchor_report_includes_real_dataset_provenance(
 
     assert dataset_payload["name"] == "BEIR SciFact"
     assert cast(dict[str, object], dataset_payload["metadata"])["synthetic_sample"] is False
+    assert "Dataset sample mode:" in rendered
     assert "Dataset provenance:" in rendered
     assert "Dataset language: en" in rendered
     assert "Dataset source: https://huggingface.co/datasets/BeIR/scifact" in rendered
