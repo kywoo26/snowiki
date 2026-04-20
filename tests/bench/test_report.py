@@ -982,6 +982,157 @@ def test_report_includes_sampling_policy_metadata(
     assert "Latency sampling: mode=stratified, queries=20/60" in rendered
 
 
+def test_report_includes_dataset_sample_metadata_when_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from snowiki.bench.corpus import BenchmarkCorpusManifest
+
+    report_module, benchmark_report = _load_report_symbols()
+    manifest = BenchmarkCorpusManifest(
+        tier="public_anchor",
+        documents=[{"id": "doc-1", "content": "Public anchor document."}],
+        queries=[
+            {
+                "id": "q-1",
+                "text": "public anchor query",
+                "group": "ko",
+                "kind": "known-item",
+            }
+        ],
+        judgments={
+            "q-1": [{"query_id": "q-1", "doc_id": "doc-1", "relevance": 1}]
+        },
+        dataset_id="miracl_ko",
+        dataset_name="MIRACL Korean",
+        dataset_description="Deterministic manifest sampled from cached public assets.",
+        dataset_metadata={
+            "sample_mode": "quick",
+            "queries_available": 812,
+            "sample_size": 200,
+            "sampling_strategy": "deterministic_qrels_bounded_mode",
+            "synthetic_sample": False,
+        },
+    )
+    monkeypatch.setattr(
+        report_module,
+        "validate_phase1_workspace",
+        lambda root: {
+            "ok": True,
+            "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
+            "lint": {"root": root.as_posix(), "issues": [], "error_count": 0},
+            "integrity": {"root": root.as_posix(), "issues": [], "error_count": 0},
+            "failures": [],
+        },
+    )
+    monkeypatch.setattr(
+        report_module,
+        "run_phase1_latency_evaluation",
+        lambda root, preset, **kwargs: {
+            "performance": {
+                "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
+                "rebuild": {"p50_ms": 30.0, "p95_ms": 45.0},
+                "query": {"p50_ms": 6.0, "p95_ms": 12.0},
+            },
+            "corpus": {
+                "dataset": "miracl_ko",
+                "tier": "public_anchor",
+                "queries_available": 200,
+                "queries_evaluated": 20,
+            },
+            "protocol": {
+                "isolated_root": True,
+                "warmups": 1,
+                "repetitions": 5,
+                "query_mode": "lexical",
+                "top_k": 5,
+                "top_ks": [1, 3, 5, 10, 20],
+                "dataset_mode": "manifest",
+                "sampling_policy": {
+                    "mode": "stratified",
+                    "population_query_count": 200,
+                    "sampled_query_count": 20,
+                    "sampled": True,
+                    "strata": ["known-item"],
+                },
+            },
+        },
+    )
+    monkeypatch.setattr(
+        report_module,
+        "run_baseline_comparison",
+        lambda root, preset, **kwargs: benchmark_report.model_validate(
+            {
+                "preset": {
+                    "name": preset.name,
+                    "description": preset.description,
+                    "query_kinds": list(preset.query_kinds),
+                    "top_k": preset.top_k,
+                    "top_ks": list(preset.top_ks),
+                    "baselines": ["lexical"],
+                },
+                "corpus": {
+                    "records_indexed": 1,
+                    "pages_indexed": 1,
+                    "raw_documents": 1,
+                    "blended_documents": 1,
+                    "queries_evaluated": 1,
+                },
+                "baselines": {
+                    "lexical": {
+                        "name": "lexical",
+                        "latency": {
+                            "p50_ms": 1.0,
+                            "p95_ms": 2.0,
+                            "mean_ms": 1.5,
+                            "min_ms": 1.0,
+                            "max_ms": 2.0,
+                        },
+                        "quality": {
+                            "overall": {
+                                "recall_at_k": 0.8,
+                                "mrr": 0.7,
+                                "ndcg_at_k": 0.75,
+                                "top_k": 5,
+                                "queries_evaluated": 1,
+                                "per_query": [],
+                            },
+                            "slices": {"group": {}, "kind": {}},
+                            "thresholds": [],
+                        },
+                        "queries": [],
+                    }
+                },
+            }
+        ),
+    )
+
+    report = cast(
+        dict[str, Any],
+        report_module.generate_report(
+            tmp_path,
+            preset_name="retrieval",
+            manifest=manifest,
+            dataset_name="miracl_ko",
+        ),
+    )
+    metadata = cast(dict[str, Any], report["metadata"])
+    dataset_metadata = cast(dict[str, Any], cast(dict[str, Any], report["dataset"])["metadata"])
+
+    assert dataset_metadata["sample_mode"] == "quick"
+    assert dataset_metadata["queries_available"] == 812
+    assert dataset_metadata["sample_size"] == 200
+    assert metadata["sample_mode"] == "quick"
+    assert metadata["queries_available"] == 812
+    assert metadata["sample_size"] == 200
+    assert metadata["latency_sampling_policy"] == {
+        "mode": "stratified",
+        "population_query_count": 200,
+        "sampled_query_count": 20,
+        "sampled": True,
+        "strata": ["known-item"],
+    }
+
+
 def test_report_size_is_bounded_for_large_tiers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1363,6 +1514,7 @@ def test_dataset_payload_from_manifest_covers_regression_visible_and_hidden_path
         dataset_name="miracl_ko",
     )
     assert visible_payload["tier"] == "public_anchor"
+    assert cast(dict[str, object], visible_payload["metadata"])["sample_size"] == 2
     assert "provenance" in visible_payload
 
     hidden_payload = report_module._dataset_payload_from_manifest(

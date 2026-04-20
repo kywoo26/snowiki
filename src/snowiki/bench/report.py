@@ -210,6 +210,19 @@ def _dataset_payload_from_manifest(
     return payload
 
 
+def _dataset_sample_metadata(dataset_payload: dict[str, object]) -> dict[str, object]:
+    raw_metadata = dataset_payload.get("metadata")
+    if not isinstance(raw_metadata, dict):
+        return {}
+    dataset_metadata = cast(dict[str, object], raw_metadata)
+
+    sample_metadata: dict[str, object] = {}
+    for field_name in ("sample_mode", "queries_available", "sample_size"):
+        if field_name in dataset_metadata:
+            sample_metadata[field_name] = dataset_metadata[field_name]
+    return sample_metadata
+
+
 def _attach_manifest_assets(
     retrieval: BenchmarkReport,
     manifest: BenchmarkCorpusManifest | None,
@@ -537,17 +550,19 @@ def generate_report(
         query_count=_coerce_int(corpus_summary.get("queries_evaluated", 0)),
         tier=dataset_tier,
     )
+    report_metadata: dict[str, object] = {
+        "dataset_id": dataset_payload.get("id", dataset_name),
+        "dataset_name": dataset_payload.get("name", dataset_name),
+        "dataset_tier": dataset_tier,
+        "latency_sampling_policy": sampling_policy,
+        "report_limits": report_limits,
+    }
+    report_metadata.update(_dataset_sample_metadata(dataset_payload))
     report: dict[str, object] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "report_version": "1.3",
         "dataset": dataset_payload,
-        "metadata": {
-            "dataset_id": dataset_payload.get("id", dataset_name),
-            "dataset_name": dataset_payload.get("name", dataset_name),
-            "dataset_tier": dataset_tier,
-            "latency_sampling_policy": sampling_policy,
-            "report_limits": report_limits,
-        },
+        "metadata": report_metadata,
         "preset": {
             "name": preset.name,
             "description": preset.description,
