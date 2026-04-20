@@ -55,6 +55,10 @@ class _RenderReportText(Protocol):
     def __call__(self, report: dict[str, object]) -> str: ...
 
 
+class _WriteTokenizerComparisonArtifact(Protocol):
+    def __call__(self, report: dict[str, object], output_path: Path) -> Path: ...
+
+
 class _GenerateReport(Protocol):
     def __call__(
         self,
@@ -79,6 +83,10 @@ class _ReportToDict(Protocol):
 
 
 render_report_text = cast(_RenderReportText, _RENDER.render_report_text)
+write_tokenizer_comparison_artifact = cast(
+    _WriteTokenizerComparisonArtifact,
+    _RENDER.write_tokenizer_comparison_artifact,
+)
 generate_report = cast(_GenerateReport, _REPORT.generate_report)
 benchmark_exit_code = cast(_ReportToInt, _VERDICT.benchmark_exit_code)
 benchmark_verdict = cast(_ReportToDict, _VERDICT.benchmark_verdict)
@@ -140,4 +148,5 @@ __all__ = [
     "validate_page_dict",
     "validate_record_dict",
     "validate_phase1_workspace",
+    "write_tokenizer_comparison_artifact",
 ]

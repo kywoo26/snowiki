@@ -465,6 +465,8 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
         "Unified benchmark verdict: PASS (blocking_stage=None, exit_code=0)"
         in result.output
     )
+    assert "Tokenizer comparison written to " in result.output
+    assert ".cache/tokenizer_comparison.md" in result.output
 
 
 def test_benchmark_preserves_explicit_root(
@@ -499,6 +501,13 @@ def test_benchmark_preserves_explicit_root(
 
     assert result.exit_code == 0, result.output
     assert seeded_roots == [explicit_root]
+    artifact_path = explicit_root / ".cache" / "tokenizer_comparison.md"
+    assert artifact_path.exists()
+    assert f"Tokenizer comparison written to {artifact_path}" in result.output
+    artifact_text = artifact_path.read_text(encoding="utf-8")
+    assert "Tokenizer comparison:" in artifact_text
+    assert "| Baseline" in artifact_text
+    assert "| lexical" in artifact_text
 
 
 def test_benchmark_regression_ignores_sample_mode(

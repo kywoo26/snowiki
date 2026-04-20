@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from importlib import import_module
+from pathlib import Path
 from typing import cast
 
 _VERDICT = import_module("snowiki.bench.verdict")
@@ -135,6 +136,29 @@ def _render_tokenizer_comparison(baselines: dict[str, object]) -> list[str]:
     for row in rows:
         lines.append(_render_row(row))
     return lines
+
+
+def write_tokenizer_comparison_artifact(
+    report: dict[str, object], output_path: Path
+) -> Path:
+    retrieval = report.get("retrieval")
+    baselines: dict[str, object] = {}
+    if isinstance(retrieval, dict):
+        retrieval_dict = cast(dict[str, object], retrieval)
+        raw_baselines = retrieval_dict.get("baselines", {})
+        if isinstance(raw_baselines, dict):
+            baselines = cast(dict[str, object], raw_baselines)
+
+    lines = _render_tokenizer_comparison(baselines)
+    if not lines:
+        lines = [
+            "Tokenizer comparison:",
+            "_No tokenizer comparison data available in this report._",
+        ]
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _ = output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return output_path
 
 
 def _format_structural_issue(entry: dict[str, object]) -> str:

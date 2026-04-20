@@ -29,6 +29,7 @@ generate_report = _BENCH.generate_report
 list_presets = _BENCH.list_presets
 seed_canonical_benchmark_root = _BENCH.seed_canonical_benchmark_root
 render_report_text = _BENCH.render_report_text
+write_tokenizer_comparison_artifact = _BENCH.write_tokenizer_comparison_artifact
 
 
 PRESET_NAMES = tuple(preset.name for preset in list_presets())
@@ -146,6 +147,7 @@ def command(
     latency_sample: str | None,
 ) -> None:
     report: dict[str, object] | None = None
+    tokenizer_artifact_path: Path | None = None
     dataset_sample_mode = cast(PublicAnchorSampleMode, sample_mode)
     sampling_mode = cast(
         Literal["exhaustive", "stratified", "fixed_sample"] | None,
@@ -163,7 +165,7 @@ def command(
                 dataset=dataset,
                 sample_mode=dataset_sample_mode,
             )
-            report = generate_report(
+            generated_report = generate_report(
                 benchmark_root,
                 preset_name=preset,
                 manifest=manifest,
@@ -171,33 +173,43 @@ def command(
                 isolated_root=root is None,
                 latency_sample=sampling_mode,
             )
+            if "retrieval" in generated_report and isinstance(
+                generated_report["retrieval"], dict
+            ):
+                retrieval_data = generated_report["retrieval"]
+                model_input = {
+                    k: v
+                    for k, v in retrieval_data.items()
+                    if k in {"preset", "corpus", "baselines", "candidate_matrix"}
+                }
+                try:
+                    canonical_retrieval = BenchmarkReport.model_validate(
+                        model_input
+                    ).to_legacy_dict()
+                    generated_report["retrieval"] = {
+                        **retrieval_data,
+                        **canonical_retrieval,
+                    }
+                except Exception:
+                    pass
+            report = generated_report
+            tokenizer_artifact_path = benchmark_root / ".cache" / "tokenizer_comparison.md"
+            _ = write_tokenizer_comparison_artifact(report, tokenizer_artifact_path)
     except Exception as exc:
         emit_error(str(exc), output="human", code="benchmark_failed")
     if report is None:
         raise RuntimeError("benchmark did not produce a report")
-
-    if "retrieval" in report and isinstance(report["retrieval"], dict):
-        retrieval_data = report["retrieval"]
-        model_input = {
-            k: v
-            for k, v in retrieval_data.items()
-            if k in {"preset", "corpus", "baselines", "candidate_matrix"}
-        }
-        try:
-            canonical_retrieval = BenchmarkReport.model_validate(
-                model_input
-            ).to_legacy_dict()
-            report["retrieval"] = {**retrieval_data, **canonical_retrieval}
-        except Exception:
-            pass
+    final_report = report
+    final_tokenizer_artifact_path = tokenizer_artifact_path
 
     output.parent.mkdir(parents=True, exist_ok=True)
     _ = output.write_text(
-        json.dumps(report, indent=2, ensure_ascii=False, sort_keys=True),
+        json.dumps(final_report, indent=2, ensure_ascii=False, sort_keys=True),
         encoding="utf-8",
     )
-    click.echo(render_report_text(report))
+    click.echo(render_report_text(final_report))
     click.echo(f"JSON report written to {output}")
-    exit_code = benchmark_exit_code(report)
+    click.echo(f"Tokenizer comparison written to {final_tokenizer_artifact_path}")
+    exit_code = benchmark_exit_code(final_report)
     if exit_code:
         raise click.exceptions.Exit(exit_code)
