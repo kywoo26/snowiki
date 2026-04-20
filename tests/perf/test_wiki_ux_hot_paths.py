@@ -1,38 +1,27 @@
 from __future__ import annotations
 
-import importlib.util
 import json
 import socket
 import statistics
-import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
 from threading import Thread
-from types import ModuleType
 from typing import Any
 
+import pytest
 from click.testing import CliRunner
+from tests.helpers.skill_modules import load_skill_script_module
 
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.main import app
 from snowiki.daemon.fallback import DaemonUnavailableError, daemon_request
 from snowiki.daemon.server import SnowikiDaemon
 
+pytestmark = pytest.mark.perf
 
-def _load_skill_script_module(name: str) -> ModuleType:
-    module_path = Path(__file__).resolve().parents[2] / "skill" / "scripts" / name
-    spec = importlib.util.spec_from_file_location(f"wiki_perf_{name[:-3]}", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"failed to load skill script module: {name}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-QUERY_SCRIPT = _load_skill_script_module("query.py")
-RECALL_SCRIPT = _load_skill_script_module("recall.py")
+QUERY_SCRIPT = load_skill_script_module("query.py", module_prefix="wiki_perf")
+RECALL_SCRIPT = load_skill_script_module("recall.py", module_prefix="wiki_perf")
 
 QUERY_TEXT = "claude-basic"
 RECALL_TARGET = "2026-04-01"

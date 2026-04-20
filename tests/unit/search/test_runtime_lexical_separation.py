@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
+from pytest_mock import MockerFixture
 
 from snowiki.mcp.server import SnowikiReadOnlyFacade
 from snowiki.search.workspace import RetrievalService
 
 
 def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
-    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
 ) -> None:
     records: list[dict[str, object]] = [
         {
@@ -51,16 +51,19 @@ def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
             "runtime retrieval assembly must not instantiate benchmark BM25 indexes"
         )
 
-    monkeypatch.setattr(
-        "snowiki.search.workspace.build_lexical_index", fake_build_lexical_index
+    mocker.patch(
+        "snowiki.search.workspace.build_lexical_index",
+        side_effect=fake_build_lexical_index,
     )
-    monkeypatch.setattr(
-        "snowiki.search.workspace.build_wiki_index", fake_build_wiki_index
+    mocker.patch(
+        "snowiki.search.workspace.build_wiki_index",
+        side_effect=fake_build_wiki_index,
     )
-    monkeypatch.setattr(
-        "snowiki.search.workspace.build_blended_index", fake_build_blended_index
+    mocker.patch(
+        "snowiki.search.workspace.build_blended_index",
+        side_effect=fake_build_blended_index,
     )
-    monkeypatch.setattr("snowiki.search.bm25_index.BM25SearchIndex", fail_bm25)
+    mocker.patch("snowiki.search.bm25_index.BM25SearchIndex", side_effect=fail_bm25)
 
     snapshot = RetrievalService.from_records_and_pages(records=records, pages=pages)
 
@@ -81,7 +84,7 @@ def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
 
 
 def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
-    monkeypatch: pytest.MonkeyPatch,
+    mocker: MockerFixture,
 ) -> None:
     session_records: list[dict[str, object]] = [
         {
@@ -127,13 +130,13 @@ def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
             "runtime lexical assembly must not promote benchmark baseline comparison"
         )
 
-    monkeypatch.setattr(
+    mocker.patch(
         "snowiki.mcp.server.RetrievalService.from_records_and_pages",
-        fake_from_records_and_pages,
+        side_effect=fake_from_records_and_pages,
     )
-    monkeypatch.setattr(
+    mocker.patch(
         "snowiki.bench.baselines.run_baseline_comparison",
-        fail_run_baseline_comparison,
+        side_effect=fail_run_baseline_comparison,
     )
 
     facade = SnowikiReadOnlyFacade(

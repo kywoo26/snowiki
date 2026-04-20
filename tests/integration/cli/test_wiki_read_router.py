@@ -1,44 +1,20 @@
 from __future__ import annotations
 
-import importlib.util
-import sys
 from collections.abc import Callable
 from pathlib import Path
-from types import ModuleType
 from typing import Any, Protocol, cast
 
 import pytest
+from tests.helpers.skill_modules import load_skill_script_module
 
 
-def _load_read_router_module() -> ModuleType:
-    module_path = (
-        Path(__file__).resolve().parents[2] / "skill" / "scripts" / "read_router.py"
-    )
-    spec = importlib.util.spec_from_file_location("wiki_read_router", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("failed to load wiki read router module")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _load_skill_script_module(name: str) -> ModuleType:
-    module_path = Path(__file__).resolve().parents[2] / "skill" / "scripts" / name
-    spec = importlib.util.spec_from_file_location(
-        f"wiki_skill_{name[:-3]}", module_path
-    )
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"failed to load skill script module: {name}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+def _load_read_router_module():
+    return load_skill_script_module("read_router.py", module_prefix="wiki_read_router")
 
 
 READ_ROUTER = _load_read_router_module()
-QUERY_SCRIPT = _load_skill_script_module("query.py")
-RECALL_SCRIPT = _load_skill_script_module("recall.py")
+QUERY_SCRIPT = load_skill_script_module("query.py", module_prefix="wiki_skill")
+RECALL_SCRIPT = load_skill_script_module("recall.py", module_prefix="wiki_skill")
 build_query_route = cast(Callable[..., object], READ_ROUTER.build_query_route)
 build_recall_route = cast(Callable[..., object], READ_ROUTER.build_recall_route)
 route_read = cast(Callable[..., dict[str, object]], READ_ROUTER.route_read)
@@ -89,19 +65,17 @@ def test_fallback_cli_route_read_falls_back_to_cli_when_daemon_is_unreachable(
 
     payload = route_read(build_query_route("claude-basic"), root=tmp_path)
 
-    assert payload == {
-        "ok": True,
-        "command": "query",
-        "backend": "cli",
-        "backend_diagnostics": {},
-        "result": {
-            "query": "claude-basic",
-            "mode": "lexical",
-            "semantic_backend": None,
-            "records_indexed": 4,
-            "pages_indexed": 2,
-            "hits": [],
-        },
+    assert payload["ok"] is True
+    assert payload["command"] == "query"
+    assert payload["backend"] == "cli"
+    assert payload["backend_diagnostics"] == {}
+    assert payload["result"] == {
+        "query": "claude-basic",
+        "mode": "lexical",
+        "semantic_backend": None,
+        "records_indexed": 4,
+        "pages_indexed": 2,
+        "hits": [],
     }
     assert cli_calls == [
         {
@@ -170,33 +144,31 @@ def test_daemon_preferred_route_read_normalizes_daemon_payload_into_stable_cli_s
     finally:
         monkeypatch.undo()
 
-    assert payload == {
-        "ok": True,
-        "command": "query",
-        "backend": "daemon",
-        "backend_diagnostics": {
-            "cache": {"kind": "ttl_response_cache"},
-            "snapshot": {"snapshot_owner": "daemon.warm_indexes"},
-        },
-        "result": {
-            "query": "mixed language retrieval",
-            "mode": "lexical",
-            "semantic_backend": None,
-            "records_indexed": None,
-            "pages_indexed": None,
-            "hits": [
-                {
-                    "id": "normalized/session-1.json",
-                    "path": "normalized/session-1.json",
-                    "title": "Mixed language retrieval",
-                    "kind": "session",
-                    "source_type": "",
-                    "score": 9.876543,
-                    "matched_terms": ["mixed", "language"],
-                    "summary": "",
-                }
-            ],
-        },
+    assert payload["ok"] is True
+    assert payload["command"] == "query"
+    assert payload["backend"] == "daemon"
+    assert payload["backend_diagnostics"] == {
+        "cache": {"kind": "ttl_response_cache"},
+        "snapshot": {"snapshot_owner": "daemon.warm_indexes"},
+    }
+    assert payload["result"] == {
+        "query": "mixed language retrieval",
+        "mode": "lexical",
+        "semantic_backend": None,
+        "records_indexed": None,
+        "pages_indexed": None,
+        "hits": [
+            {
+                "id": "normalized/session-1.json",
+                "path": "normalized/session-1.json",
+                "title": "Mixed language retrieval",
+                "kind": "session",
+                "source_type": "",
+                "score": 9.876543,
+                "matched_terms": ["mixed", "language"],
+                "summary": "",
+            }
+        ],
     }
     assert daemon_calls == [
         {
