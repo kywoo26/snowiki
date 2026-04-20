@@ -1,21 +1,13 @@
 from __future__ import annotations
 
-import importlib.util
+import importlib
 from pathlib import Path
-from types import ModuleType
 
 import pytest
 
 
-def _load_retrieval_helpers() -> ModuleType:
-    retrieval_conftest = Path(__file__).resolve().parent / "retrieval" / "conftest.py"
-    spec = importlib.util.spec_from_file_location(
-        "tests.retrieval.conftest", retrieval_conftest
-    )
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def _load_retrieval_helpers():
+    return importlib.import_module("tests.helpers.retrieval_data")
 
 
 @pytest.fixture(scope="session")
@@ -90,20 +82,34 @@ def benchmark_judgments_path(benchmarks_dir: Path) -> Path:
 
 @pytest.fixture(scope="session")
 def search_api_module():
-    retrieval_helpers: ModuleType = _load_retrieval_helpers()
+    retrieval_helpers = _load_retrieval_helpers()
     return retrieval_helpers.load_search_api()
 
 
 @pytest.fixture(scope="session")
 def normalized_records_data() -> tuple[dict[str, object], ...]:
-    retrieval_helpers: ModuleType = _load_retrieval_helpers()
+    retrieval_helpers = _load_retrieval_helpers()
     return retrieval_helpers.normalized_records()
 
 
 @pytest.fixture(scope="session")
 def compiled_pages_data() -> tuple[dict[str, object], ...]:
-    retrieval_helpers: ModuleType = _load_retrieval_helpers()
+    retrieval_helpers = _load_retrieval_helpers()
     return retrieval_helpers.compiled_pages()
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    del config
+    for item in items:
+        path = Path(str(item.path)).as_posix()
+        if "/tests/integration/" in path:
+            item.add_marker(pytest.mark.integration)
+        if "/tests/bench/" in path or "/tests/integration/bench/" in path:
+            item.add_marker(pytest.mark.bench)
+        if "/tests/perf/" in path:
+            item.add_marker(pytest.mark.perf)
 
 
 @pytest.fixture

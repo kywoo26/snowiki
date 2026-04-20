@@ -18,6 +18,7 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Use explicit type hints for all function signatures.
 - Follow `.github/commit-message-rules.md` for all commits.
 - Maintain atomic commits by concern.
+- Use `pytest-mock`'s `mocker` fixture or pytest's `monkeypatch` for unit-test patching; avoid new `unittest.mock`-driven test patterns.
 - Use `tmp_path` fixture for all tests that write to the filesystem.
 
 ## Never
@@ -25,6 +26,7 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Commit secrets, credentials, or `.env` files.
 - Use `print()` for logging (use `logging` or `click.echo`).
 - Skip verification steps (tests, lint, type check).
+- Let unit tests spawn daemon threads, sleep, hit network, or load heavy public datasets; patch those boundaries and move that coverage to `integration`, `bench`, or `perf`.
 - Add agent co-author markers (e.g., `Co-authored-by:`, `Ultraworked with`) to commits.
 - Force-add or commit ignored internal artifacts (for example `.sisyphus/`, `.cache/`, or transient `reports/` content) unless an explicit tracked exception is already whitelisted by repo policy.
 
@@ -37,6 +39,14 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 | **Full check** | `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest && uv run pytest -m integration` |
 | **Coverage** | `uv run pytest --cov=snowiki --cov-report=term-missing` |
 | **Benchmark** | `uv run snowiki benchmark --preset retrieval` |
+
+## Test Levels
+
+- `tests/unit/` is the default fast loop. Keep tests deterministic and patch external boundaries.
+- `tests/integration/` exercises real CLI/runtime/daemon boundaries and runs with `pytest -m integration`.
+- `tests/bench/` is for benchmark-domain and dataset-heavy validation; it is excluded from the default unit loop.
+- `tests/perf/` is for latency/performance assertions and is excluded from the default unit loop.
+- Keep shared fixtures in the nearest `conftest.py`; do not dynamically import another test directory's `conftest.py`.
 
 ## Ownership
 

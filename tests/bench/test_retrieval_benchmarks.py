@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import importlib.util
+import importlib
 from importlib import import_module
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
-
-pytestmark = pytest.mark.integration
 
 
 def _load_benchmark_modules():
@@ -19,12 +17,7 @@ def _load_benchmark_modules():
 
 
 def _load_retrieval_fixtures():
-    conftest_path = Path(__file__).resolve().parent.parent / "retrieval" / "conftest.py"
-    spec = importlib.util.spec_from_file_location("retrieval_conftest", conftest_path)
-    assert spec is not None and spec.loader is not None
-    retrieval_fixtures = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(retrieval_fixtures)
-    return retrieval_fixtures
+    return importlib.import_module("tests.helpers.retrieval_data")
 
 
 def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
