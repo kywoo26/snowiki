@@ -24,6 +24,4 @@ This directory governs the distributable skill package and its associated workfl
 - If implemented, `sync` operations must preserve `## My Notes` and specific frontmatter fields (`comments`, `related`, `status`, `tags`, `rating`).
 - Exported sessions live in `Claude-Sessions/` within the vault.
 
-## Workflow
 
-Detailed tool definitions and mode-specific logic live in `skill/SKILL.md` and `skill/workflows/wiki.md`.

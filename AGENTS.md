@@ -12,52 +12,31 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 ## Always
 
 - Execute all tools via `uv run`.
-- Run the relevant local verification commands before every commit.
+- Run `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest` before every commit.
+- Run `uv run pytest -m integration` before opening a PR.
+- Follow `.github/pull_request_template.md` when opening a PR.
 - Use explicit type hints for all function signatures.
-- Maintain 90%+ test coverage target for new logic.
-- Treat `uv run pytest` as the fast unit-test loop; run `uv run pytest -m integration` before opening a PR.
-- Follow Google style docstrings.
+- Follow `.github/commit-message-rules.md` for all commits.
+- Maintain atomic commits by concern.
 - Use `tmp_path` fixture for all tests that write to the filesystem.
-- Ensure child AGENTS are delta-only and inherit root policy.
 
 ## Never
 
 - Commit secrets, credentials, or `.env` files.
 - Use `print()` for logging (use `logging` or `click.echo`).
 - Skip verification steps (tests, lint, type check).
-- Modify raw source files in `SNOWIKI_ROOT/raw/`.
-- Manually modify or delete files in `SNOWIKI_ROOT/quarantine/`.
-- Manually edit generated artifacts in `compiled/` or `index/` zones.
 - Add agent co-author markers (e.g., `Co-authored-by:`, `Ultraworked with`) to commits.
 - Force-add or commit ignored internal artifacts (for example `.sisyphus/`, `.cache/`, or transient `reports/` content) unless an explicit tracked exception is already whitelisted by repo policy.
 
 
-## PR Discipline
+## Verification Commands
 
-- Follow `.github/pull_request_template.md` when opening or updating a PR.
-- Follow `.github/commit-message-rules.md` for clear, descriptive commit messages that explain the change intent.
-- Maintain atomic commits by concern when practical.
-
-## Verification Flow
-
-- Use the verification matrix below to choose the right local checks for the scope of your change.
-- CI is the authoritative branch check for lint, type check, tests, integration, and coverage.
-- Keep pre-commit focused on unique local safety guards that CI does not replace.
-
-## Verification Matrix
-
-| Scope | Verification Command |
+| Purpose | Command |
 | :--- | :--- |
-| **Docs Only** | `uv run ruff check src/snowiki tests` |
-| **CLI / Help** | `uv run snowiki --help && uv run ruff check src/snowiki tests && uv run ty check` |
-| **Search / Compiler** | `uv run python -m compileall src/snowiki/ && uv run pytest tests/search/ tests/retrieval/ tests/compiler/` |
-| **Storage / Schema / Config** | `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest` |
-| **Tests / Fixtures** | `uv run ruff check src/snowiki tests && uv run pytest` |
-| **PR Preflight** | `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest && uv run pytest -m integration` |
-| **Coverage Check** | `uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml` |
-| **Integration Check** | `uv run pytest -m integration` |
-| **Slow Test Diagnosis** | `uv run pytest --durations=10` |
-| **Perf Sensitive** | `uv run snowiki benchmark --preset retrieval --output reports/retrieval.json` |
+| **Fast check** | `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest` |
+| **Full check** | `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest && uv run pytest -m integration` |
+| **Coverage** | `uv run pytest --cov=snowiki --cov-report=term-missing` |
+| **Benchmark** | `uv run snowiki benchmark --preset retrieval` |
 
 ## Ownership
 
@@ -65,13 +44,9 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 | :--- | :--- | :--- |
 | `src/snowiki/` | Runtime code | Root `AGENTS.md` |
 | `tests/` | Verification | Root `AGENTS.md` |
-| `scripts/` | Repo automation | Root `AGENTS.md` |
 | `docs/architecture/` | Contract layer (runtime truth, stable interfaces) | Root `AGENTS.md` |
 | `docs/reference/` | Supporting architecture rationale and research | Root `AGENTS.md` |
-| `docs/roadmap/` | Canonical planning and analysis surface | Root `AGENTS.md` |
-| `docs/archive/` | Historical non-roadmap lineage | Root `AGENTS.md` |
 | `benchmarks/` | Benchmark assets/reports/docs | `benchmarks/AGENTS.md` |
-| `vault-template/` | Distributable vault schema | `vault-template/AGENTS.md` |
 | `skill/` | Distributable skill package | `skill/AGENTS.md` |
 | `fixtures/` | Shared asset surface | Root `AGENTS.md` |
 

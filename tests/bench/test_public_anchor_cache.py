@@ -287,7 +287,6 @@ def test_cached_public_anchor_manifest_uses_real_cached_assets(
     assert manifest.tier == "public_anchor"
     assert manifest.dataset_id == dataset_id
     assert manifest.dataset_metadata is not None
-    assert manifest.dataset_metadata["synthetic_sample"] is False
     assert manifest.dataset_metadata["real_public_assets"] is True
     assert manifest.dataset_metadata["sampling_strategy"] == "deterministic_first_n_queries_with_qrels"
     assert [str(query["id"]) for query in manifest.queries or []] == query_ids

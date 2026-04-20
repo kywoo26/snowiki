@@ -1,4 +1,4 @@
-# Official Guidance Notes: Claude Skills
+# Claude Skills Official Guidance — External Notes
 
 This document extracts authoritative guidance from official Anthropic sources regarding Claude skill authoring, discovery, and execution.
 All normative statements in `docs/reference/research/claude-skill-authoring-guide.md` should trace back either to the provenance register below or to the local raw captures listed there.

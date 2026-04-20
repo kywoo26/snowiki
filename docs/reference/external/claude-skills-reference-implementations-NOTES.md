@@ -1,4 +1,4 @@
-# Reference Implementations Notes: Claude Skills
+# Claude Skills Reference Implementations — External Notes
 
 This document captures key example/standard repositories and materials for Claude skill packaging, route design, and workflow patterns.
 
