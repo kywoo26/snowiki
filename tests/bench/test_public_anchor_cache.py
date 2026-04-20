@@ -309,12 +309,14 @@ def test_cached_public_anchor_manifest_uses_real_cached_assets(
 @pytest.mark.parametrize(
     ("query_count", "mode", "explicit_size", "expected"),
     [
+        (0, "quick", None, 0),
         (50, "quick", None, 50),
         (250, "quick", None, 200),
         (300, "standard", None, 300),
         (700, "standard", None, 500),
         (700, "full", None, 700),
         (1500, "full", None, 1000),
+        (0, "full", 25, 0),
         (700, "quick", 25, 25),
         (10, "full", 25, 10),
     ],
@@ -344,6 +346,25 @@ def test_cached_public_anchor_manifest_defaults_to_standard_mode(tmp_path: Path)
     assert manifest.dataset_metadata is not None
     assert manifest.dataset_metadata["queries_available"] == 3
     assert manifest.dataset_metadata["sample_mode"] == "standard"
+    assert manifest.dataset_metadata["sample_size"] == 3
+    assert manifest.dataset_metadata["sampling_strategy"] == "deterministic_qrels_bounded_mode"
+
+
+@pytest.mark.parametrize("sample_mode", ["quick", "full"])
+def test_cached_public_anchor_manifest_preserves_requested_sample_mode(
+    tmp_path: Path,
+    sample_mode: PublicAnchorSampleMode,
+) -> None:
+    data_root = _seed_beir_nfcorpus_cache(tmp_path)
+
+    manifest = load_beir_nfcorpus_cached_manifest(
+        sample_mode=sample_mode,
+        data_root=data_root,
+    )
+
+    assert manifest.dataset_metadata is not None
+    assert manifest.dataset_metadata["queries_available"] == 3
+    assert manifest.dataset_metadata["sample_mode"] == sample_mode
     assert manifest.dataset_metadata["sample_size"] == 3
     assert manifest.dataset_metadata["sampling_strategy"] == "deterministic_qrels_bounded_mode"
 

@@ -88,14 +88,14 @@ def _ensure_seeded_root(
 
 
 @contextmanager
-def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
+def _benchmark_root_context(root: Path | None, *, output: Path) -> Iterator[Path]:
     if root is not None:
         yield root
         return
-    with tempfile.TemporaryDirectory(
-        prefix="snowiki-benchmark-root-"
-    ) as temporary_root:
-        yield Path(temporary_root)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    local_root_parent = output.parent / ".snowiki-benchmark-root"
+    local_root_parent.mkdir(parents=True, exist_ok=True)
+    yield Path(tempfile.mkdtemp(prefix="run-", dir=local_root_parent))
 
 
 @click.command("benchmark")
@@ -112,7 +112,10 @@ def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
-    help="Snowiki storage root (defaults to an isolated temporary benchmark root)",
+    help=(
+        "Snowiki storage root (defaults to an isolated local benchmark root under "
+        + "the output directory)"
+    ),
 )
 @click.option(
     "--dataset",
@@ -159,7 +162,7 @@ def command(
                 "Warning: hidden_holdout is a development-only synthetic facsimile for "
                 "workflow verification and must not be treated as release evaluation."
             )
-        with _benchmark_root_context(root) as benchmark_root:
+        with _benchmark_root_context(root, output=output) as benchmark_root:
             manifest = _ensure_seeded_root(
                 benchmark_root,
                 dataset=dataset,

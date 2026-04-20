@@ -659,12 +659,16 @@ def test_generate_report_non_regression_retrieval_failures_are_informational(
     assert verdict["verdict"] == "PASS"
     assert verdict["exit_code"] == 0
     assert verdict["blocking_stage"] is None
+    metadata = cast(dict[str, Any], report["metadata"])
     assert stages[1] == {
         "name": "retrieval_thresholds",
         "verdict": "FAIL",
         "blocking": False,
         "failure_count": 1,
     }
+    assert "sample_mode" not in metadata
+    assert "queries_available" not in metadata
+    assert "sample_size" not in metadata
     rendered = render_report_text(report)
     assert "Retrieval threshold failures:" in rendered
     assert "Dataset sample mode:" not in rendered
@@ -1135,6 +1139,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
     assert metadata["sample_mode"] == "quick"
     assert metadata["queries_available"] == 812
     assert metadata["sample_size"] == 200
+    assert "sampling_strategy" not in metadata
     assert metadata["latency_sampling_policy"] == {
         "mode": "stratified",
         "population_query_count": 200,
