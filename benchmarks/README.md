@@ -65,6 +65,32 @@ The following files define the **regression / candidate-screening** quality data
 
 `benchmarks/*.json` files are benchmark-maintenance assets for the visible regression tier only. They must not be promoted into authoritative `public_anchor`, `snowiki_shaped`, or `hidden_holdout` tiers.
 
+## Real Public Dataset Management
+
+Real public benchmark payloads stay **out of git**. Use the dedicated benchmark fetch cache instead of copying corpora or qrels into `benchmarks/`.
+
+- Default benchmark data root: `SNOWIKI_ROOT/benchmarks`
+- Override env var: `SNOWIKI_BENCHMARK_DATA_ROOT`
+- Benchmark-owned Hugging Face cache: `<benchmark_data_root>/hf`
+- Local lock metadata: `<benchmark_data_root>/locks/<dataset_id>.json`
+
+If you point `--data-root` at the repo-local `benchmarks/` directory for experiments, both payload caches and generated lock files remain local-only and should stay out of git.
+
+Use the flat CLI entrypoint:
+
+```bash
+# Fetch a public-anchor dataset into the benchmark-owned HF cache
+uv run snowiki benchmark-fetch --dataset miracl_ko
+
+# Force-refresh a repo-local benchmark cache root for local experiments
+uv run snowiki benchmark-fetch --dataset beir_scifact --data-root benchmarks --refresh force
+
+# Reuse only locally cached files (no network)
+uv run snowiki benchmark-fetch --dataset mr_tydi_ko --offline
+```
+
+The fetch command stores dataset payloads in the benchmark data root / HF cache and writes small local lock metadata describing every resolved source snapshot, revision, provenance metadata, and allow-listed file scope. Corpora and qrels remain outside git-managed benchmark assets.
+
 ## Execution
 
 Run benchmarks using the `snowiki benchmark` command. Always use `uv run` to ensure the correct environment.
@@ -92,16 +118,20 @@ uv run snowiki benchmark --preset core --output reports/core.json
 # Retrieval quality check
 uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
 
-# MIRACL Korean public-anchor sample
+# Fetch first, then run MIRACL Korean against real cached public assets
+uv run snowiki benchmark-fetch --dataset miracl_ko
 uv run snowiki benchmark --preset retrieval --dataset miracl_ko --output reports/miracl_ko.json
 
-# Mr. TyDi Korean public-anchor sample
+# Fetch first, then run Mr. TyDi Korean against real cached public assets
+uv run snowiki benchmark-fetch --dataset mr_tydi_ko
 uv run snowiki benchmark --preset retrieval --dataset mr_tydi_ko --output reports/mr_tydi_ko.json
 
-# BEIR SciFact English public-anchor sample
+# Fetch first, then run BEIR SciFact against real cached public assets
+uv run snowiki benchmark-fetch --dataset beir_scifact
 uv run snowiki benchmark --preset retrieval --dataset beir_scifact --output reports/beir_scifact.json
 
-# BEIR NFCorpus English public-anchor sample
+# Fetch first, then run BEIR NFCorpus against real cached public assets
+uv run snowiki benchmark-fetch --dataset beir_nfcorpus
 uv run snowiki benchmark --preset retrieval --dataset beir_nfcorpus --output reports/beir_nfcorpus.json
 
 # Hidden holdout workflow facsimile (development-only, not release proof)
@@ -116,10 +146,10 @@ uv run snowiki benchmark --preset full --output reports/full.json
 `snowiki benchmark` now accepts `--dataset regression|miracl_ko|mr_tydi_ko|beir_scifact|beir_nfcorpus|snowiki_shaped|hidden_holdout`.
 
 - `regression` keeps using the deterministic Phase 1 local fixtures.
-- `miracl_ko` loads a deterministic MIRACL Korean public-anchor sample with preserved stable IDs, inline qrels, and explicit provenance metadata.
-- `mr_tydi_ko` loads a deterministic Mr. TyDi Korean calibration sample with preserved stable IDs, inline qrels, and explicit provenance metadata.
-- `beir_scifact` loads a compact deterministic English factual public-anchor sample shaped after BEIR SciFact for fast local iteration.
-- `beir_nfcorpus` loads a compact deterministic English topical public-anchor sample shaped after BEIR NFCorpus for long-tail flavored local iteration.
+- `miracl_ko` loads a compact deterministic sample built from the real cached MIRACL Korean parquet assets. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
+- `mr_tydi_ko` loads a compact deterministic sample built from the real cached Mr. TyDi Korean corpus plus dev IR queries/qrels. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
+- `beir_scifact` loads a compact deterministic sample built from the real cached BEIR SciFact corpus/queries repo plus the separate SciFact qrels repo. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
+- `beir_nfcorpus` loads a compact deterministic sample built from the real cached BEIR NFCorpus corpus/queries repo plus the separate NFCorpus qrels repo. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
 - `snowiki_shaped` loads a deterministic internal scripted-crawl facsimile with mixed Korean+English, code/doc, topical, temporal, and no-answer coverage for Snowiki-shaped evaluation.
 - `hidden_holdout` loads a deterministic synthetic sealed-holdout facsimile for development-time verification of visibility-tier sealing, pooled review, blind adjudication, disagreement escalation, and audit sampling. It is not the real release holdout and must not be cited as final proof.
 

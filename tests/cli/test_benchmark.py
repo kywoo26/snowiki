@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from snowiki.bench.corpus import BenchmarkCorpusManifest
 from snowiki.cli.commands import benchmark as benchmark_command
 from snowiki.cli.main import app
 
@@ -644,3 +645,100 @@ def test_benchmark_hidden_holdout_dataset_warns(tmp_path: Path, monkeypatch: pyt
     assert (
         "Warning: hidden_holdout is a development-only synthetic facsimile" in result.output
     )
+
+
+def test_benchmark_public_anchor_uses_cached_manifest_loader(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    report_path = tmp_path / "reports" / "benchmark.json"
+    loader_calls: list[str] = []
+    manifest = BenchmarkCorpusManifest(
+        tier="public_anchor",
+        documents=[
+            {
+                "id": "miracl-doc-1",
+                "content": "서울 도서관 운영 안내",
+                "metadata": {
+                    "title": "서울 도서관",
+                    "summary": "서울 도서관 운영 안내",
+                    "recorded_at": "2026-04-20T00:00:00Z",
+                    "language": "ko",
+                },
+            }
+        ],
+        queries=[
+            {
+                "id": "miracl-q-1",
+                "text": "서울 도서관 운영 시간이 궁금해",
+                "group": "ko",
+                "kind": "known-item",
+            }
+        ],
+        judgments={
+            "miracl-q-1": [
+                {
+                    "query_id": "miracl-q-1",
+                    "doc_id": "miracl-doc-1",
+                    "relevance": 1,
+                }
+            ]
+        },
+        dataset_id="miracl_ko",
+        dataset_name="MIRACL Korean",
+        dataset_metadata={"synthetic_sample": False},
+    )
+
+    monkeypatch.setattr(
+        benchmark_command,
+        "load_miracl_ko_cached_manifest",
+        lambda: loader_calls.append("miracl_ko") or manifest,
+    )
+    monkeypatch.setattr(benchmark_command, "load_corpus_from_manifest", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        benchmark_command,
+        "generate_report",
+        lambda *args, **kwargs: _fake_report(retrieval_blocking=False),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "--preset",
+            "retrieval",
+            "--dataset",
+            "miracl_ko",
+            "--output",
+            str(report_path),
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path / "root")},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert loader_calls == ["miracl_ko"]
+
+
+def test_benchmark_public_anchor_requires_explicit_fetch_first(
+    tmp_path: Path,
+) -> None:
+    report_path = tmp_path / "reports" / "benchmark.json"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "--preset",
+            "retrieval",
+            "--dataset",
+            "beir_scifact",
+            "--output",
+            str(report_path),
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path / "root")},
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "benchmark dataset 'beir_scifact' is not cached under" in result.output
+    assert "uv run snowiki benchmark-fetch --dataset beir_scifact" in result.output
