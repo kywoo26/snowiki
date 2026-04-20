@@ -17,6 +17,12 @@ from .korean import (
     load_miracl_ko_sample,
     load_mr_tydi_ko_sample,
 )
+from .public_cached import (
+    load_beir_nfcorpus_cached_manifest,
+    load_beir_scifact_cached_manifest,
+    load_miracl_ko_cached_manifest,
+    load_mr_tydi_ko_cached_manifest,
+)
 from .snowiki_shaped import (
     SNOWIKI_SHAPED_METADATA,
     load_snowiki_shaped_suite,
@@ -30,10 +36,14 @@ __all__ = [
     "MR_TYDI_KO_METADATA",
     "SNOWIKI_SHAPED_METADATA",
     "is_hidden_holdout",
+    "load_beir_nfcorpus_cached_manifest",
     "load_beir_nfcorpus_sample",
+    "load_beir_scifact_cached_manifest",
     "load_beir_scifact_sample",
     "load_hidden_holdout_suite",
+    "load_miracl_ko_cached_manifest",
     "load_miracl_ko_sample",
+    "load_mr_tydi_ko_cached_manifest",
     "load_mr_tydi_ko_sample",
     "load_snowiki_shaped_suite",
 ]

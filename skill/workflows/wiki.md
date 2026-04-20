@@ -21,6 +21,7 @@ Current shipped CLI surface:
 ### Advanced Passthrough
 - `snowiki export`
 - `snowiki benchmark`
+- `snowiki benchmark-fetch`
 - `snowiki daemon`
 - `snowiki mcp`
 

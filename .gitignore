@@ -49,6 +49,13 @@ quarantine/
 # Reports
 reports/
 
+# Benchmark local dataset cache roots
+benchmarks/hf/
+benchmarks/locks/
+benchmarks/materialized/
+benchmarks/downloads/
+.cache/huggingface/
+
 # Research cache captures
 .cache/research/claude-skills/
 
