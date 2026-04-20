@@ -88,14 +88,14 @@ def _ensure_seeded_root(
 
 
 @contextmanager
-def _benchmark_root_context(root: Path | None, *, output: Path) -> Iterator[Path]:
+def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
     if root is not None:
         yield root
         return
-    output.parent.mkdir(parents=True, exist_ok=True)
-    local_root_parent = output.parent / ".snowiki-benchmark-root"
-    local_root_parent.mkdir(parents=True, exist_ok=True)
-    yield Path(tempfile.mkdtemp(prefix="run-", dir=local_root_parent))
+    with tempfile.TemporaryDirectory(
+        prefix="snowiki-benchmark-root-"
+    ) as temporary_root:
+        yield Path(temporary_root)
 
 
 @click.command("benchmark")
@@ -112,10 +112,7 @@ def _benchmark_root_context(root: Path | None, *, output: Path) -> Iterator[Path
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
-    help=(
-        "Snowiki storage root (defaults to an isolated local benchmark root under "
-        + "the output directory)"
-    ),
+    help="Snowiki storage root (defaults to an isolated temporary benchmark root)",
 )
 @click.option(
     "--dataset",
@@ -162,7 +159,7 @@ def command(
                 "Warning: hidden_holdout is a development-only synthetic facsimile for "
                 "workflow verification and must not be treated as release evaluation."
             )
-        with _benchmark_root_context(root, output=output) as benchmark_root:
+        with _benchmark_root_context(root) as benchmark_root:
             manifest = _ensure_seeded_root(
                 benchmark_root,
                 dataset=dataset,
@@ -196,7 +193,7 @@ def command(
                 except Exception:
                     pass
             report = generated_report
-            tokenizer_artifact_path = benchmark_root / ".cache" / "tokenizer_comparison.md"
+            tokenizer_artifact_path = output.parent / ".cache" / "tokenizer_comparison.md"
             _ = write_tokenizer_comparison_artifact(report, tokenizer_artifact_path)
     except Exception as exc:
         emit_error(str(exc), output="human", code="benchmark_failed")

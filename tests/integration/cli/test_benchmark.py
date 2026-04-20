@@ -409,8 +409,7 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     assert result.exit_code == 0, result.output
     assert len(seeded_roots) == 1
     assert seeded_roots[0] != tmp_path / "root"
-    assert seeded_roots[0].name.startswith("run-")
-    assert seeded_roots[0].parent == report_path.parent / ".snowiki-benchmark-root"
+    assert seeded_roots[0].name.startswith("snowiki-benchmark-root-")
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     retrieval = payload["retrieval"]
     assert "candidate_matrix" in retrieval
@@ -473,7 +472,7 @@ def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
     assert match is not None
     artifact_path = Path(match.group(1).strip())
     assert artifact_path.exists()
-    assert ".snowiki-benchmark-root" in artifact_path.as_posix()
+    assert str(artifact_path) == str(report_path.parent / ".cache" / "tokenizer_comparison.md")
     assert artifact_path.read_text(encoding="utf-8").startswith("Tokenizer comparison:\n")
 
 
@@ -509,7 +508,7 @@ def test_benchmark_preserves_explicit_root(
 
     assert result.exit_code == 0, result.output
     assert seeded_roots == [explicit_root]
-    artifact_path = explicit_root / ".cache" / "tokenizer_comparison.md"
+    artifact_path = report_path.parent / ".cache" / "tokenizer_comparison.md"
     assert artifact_path.exists()
     assert f"Tokenizer comparison written to {artifact_path}" in result.output
     artifact_text = artifact_path.read_text(encoding="utf-8")
@@ -727,9 +726,7 @@ def test_benchmark_help_mentions_isolated_temp_root() -> None:
     assert "quick=200" in result.output
     assert "hidden-holdout tiers" in result.output
     assert "defaults to an isolated" in result.output
-    assert "local benchmark root" in result.output
-    assert "output" in result.output
-    assert "directory" in result.output
+    assert "temporary benchmark root" in result.output
 
 
 def test_benchmark_hidden_holdout_dataset_warns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
