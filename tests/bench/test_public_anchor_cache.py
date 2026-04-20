@@ -289,7 +289,8 @@ def test_cached_public_anchor_manifest_uses_real_cached_assets(
     assert manifest.dataset_metadata is not None
     assert manifest.dataset_metadata["synthetic_sample"] is False
     assert manifest.dataset_metadata["real_public_assets"] is True
-    assert manifest.dataset_metadata["sampling_strategy"] == "deterministic_first_n_queries_with_qrels"
+    assert manifest.dataset_metadata["sample_mode"] == "custom"
+    assert manifest.dataset_metadata["sampling_strategy"] == "explicit_query_count_override"
     assert [str(query["id"]) for query in manifest.queries or []] == query_ids
     assert {str(document["id"]) for document in manifest.documents} == set(doc_ids)
     assert manifest.judgments is not None
