@@ -11,11 +11,11 @@ from typing import Literal, cast
 import click
 
 from snowiki.bench.anchors import (
-    load_beir_nfcorpus_sample,
-    load_beir_scifact_sample,
+    load_beir_nfcorpus_cached_manifest,
+    load_beir_scifact_cached_manifest,
     load_hidden_holdout_suite,
-    load_miracl_ko_sample,
-    load_mr_tydi_ko_sample,
+    load_miracl_ko_cached_manifest,
+    load_mr_tydi_ko_cached_manifest,
     load_snowiki_shaped_suite,
 )
 from snowiki.bench.corpus import BenchmarkCorpusManifest, load_corpus_from_manifest
@@ -49,13 +49,13 @@ def _has_seeded_corpus(root: Path) -> bool:
 
 def _load_dataset_manifest(dataset: str) -> BenchmarkCorpusManifest | None:
     if dataset == "miracl_ko":
-        return load_miracl_ko_sample()
+        return load_miracl_ko_cached_manifest()
     if dataset == "mr_tydi_ko":
-        return load_mr_tydi_ko_sample()
+        return load_mr_tydi_ko_cached_manifest()
     if dataset == "beir_scifact":
-        return load_beir_scifact_sample()
+        return load_beir_scifact_cached_manifest()
     if dataset == "beir_nfcorpus":
-        return load_beir_nfcorpus_sample()
+        return load_beir_nfcorpus_cached_manifest()
     if dataset == "snowiki_shaped":
         return load_snowiki_shaped_suite()
     if dataset == "hidden_holdout":
@@ -64,7 +64,6 @@ def _load_dataset_manifest(dataset: str) -> BenchmarkCorpusManifest | None:
 
 
 def _ensure_seeded_root(root: Path, *, dataset: str) -> BenchmarkCorpusManifest | None:
-    manifest = _load_dataset_manifest(dataset)
     if dataset == "regression":
         if _has_seeded_corpus(root):
             return None
@@ -75,6 +74,7 @@ def _ensure_seeded_root(root: Path, *, dataset: str) -> BenchmarkCorpusManifest 
         raise ValueError(
             f"dataset '{dataset}' requires an empty isolated benchmark root to avoid cross-tier mixing"
         )
+    manifest = _load_dataset_manifest(dataset)
     if manifest is None:
         raise ValueError(f"dataset '{dataset}' did not resolve to a benchmark manifest")
     _ = load_corpus_from_manifest(manifest, root)
