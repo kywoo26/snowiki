@@ -28,6 +28,7 @@ Atomic units of execution provided by the `snowiki` CLI:
 ### Advanced Passthrough
 - `snowiki export`
 - `snowiki benchmark`
+- `snowiki benchmark-fetch`
 - `snowiki daemon`
 - `snowiki mcp`
 
@@ -80,7 +81,7 @@ Search compiled knowledge through the current lexical retrieval runtime.
 #### `recall`
 Recall against current stored knowledge/session-derived material through the shipped Snowiki runtime.
 
-#### `status`, `lint`, `export`, `benchmark`, `daemon`, `mcp`
+#### `status`, `lint`, `export`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`
 These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
 
 #### `fileback`

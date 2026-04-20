@@ -43,6 +43,7 @@ The current runtime exposes these top-level commands:
 ### Advanced Passthrough
 - `snowiki export`
 - `snowiki benchmark`
+- `snowiki benchmark-fetch`
 - `snowiki daemon`
 - `snowiki mcp`
 
