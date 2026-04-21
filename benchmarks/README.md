@@ -95,7 +95,7 @@ The fetch command stores dataset payloads in the benchmark data root / HF cache 
 
 Run benchmarks using the `snowiki benchmark` command. Always use `uv run` to ensure the correct environment.
 
-When `--root` is omitted, the benchmark runs inside an isolated temporary Snowiki root that is seeded with the regression-tier fixtures. This prevents Phase 1 verification from reading or mutating the user's real `~/.snowiki` runtime tree.
+When `--root` is omitted, the benchmark runs inside an isolated local Snowiki root created under the JSON output directory and seeded with the regression-tier fixtures. This keeps the run isolated from the user's real `~/.snowiki` runtime tree while leaving benchmark-local artifacts durable for inspection.
 
 The default dataset remains `regression`. Public anchors are opt-in via `--dataset` so release-quality anchor runs stay clearly separated from candidate-screening regression checks.
 

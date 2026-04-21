@@ -30,7 +30,7 @@ A pass in the `regression` tier is necessary but not sufficient for release-qual
 ## Execution & Isolation
 
 - Always run benchmarks via `uv run snowiki benchmark`.
-- Default execution uses an isolated temporary root seeded with Phase 1 fixtures.
+- Default execution uses an isolated local root under the benchmark output directory, seeded with Phase 1 fixtures.
 - Avoid using `--root` in automated verification to prevent mutation of the user's real vault.
 
 ## Threshold Sensitivity

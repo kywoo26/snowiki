@@ -11,10 +11,12 @@ from typing import cast
 import pytest
 
 from snowiki.bench.anchors.public_cached import (
+    PublicAnchorSampleMode,
     load_beir_nfcorpus_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_miracl_ko_cached_manifest,
     load_mr_tydi_ko_cached_manifest,
+    resolve_public_anchor_sample_count,
 )
 from snowiki.bench.corpus import BenchmarkCorpusManifest, load_corpus_from_manifest
 from snowiki.bench.datasets import (
@@ -288,7 +290,10 @@ def test_cached_public_anchor_manifest_uses_real_cached_assets(
     assert manifest.dataset_id == dataset_id
     assert manifest.dataset_metadata is not None
     assert manifest.dataset_metadata["real_public_assets"] is True
-    assert manifest.dataset_metadata["sampling_strategy"] == "deterministic_first_n_queries_with_qrels"
+    assert manifest.dataset_metadata["queries_available"] == 3
+    assert manifest.dataset_metadata["sample_mode"] == "custom"
+    assert manifest.dataset_metadata["sample_size"] == 2
+    assert manifest.dataset_metadata["sampling_strategy"] == "explicit_query_count_override"
     assert [str(query["id"]) for query in manifest.queries or []] == query_ids
     assert {str(document["id"]) for document in manifest.documents} == set(doc_ids)
     assert manifest.judgments is not None
@@ -299,6 +304,69 @@ def test_cached_public_anchor_manifest_uses_real_cached_assets(
     assert manifest.corpus_assets[0].provenance.family_dedupe_key == f"public-anchor:{dataset_id}:{language}"
     assert all(query.get("group") == language for query in manifest.queries or [])
     assert {str(query.get("kind")) for query in manifest.queries or []} == {"known-item", "topical"}
+
+
+@pytest.mark.parametrize(
+    ("query_count", "mode", "explicit_size", "expected"),
+    [
+        (0, "quick", None, 0),
+        (50, "quick", None, 50),
+        (250, "quick", None, 200),
+        (300, "standard", None, 300),
+        (700, "standard", None, 500),
+        (700, "full", None, 700),
+        (1500, "full", None, 1000),
+        (0, "full", 25, 0),
+        (700, "quick", 25, 25),
+        (10, "full", 25, 10),
+    ],
+)
+def test_resolve_public_anchor_sample_count(
+    query_count: int,
+    mode: PublicAnchorSampleMode,
+    explicit_size: int | None,
+    expected: int,
+) -> None:
+    assert (
+        resolve_public_anchor_sample_count(query_count, mode, explicit_size=explicit_size)
+        == expected
+    )
+
+
+def test_resolve_public_anchor_sample_count_rejects_non_positive_override() -> None:
+    with pytest.raises(ValueError, match="at least 1"):
+        _ = resolve_public_anchor_sample_count(10, "standard", explicit_size=0)
+
+
+def test_cached_public_anchor_manifest_defaults_to_standard_mode(tmp_path: Path) -> None:
+    data_root = _seed_beir_scifact_cache(tmp_path)
+
+    manifest = load_beir_scifact_cached_manifest(data_root=data_root)
+
+    assert manifest.dataset_metadata is not None
+    assert manifest.dataset_metadata["queries_available"] == 3
+    assert manifest.dataset_metadata["sample_mode"] == "standard"
+    assert manifest.dataset_metadata["sample_size"] == 3
+    assert manifest.dataset_metadata["sampling_strategy"] == "deterministic_qrels_bounded_mode"
+
+
+@pytest.mark.parametrize("sample_mode", ["quick", "full"])
+def test_cached_public_anchor_manifest_preserves_requested_sample_mode(
+    tmp_path: Path,
+    sample_mode: PublicAnchorSampleMode,
+) -> None:
+    data_root = _seed_beir_nfcorpus_cache(tmp_path)
+
+    manifest = load_beir_nfcorpus_cached_manifest(
+        sample_mode=sample_mode,
+        data_root=data_root,
+    )
+
+    assert manifest.dataset_metadata is not None
+    assert manifest.dataset_metadata["queries_available"] == 3
+    assert manifest.dataset_metadata["sample_mode"] == sample_mode
+    assert manifest.dataset_metadata["sample_size"] == 3
+    assert manifest.dataset_metadata["sampling_strategy"] == "deterministic_qrels_bounded_mode"
 
 
 def test_cached_public_anchor_report_includes_real_dataset_provenance(
@@ -354,6 +422,7 @@ def test_cached_public_anchor_report_includes_real_dataset_provenance(
 
     assert dataset_payload["name"] == "BEIR SciFact"
     assert cast(dict[str, object], dataset_payload["metadata"])["synthetic_sample"] is False
+    assert "Dataset sample mode:" in rendered
     assert "Dataset provenance:" in rendered
     assert "Dataset language: en" in rendered
     assert "Dataset source: https://huggingface.co/datasets/BeIR/scifact" in rendered

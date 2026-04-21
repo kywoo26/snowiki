@@ -48,6 +48,8 @@ quarantine/
 
 # Reports
 reports/
+.snowiki-benchmark-root/
+**/.cache/tokenizer_comparison.md
 
 # Benchmark local dataset cache roots
 benchmarks/hf/

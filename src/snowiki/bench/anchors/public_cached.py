@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterable, Mapping
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from pathlib import Path
-from typing import Final, cast
+from typing import Final, Literal, cast
 
 from snowiki.bench.corpus import BenchmarkCorpusManifest
 from snowiki.bench.datasets import (
@@ -21,7 +21,11 @@ from snowiki.bench.datasets import (
 )
 from snowiki.bench.models import BenchmarkAssetManifest, BenchmarkProvenance
 
-_DEFAULT_SAMPLE_SIZE: Final[int] = 100
+PublicAnchorSampleMode = Literal["quick", "standard", "full"]
+
+QUICK_SIZE: Final[int] = 200
+STANDARD_SIZE: Final[int] = 500
+FULL_CAP: Final[int] = 1000
 _MAX_IMPORTED_TITLE_LENGTH: Final[int] = 96
 _WIKILINK_PATTERN: Final[re.Pattern[str]] = re.compile(r"\[\[([^\[\]]+)\]\]")
 _TEMPLATE_PATTERN: Final[re.Pattern[str]] = re.compile(r"\{\{([^{}]+)\}\}")
@@ -54,8 +58,27 @@ _PUBLIC_DATASET_METADATA: Final[dict[BenchmarkDatasetId, dict[str, str]]] = {
 }
 
 
+def resolve_public_anchor_sample_count(
+    query_count: int,
+    mode: PublicAnchorSampleMode,
+    explicit_size: int | None = None,
+) -> int:
+    if explicit_size is not None:
+        if explicit_size < 1:
+            raise ValueError("public anchor sample size must be at least 1")
+        return min(explicit_size, query_count)
+    if mode == "quick":
+        return min(QUICK_SIZE, query_count)
+    if mode == "standard":
+        return min(STANDARD_SIZE, query_count)
+    return min(query_count, FULL_CAP)
+
+
 def load_miracl_ko_cached_manifest(
-    size: int = _DEFAULT_SAMPLE_SIZE, *, data_root: Path | None = None
+    size: int | None = None,
+    *,
+    sample_mode: PublicAnchorSampleMode = "standard",
+    data_root: Path | None = None,
 ) -> BenchmarkCorpusManifest:
     """Build a real MIRACL Korean benchmark manifest from cached public assets."""
 
@@ -68,6 +91,7 @@ def load_miracl_ko_cached_manifest(
     return _build_real_manifest(
         dataset_id="miracl_ko",
         size=size,
+        sample_mode=sample_mode,
         fetched=fetched,
         corpus_rows=corpus_rows,
         query_rows=query_rows,
@@ -85,7 +109,10 @@ def load_miracl_ko_cached_manifest(
 
 
 def load_mr_tydi_ko_cached_manifest(
-    size: int = _DEFAULT_SAMPLE_SIZE, *, data_root: Path | None = None
+    size: int | None = None,
+    *,
+    sample_mode: PublicAnchorSampleMode = "standard",
+    data_root: Path | None = None,
 ) -> BenchmarkCorpusManifest:
     """Build a real Mr. TyDi Korean benchmark manifest from cached public assets."""
 
@@ -98,6 +125,7 @@ def load_mr_tydi_ko_cached_manifest(
     return _build_real_manifest(
         dataset_id="mr_tydi_ko",
         size=size,
+        sample_mode=sample_mode,
         fetched=fetched,
         corpus_rows=_iter_jsonl_gz_rows(corpus_path),
         query_rows=list(_iter_topics_rows(topics_path)),
@@ -115,25 +143,42 @@ def load_mr_tydi_ko_cached_manifest(
 
 
 def load_beir_scifact_cached_manifest(
-    size: int = _DEFAULT_SAMPLE_SIZE, *, data_root: Path | None = None
+    size: int | None = None,
+    *,
+    sample_mode: PublicAnchorSampleMode = "standard",
+    data_root: Path | None = None,
 ) -> BenchmarkCorpusManifest:
     """Build a real BEIR SciFact benchmark manifest from cached public assets."""
 
-    return _load_beir_cached_manifest("beir_scifact", size=size, data_root=data_root)
+    return _load_beir_cached_manifest(
+        "beir_scifact",
+        size=size,
+        sample_mode=sample_mode,
+        data_root=data_root,
+    )
 
 
 def load_beir_nfcorpus_cached_manifest(
-    size: int = _DEFAULT_SAMPLE_SIZE, *, data_root: Path | None = None
+    size: int | None = None,
+    *,
+    sample_mode: PublicAnchorSampleMode = "standard",
+    data_root: Path | None = None,
 ) -> BenchmarkCorpusManifest:
     """Build a real BEIR NFCorpus benchmark manifest from cached public assets."""
 
-    return _load_beir_cached_manifest("beir_nfcorpus", size=size, data_root=data_root)
+    return _load_beir_cached_manifest(
+        "beir_nfcorpus",
+        size=size,
+        sample_mode=sample_mode,
+        data_root=data_root,
+    )
 
 
 def _load_beir_cached_manifest(
     dataset_id: BenchmarkDatasetId,
     *,
-    size: int,
+    size: int | None,
+    sample_mode: PublicAnchorSampleMode,
     data_root: Path | None,
 ) -> BenchmarkCorpusManifest:
     fetched = resolve_cached_benchmark_dataset(dataset_id, data_root=data_root)
@@ -154,6 +199,7 @@ def _load_beir_cached_manifest(
     return _build_real_manifest(
         dataset_id=dataset_id,
         size=size,
+        sample_mode=sample_mode,
         fetched=fetched,
         corpus_rows=corpus_rows,
         query_rows=query_rows,
@@ -179,7 +225,8 @@ def _load_beir_cached_manifest(
 def _build_real_manifest(
     *,
     dataset_id: BenchmarkDatasetId,
-    size: int,
+    size: int | None = None,
+    sample_mode: PublicAnchorSampleMode = "standard",
     fetched: BenchmarkDatasetFetchResult,
     corpus_rows: Iterable[Mapping[str, object]],
     query_rows: Iterable[Mapping[str, object]],
@@ -194,9 +241,6 @@ def _build_real_manifest(
     query_asset_path: Path,
     judgment_asset_path: Path,
 ) -> BenchmarkCorpusManifest:
-    if size < 1:
-        raise ValueError("public anchor sample size must be at least 1")
-
     spec = get_benchmark_dataset_spec(dataset_id)
     metadata = _PUBLIC_DATASET_METADATA[dataset_id]
     query_lookup: dict[str, dict[str, object]] = {}
@@ -224,11 +268,25 @@ def _build_real_manifest(
             }
         )
 
-    selected_query_ids = [
+    qrels_backed_query_ids = [
         query_id for query_id in query_order if query_id in judgments_by_query
-    ][:size]
+    ]
+    queries_available = len(qrels_backed_query_ids)
+    sample_size = resolve_public_anchor_sample_count(
+        query_count=queries_available,
+        mode=sample_mode,
+        explicit_size=size,
+    )
+    selected_query_ids = qrels_backed_query_ids[:sample_size]
     if not selected_query_ids:
         raise ValueError(f"no qrels-backed queries found for benchmark dataset '{dataset_id}'")
+
+    resolved_sample_mode = "custom" if size is not None else sample_mode
+    sampling_strategy = (
+        "explicit_query_count_override"
+        if size is not None
+        else "deterministic_qrels_bounded_mode"
+    )
 
     needed_doc_ids = {
         str(entry["doc_id"])
@@ -282,9 +340,11 @@ def _build_real_manifest(
             "description": metadata["description"],
             "language": spec.language,
             "license": spec.license,
+            "queries_available": queries_available,
             "real_public_assets": True,
             "sample_size": len(selected_query_ids),
-            "sampling_strategy": "deterministic_first_n_queries_with_qrels",
+            "sample_mode": resolved_sample_mode,
+            "sampling_strategy": sampling_strategy,
             "source_url": spec.source_url,
             "sources": [
                 {
@@ -572,8 +632,13 @@ def _require_int_field(row: Mapping[str, object], keys: tuple[str, ...]) -> int:
 
 
 __all__ = [
+    "FULL_CAP",
+    "PublicAnchorSampleMode",
+    "QUICK_SIZE",
+    "STANDARD_SIZE",
     "load_beir_nfcorpus_cached_manifest",
     "load_beir_scifact_cached_manifest",
     "load_miracl_ko_cached_manifest",
     "load_mr_tydi_ko_cached_manifest",
+    "resolve_public_anchor_sample_count",
 ]
