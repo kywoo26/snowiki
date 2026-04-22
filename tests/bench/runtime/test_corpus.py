@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from snowiki.bench.evaluation import baselines
+from snowiki.bench.evaluation import index, qrels, scoring
 from snowiki.bench.runtime import corpus
 from snowiki.search.workspace import load_normalized_records
 
@@ -156,12 +156,12 @@ def test_generic_document_ids_work_without_fixture_provenance(tmp_path: Path) ->
     )
 
     _ = corpus.load_corpus_from_manifest(manifest, tmp_path)
-    bundle = baselines._build_corpus(tmp_path)
+    bundle = index.build_corpus(tmp_path)
     hits = bundle.raw_index.search("nebula retrieval token", limit=5)
-    hit_lookup = baselines._benchmark_hit_lookup(bundle)
-    ranked_ids = baselines._ranked_doc_ids(
+    hit_lookup = index.benchmark_hit_lookup(bundle)
+    ranked_ids = scoring.ranked_doc_ids(
         hits,
-        baselines._load_judgments(tmp_path, manifest.judgments_path)["q1"],
+        qrels.load_judgments(tmp_path, manifest.judgments_path)["q1"],
         hit_lookup=hit_lookup,
     )
 

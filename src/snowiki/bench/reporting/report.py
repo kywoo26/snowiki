@@ -6,8 +6,7 @@ from statistics import fmean
 from typing import Literal, cast
 
 from ..contract.presets import get_preset
-from ..evaluation.baselines import run_baseline_comparison
-from ..evaluation.candidates import CANDIDATE_MATRIX
+from ..evaluation import CANDIDATE_MATRIX, run_baseline_comparison
 from ..runtime.context import canonicalize_execution_layer
 from ..runtime.corpus import BenchmarkCorpusManifest
 from ..validation.correctness import (

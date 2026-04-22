@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from snowiki.bench.evaluation.baselines import _assemble_candidate_matrix
 from snowiki.bench.evaluation.candidates import (
     CANDIDATE_MATRIX,
     admitted_candidates,
+    assemble_candidate_matrix,
     get_candidate,
 )
 from snowiki.bench.reporting.models import (
@@ -27,8 +27,7 @@ def test_candidate_matrix_roster() -> None:
     assert "kiwi_nouns_v1" in names
     assert "mecab_morphology_v1" in names
     assert "hf_wordpiece_v1" in names
-    assert "lindera_ko_v1" in names
-    assert len(CANDIDATE_MATRIX) == 6
+    assert len(CANDIDATE_MATRIX) == 5
 
 
 def test_regex_v1_is_control() -> None:
@@ -57,17 +56,8 @@ def test_kiwi_variants_are_admitted() -> None:
     assert nouns.operational_evidence.platform_support.windows == "unknown"
 
 
-def test_lindera_ko_v1_is_not_admitted_by_default() -> None:
-    lindera = get_candidate("lindera_ko_v1")
-    assert lindera.role == "candidate"
-    assert lindera.control is False
-    assert lindera.admission_status == "not_admitted"
-    assert lindera.evidence_baseline is None
-    assert lindera.operational_evidence.zero_cost_admission is False
-    assert (
-        lindera.operational_evidence.admission_reason
-        == "zero_cost_local_install_unavailable"
-    )
+def test_candidate_matrix_contains_only_supported_benchmark_candidates() -> None:
+    assert all(candidate.evidence_baseline is not None for candidate in CANDIDATE_MATRIX)
 
 
 def test_admitted_candidates_filter() -> None:
@@ -80,7 +70,6 @@ def test_admitted_candidates_filter() -> None:
         "mecab_morphology_v1",
         "hf_wordpiece_v1",
     }
-    assert "lindera_ko_v1" not in names
 
 
 def test_get_candidate_raises_on_unknown() -> None:
@@ -123,10 +112,10 @@ def test_candidate_matrix_report_preserves_dual_identity_additively() -> None:
                         },
                     },
                     {
-                        "candidate_name": "lindera_ko_v1",
-                        "evidence_baseline": None,
+                        "candidate_name": "mecab_morphology_v1",
+                        "evidence_baseline": "bm25s_mecab_full",
                         "role": "candidate",
-                        "admission_status": "not_admitted",
+                        "admission_status": "admitted",
                         "control": False,
                         "operational_evidence": {
                             "memory_peak_rss_mb": None,
@@ -135,19 +124,19 @@ def test_candidate_matrix_report_preserves_dual_identity_additively() -> None:
                             "disk_size_evidence_status": "not_measured",
                             "platform_support": {
                                 "macos": "unknown",
-                                "linux_x86_64": "unknown",
+                                "linux_x86_64": "supported",
                                 "linux_aarch64": "unknown",
                                 "windows": "unknown",
                                 "fallback_behavior": "unknown",
                             },
                             "install_ergonomics": {
-                                "prebuilt_available": None,
-                                "build_from_source_required": None,
-                                "hidden_bootstrap_steps": None,
-                                "operational_complexity": "unknown",
+                                "prebuilt_available": True,
+                                "build_from_source_required": False,
+                                "hidden_bootstrap_steps": False,
+                                "operational_complexity": "medium",
                             },
-                            "zero_cost_admission": False,
-                            "admission_reason": "zero_cost_local_install_unavailable",
+                            "zero_cost_admission": True,
+                            "admission_reason": "admitted_mecab_candidate",
                         },
                     },
                 ]
@@ -187,10 +176,10 @@ def test_candidate_matrix_report_preserves_dual_identity_additively() -> None:
                     },
                 },
                 {
-                    "candidate_name": "lindera_ko_v1",
-                    "evidence_baseline": None,
+                    "candidate_name": "mecab_morphology_v1",
+                    "evidence_baseline": "bm25s_mecab_full",
                     "role": "candidate",
-                    "admission_status": "not_admitted",
+                    "admission_status": "admitted",
                     "control": False,
                     "operational_evidence": {
                         "memory_peak_rss_mb": None,
@@ -199,19 +188,19 @@ def test_candidate_matrix_report_preserves_dual_identity_additively() -> None:
                         "disk_size_evidence_status": "not_measured",
                         "platform_support": {
                             "macos": "unknown",
-                            "linux_x86_64": "unknown",
+                            "linux_x86_64": "supported",
                             "linux_aarch64": "unknown",
                             "windows": "unknown",
                             "fallback_behavior": "unknown",
                         },
                         "install_ergonomics": {
-                            "prebuilt_available": None,
-                            "build_from_source_required": None,
-                            "hidden_bootstrap_steps": None,
-                            "operational_complexity": "unknown",
+                            "prebuilt_available": True,
+                            "build_from_source_required": False,
+                            "hidden_bootstrap_steps": False,
+                            "operational_complexity": "medium",
                         },
-                        "zero_cost_admission": False,
-                        "admission_reason": "zero_cost_local_install_unavailable",
+                        "zero_cost_admission": True,
+                        "admission_reason": "admitted_mecab_candidate",
                     },
                 },
             ]
@@ -224,7 +213,7 @@ def test_candidate_matrix_report_preserves_dual_identity_additively() -> None:
 
 
 def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> None:
-    matrix = _assemble_candidate_matrix(
+    matrix = assemble_candidate_matrix(
         {
             "lexical": BaselineResult.model_validate(
                 {"name": "lexical", "queries": []}
@@ -274,7 +263,6 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
         "kiwi_nouns_v1",
         "hf_wordpiece_v1",
         "mecab_morphology_v1",
-        "lindera_ko_v1",
     ]
     assert [entry.evidence_baseline for entry in matrix.candidates] == [
         "lexical",
@@ -283,7 +271,6 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
         "bm25s_kiwi_nouns",
         "bm25s_hf_wordpiece",
         "bm25s_mecab_full",
-        None,
     ]
     assert matrix.candidates[0].control is True
     assert matrix.candidates[1].control is True
@@ -318,19 +305,15 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
             "queries": [],
         }
     )
-    assert matrix.candidates[-1].candidate_name == "lindera_ko_v1"
-    assert matrix.candidates[-1].baseline is None
-    assert matrix.candidates[-1].operational_evidence is not None
-    assert matrix.candidates[-1].operational_evidence.zero_cost_admission is False
-    assert [decision.candidate_name for decision in matrix.decisions] == [
+    policy_decisions = list(evaluate_candidate_policy(matrix))
+    assert [decision.candidate_name for decision in policy_decisions] == [
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
         "mecab_morphology_v1",
         "hf_wordpiece_v1",
-        "lindera_ko_v1",
     ]
-    decisions = {decision.candidate_name: decision for decision in matrix.decisions}
+    decisions = {decision.candidate_name: decision for decision in policy_decisions}
     assert decisions["regex_v1"] == CandidateDecision.model_validate(
         {
             "candidate_name": "regex_v1",
@@ -354,8 +337,6 @@ def test_assemble_candidate_matrix_groups_baselines_by_canonical_candidate() -> 
     assert decisions["kiwi_nouns_v1"].disposition == "reject"
     assert decisions["mecab_morphology_v1"].disposition == "reject"
     assert decisions["hf_wordpiece_v1"].disposition == "reject"
-    assert decisions["lindera_ko_v1"].disposition == "reject"
-    assert decisions["lindera_ko_v1"].reasons == ["missing_benchmark_evidence"]
 
 
 def test_hf_wordpiece_candidate_is_admitted() -> None:

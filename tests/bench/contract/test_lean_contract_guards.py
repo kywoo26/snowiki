@@ -22,7 +22,7 @@ from snowiki.bench.runtime.context import LAYER_POLICIES, ExecutionLayer
 
 pytestmark = pytest.mark.bench
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 OFFICIAL_SIX_DATASET_IDS: tuple[str, ...] = (
     "ms_marco_passage",
     "trec_dl_2020_passage",

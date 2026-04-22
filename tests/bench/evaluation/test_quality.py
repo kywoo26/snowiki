@@ -228,7 +228,7 @@ def test_evaluate_quality_thresholds_marks_regressions_as_failures(
     quality, contract = _load_quality_symbols()
     evaluate_sliced_quality = quality.evaluate_sliced_quality
     evaluate_quality_thresholds = quality.evaluate_quality_thresholds
-    benchmark_thresholds = contract.PHASE_1_THRESHOLDS
+    benchmark_thresholds = contract.BENCHMARK_THRESHOLDS
 
     summary = evaluate_sliced_quality(
         {"q1": ["miss"], "q2": ["x", "z", "w"]},

@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 
 from snowiki.bench import datasets
+from snowiki.bench.datasets import cache as datasets_cache
 from snowiki.bench.datasets import fetch as datasets_fetch
 
 
@@ -49,7 +50,7 @@ def test_fetch_benchmark_dataset_writes_multi_source_lock_metadata(
 
     monkeypatch.setattr(datasets_fetch, "snapshot_download", fake_snapshot_download)
     monkeypatch.setattr(
-        datasets_fetch,
+        datasets_cache,
         "isoformat_utc",
         lambda _value: "2026-04-20T00:00:00Z",
     )
@@ -203,7 +204,7 @@ def test_fetch_benchmark_dataset_materializes_returned_snapshot_directory(
 
     monkeypatch.setattr(datasets_fetch, "snapshot_download", fake_snapshot_download)
     monkeypatch.setattr(
-        datasets_fetch,
+        datasets_cache,
         "isoformat_utc",
         lambda _value: "2026-04-20T00:00:00Z",
     )
@@ -223,9 +224,9 @@ def test_resolve_cached_benchmark_dataset_requires_fetch_first(tmp_path: Path) -
     with pytest.raises(datasets.BenchmarkDatasetCacheMissingError) as exc_info:
         _ = datasets.resolve_cached_benchmark_dataset("beir_nq", data_root=tmp_path)
 
-    assert (
-        str(exc_info.value)
-        == "benchmark dataset 'beir_nq' is not cached under "
-        f"{tmp_path.resolve().as_posix()}; run `uv run snowiki benchmark-fetch "
-        f"--dataset beir_nq` first"
+    expected_message = (
+        "benchmark dataset 'beir_nq' is not cached under "
+        f"{tmp_path.resolve().as_posix()}; run `uv run snowiki benchmark-fetch --dataset "
+        "beir_nq` first"
     )
+    assert str(exc_info.value) == expected_message

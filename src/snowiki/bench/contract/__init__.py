@@ -72,7 +72,7 @@ class MetadataContract(TypedDict):
     exclusions: list[str]
 
 
-class Phase1Contract(TypedDict):
+class BenchmarkContract(TypedDict):
     corpus: CorpusContract
     thresholds: ThresholdsContract
     report_schema: ReportSchemaContract
@@ -114,9 +114,6 @@ BENCHMARK_THRESHOLDS: ThresholdsContract = {
     },
 }
 
-PHASE_1_CORPUS: CorpusContract = BENCHMARK_CORPUS
-PHASE_1_THRESHOLDS: ThresholdsContract = BENCHMARK_THRESHOLDS
-
 STEP_03_CANDIDATE_POLICY: Step3CandidatePolicyContract = {
     "control_candidate_name": "regex_v1",
     "control_decision_baseline": "lexical",
@@ -133,7 +130,7 @@ DEFAULT_NO_ANSWER_SCORING_POLICY = NoAnswerScoringPolicy(
 )
 
 
-def get_benchmark_contract() -> Phase1Contract:
+def get_benchmark_contract() -> BenchmarkContract:
     """Returns the frozen benchmark contract."""
     return {
         "corpus": BENCHMARK_CORPUS,
@@ -157,8 +154,3 @@ def get_benchmark_contract() -> Phase1Contract:
             "exclusions": ["sync", "edit"],
         },
     }
-
-
-def get_phase_1_contract() -> Phase1Contract:
-    """Returns the frozen phase-1 benchmark contract."""
-    return get_benchmark_contract()

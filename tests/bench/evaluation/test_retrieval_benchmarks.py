@@ -11,9 +11,12 @@ import pytest
 
 def _load_benchmark_modules():
     baselines = import_module("snowiki.bench.evaluation.baselines")
+    evaluation_index = import_module("snowiki.bench.evaluation.index")
+    qrels = import_module("snowiki.bench.evaluation.qrels")
+    scoring = import_module("snowiki.bench.evaluation.scoring")
     models = import_module("snowiki.bench.reporting.models")
     presets = import_module("snowiki.bench.contract.presets")
-    return baselines, models, presets
+    return baselines, evaluation_index, qrels, scoring, models, presets
 
 
 def _load_retrieval_fixtures():
@@ -24,7 +27,7 @@ def test_run_baseline_comparison_emits_retrieval_metrics(
     monkeypatch, benchmarks_dir: Path
 ) -> None:
     repo_root = benchmarks_dir.parent
-    baselines, models, presets = _load_benchmark_modules()
+    baselines, evaluation_index, _, _, models, presets = _load_benchmark_modules()
     retrieval_fixtures = _load_retrieval_fixtures()
 
     search = retrieval_fixtures.load_search_api()
@@ -32,7 +35,7 @@ def test_run_baseline_comparison_emits_retrieval_metrics(
     pages = retrieval_fixtures.compiled_pages()
     lexical_index = search.build_lexical_index(records)
     wiki_index = search.build_wiki_index(pages)
-    corpus = baselines.CorpusBundle(
+    corpus = evaluation_index.CorpusBundle(
         records=tuple(models.validate_record_dict(item) for item in records),
         pages=tuple(
             models.validate_page_dict(
@@ -83,15 +86,11 @@ def test_run_baseline_comparison_emits_retrieval_metrics(
         "bm25s_kiwi_full",
         "bm25s_mecab_full",
         "bm25s_hf_wordpiece",
-        None,
     ]
     assert [entry.candidate_name for entry in regex_entries] == ["regex_v1", "regex_v1"]
     assert [entry.evidence_baseline for entry in regex_entries] == ["lexical", "bm25s"]
     assert regex_entries[0].baseline == report.baselines["lexical"]
     assert regex_entries[1].baseline == report.baselines["bm25s"]
-    assert candidate_entries[-1].candidate_name == "lindera_ko_v1"
-    assert candidate_entries[-1].evidence_baseline is None
-    assert candidate_entries[-1].baseline is None
     measured_entries = [
         entry
         for entry in candidate_entries
@@ -111,7 +110,6 @@ def test_run_baseline_comparison_emits_retrieval_metrics(
     assert decisions["kiwi_nouns_v1"].evidence_baseline == "bm25s_kiwi_nouns"
     assert decisions["mecab_morphology_v1"].evidence_baseline == "bm25s_mecab_full"
     assert decisions["hf_wordpiece_v1"].evidence_baseline == "bm25s_hf_wordpiece"
-    assert decisions["lindera_ko_v1"].evidence_baseline is None
     assert set(legacy_baselines) == set(report.baselines)
     assert report.corpus.queries_evaluated == 90
     assert "semantic_slots" not in legacy
@@ -148,7 +146,7 @@ def test_run_baseline_comparison_does_not_call_shipped_query_entrypoint(
     monkeypatch, benchmarks_dir: Path
 ) -> None:
     repo_root = benchmarks_dir.parent
-    baselines, models, presets = _load_benchmark_modules()
+    baselines, evaluation_index, _, _, models, presets = _load_benchmark_modules()
     retrieval_fixtures = _load_retrieval_fixtures()
 
     search = retrieval_fixtures.load_search_api()
@@ -156,7 +154,7 @@ def test_run_baseline_comparison_does_not_call_shipped_query_entrypoint(
     pages = retrieval_fixtures.compiled_pages()
     lexical_index = search.build_lexical_index(records)
     wiki_index = search.build_wiki_index(pages)
-    corpus = baselines.CorpusBundle(
+    corpus = evaluation_index.CorpusBundle(
         records=tuple(models.validate_record_dict(item) for item in records),
         pages=tuple(
             models.validate_page_dict(
@@ -206,32 +204,32 @@ def test_loaders_fail_fast_on_malformed_top_level_fixture_shapes(
     monkeypatch, benchmarks_dir: Path
 ) -> None:
     repo_root = benchmarks_dir.parent
-    baselines, _, _ = _load_benchmark_modules()
-    monkeypatch.setattr(baselines, "_load_json", lambda path: {"queries": {"bad": []}})
+    _, _, qrels, _, _, _ = _load_benchmark_modules()
+    monkeypatch.setattr(qrels, "_load_json", lambda path: {"queries": {"bad": []}})
 
     with pytest.raises(ValueError, match="queries"):
-        baselines._load_queries(repo_root)
+        qrels.load_queries(repo_root)
 
-    monkeypatch.setattr(baselines, "_load_json", lambda path: {"judgments": "bad"})
+    monkeypatch.setattr(qrels, "_load_json", lambda path: {"judgments": "bad"})
 
     with pytest.raises(ValueError, match="judgments"):
-        baselines._load_judgments(repo_root)
+        qrels.load_judgments(repo_root)
 
 
 def test_load_judgments_converts_legacy_fixture_lists_to_qrels(tmp_path: Path) -> None:
-    baselines, _, _ = _load_benchmark_modules()
+    _, _, qrels, _, _, _ = _load_benchmark_modules()
     judgments_path = tmp_path / "judgments.json"
     _ = judgments_path.write_text(
         '{"judgments": {"q1": ["fixture-a", "fixture-b"]}}',
         encoding="utf-8",
     )
 
-    judgments = baselines.load_qrels(judgments_path)
+    judgments = qrels.load_qrels(judgments_path)
 
     assert judgments == {
         "q1": [
-            baselines.QrelEntry(query_id="q1", doc_id="fixture-a"),
-            baselines.QrelEntry(query_id="q1", doc_id="fixture-b"),
+            qrels.QrelEntry(query_id="q1", doc_id="fixture-a"),
+            qrels.QrelEntry(query_id="q1", doc_id="fixture-b"),
         ]
     }
 
@@ -239,7 +237,7 @@ def test_load_judgments_converts_legacy_fixture_lists_to_qrels(tmp_path: Path) -
 def test_ranked_doc_ids_deduplicate_mapped_hits_before_scoring(
     repo_root: Path,
 ) -> None:
-    baselines, _, _ = _load_benchmark_modules()
+    _, _, qrels, scoring, _, _ = _load_benchmark_modules()
     from snowiki.search.indexer import SearchDocument, SearchHit
 
     hits = [
@@ -278,11 +276,11 @@ def test_ranked_doc_ids_deduplicate_mapped_hits_before_scoring(
         ),
     ]
 
-    ranked_ids = baselines._ranked_doc_ids(
+    ranked_ids = scoring.ranked_doc_ids(
         hits,
         [
-            baselines.QrelEntry(query_id="q1", doc_id="fixture-a"),
-            baselines.QrelEntry(query_id="q1", doc_id="fixture-b"),
+            qrels.QrelEntry(query_id="q1", doc_id="fixture-a"),
+            qrels.QrelEntry(query_id="q1", doc_id="fixture-b"),
         ],
         hit_lookup={
             "record-a": "fixture-a",
@@ -293,7 +291,7 @@ def test_ranked_doc_ids_deduplicate_mapped_hits_before_scoring(
 
     assert ranked_ids == ["fixture-a", "fixture-b"]
     assert (
-        baselines.evaluate_sliced_quality(
+        scoring.evaluate_sliced_quality(
             {"q1": ranked_ids},
             {"q1": ["fixture-a", "fixture-b"]},
             query_groups={"q1": "en"},
@@ -307,7 +305,7 @@ def test_ranked_doc_ids_deduplicate_mapped_hits_before_scoring(
 def test_run_baseline_comparison_uses_generic_qrels_without_fixture_lookup(
     monkeypatch, repo_root: Path
 ) -> None:
-    baselines, _, _ = _load_benchmark_modules()
+    baselines, evaluation_index, qrels, _, _, presets = _load_benchmark_modules()
     from snowiki.search.indexer import SearchDocument, SearchHit
 
     document = SearchDocument(
@@ -318,7 +316,7 @@ def test_run_baseline_comparison_uses_generic_qrels_without_fixture_lookup(
         content="nebula retrieval token",
     )
     hit = SearchHit(document=document, score=1.0, matched_terms=("nebula",))
-    corpus = baselines.CorpusBundle(
+    corpus = evaluation_index.CorpusBundle(
         records=(),
         pages=(),
         raw_index=SimpleNamespace(
@@ -334,7 +332,7 @@ def test_run_baseline_comparison_uses_generic_qrels_without_fixture_lookup(
         baselines,
         "_load_queries",
         lambda root: (
-            baselines.BenchmarkQuery(
+            qrels.BenchmarkQuery(
                 query_id="q1",
                 text="nebula retrieval token",
                 group="en",
@@ -345,9 +343,7 @@ def test_run_baseline_comparison_uses_generic_qrels_without_fixture_lookup(
     monkeypatch.setattr(
         baselines,
         "_load_judgments",
-        lambda root: {
-            "q1": [baselines.QrelEntry(query_id="q1", doc_id="public-doc-7")]
-        },
+        lambda root: {"q1": [qrels.QrelEntry(query_id="q1", doc_id="public-doc-7")]},
     )
 
     def fail_hit_lookup(_corpus: object) -> None:
@@ -357,7 +353,7 @@ def test_run_baseline_comparison_uses_generic_qrels_without_fixture_lookup(
 
     report = baselines.run_baseline_comparison(
         repo_root,
-        baselines.BenchmarkPreset(
+        presets.BenchmarkPreset(
             name="generic-qrels",
             description="Score generic qrels directly.",
             query_kinds=("known-item",),
@@ -379,7 +375,7 @@ def test_run_baseline_comparison_uses_generic_qrels_without_fixture_lookup(
 def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
     monkeypatch, repo_root: Path
 ) -> None:
-    baselines, models, _ = _load_benchmark_modules()
+    baselines, evaluation_index, qrels, _, models, presets = _load_benchmark_modules()
     from snowiki.search.indexer import SearchDocument
 
     raw_document = SearchDocument(
@@ -389,7 +385,7 @@ def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
         title="A record",
         content="fixture content",
     )
-    corpus = baselines.CorpusBundle(
+    corpus = evaluation_index.CorpusBundle(
         records=(),
         pages=(),
         raw_index=SimpleNamespace(documents={raw_document.id: raw_document}, size=1),
@@ -402,7 +398,7 @@ def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
         baselines,
         "_load_queries",
         lambda root: (
-            baselines.BenchmarkQuery(
+            qrels.BenchmarkQuery(
                 query_id="q1",
                 text="fixture",
                 group="default",
@@ -451,7 +447,7 @@ def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
 
     report = baselines.run_baseline_comparison(
         repo_root,
-        baselines.BenchmarkPreset(
+        presets.BenchmarkPreset(
             name="legacy-aliases",
             description="Normalize legacy bm25 aliases.",
             query_kinds=("known-item",),
@@ -466,7 +462,6 @@ def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
     assert [entry.candidate_name for entry in report.candidate_matrix.candidates] == [
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
-        "lindera_ko_v1",
     ]
     assert [
         decision.candidate_name for decision in report.candidate_matrix.decisions
@@ -476,5 +471,4 @@ def test_run_baseline_comparison_normalizes_legacy_bm25_aliases(
         "kiwi_nouns_v1",
         "mecab_morphology_v1",
         "hf_wordpiece_v1",
-        "lindera_ko_v1",
     ]

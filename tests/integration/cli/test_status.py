@@ -317,34 +317,6 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
                         "admission_reason": "admitted_subword_candidate",
                     },
                 },
-                {
-                    "candidate_name": "lindera_ko_v1",
-                    "evidence_baseline": None,
-                    "role": "candidate",
-                    "admission_status": "not_admitted",
-                    "control": False,
-                    "operational_evidence": {
-                        "memory_peak_rss_mb": None,
-                        "memory_evidence_status": "not_measured",
-                        "disk_size_mb": None,
-                        "disk_size_evidence_status": "not_measured",
-                        "platform_support": {
-                            "macos": "unknown",
-                            "linux_x86_64": "unknown",
-                            "linux_aarch64": "unknown",
-                            "windows": "unknown",
-                            "fallback_behavior": "unknown",
-                        },
-                        "install_ergonomics": {
-                            "prebuilt_available": None,
-                            "build_from_source_required": None,
-                            "hidden_bootstrap_steps": None,
-                            "operational_complexity": "unknown",
-                        },
-                        "zero_cost_admission": False,
-                        "admission_reason": "zero_cost_local_install_unavailable",
-                    },
-                },
             ],
         },
     }
@@ -378,7 +350,6 @@ def test_status_human_output_renders_dashboard_summary(tmp_path: Path) -> None:
     assert "  - regex_v1: role=control, status=admitted" in result.output
     assert "  - kiwi_morphology_v1: role=candidate, status=admitted" in result.output
     assert "  - kiwi_nouns_v1: role=candidate, status=admitted" in result.output
-    assert "  - lindera_ko_v1: role=candidate, status=not_admitted" in result.output
 
 
 def test_status_is_read_only_and_does_not_mutate_workspace(tmp_path: Path) -> None:
