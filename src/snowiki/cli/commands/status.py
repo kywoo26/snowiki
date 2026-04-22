@@ -7,7 +7,7 @@ from typing import Any
 
 import click
 
-from snowiki.bench.matrix import CANDIDATE_MATRIX
+from snowiki.bench.evaluation.candidates import CANDIDATE_MATRIX
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.taxonomy import PageType
 from snowiki.config import get_snowiki_root

@@ -7,7 +7,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from .contract import (
+from ..contract import (
     DEFAULT_NO_ANSWER_SCORING_POLICY,
     MetricThreshold,
     NoAnswerScoringPolicy,

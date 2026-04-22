@@ -135,7 +135,7 @@ def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
         side_effect=fake_from_records_and_pages,
     )
     mocker.patch(
-        "snowiki.bench.baselines.run_baseline_comparison",
+        "snowiki.bench.evaluation.baselines.run_baseline_comparison",
         side_effect=fail_run_baseline_comparison,
     )
 

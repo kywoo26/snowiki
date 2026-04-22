@@ -19,11 +19,14 @@ from snowiki.search.workspace import (
     load_normalized_records,
 )
 
-from .contract import PHASE_1_CORPUS, PHASE_1_THRESHOLDS
-from .corpus import CANONICAL_BENCHMARK_FIXTURE_PATHS
-from .latency import LatencySummary, measure_latency
-from .matrix import CANDIDATE_MATRIX, get_candidate
-from .models import (
+from ..contract import PHASE_1_CORPUS, PHASE_1_THRESHOLDS
+from ..contract.presets import (
+    BenchmarkPreset,
+    candidate_name_for_benchmark_baseline,
+    normalize_benchmark_baseline,
+    normalize_benchmark_baselines,
+)
+from ..reporting.models import (
     PAGE_LIST_ADAPTER,
     RECORD_LIST_ADAPTER,
     BaselineResult,
@@ -44,20 +47,20 @@ from .models import (
     RecordModel,
     ThresholdResult,
 )
-from .operational import measure_bm25_candidate_build, measure_regex_candidate_build
-from .presets import (
-    BenchmarkPreset,
-    candidate_name_for_benchmark_baseline,
-    normalize_benchmark_baseline,
-    normalize_benchmark_baselines,
+from ..reporting.verdict import evaluate_candidate_policy
+from ..runtime.corpus import CANONICAL_BENCHMARK_FIXTURE_PATHS
+from ..runtime.latency import LatencySummary, measure_latency
+from ..runtime.operational import (
+    measure_bm25_candidate_build,
+    measure_regex_candidate_build,
 )
-from .quality import (
+from ..runtime.quality import (
     QualitySummary,
     SlicedQualitySummary,
     evaluate_quality_thresholds,
     evaluate_sliced_quality,
 )
-from .verdict import evaluate_candidate_policy
+from .candidates import CANDIDATE_MATRIX, get_candidate
 
 
 class _Bm25DocumentLike(Protocol):

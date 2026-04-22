@@ -5,20 +5,24 @@ from pathlib import Path
 from statistics import fmean
 from typing import Literal, cast
 
-from .baselines import run_baseline_comparison
-from .corpus import BenchmarkCorpusManifest
-from .matrix import CANDIDATE_MATRIX
+from ..contract.presets import get_preset
+from ..evaluation.baselines import run_baseline_comparison
+from ..evaluation.candidates import CANDIDATE_MATRIX
+from ..runtime.context import canonicalize_execution_layer
+from ..runtime.corpus import BenchmarkCorpusManifest
+from ..validation.correctness import (
+    CheckIssue,
+    ValidationResult,
+    validate_phase1_workspace,
+)
+from ..validation.latency import run_phase1_latency_evaluation
 from .models import (
     BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER,
     BenchmarkAssetManifest,
     BenchmarkReport,
     CandidateMatrixReport,
 )
-from .phase1_correctness import CheckIssue, ValidationResult, validate_phase1_workspace
-from .phase1_latency import run_phase1_latency_evaluation
-from .presets import get_preset
 from .render import render_report_text
-from .run_context import canonicalize_execution_layer
 from .verdict import (
     _performance_threshold_entries,
     _performance_threshold_policy,

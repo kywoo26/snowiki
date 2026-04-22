@@ -99,7 +99,7 @@ if TYPE_CHECKING:
 
 
 def _load_phase1_context() -> tuple[Phase1Module, Any]:
-    module = cast(object, import_module("snowiki.bench.phase1_correctness"))
+    module = cast(object, import_module("snowiki.bench.validation.correctness"))
     from snowiki.cli.main import app
 
     return cast("Phase1Module", module), app

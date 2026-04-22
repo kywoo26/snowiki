@@ -15,16 +15,16 @@ from pathlib import Path
 from typing import Literal, NotRequired, TypedDict, cast
 
 from snowiki.bench.contract import PHASE_1_CORPUS
-from snowiki.bench.corpus import BenchmarkCorpusManifest
+from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.query import run_query
 from snowiki.cli.commands.rebuild import run_rebuild
 from snowiki.config import get_repo_root, resolve_repo_asset_path
 from snowiki.storage.zones import relative_to_root_or_posix
 
-from .corpus import canonical_benchmark_fixtures
-from .latency import summarize_latencies
-from .presets import BenchmarkPreset
+from ..contract.presets import BenchmarkPreset
+from ..runtime.corpus import canonical_benchmark_fixtures
+from ..runtime.latency import summarize_latencies
 
 PHASE_1_WARMUPS = 1
 PHASE_1_REPETITIONS = 5

@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from snowiki.bench.baselines import _assemble_candidate_matrix
-from snowiki.bench.matrix import CANDIDATE_MATRIX, admitted_candidates, get_candidate
-from snowiki.bench.models import (
+from snowiki.bench.evaluation.baselines import _assemble_candidate_matrix
+from snowiki.bench.evaluation.candidates import (
+    CANDIDATE_MATRIX,
+    admitted_candidates,
+    get_candidate,
+)
+from snowiki.bench.reporting.models import (
     BaselineResult,
     BenchmarkReport,
     CandidateDecision,
@@ -13,7 +17,7 @@ from snowiki.bench.models import (
     InstallErgonomicsEvidence,
     PlatformSupportEvidence,
 )
-from snowiki.bench.verdict import evaluate_candidate_policy
+from snowiki.bench.reporting.verdict import evaluate_candidate_policy
 
 
 def test_candidate_matrix_roster() -> None:

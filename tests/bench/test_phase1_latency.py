@@ -7,8 +7,8 @@ from typing import cast
 
 import pytest
 
-from snowiki.bench import phase1_latency
-from snowiki.bench.presets import get_preset
+from snowiki.bench.contract.presets import get_preset
+from snowiki.bench.validation import latency as phase1_latency
 from snowiki.search.indexer import SearchDocument, SearchHit
 
 run_phase1_latency_evaluation = phase1_latency.run_phase1_latency_evaluation

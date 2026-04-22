@@ -7,7 +7,7 @@ from typing import Any, cast
 import pytest
 from pydantic import ValidationError
 
-from snowiki.bench.matrix import CANDIDATE_MATRIX
+from snowiki.bench.evaluation.candidates import CANDIDATE_MATRIX
 
 _EXPANDED_BASELINES = [
     "lexical",
@@ -45,8 +45,8 @@ def _asset_manifest_payload(
 
 
 def _load_report_symbols() -> tuple[Any, Any]:
-    report = import_module("snowiki.bench.report")
-    benchmark_report = import_module("snowiki.bench.models").BenchmarkReport
+    report = import_module("snowiki.bench.reporting.report")
+    benchmark_report = import_module("snowiki.bench.reporting.models").BenchmarkReport
     return report, benchmark_report
 
 
@@ -518,7 +518,7 @@ def test_generate_report_structural_failures_block_before_thresholds(
 def test_generate_report_official_suite_retrieval_failures_are_informational(
     tmp_path: Path, monkeypatch, repo_root: Path
 ) -> None:
-    from snowiki.bench.corpus import BenchmarkCorpusManifest
+    from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 
     report_module, benchmark_report = _load_report_symbols()
     generate_report = report_module.generate_report
@@ -806,7 +806,7 @@ def test_generate_report_includes_provenance_metadata_when_present(
 
 
 def test_tier_aware_latency_policy_is_applied() -> None:
-    from snowiki.bench.phase1_latency import get_latency_policy
+    from snowiki.bench.validation.latency import get_latency_policy
 
     regression_policy = get_latency_policy("regression_harness", 90)
     official_large_policy = get_latency_policy("official_suite", 100)
@@ -821,9 +821,9 @@ def test_tier_aware_latency_policy_is_applied() -> None:
 def test_stratified_sampling_works_for_large_tiers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from snowiki.bench import phase1_latency
-    from snowiki.bench.anchors.korean import load_miracl_ko_sample
-    from snowiki.bench.presets import get_preset
+    from snowiki.bench.contract.presets import get_preset
+    from snowiki.bench.datasets.anchors.korean import load_miracl_ko_sample
+    from snowiki.bench.validation import latency as phase1_latency
 
     fixture_path = tmp_path / "fixture.jsonl"
     _ = fixture_path.write_text("{}\n", encoding="utf-8")
@@ -878,7 +878,7 @@ def test_stratified_sampling_works_for_large_tiers(
 def test_report_includes_sampling_policy_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from snowiki.bench.anchors.korean import load_miracl_ko_sample
+    from snowiki.bench.datasets.anchors.korean import load_miracl_ko_sample
 
     report_module, benchmark_report = _load_report_symbols()
     manifest = load_miracl_ko_sample(size=60)
@@ -999,7 +999,7 @@ def test_report_includes_sampling_policy_metadata(
 def test_report_includes_dataset_sample_metadata_when_present(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from snowiki.bench.corpus import BenchmarkCorpusManifest
+    from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 
     report_module, benchmark_report = _load_report_symbols()
     manifest = BenchmarkCorpusManifest(
@@ -1153,7 +1153,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
 def test_report_size_is_bounded_for_large_tiers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from snowiki.bench.anchors.korean import load_miracl_ko_sample
+    from snowiki.bench.datasets.anchors.korean import load_miracl_ko_sample
 
     report_module, benchmark_report = _load_report_symbols()
     manifest = load_miracl_ko_sample(size=60)
@@ -1498,7 +1498,7 @@ def test_report_internal_helpers_cover_coercion_bounding_and_empty_audit() -> No
 
 
 def test_dataset_payload_from_manifest_covers_regression_and_official_paths() -> None:
-    from snowiki.bench.anchors.korean import load_miracl_ko_sample
+    from snowiki.bench.datasets.anchors.korean import load_miracl_ko_sample
 
     report_module, _ = _load_report_symbols()
 
@@ -1530,7 +1530,7 @@ def test_baselines_parsing_helpers_cover_error_and_path_resolution(
 ) -> None:
     import json
 
-    baselines = import_module("snowiki.bench.baselines")
+    baselines = import_module("snowiki.bench.evaluation.baselines")
 
     absolute_path = tmp_path / "absolute.json"
     absolute_path.write_text("{}", encoding="utf-8")
@@ -1638,7 +1638,7 @@ def test_baselines_parsing_helpers_cover_error_and_path_resolution(
 def test_baselines_lookup_tokenizer_and_operational_helpers_cover_edge_cases(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    baselines = import_module("snowiki.bench.baselines")
+    baselines = import_module("snowiki.bench.evaluation.baselines")
     from snowiki.search.indexer import SearchDocument, SearchHit
 
     path_hit = SearchHit(
@@ -1694,8 +1694,8 @@ def test_baselines_lookup_tokenizer_and_operational_helpers_cover_edge_cases(
 def test_phase1_latency_helper_branches_are_covered(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    phase1_latency = import_module("snowiki.bench.phase1_latency")
-    presets = import_module("snowiki.bench.presets")
+    phase1_latency = import_module("snowiki.bench.validation.latency")
+    presets = import_module("snowiki.bench.contract.presets")
     preset = presets.get_preset("retrieval")
 
     rows: list[dict[str, object]] = [
@@ -1787,8 +1787,8 @@ def test_phase1_latency_helper_branches_are_covered(
 
 
 def test_verdict_internal_helpers_cover_edge_cases() -> None:
-    verdict = import_module("snowiki.bench.verdict")
-    models = import_module("snowiki.bench.models")
+    verdict = import_module("snowiki.bench.reporting.verdict")
+    models = import_module("snowiki.bench.reporting.models")
 
     assert verdict._report_tier({"metadata": {"dataset_tier": "official_suite"}}) == "official_suite"
     assert verdict._report_tier({"dataset": {"tier": "official_suite"}}) == "official_suite"

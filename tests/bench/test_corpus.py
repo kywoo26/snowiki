@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from snowiki.bench import baselines, corpus
+from snowiki.bench.evaluation import baselines
+from snowiki.bench.runtime import corpus
 from snowiki.search.workspace import load_normalized_records
 
 

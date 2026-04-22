@@ -10,16 +10,16 @@ from importlib import import_module
 from pathlib import Path
 from typing import Final, Literal, cast
 
-from snowiki.bench.corpus import BenchmarkCorpusManifest
-from snowiki.bench.datasets import (
+from snowiki.bench.reporting.models import BenchmarkAssetManifest, BenchmarkProvenance
+from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
+
+from ..cache import get_benchmark_materialized_root, resolve_cached_benchmark_dataset
+from ..registry import get_benchmark_dataset_spec
+from ..specs import (
     BenchmarkDatasetFetchResult,
     BenchmarkDatasetId,
     BenchmarkDatasetSourceFetch,
-    get_benchmark_dataset_spec,
-    get_benchmark_materialized_root,
-    resolve_cached_benchmark_dataset,
 )
-from snowiki.bench.models import BenchmarkAssetManifest, BenchmarkProvenance
 
 PublicAnchorSampleMode = Literal["quick", "standard", "full"]
 

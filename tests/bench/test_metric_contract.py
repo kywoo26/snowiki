@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from snowiki.bench.policy import (
+from snowiki.bench.contract.policy import (
     get_layer_policy,
     get_quick_pr_suite,
     get_scheduled_suite,
 )
-from snowiki.bench.verdict import _evaluate_policy_stages
+from snowiki.bench.reporting.verdict import _evaluate_policy_stages
 
 
 class TestLayerMetricContract:

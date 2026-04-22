@@ -7,18 +7,18 @@ from typing import get_args
 
 import pytest
 
-from snowiki.bench.catalog import (
-    OFFICIAL_BENCHMARK_SUITE,
-    is_official,
-    official_suite_dataset_ids,
-)
-from snowiki.bench.policy import (
+from snowiki.bench.contract.policy import (
     REGRESSION_HARNESS_DATASET_ID,
     get_dataset_authority,
     is_regression_harness,
     resolve_policy,
 )
-from snowiki.bench.run_context import LAYER_POLICIES, ExecutionLayer
+from snowiki.bench.runtime.catalog import (
+    OFFICIAL_BENCHMARK_SUITE,
+    is_official,
+    official_suite_dataset_ids,
+)
+from snowiki.bench.runtime.context import LAYER_POLICIES, ExecutionLayer
 
 pytestmark = pytest.mark.bench
 

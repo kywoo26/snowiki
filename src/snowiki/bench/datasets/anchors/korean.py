@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-from snowiki.bench.corpus import BenchmarkCorpusManifest
-from snowiki.bench.models import BenchmarkAssetManifest, BenchmarkProvenance
+from snowiki.bench.reporting.models import BenchmarkAssetManifest, BenchmarkProvenance
+from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 
 MIRACL_KO_METADATA: dict[str, str] = {
     "name": "MIRACL Korean",

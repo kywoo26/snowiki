@@ -5,7 +5,7 @@ from typing import Any
 
 
 def _load_latency_symbols() -> tuple[Any, Any, Any, Any]:
-    from snowiki.bench.latency import (
+    from snowiki.bench.runtime.latency import (
         measure_latency,
         measure_operation,
         percentile,

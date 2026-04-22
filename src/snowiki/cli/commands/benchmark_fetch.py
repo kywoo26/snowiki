@@ -5,12 +5,12 @@ from typing import cast
 
 import click
 
-from snowiki.bench.catalog import official_suite_dataset_ids
 from snowiki.bench.datasets import (
     RefreshMode,
     fetch_benchmark_dataset,
     normalize_dataset_id,
 )
+from snowiki.bench.runtime.catalog import official_suite_dataset_ids
 from snowiki.cli.output import emit_error
 
 OFFICIAL_FETCH_DATASET_IDS = official_suite_dataset_ids()

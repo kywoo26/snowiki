@@ -8,14 +8,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from .catalog import (
+from ..runtime.catalog import (
     LanguageAxis,
     OfficialDatasetEntry,
     get_dataset_entry,
     is_official,
     official_suite_dataset_ids,
 )
-from .run_context import (
+from ..runtime.context import (
     ExecutionLayer,
     canonicalize_execution_layer,
     get_execution_layer_policy,

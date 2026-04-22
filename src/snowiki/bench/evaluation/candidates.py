@@ -4,7 +4,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from .models import (
+from ..reporting.models import (
     CandidateOperationalEvidence,
     InstallErgonomicsEvidence,
     PlatformSupportEvidence,

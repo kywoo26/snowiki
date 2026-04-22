@@ -5,12 +5,12 @@ import sys
 from pathlib import Path
 from typing import Final
 
-from snowiki.bench.anchors.public_cached import (
+from snowiki.bench.datasets.anchors.public_cached import (
     PublicAnchorSampleMode,
     load_beir_scifact_cached_manifest,
     load_miracl_ko_cached_manifest,
 )
-from snowiki.bench.corpus import BenchmarkCorpusManifest
+from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 
 _EXPECTED_COUNTS: Final[dict[str, tuple[int, int, int]]] = {
     "MIRACL KO": (150, 213, 213),

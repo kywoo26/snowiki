@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from snowiki.bench.policy import (
+from snowiki.bench.contract.policy import (
     get_dataset_authority,
     is_official,
     is_regression_harness,
@@ -54,7 +54,7 @@ class TestPolicyResolution:
         assert policy.authority == "regression_harness"
 
     def test_release_proof_disabled_by_default(self) -> None:
-        from snowiki.bench.policy import get_layer_policy
+        from snowiki.bench.contract.policy import get_layer_policy
 
         policy = get_layer_policy("release_proof")
         assert policy["enabled_by_default"] is False

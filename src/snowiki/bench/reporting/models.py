@@ -14,7 +14,10 @@ from pydantic import (
 
 from snowiki.search.registry import all_candidates, resolve_legacy_tokenizer
 
-from .presets import normalize_benchmark_baseline, normalize_benchmark_baselines
+from ..contract.presets import (
+    normalize_benchmark_baseline,
+    normalize_benchmark_baselines,
+)
 
 type JsonScalar = str | int | float | bool | None
 type JsonValue = JsonScalar | list[JsonValue] | dict[str, JsonValue]

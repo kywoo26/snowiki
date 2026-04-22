@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import cast
 
-from snowiki.bench.catalog import OFFICIAL_BENCHMARK_SUITE
+from snowiki.bench.contract.policy import is_official, is_regression_harness
 from snowiki.bench.datasets import BENCHMARK_DATASET_IDS, BENCHMARK_DATASET_REGISTRY
-from snowiki.bench.policy import is_official, is_regression_harness
+from snowiki.bench.runtime.catalog import OFFICIAL_BENCHMARK_SUITE
 
 
 class TestOfficialDatasetRegistry:

@@ -10,7 +10,7 @@ from typing import Literal, cast
 
 import click
 
-from snowiki.bench.anchors import (
+from snowiki.bench.datasets.anchors import (
     load_beir_nq_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_miracl_en_cached_manifest,
@@ -18,11 +18,14 @@ from snowiki.bench.anchors import (
     load_ms_marco_passage_cached_manifest,
     load_trec_dl_2020_passage_cached_manifest,
 )
-from snowiki.bench.anchors.public_cached import PublicAnchorSampleMode
-from snowiki.bench.catalog import official_suite_dataset_ids
-from snowiki.bench.corpus import BenchmarkCorpusManifest, load_corpus_from_manifest
-from snowiki.bench.models import BenchmarkReport
-from snowiki.bench.run_context import LAYER_POLICIES, canonicalize_execution_layer
+from snowiki.bench.datasets.anchors.public_cached import PublicAnchorSampleMode
+from snowiki.bench.reporting.models import BenchmarkReport
+from snowiki.bench.runtime.catalog import official_suite_dataset_ids
+from snowiki.bench.runtime.context import LAYER_POLICIES, canonicalize_execution_layer
+from snowiki.bench.runtime.corpus import (
+    BenchmarkCorpusManifest,
+    load_corpus_from_manifest,
+)
 from snowiki.cli.output import emit_error
 
 _BENCH = import_module("snowiki.bench")

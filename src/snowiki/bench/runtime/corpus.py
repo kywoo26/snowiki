@@ -9,7 +9,7 @@ from snowiki.cli.commands.rebuild import run_rebuild
 from snowiki.config import resolve_repo_asset_path
 from snowiki.storage import StorageEngine
 
-from .models import AuditSample, BenchmarkAssetManifest, PooledReview
+from ..reporting.models import AuditSample, BenchmarkAssetManifest, PooledReview
 
 CANONICAL_BENCHMARK_FIXTURE_PATHS: dict[str, str] = {
     "claude_basic": "fixtures/claude/basic.jsonl",

@@ -8,7 +8,7 @@ from typing import cast
 import pytest
 from click.testing import CliRunner
 
-from snowiki.bench.corpus import BenchmarkCorpusManifest
+from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 from snowiki.cli.commands import benchmark as benchmark_command
 from snowiki.cli.main import app
 

@@ -4,20 +4,20 @@ from __future__ import annotations
 
 from typing import cast
 
-from .contract import (
+from ..contract import (
     PHASE_1_THRESHOLDS,
     STEP_03_CANDIDATE_POLICY,
     CandidatePolicyThresholds,
     MetricThreshold,
 )
-from .matrix import CANDIDATE_MATRIX
+from ..evaluation.candidates import CANDIDATE_MATRIX
+from ..runtime.context import get_execution_layer_policy
 from .models import (
     BaselineResult,
     CandidateDecision,
     CandidateMatrixEntry,
     CandidateMatrixReport,
 )
-from .run_context import get_execution_layer_policy
 
 _PERFORMANCE_THRESHOLD_METRICS = {"p50_ms", "p95_ms"}
 _RETRIEVAL_THRESHOLD_METRICS = {"recall_at_k", "mrr", "ndcg_at_k"}

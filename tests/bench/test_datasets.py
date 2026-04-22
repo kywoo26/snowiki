@@ -8,6 +8,7 @@ from typing import cast
 import pytest
 
 from snowiki.bench import datasets
+from snowiki.bench.datasets import fetch as datasets_fetch
 
 
 def test_benchmark_dataset_path_helpers_create_benchmark_subdirectories(
@@ -46,9 +47,9 @@ def test_fetch_benchmark_dataset_writes_multi_source_lock_metadata(
         repo_id = str(kwargs["repo_id"])
         return snapshot_paths[repo_id].as_posix()
 
-    monkeypatch.setattr(datasets, "snapshot_download", fake_snapshot_download)
+    monkeypatch.setattr(datasets_fetch, "snapshot_download", fake_snapshot_download)
     monkeypatch.setattr(
-        datasets,
+        datasets_fetch,
         "isoformat_utc",
         lambda _value: "2026-04-20T00:00:00Z",
     )
@@ -181,7 +182,7 @@ def test_fetch_benchmark_dataset_reuses_matching_multi_source_lock(
     def fail_snapshot_download(**_: object) -> str:
         raise AssertionError("snapshot_download should not run when a matching lock exists")
 
-    monkeypatch.setattr(datasets, "snapshot_download", fail_snapshot_download)
+    monkeypatch.setattr(datasets_fetch, "snapshot_download", fail_snapshot_download)
 
     result = datasets.fetch_benchmark_dataset("beir_nq", data_root=tmp_path)
 
@@ -200,9 +201,9 @@ def test_fetch_benchmark_dataset_materializes_returned_snapshot_directory(
     def fake_snapshot_download(**_: object) -> str:
         return snapshot_path.as_posix()
 
-    monkeypatch.setattr(datasets, "snapshot_download", fake_snapshot_download)
+    monkeypatch.setattr(datasets_fetch, "snapshot_download", fake_snapshot_download)
     monkeypatch.setattr(
-        datasets,
+        datasets_fetch,
         "isoformat_utc",
         lambda _value: "2026-04-20T00:00:00Z",
     )

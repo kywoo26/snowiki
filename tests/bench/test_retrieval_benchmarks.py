@@ -10,9 +10,9 @@ import pytest
 
 
 def _load_benchmark_modules():
-    baselines = import_module("snowiki.bench.baselines")
-    models = import_module("snowiki.bench.models")
-    presets = import_module("snowiki.bench.presets")
+    baselines = import_module("snowiki.bench.evaluation.baselines")
+    models = import_module("snowiki.bench.reporting.models")
+    presets = import_module("snowiki.bench.contract.presets")
     return baselines, models, presets
 
 

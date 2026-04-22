@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from snowiki.bench.catalog import (
+from snowiki.bench.runtime.catalog import (
     OFFICIAL_BENCHMARK_SUITE,
     get_dataset_entry,
     get_official_datasets_by_language,
     is_official,
     official_suite_dataset_ids,
 )
-from snowiki.bench.run_context import (
+from snowiki.bench.runtime.context import (
     canonicalize_execution_layer,
     get_execution_layer_policy,
 )

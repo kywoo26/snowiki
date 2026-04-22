@@ -5,7 +5,7 @@ from typing import cast
 import pytest
 from pydantic import ValidationError
 
-from snowiki.bench.models import (
+from snowiki.bench.reporting.models import (
     BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER,
     PAGE_LIST_ADAPTER,
     RECORD_LIST_ADAPTER,

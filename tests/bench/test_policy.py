@@ -4,13 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from snowiki.bench.catalog import (
-    OFFICIAL_BALANCED_CORE,
-    get_dataset_entry,
-    get_official_datasets_by_language,
-    is_official,
-)
-from snowiki.bench.policy import (
+from snowiki.bench.contract.policy import (
     get_dataset_authority,
     get_layer_policy,
     get_quick_pr_suite,
@@ -18,6 +12,12 @@ from snowiki.bench.policy import (
     is_local_diagnostic,
     is_regression_harness,
     resolve_policy,
+)
+from snowiki.bench.runtime.catalog import (
+    OFFICIAL_BALANCED_CORE,
+    get_dataset_entry,
+    get_official_datasets_by_language,
+    is_official,
 )
 
 pytestmark = pytest.mark.bench

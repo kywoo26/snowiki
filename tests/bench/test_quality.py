@@ -4,7 +4,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any
 
-from snowiki.bench.models import (
+from snowiki.bench.reporting.models import (
     BaselineResult,
     CandidateMatrixEntry,
     CandidateMatrixReport,
@@ -12,11 +12,11 @@ from snowiki.bench.models import (
     InstallErgonomicsEvidence,
     PlatformSupportEvidence,
 )
-from snowiki.bench.verdict import evaluate_candidate_policy
+from snowiki.bench.reporting.verdict import evaluate_candidate_policy
 
 
 def _load_quality_symbols() -> tuple[Any, Any]:
-    quality = import_module("snowiki.bench.quality")
+    quality = import_module("snowiki.bench.runtime.quality")
     contract = import_module("snowiki.bench.contract")
     return quality, contract
 

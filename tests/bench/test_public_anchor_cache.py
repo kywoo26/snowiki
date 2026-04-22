@@ -10,20 +10,23 @@ from typing import cast
 
 import pytest
 
-from snowiki.bench.anchors.public_cached import (
+from snowiki.bench.datasets import (
+    BenchmarkDatasetId,
+    get_benchmark_dataset_lock_path,
+    get_benchmark_dataset_spec,
+)
+from snowiki.bench.datasets.anchors.public_cached import (
     PublicAnchorSampleMode,
     load_beir_nq_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_miracl_ko_cached_manifest,
     resolve_public_anchor_sample_count,
 )
-from snowiki.bench.corpus import BenchmarkCorpusManifest, load_corpus_from_manifest
-from snowiki.bench.datasets import (
-    BenchmarkDatasetId,
-    get_benchmark_dataset_lock_path,
-    get_benchmark_dataset_spec,
+from snowiki.bench.reporting.report import generate_report, render_report_text
+from snowiki.bench.runtime.corpus import (
+    BenchmarkCorpusManifest,
+    load_corpus_from_manifest,
 )
-from snowiki.bench.report import generate_report, render_report_text
 
 
 def _write_parquet(path: Path, rows: list[dict[str, object]]) -> None:
@@ -333,7 +336,7 @@ def test_cached_public_anchor_report_includes_real_dataset_provenance(
 ) -> None:
     data_root = _seed_beir_scifact_cache(tmp_path)
     manifest = load_beir_scifact_cached_manifest(size=2, data_root=data_root)
-    report_module = import_module("snowiki.bench.report")
+    report_module = import_module("snowiki.bench.reporting.report")
     monkeypatch.setattr(
         report_module,
         "run_phase1_latency_evaluation",

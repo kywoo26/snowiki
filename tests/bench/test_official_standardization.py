@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from snowiki.bench.catalog import OFFICIAL_BENCHMARK_SUITE
-from snowiki.bench.policy import (
+from snowiki.bench.contract.policy import (
     get_layer_policy,
     get_quick_pr_suite,
     get_scheduled_suite,
     is_official,
     is_regression_harness,
 )
+from snowiki.bench.runtime.catalog import OFFICIAL_BENCHMARK_SUITE
 
 
 class TestOfficialBackbone:
