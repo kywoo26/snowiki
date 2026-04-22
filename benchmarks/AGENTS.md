@@ -17,6 +17,51 @@ Benchmarks are classified into two authority tiers.
 
 A pass in the `regression_harness` is necessary but not sufficient for release quality claims.
 
+## Module Boundaries
+
+The benchmark runtime in `src/snowiki/bench/` is organized into six subpackages. When modifying benchmark code, respect these boundaries:
+
+### `contract/` — Frozen Contracts
+- Owns thresholds, scoring semantics, presets, and policy definitions.
+- Must not import from any other bench subpackage.
+- Changes here affect all downstream packages and must be accompanied by test updates.
+
+### `datasets/` — Dataset Lifecycle
+- Owns dataset registry, fetch logic, caching, and materialization.
+- May import from `contract/` and `runtime/` only.
+- Public dataset payloads stay out of git; all fetch results go through the HF cache.
+
+### `evaluation/` — Retrieval Evaluation
+- Owns qrel loading, baseline comparison, candidate matrix assembly, and quality scoring.
+- May import from `contract/` and `runtime/` only.
+- Baselines are decomposed: `baselines.py` orchestrates, `candidates.py` defines the matrix, `index.py` handles corpus building and hit lookup, `scoring.py` computes metrics.
+
+### `validation/` — Pre-flight Checks
+- Owns workspace correctness validation and latency benchmarking.
+- May import from `contract/`, `runtime/`, and `datasets/`.
+- Does not compute retrieval metrics; that is `evaluation/` territory.
+
+### `reporting/` — Report Generation
+- Owns report generation, rendering, verdict computation, and baseline modeling.
+- May import from all other subpackages.
+- `report.py` is the orchestration entrypoint that calls into `validation/`, `evaluation/`, and `runtime/`.
+
+### `runtime/` — Execution Context
+- Owns execution layers, corpus manifests, official dataset catalog, and operational measurement.
+- May import from `contract/` only.
+- `catalog.py` is the source of truth for the official six-dataset suite.
+
+## Cross-Package Import Rules
+
+| From / To | contract | datasets | evaluation | validation | reporting | runtime |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `contract/` | — | no | no | no | no | no |
+| `datasets/` | yes | — | no | no | no | yes |
+| `evaluation/` | yes | no | — | no | no | yes |
+| `validation/` | yes | yes | no | — | no | yes |
+| `reporting/` | yes | yes | yes | yes | — | yes |
+| `runtime/` | yes | no | no | no | no | — |
+
 ## Assets & Provenance
 
 - `benchmarks/queries.json` and `benchmarks/judgments.json` are the internal regression harness quality dataset, a 90 query set.
@@ -28,7 +73,7 @@ A pass in the `regression_harness` is necessary but not sufficient for release q
 ## Execution & Isolation
 
 - Always run benchmarks via `uv run snowiki benchmark`.
-- Default execution uses an isolated local root under the benchmark output directory, seeded with Phase 1 fixtures.
+- Default execution uses an isolated local root under the benchmark output directory, seeded with regression harness fixtures.
 - Avoid using `--root` in automated verification to prevent mutation of the user's real vault.
 
 ## Threshold Sensitivity

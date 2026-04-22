@@ -36,22 +36,22 @@ The official benchmark backbone consists of exactly these 6 datasets:
 
 The `regression` fixture set stays internal and deterministic. It is excluded from official scorecards and release claims.
 
-### Phase 1 as the Regression Harness
+### The Regression Harness
 
-The current benchmark suite (Phase 1) is the `regression` harness. It is a deterministic, headless backend benchmark that verifies core retrieval and performance characteristics on a fixed 90 query set. It focuses on the `ingest -> rebuild -> query -> status/lint` flow using local, deterministic components. No LLM calls or agentic loops are exercised in this phase.
+The `regression` harness is a deterministic, headless backend benchmark that verifies core retrieval and performance characteristics on a fixed 90 query set. It focuses on the `ingest -> rebuild -> query -> status/lint` flow using local, deterministic components. No LLM calls or agentic loops are exercised.
 
 Because the 90 query set is visible and tuned against during development, it is explicitly classified as an internal regression harness. It cannot support release quality or final proof claims on its own.
 
-### Phase 2 Exclusions (Future Work)
+### Future Work Exclusions
 
-The following items are explicitly excluded from Phase 1 and are planned for future tiers:
+The following items are explicitly excluded from the current benchmark system and are planned for future tiers:
 - `sync` and `edit` command benchmarking.
 - Semantic linting and contradiction detection.
 - Claim level citations and epistemic integrity checks.
-- P99 latency metrics, Phase 1 uses P50 and P95.
-- Precision@K metrics, Phase 1 uses Recall@K, MRR, and nDCG@K.
+- P99 latency metrics; the current system uses P50 and P95.
+- Precision@K metrics; the current system uses Recall@K, MRR, and nDCG@K.
 
-Tokenizer promotion operational evidence, memory and disk, is measured separately from the Phase 1 benchmark pass or fail gate.
+Tokenizer promotion operational evidence, memory and disk, is measured separately from the benchmark pass or fail gate.
 
 ### Tier Aware Execution and Latency Sampling
 
@@ -63,6 +63,37 @@ Latency measurement adapts by surface so that the regression harness stays deter
 | `official_suite` | Layer dependent, quick or standard | The official 6 should use the layer's declared volume so reports stay comparable. |
 
 Sampling policy is recorded in every report under `protocol.sampling_policy` so the exact population versus sampled counts are auditable. Report detail for the official suite is capped to 20 per query entries so JSON outputs stay inspectable without dropping aggregate metrics.
+
+## Benchmark Module Architecture
+
+The benchmark runtime lives in `src/snowiki/bench/` and is organized into six subpackages. Each subpackage has a single responsibility and a well-defined boundary:
+
+| Subpackage | Responsibility | Key Exports |
+| :--- | :--- | :--- |
+| `contract/` | Frozen thresholds, scoring semantics, presets, and policy contracts. | `MetricThreshold`, `ReportEntry`, `NoAnswerScoringPolicy`, `BenchmarkPreset`, `get_benchmark_contract()` |
+| `datasets/` | Dataset registry, fetch logic, caching, and materialization for public corpora. | `BenchmarkDatasetId`, `fetch_benchmark_dataset()`, `resolve_cached_benchmark_dataset()` |
+| `evaluation/` | Retrieval evaluation: qrel loading, baseline comparison, candidate matrix assembly, and quality scoring. | `run_baseline_comparison()`, `CANDIDATE_MATRIX`, `evaluate_quality()`, `load_qrels()` |
+| `validation/` | Pre-flight correctness checks and latency benchmarking. | `run_correctness_flow()`, `run_latency_evaluation()`, `validate_workspace()` |
+| `reporting/` | Report generation, rendering, verdict computation, and baseline modeling. | `generate_report()`, `benchmark_verdict()`, `render_report_text()` |
+| `runtime/` | Execution context, corpus manifest handling, catalog of official datasets, and operational measurement. | `BenchmarkCorpusManifest`, `ExecutionLayer`, `official_suite_dataset_ids()`, `seed_canonical_benchmark_root()` |
+
+### Design Principles
+
+- **Contract first**: `contract/` owns all frozen values. Nothing outside `contract/` hard-codes thresholds or preset definitions.
+- **Dataset boundaries split**: Public dataset fetch/cache logic lives in `datasets/`. Evaluation logic consumes materialized corpora through `runtime/corpus.py` and does not reach into fetch internals.
+- **Baselines decomposed**: Baseline comparison (`evaluation/baselines.py`) assembles candidates from `evaluation/candidates.py`, runs against qrels via `evaluation/index.py`, and delegates scoring to `evaluation/scoring.py`.
+- **Validation separate from evaluation**: `validation/` handles workspace correctness and latency measurement. It does not compute retrieval metrics.
+- **Reporting consumes evaluation**: `reporting/report.py` orchestrates the full benchmark flow by calling into `validation/`, `evaluation/`, and `runtime/`, then produces the final report and verdict.
+- **Public API surface minimal**: `snowiki.bench` exports only the symbols in `__all__`. Subpackages are not re-exported at the package root.
+
+### Cross-Package Import Rules
+
+- `contract/` may not import from any other bench subpackage.
+- `datasets/` may import from `contract/` and `runtime/` only.
+- `evaluation/` may import from `contract/` and `runtime/` only.
+- `validation/` may import from `contract/`, `runtime/`, and `datasets/`.
+- `reporting/` may import from all other subpackages.
+- `runtime/` may import from `contract/` only.
 
 ## Benchmark Assets
 
@@ -145,7 +176,7 @@ uv run snowiki benchmark --preset retrieval --dataset regression   --output repo
 **Internal Regression Harness:**
 - `regression`
 
-- `regression` keeps using the deterministic Phase 1 local fixtures.
+- `regression` uses the deterministic local fixtures.
 - `miracl_ko` loads a compact deterministic sample built from the real cached MIRACL Korean parquet assets. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
 - `beir_scifact` loads a compact deterministic sample built from the real cached BEIR SciFact corpus and queries repo plus the separate SciFact qrels repo. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
 
@@ -212,7 +243,7 @@ All workflows support offline preflight. If a dataset is not cached, the run is 
 The following directions were evaluated for richer benchmark visualization:
 
 | Direction | Mainstream Adoption | Production Fit | Maintenance Cost | Integration Complexity | Score |
-| :--- | :--- | :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- | :--- | :--- |
 | Richer static pipeline | Medium | High | Low | Low | **Recommended for next step** |
 | Interactive portal | High | Medium | High | High | Deferred |
 | Report store integration | Medium | High | Medium | Medium | Deferred |
