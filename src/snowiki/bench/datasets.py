@@ -13,7 +13,19 @@ from snowiki.config import get_benchmark_data_root
 from snowiki.storage.zones import atomic_write_json, isoformat_utc, read_json
 
 BenchmarkDatasetId = Literal[
-    "miracl_ko", "mr_tydi_ko", "beir_scifact", "beir_nfcorpus"
+    "ms_marco_passage",
+    "trec_dl_2019_passage",
+    "trec_dl_2020_passage",
+    "miracl_ko",
+    "miracl_en",
+    "miracl_ja",
+    "miracl_zh",
+    "mr_tydi_ko",
+    "beir_nq",
+    "beir_scifact",
+    "beir_fiqa_2018",
+    "beir_arguana",
+    "beir_nfcorpus",
 ]
 RefreshMode = Literal["if-missing", "force"]
 
@@ -83,6 +95,237 @@ class BenchmarkDatasetFetchResult:
 
 
 BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]] = {
+    "ms_marco_passage": BenchmarkDatasetSpec(
+        dataset_id="ms_marco_passage",
+        language="en",
+        tier="public_anchor",
+        citation=(
+            "Nguyen et al. MS MARCO: A Human Generated MAchine Reading COmprehension Dataset."
+        ),
+        license="mit",
+        source_url="https://huggingface.co/datasets/microsoft/ms_marco",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="corpus_queries",
+                name="MS MARCO passage corpus and queries",
+                repo_id="microsoft/ms_marco",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=(
+                    "v1.1/*_passage*.parquet",
+                    "v1.1/*_queries*.parquet",
+                ),
+            ),
+        ),
+    ),
+    "trec_dl_2019_passage": BenchmarkDatasetSpec(
+        dataset_id="trec_dl_2019_passage",
+        language="en",
+        tier="public_anchor",
+        citation=(
+            "Craswell et al. TREC Deep Learning Track 2019."
+        ),
+        license="mit",
+        source_url="https://huggingface.co/datasets/microsoft/ms_marco",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="corpus_queries",
+                name="TREC DL 2019 passage corpus and queries",
+                repo_id="microsoft/ms_marco",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=(
+                    "v2.1/*_passage*.parquet",
+                    "v2.1/*_queries*.parquet",
+                ),
+            ),
+        ),
+    ),
+    "trec_dl_2020_passage": BenchmarkDatasetSpec(
+        dataset_id="trec_dl_2020_passage",
+        language="en",
+        tier="public_anchor",
+        citation=(
+            "Craswell et al. TREC Deep Learning Track 2020."
+        ),
+        license="mit",
+        source_url="https://huggingface.co/datasets/microsoft/ms_marco",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="corpus_queries",
+                name="TREC DL 2020 passage corpus and queries",
+                repo_id="microsoft/ms_marco",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=(
+                    "v2.1/*_passage*.parquet",
+                    "v2.1/*_queries*.parquet",
+                ),
+            ),
+        ),
+    ),
+    "miracl_en": BenchmarkDatasetSpec(
+        dataset_id="miracl_en",
+        language="en",
+        tier="public_anchor",
+        citation=(
+            "Zhang et al. MIRACL: A Multilingual Retrieval Dataset Covering 18 "
+            "Diverse Languages."
+        ),
+        license="cc-by-sa-4.0",
+        source_url="https://huggingface.co/datasets/mteb/MIRACLRetrieval",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="dataset",
+                name="MIRACL English parquet bundle",
+                repo_id="mteb/MIRACLRetrieval",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=(
+                    "en-corpus/*.parquet",
+                    "en-queries/*.parquet",
+                    "en-qrels/*.parquet",
+                ),
+            ),
+        ),
+    ),
+    "miracl_ja": BenchmarkDatasetSpec(
+        dataset_id="miracl_ja",
+        language="ja",
+        tier="public_anchor",
+        citation=(
+            "Zhang et al. MIRACL: A Multilingual Retrieval Dataset Covering 18 "
+            "Diverse Languages."
+        ),
+        license="cc-by-sa-4.0",
+        source_url="https://huggingface.co/datasets/mteb/MIRACLRetrieval",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="dataset",
+                name="MIRACL Japanese parquet bundle",
+                repo_id="mteb/MIRACLRetrieval",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=(
+                    "ja-corpus/*.parquet",
+                    "ja-queries/*.parquet",
+                    "ja-qrels/*.parquet",
+                ),
+            ),
+        ),
+    ),
+    "miracl_zh": BenchmarkDatasetSpec(
+        dataset_id="miracl_zh",
+        language="zh",
+        tier="public_anchor",
+        citation=(
+            "Zhang et al. MIRACL: A Multilingual Retrieval Dataset Covering 18 "
+            "Diverse Languages."
+        ),
+        license="cc-by-sa-4.0",
+        source_url="https://huggingface.co/datasets/mteb/MIRACLRetrieval",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="dataset",
+                name="MIRACL Chinese parquet bundle",
+                repo_id="mteb/MIRACLRetrieval",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=(
+                    "zh-corpus/*.parquet",
+                    "zh-queries/*.parquet",
+                    "zh-qrels/*.parquet",
+                ),
+            ),
+        ),
+    ),
+    "beir_nq": BenchmarkDatasetSpec(
+        dataset_id="beir_nq",
+        language="en",
+        tier="public_anchor",
+        citation=(
+            "Thakur et al. BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation "
+            "of Information Retrieval Models."
+        ),
+        license="apache-2.0",
+        source_url="https://huggingface.co/datasets/BeIR/nq",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="corpus_queries",
+                name="BEIR Natural Questions corpus and queries",
+                repo_id="BeIR/nq",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=("corpus/*.parquet", "queries/*.parquet"),
+            ),
+            BenchmarkDatasetSourceSpec(
+                label="qrels",
+                name="BEIR Natural Questions qrels",
+                repo_id="BeIR/nq-qrels",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=("test.tsv",),
+            ),
+        ),
+    ),
+    "beir_fiqa_2018": BenchmarkDatasetSpec(
+        dataset_id="beir_fiqa_2018",
+        language="en",
+        tier="public_anchor",
+        citation=(
+            "Thakur et al. BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation "
+            "of Information Retrieval Models."
+        ),
+        license="cc-by-sa-4.0",
+        source_url="https://huggingface.co/datasets/BeIR/fiqa",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="corpus_queries",
+                name="BEIR FiQA 2018 corpus and queries",
+                repo_id="BeIR/fiqa",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=("corpus/*.parquet", "queries/*.parquet"),
+            ),
+            BenchmarkDatasetSourceSpec(
+                label="qrels",
+                name="BEIR FiQA 2018 qrels",
+                repo_id="BeIR/fiqa-qrels",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=("test.tsv",),
+            ),
+        ),
+    ),
+    "beir_arguana": BenchmarkDatasetSpec(
+        dataset_id="beir_arguana",
+        language="en",
+        tier="public_anchor",
+        citation=(
+            "Thakur et al. BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation "
+            "of Information Retrieval Models."
+        ),
+        license="cc-by-sa-4.0",
+        source_url="https://huggingface.co/datasets/BeIR/arguana",
+        sources=(
+            BenchmarkDatasetSourceSpec(
+                label="corpus_queries",
+                name="BEIR ArguAna corpus and queries",
+                repo_id="BeIR/arguana",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=("corpus/*.parquet", "queries/*.parquet"),
+            ),
+            BenchmarkDatasetSourceSpec(
+                label="qrels",
+                name="BEIR ArguAna qrels",
+                repo_id="BeIR/arguana-qrels",
+                repo_type="dataset",
+                default_revision="main",
+                allow_patterns=("test.tsv",),
+            ),
+        ),
+    ),
     "miracl_ko": BenchmarkDatasetSpec(
         dataset_id="miracl_ko",
         language="ko",

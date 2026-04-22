@@ -560,7 +560,7 @@ def generate_report(
     report_metadata.update(_dataset_sample_metadata(dataset_payload))
     report: dict[str, object] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-        "report_version": "1.3",
+        "report_version": "1.4",
         "dataset": dataset_payload,
         "metadata": report_metadata,
         "preset": {
