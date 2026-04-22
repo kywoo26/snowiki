@@ -145,7 +145,7 @@ _DATASET_BY_ID: Final[dict[str, OfficialDatasetEntry]] = {
 _LAYER_DEFAULTS: Final[dict[ExecutionLayer, dict[str, object]]] = {
     "pr_official_quick": {
         "sample_mode": "quick",
-        "metrics": ("nDCG@10", "P95 latency"),
+        "metrics": ("nDCG@10", "Recall@100", "MRR@10", "P95 latency"),
         "blocking": True,
     },
     "scheduled_official_broad": {
