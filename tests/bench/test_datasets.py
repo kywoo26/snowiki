@@ -115,7 +115,7 @@ def test_fetch_benchmark_dataset_writes_multi_source_lock_metadata(
                 ].resolve().as_posix(),
             },
         ],
-        "tier": "public_anchor",
+        "tier": "official_suite",
     }
 
 
@@ -125,37 +125,37 @@ def test_fetch_benchmark_dataset_reuses_matching_multi_source_lock(
     snapshot_paths = {
         "corpus_queries": tmp_path
         / "hf"
-        / "datasets--BeIR--nfcorpus"
+        / "datasets--BeIR--nq"
         / "snapshots"
         / "cached-corpus",
         "qrels": tmp_path
         / "hf"
-        / "datasets--BeIR--nfcorpus-qrels"
+        / "datasets--BeIR--nq-qrels"
         / "snapshots"
         / "cached-qrels",
     }
     for snapshot_path in snapshot_paths.values():
         snapshot_path.mkdir(parents=True, exist_ok=True)
-    lock_path = tmp_path / "locks" / "beir_nfcorpus.json"
+    lock_path = tmp_path / "locks" / "beir_nq.json"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     _ = lock_path.write_text(
         json.dumps(
             {
-                "dataset_id": "beir_nfcorpus",
+                "dataset_id": "beir_nq",
                 "fetched_at": "2026-04-20T00:00:00Z",
                 "language": "en",
-                "tier": "public_anchor",
-                "source_url": "https://huggingface.co/datasets/BeIR/nfcorpus",
+                "tier": "official_suite",
+                "source_url": "https://huggingface.co/datasets/BeIR/nq",
                 "citation": (
                     "Thakur et al. BEIR: A Heterogeneous Benchmark for Zero-shot "
                     "Evaluation of Information Retrieval Models."
                 ),
-                "license": "cc-by-sa-4.0",
+                "license": "apache-2.0",
                 "sources": [
                     {
                         "label": "corpus_queries",
-                        "name": "BEIR NFCorpus corpus and queries",
-                        "repo_id": "BeIR/nfcorpus",
+                        "name": "BEIR Natural Questions corpus and queries",
+                        "repo_id": "BeIR/nq",
                         "repo_type": "dataset",
                         "requested_revision": "main",
                         "resolved_snapshot_path": snapshot_paths[
@@ -165,8 +165,8 @@ def test_fetch_benchmark_dataset_reuses_matching_multi_source_lock(
                     },
                     {
                         "label": "qrels",
-                        "name": "BEIR NFCorpus qrels",
-                        "repo_id": "BeIR/nfcorpus-qrels",
+                        "name": "BEIR Natural Questions qrels",
+                        "repo_id": "BeIR/nq-qrels",
                         "repo_type": "dataset",
                         "requested_revision": "main",
                         "resolved_snapshot_path": snapshot_paths["qrels"].as_posix(),
@@ -183,7 +183,7 @@ def test_fetch_benchmark_dataset_reuses_matching_multi_source_lock(
 
     monkeypatch.setattr(datasets, "snapshot_download", fail_snapshot_download)
 
-    result = datasets.fetch_benchmark_dataset("beir_nfcorpus", data_root=tmp_path)
+    result = datasets.fetch_benchmark_dataset("beir_nq", data_root=tmp_path)
 
     assert result.lock_path == lock_path
     assert [source.snapshot_path for source in result.sources] == [

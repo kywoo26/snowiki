@@ -12,7 +12,7 @@ import pytest
 
 from snowiki.bench.anchors.public_cached import (
     PublicAnchorSampleMode,
-    load_beir_nfcorpus_cached_manifest,
+    load_beir_nq_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_miracl_ko_cached_manifest,
     resolve_public_anchor_sample_count,
@@ -165,37 +165,37 @@ def _seed_beir_scifact_cache(tmp_path: Path) -> Path:
     return data_root
 
 
-def _seed_beir_nfcorpus_cache(tmp_path: Path) -> Path:
+def _seed_beir_nq_cache(tmp_path: Path) -> Path:
     data_root = tmp_path / "benchmark-data"
-    corpus_snapshot = data_root / "hf" / "beir-nfcorpus" / "snapshots" / "fixture"
-    qrels_snapshot = data_root / "hf" / "beir-nfcorpus-qrels" / "snapshots" / "fixture"
+    corpus_snapshot = data_root / "hf" / "beir-nq" / "snapshots" / "fixture"
+    qrels_snapshot = data_root / "hf" / "beir-nq-qrels" / "snapshots" / "fixture"
     _write_parquet(
         corpus_snapshot / "corpus" / "corpus-00000-of-00001.parquet",
         [
-            {"_id": "MED-2427", "title": "Allergy travel", "text": "Allergy travel symptom checklist"},
-            {"_id": "MED-10", "title": "Telehealth", "text": "Rural telehealth dermatology guide"},
-            {"_id": "MED-2429", "title": "Sleep apnea", "text": "Sleep apnea equipment care"},
+            {"_id": "NQ-101", "title": "Apollo program", "text": "Apollo program mission overview"},
+            {"_id": "NQ-102", "title": "Saturn V", "text": "Saturn V launch vehicle details"},
+            {"_id": "NQ-103", "title": "Neil Armstrong", "text": "Neil Armstrong moon landing biography"},
         ],
     )
     _write_parquet(
         corpus_snapshot / "queries" / "queries-00000-of-00001.parquet",
         [
-            {"_id": "PLAIN-2", "text": "seasonal allergy travel planning"},
-            {"_id": "PLAIN-4", "text": "rural telehealth dermatology"},
-            {"_id": "PLAIN-6", "text": "sleep apnea equipment care"},
+            {"_id": "NQ-Q1", "text": "what was the apollo program"},
+            {"_id": "NQ-Q2", "text": "what is saturn v"},
+            {"_id": "NQ-Q3", "text": "who was neil armstrong"},
         ],
     )
     _write_tsv(
         qrels_snapshot / "test.tsv",
         ["query-id", "corpus-id", "score"],
         [
-            {"query-id": "PLAIN-2", "corpus-id": "MED-2427", "score": 2},
-            {"query-id": "PLAIN-4", "corpus-id": "MED-10", "score": 2},
-            {"query-id": "PLAIN-6", "corpus-id": "MED-2429", "score": 2},
+            {"query-id": "NQ-Q1", "corpus-id": "NQ-101", "score": 1},
+            {"query-id": "NQ-Q2", "corpus-id": "NQ-102", "score": 1},
+            {"query-id": "NQ-Q3", "corpus-id": "NQ-103", "score": 1},
         ],
     )
     _write_lock(
-        dataset_id="beir_nfcorpus",
+        dataset_id="beir_nq",
         data_root=data_root,
         source_paths={"corpus_queries": corpus_snapshot, "qrels": qrels_snapshot},
     )
@@ -222,11 +222,11 @@ def _seed_beir_nfcorpus_cache(tmp_path: Path) -> Path:
             "en",
         ),
         (
-            load_beir_nfcorpus_cached_manifest,
-            _seed_beir_nfcorpus_cache,
-            "beir_nfcorpus",
-            ["PLAIN-2", "PLAIN-4"],
-            ["MED-2427", "MED-10"],
+            load_beir_nq_cached_manifest,
+            _seed_beir_nq_cache,
+            "beir_nq",
+            ["NQ-Q1", "NQ-Q2"],
+            ["NQ-101", "NQ-102"],
             "en",
         ),
     ],
@@ -244,7 +244,7 @@ def test_cached_public_anchor_manifest_uses_real_cached_assets(
     manifest = loader(size=2, data_root=data_root)
 
     assert isinstance(manifest, BenchmarkCorpusManifest)
-    assert manifest.tier == "public_anchor"
+    assert manifest.tier == "official_suite"
     assert manifest.dataset_id == dataset_id
     assert manifest.dataset_metadata is not None
     assert manifest.dataset_metadata["real_public_assets"] is True
@@ -313,9 +313,9 @@ def test_cached_public_anchor_manifest_preserves_requested_sample_mode(
     tmp_path: Path,
     sample_mode: PublicAnchorSampleMode,
 ) -> None:
-    data_root = _seed_beir_nfcorpus_cache(tmp_path)
+    data_root = _seed_beir_nq_cache(tmp_path)
 
-    manifest = load_beir_nfcorpus_cached_manifest(
+    manifest = load_beir_nq_cached_manifest(
         sample_mode=sample_mode,
         data_root=data_root,
     )

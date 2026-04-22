@@ -11,19 +11,18 @@ from typing import Literal, cast
 import click
 
 from snowiki.bench.anchors import (
-    load_beir_nfcorpus_cached_manifest,
     load_beir_nq_cached_manifest,
     load_beir_scifact_cached_manifest,
-    load_hidden_holdout_suite,
     load_miracl_en_cached_manifest,
     load_miracl_ko_cached_manifest,
     load_ms_marco_passage_cached_manifest,
-    load_snowiki_shaped_suite,
     load_trec_dl_2020_passage_cached_manifest,
 )
 from snowiki.bench.anchors.public_cached import PublicAnchorSampleMode
+from snowiki.bench.catalog import official_suite_dataset_ids
 from snowiki.bench.corpus import BenchmarkCorpusManifest, load_corpus_from_manifest
 from snowiki.bench.models import BenchmarkReport
+from snowiki.bench.run_context import LAYER_POLICIES, canonicalize_execution_layer
 from snowiki.cli.output import emit_error
 
 _BENCH = import_module("snowiki.bench")
@@ -36,18 +35,9 @@ write_tokenizer_comparison_artifact = _BENCH.write_tokenizer_comparison_artifact
 
 
 PRESET_NAMES = tuple(preset.name for preset in list_presets())
-DATASET_NAMES = (
-    "regression",
-    "ms_marco_passage",
-    "trec_dl_2020_passage",
-    "miracl_ko",
-    "miracl_en",
-    "beir_nq",
-    "beir_scifact",
-    "beir_nfcorpus",
-    "snowiki_shaped",
-    "hidden_holdout",
-)
+OFFICIAL_DATASET_NAMES = official_suite_dataset_ids()
+DATASET_NAMES = ("regression", *OFFICIAL_DATASET_NAMES)
+LAYER_NAMES = (*tuple(LAYER_POLICIES), "scheduled_official_broad")
 
 
 def _has_seeded_corpus(root: Path) -> bool:
@@ -70,12 +60,6 @@ def _load_dataset_manifest(
         return load_beir_nq_cached_manifest(sample_mode=sample_mode)
     if dataset == "beir_scifact":
         return load_beir_scifact_cached_manifest(sample_mode=sample_mode)
-    if dataset == "beir_nfcorpus":
-        return load_beir_nfcorpus_cached_manifest(sample_mode=sample_mode)
-    if dataset == "snowiki_shaped":
-        return load_snowiki_shaped_suite()
-    if dataset == "hidden_holdout":
-        return load_hidden_holdout_suite()
     return None
 
 
@@ -90,7 +74,7 @@ def _ensure_seeded_root(
 
     if _has_seeded_corpus(root):
         raise ValueError(
-            f"dataset '{dataset}' requires an empty isolated benchmark root to avoid cross-tier mixing"
+            f"dataset '{dataset}' requires an empty isolated benchmark root to avoid cross-dataset mixing"
         )
     manifest = _load_dataset_manifest(dataset, sample_mode)
     if manifest is None:
@@ -131,7 +115,7 @@ def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
     type=click.Choice(DATASET_NAMES, case_sensitive=False),
     default="regression",
     show_default=True,
-    help="Benchmark dataset tier to evaluate without changing the default regression path.",
+    help="Benchmark dataset to evaluate. Supported values are regression plus the official six-dataset suite.",
 )
 @click.option(
     "--sample-mode",
@@ -139,9 +123,8 @@ def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
     default="standard",
     show_default=True,
     help=(
-        "Public-anchor dataset sample mode (quick=150, standard=500, "
-        + "full=min(all,1000)). Ignored for regression, shaped, and "
-        + "hidden-holdout tiers."
+        "Official benchmark sample mode (quick=150, standard=500, "
+        + "full=min(all,1000)). Ignored for regression."
     ),
 )
 @click.option(
@@ -152,7 +135,7 @@ def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
 )
 @click.option(
     "--layer",
-    type=click.Choice(("pr_official_quick", "scheduled_official_broad", "release_proof"), case_sensitive=False),
+    type=click.Choice(LAYER_NAMES, case_sensitive=False),
     default=None,
     help="Execution layer for official benchmark runs.",
 )
@@ -172,12 +155,10 @@ def command(
         Literal["exhaustive", "stratified", "fixed_sample"] | None,
         latency_sample,
     )
+    normalized_layer = (
+        canonicalize_execution_layer(layer) if isinstance(layer, str) else None
+    )
     try:
-        if dataset == "hidden_holdout":
-            click.echo(
-                "Warning: hidden_holdout is a development-only synthetic facsimile for "
-                "workflow verification and must not be treated as release evaluation."
-            )
         with _benchmark_root_context(root) as benchmark_root:
             manifest = _ensure_seeded_root(
                 benchmark_root,
@@ -191,6 +172,7 @@ def command(
                 dataset_name=dataset,
                 isolated_root=root is None,
                 latency_sample=sampling_mode,
+                execution_layer=normalized_layer,
             )
             if "retrieval" in generated_report and isinstance(
                 generated_report["retrieval"], dict
@@ -211,14 +193,8 @@ def command(
                     }
                 except Exception:
                     pass
-            report = generated_report
-            if layer is not None:
-                metadata = cast(dict[str, object], report.setdefault("metadata", {}))
-                metadata["execution_layer"] = layer
-                if dataset in ("regression", "snowiki_shaped", "hidden_holdout"):
-                    metadata["authority_class"] = "local_diagnostic"
-                else:
-                    metadata["authority_class"] = "official_standard"
+            current_report = generated_report
+            report = current_report
             tokenizer_artifact_path = output.parent / ".cache" / "tokenizer_comparison.md"
             _ = write_tokenizer_comparison_artifact(report, tokenizer_artifact_path)
     except Exception as exc:

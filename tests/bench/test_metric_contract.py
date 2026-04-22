@@ -41,7 +41,7 @@ class TestVerdictLayerSemantics:
             retrieval_failures=1,
             performance_failures=0,
             warnings=0,
-            tier="public_anchor",
+            tier="official_suite",
             layer="pr_official_quick",
         )
         retrieval_stage = next(s for s in stages if s["name"] == "retrieval_thresholds")
@@ -53,7 +53,7 @@ class TestVerdictLayerSemantics:
             retrieval_failures=1,
             performance_failures=0,
             warnings=0,
-            tier="public_anchor",
+            tier="official_suite",
             layer=None,
         )
         retrieval_stage = next(s for s in stages if s["name"] == "retrieval_thresholds")
@@ -65,7 +65,7 @@ class TestVerdictLayerSemantics:
             retrieval_failures=1,
             performance_failures=0,
             warnings=0,
-            tier="regression",
+            tier="regression_harness",
             layer=None,
         )
         retrieval_stage = next(s for s in stages if s["name"] == "retrieval_thresholds")

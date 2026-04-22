@@ -7,7 +7,6 @@ from typing import Final
 
 from snowiki.bench.anchors.public_cached import (
     PublicAnchorSampleMode,
-    load_beir_nfcorpus_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_miracl_ko_cached_manifest,
 )
@@ -16,7 +15,6 @@ from snowiki.bench.corpus import BenchmarkCorpusManifest
 _EXPECTED_COUNTS: Final[dict[str, tuple[int, int, int]]] = {
     "MIRACL KO": (150, 213, 213),
     "BEIR SciFact": (150, 300, 300),
-    "BEIR NFCorpus": (150, 323, 323),
 }
 _MODES: Final[tuple[PublicAnchorSampleMode, ...]] = ("quick", "standard", "full")
 
@@ -77,7 +75,6 @@ def main() -> int:
     datasets = (
         ("MIRACL KO", load_miracl_ko_cached_manifest),
         ("BEIR SciFact", load_beir_scifact_cached_manifest),
-        ("BEIR NFCorpus", load_beir_nfcorpus_cached_manifest),
     )
 
     for label, loader in datasets:

@@ -14,14 +14,6 @@ MIRACL_KO_METADATA: dict[str, str] = {
     "citation": "Zhang et al. MIRACL: A Multilingual Retrieval Dataset Covering 18 Diverse Languages.",
 }
 
-MR_TYDI_KO_METADATA: dict[str, str] = {
-    "name": "Mr. TyDi Korean",
-    "description": "Deterministic Snowiki sample shaped after the public Mr. TyDi Korean passage retrieval benchmark.",
-    "license": "CC-BY-3.0",
-    "source_url": "https://github.com/google-research-datasets/tydiqa",
-    "citation": "Zhang et al. Mr. TyDi: A Multi-lingual Benchmark for Dense Retrieval.",
-}
-
 _MIRACL_TOPICS: tuple[tuple[str, str], ...] = (
     ("서울 공공도서관", "디지털 아카이브 안내"),
     ("제주 올레길", "7코스 여행 정보"),
@@ -35,20 +27,6 @@ _MIRACL_TOPICS: tuple[tuple[str, str], ...] = (
     ("판소리", "대표 작품 해설"),
 )
 
-_MR_TYDI_TOPICS: tuple[tuple[str, str], ...] = (
-    ("수원 화성", "관람 동선은 어떻게 되나"),
-    ("전주 한옥마을", "숙박 예약 시기"),
-    ("강릉 커피거리", "대표 카페 선택 기준"),
-    ("독도 박물관", "전시 핵심 내용"),
-    ("세종학당", "한국어 수업 신청 방법"),
-    ("DMZ 평화열차", "운행 구간 정보"),
-    ("한글날 행사", "체험 프로그램 종류"),
-    ("남산 서울타워", "전망대 입장 절차"),
-    ("광안리 해수욕장", "야간 방문 포인트"),
-    ("순천만 국가정원", "추천 관람 동선"),
-)
-
-
 def _anchor_provenance(*, dataset_id: str, license_name: str) -> BenchmarkProvenance:
     return BenchmarkProvenance(
         source_class="mixed",
@@ -58,7 +36,7 @@ def _anchor_provenance(*, dataset_id: str, license_name: str) -> BenchmarkProven
         visibility_tier="public",
         contamination_status="clean",
         family_dedupe_key=f"public-anchor:{dataset_id}:ko",
-        authority_tier="public_anchor",
+        authority_tier="official_suite",
     )
 
 
@@ -191,7 +169,7 @@ def _build_manifest(
         ]
 
     return BenchmarkCorpusManifest(
-        tier="public_anchor",
+        tier="official_suite",
         documents=documents,
         queries=queries,
         judgments=judgments,
@@ -217,16 +195,6 @@ def load_miracl_ko_sample(size: int = 100) -> BenchmarkCorpusManifest:
         prefix="miracl-ko",
         metadata=MIRACL_KO_METADATA,
         topics=_MIRACL_TOPICS,
-        size=size,
-    )
-
-
-def load_mr_tydi_ko_sample(size: int = 100) -> BenchmarkCorpusManifest:
-    return _build_manifest(
-        dataset_id="mr_tydi_ko",
-        prefix="mr-tydi-ko",
-        metadata=MR_TYDI_KO_METADATA,
-        topics=_MR_TYDI_TOPICS,
         size=size,
     )
 

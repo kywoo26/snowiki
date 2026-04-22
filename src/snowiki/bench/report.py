@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from importlib import import_module
 from pathlib import Path
 from statistics import fmean
-from typing import Literal, Protocol, cast
+from typing import Literal, cast
 
 from .baselines import run_baseline_comparison
 from .corpus import BenchmarkCorpusManifest
@@ -18,9 +17,19 @@ from .models import (
 from .phase1_correctness import CheckIssue, ValidationResult, validate_phase1_workspace
 from .phase1_latency import run_phase1_latency_evaluation
 from .presets import get_preset
-
-_RENDER = import_module("snowiki.bench.render")
-_VERDICT = import_module("snowiki.bench.verdict")
+from .render import render_report_text
+from .run_context import canonicalize_execution_layer
+from .verdict import (
+    _performance_threshold_entries,
+    _performance_threshold_policy,
+    _retrieval_threshold_policy,
+    benchmark_exit_code,
+    benchmark_verdict,
+    informational_warning_count,
+    performance_threshold_failure_count,
+    retrieval_threshold_failure_count,
+    structural_failure_count,
+)
 
 _PER_QUERY_DETAIL_LIMIT = 20
 
@@ -38,34 +47,6 @@ def _coerce_int(value: object, *, default: int = 0) -> int:
         except ValueError:
             return default
     return default
-
-
-class _RenderReportText(Protocol):
-    def __call__(self, report: dict[str, object]) -> str: ...
-
-
-class _ReportToInt(Protocol):
-    def __call__(self, report: dict[str, object]) -> int: ...
-
-
-class _ReportToDict(Protocol):
-    def __call__(
-        self, report: dict[str, object], *, tier: str | None = None
-    ) -> dict[str, object]: ...
-
-
-class _ThresholdEntries(Protocol):
-    def __call__(self, report: dict[str, object]) -> list[dict[str, object]]: ...
-
-
-class _ThresholdPolicy(Protocol):
-    def __call__(self) -> list[dict[str, object]]: ...
-
-
-class _RetrievalThresholdPolicy(Protocol):
-    def __call__(self) -> dict[str, object]: ...
-
-
 def _legacy_retrieval_payload(
     retrieval: BenchmarkReport | dict[str, object],
 ) -> dict[str, object]:
@@ -81,18 +62,9 @@ def _manifest_payload_from_model(retrieval: BenchmarkReport) -> dict[str, object
     payload: dict[str, object] = {}
     for field_name in ("corpus_assets", "query_assets", "judgment_assets"):
         manifests = cast(list[BenchmarkAssetManifest], getattr(retrieval, field_name))
-        visible_manifests = [
-            manifest for manifest in manifests if not _is_hidden_holdout_asset(manifest)
-        ]
-        if visible_manifests:
-            payload[field_name] = [
-                manifest.to_report_dict() for manifest in visible_manifests
-            ]
+        if manifests:
+            payload[field_name] = [manifest.to_report_dict() for manifest in manifests]
     return payload
-
-
-def _is_hidden_holdout_asset(manifest: BenchmarkAssetManifest) -> bool:
-    return manifest.provenance.visibility_tier == "hidden_holdout"
 
 
 def _asset_counts_by_visibility(manifests: list[BenchmarkAssetManifest]) -> dict[str, int]:
@@ -131,51 +103,6 @@ def _asset_counts_by_authority_tier(
     return counts
 
 
-def _redact_hidden_holdout_retrieval_payload(
-    retrieval: dict[str, object],
-) -> dict[str, object]:
-    redacted = dict(retrieval)
-    baselines = redacted.get("baselines")
-    if isinstance(baselines, dict):
-        sealed_baselines: dict[str, object] = {}
-        for baseline_name, baseline_payload in baselines.items():
-            if not isinstance(baseline_payload, dict):
-                sealed_baselines[str(baseline_name)] = baseline_payload
-                continue
-            sealed_baseline = dict(baseline_payload)
-            sealed_baseline["queries"] = {}
-            quality = sealed_baseline.get("quality")
-            if isinstance(quality, dict):
-                sealed_quality = dict(quality)
-                overall = sealed_quality.get("overall")
-                if isinstance(overall, dict):
-                    sealed_overall = dict(overall)
-                    sealed_overall["per_query"] = []
-                    sealed_quality["overall"] = sealed_overall
-                slices = sealed_quality.get("slices")
-                if isinstance(slices, dict):
-                    sealed_slices = dict(slices)
-                    for slice_name in ("group", "kind", "subset"):
-                        slice_values = sealed_slices.get(slice_name)
-                        if not isinstance(slice_values, dict):
-                            continue
-                        sealed_slice_values: dict[str, object] = {}
-                        for key, slice_payload in slice_values.items():
-                            if not isinstance(slice_payload, dict):
-                                sealed_slice_values[str(key)] = slice_payload
-                                continue
-                            sealed_slice_payload = dict(slice_payload)
-                            sealed_slice_payload["per_query"] = []
-                            sealed_slice_values[str(key)] = sealed_slice_payload
-                        sealed_slices[slice_name] = sealed_slice_values
-                    sealed_quality["slices"] = sealed_slices
-                sealed_baseline["quality"] = sealed_quality
-            sealed_baselines[str(baseline_name)] = sealed_baseline
-        redacted["baselines"] = sealed_baselines
-    redacted["sealed_holdout"] = True
-    return redacted
-
-
 def _dataset_payload_from_manifest(
     manifest: BenchmarkCorpusManifest | None, *, dataset_name: str
 ) -> dict[str, object]:
@@ -183,7 +110,7 @@ def _dataset_payload_from_manifest(
         return {
             "id": dataset_name,
             "name": "Phase 1 regression fixtures",
-            "tier": "regression",
+            "tier": "regression_harness",
             "description": "Deterministic local regression fixtures used for candidate-screening benchmark runs.",
         }
 
@@ -198,15 +125,7 @@ def _dataset_payload_from_manifest(
         payload["metadata"] = dict(manifest.dataset_metadata)
     if manifest.corpus_assets:
         provenance = manifest.corpus_assets[0].provenance
-        if provenance.visibility_tier == "hidden_holdout":
-            payload["provenance_status"] = {
-                "visibility_tier": provenance.visibility_tier,
-                "authority_tier": provenance.authority_tier,
-                "sealed": True,
-                "dev_report_excludes_assets": True,
-            }
-        else:
-            payload["provenance"] = provenance.model_dump(mode="json")
+        payload["provenance"] = provenance.model_dump(mode="json")
     return payload
 
 
@@ -274,13 +193,8 @@ def _validated_manifest_payload(retrieval: dict[str, object]) -> dict[str, objec
         if manifests is None:
             continue
         validated = BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER.validate_python(manifests)
-        visible_manifests = [
-            manifest for manifest in validated if not _is_hidden_holdout_asset(manifest)
-        ]
-        if visible_manifests:
-            payload[field_name] = [
-                manifest.to_report_dict() for manifest in visible_manifests
-            ]
+        if validated:
+            payload[field_name] = [manifest.to_report_dict() for manifest in validated]
     return payload
 
 
@@ -362,7 +276,7 @@ def _bound_retrieval_payload(
     query_count: int,
     tier: str,
 ) -> dict[str, object]:
-    if tier == "regression" or query_count <= _PER_QUERY_DETAIL_LIMIT:
+    if tier == "regression_harness" or query_count <= _PER_QUERY_DETAIL_LIMIT:
         return {
             "applied": False,
             "per_query_detail_limit": None,
@@ -429,8 +343,6 @@ def generate_audit_report(report: BenchmarkReport) -> dict[str, object]:
     disagreement_count = sum(
         1 for pooled_review in report.pooled_reviews if pooled_review.disagreement_flag
     )
-    hidden_count = sum(1 for manifest in manifests if _is_hidden_holdout_asset(manifest))
-
     return {
         "policy": dict(report.audit_policy),
         "samples": {
@@ -453,7 +365,6 @@ def generate_audit_report(report: BenchmarkReport) -> dict[str, object]:
         },
         "provenance_quota": {
             "asset_count": len(manifests),
-            "hidden_holdout_asset_count": hidden_count,
             "by_visibility_tier": _asset_counts_by_visibility(manifests),
             "by_source_class": _asset_counts_by_source_class(manifests),
             "by_authoring_method": _asset_counts_by_authoring_method(manifests),
@@ -468,28 +379,6 @@ def generate_audit_report(report: BenchmarkReport) -> dict[str, object]:
     }
 
 
-render_report_text = cast(_RenderReportText, _RENDER.render_report_text)
-benchmark_verdict = cast(_ReportToDict, _VERDICT.benchmark_verdict)
-benchmark_exit_code = cast(_ReportToInt, _VERDICT.benchmark_exit_code)
-informational_warning_count = cast(_ReportToInt, _VERDICT.informational_warning_count)
-performance_threshold_failure_count = cast(
-    _ReportToInt, _VERDICT.performance_threshold_failure_count
-)
-retrieval_threshold_failure_count = cast(
-    _ReportToInt, _VERDICT.retrieval_threshold_failure_count
-)
-structural_failure_count = cast(_ReportToInt, _VERDICT.structural_failure_count)
-_performance_threshold_entries = cast(
-    _ThresholdEntries, _VERDICT._performance_threshold_entries
-)
-_performance_threshold_policy = cast(
-    _ThresholdPolicy, _VERDICT._performance_threshold_policy
-)
-_retrieval_threshold_policy = cast(
-    _RetrievalThresholdPolicy, _VERDICT._retrieval_threshold_policy
-)
-
-
 def generate_report(
     root: Path,
     *,
@@ -498,11 +387,12 @@ def generate_report(
     dataset_name: str = "regression",
     isolated_root: bool = True,
     latency_sample: Literal["exhaustive", "stratified", "fixed_sample"] | None = None,
+    execution_layer: str | None = None,
 ) -> dict[str, object]:
     preset = get_preset(preset_name)
     structural = _structural_validation_summary(validate_phase1_workspace(root))
     dataset_payload = _dataset_payload_from_manifest(manifest, dataset_name=dataset_name)
-    dataset_tier = str(dataset_payload.get("tier", "regression"))
+    dataset_tier = str(dataset_payload.get("tier", "regression_harness"))
     performance = run_phase1_latency_evaluation(
         root,
         preset=preset,
@@ -537,26 +427,27 @@ def generate_report(
         }
     performance_threshold_policy = (
         _performance_threshold_policy()
-        if dataset_tier == "regression"
+        if dataset_tier == "regression_harness"
         and str(sampling_policy.get("mode", "exhaustive")) == "exhaustive"
         else []
     )
     retrieval_result = _attach_manifest_assets(retrieval_result, manifest)
     retrieval = _legacy_retrieval_payload(retrieval_result)
-    if manifest is not None and manifest.tier == "hidden_holdout":
-        retrieval = _redact_hidden_holdout_retrieval_payload(retrieval)
     report_limits = _bound_retrieval_payload(
         retrieval,
         query_count=_coerce_int(corpus_summary.get("queries_evaluated", 0)),
         tier=dataset_tier,
     )
     report_metadata: dict[str, object] = {
+        "authority_class": dataset_tier,
         "dataset_id": dataset_payload.get("id", dataset_name),
         "dataset_name": dataset_payload.get("name", dataset_name),
         "dataset_tier": dataset_tier,
         "latency_sampling_policy": sampling_policy,
         "report_limits": report_limits,
     }
+    if execution_layer is not None:
+        report_metadata["execution_layer"] = canonicalize_execution_layer(execution_layer)
     report_metadata.update(_dataset_sample_metadata(dataset_payload))
     report: dict[str, object] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),

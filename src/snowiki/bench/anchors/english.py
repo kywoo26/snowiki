@@ -14,14 +14,6 @@ BEIR_SCIFACT_METADATA: dict[str, str] = {
     "citation": "Wadden et al. Fact or Fiction: Verifying Scientific Claims. EMNLP 2020.",
 }
 
-BEIR_NFCORPUS_METADATA: dict[str, str] = {
-    "name": "BEIR NFCorpus",
-    "description": "Deterministic Snowiki sample shaped after the public BEIR NFCorpus topical retrieval benchmark for compact English iteration.",
-    "license": "MIT",
-    "source_url": "https://huggingface.co/datasets/BeIR/nfcorpus",
-    "citation": "Thakur et al. BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models. NeurIPS Datasets and Benchmarks 2021.",
-}
-
 _SCIFACT_TOPICS: tuple[tuple[str, str], ...] = (
     ("Vitamin D supplementation", "bone health evidence summary"),
     ("Blue light exposure", "sleep timing findings"),
@@ -35,20 +27,6 @@ _SCIFACT_TOPICS: tuple[tuple[str, str], ...] = (
     ("Air pollution", "asthma hospitalization analysis"),
 )
 
-_NFCORPUS_TOPICS: tuple[tuple[str, str], ...] = (
-    ("seasonal allergy travel planning", "long-haul symptom checklist"),
-    ("community oncology nutrition support", "post-treatment meal guide"),
-    ("rural telehealth dermatology", "referral and wait-time explainer"),
-    ("sleep apnea equipment care", "humidifier cleaning checklist"),
-    ("kidney stone prevention", "night-shift hydration advice"),
-    ("migraine trigger diary", "office lighting adjustments"),
-    ("low-FODMAP pantry planning", "budget grocery substitutions"),
-    ("pediatric asthma action plan", "school sports coordination"),
-    ("tinnitus self-management", "white-noise device comparison"),
-    ("arthritis morning stiffness", "home office ergonomic routine"),
-)
-
-
 def _anchor_provenance(*, dataset_id: str, license_name: str) -> BenchmarkProvenance:
     return BenchmarkProvenance(
         source_class="public_dataset",
@@ -58,7 +36,7 @@ def _anchor_provenance(*, dataset_id: str, license_name: str) -> BenchmarkProven
         visibility_tier="public",
         contamination_status="clean",
         family_dedupe_key=f"public-anchor:{dataset_id}:en",
-        authority_tier="public_anchor",
+        authority_tier="official_suite",
     )
 
 
@@ -220,7 +198,7 @@ def _build_manifest(
         ]
 
     return BenchmarkCorpusManifest(
-        tier="public_anchor",
+        tier="official_suite",
         documents=documents,
         queries=queries,
         judgments=judgments,
@@ -252,20 +230,7 @@ def load_beir_scifact_sample(size: int = 100) -> BenchmarkCorpusManifest:
     )
 
 
-def load_beir_nfcorpus_sample(size: int = 100) -> BenchmarkCorpusManifest:
-    return _build_manifest(
-        dataset_id="beir_nfcorpus",
-        prefix="beir-nfcorpus",
-        metadata=BEIR_NFCORPUS_METADATA,
-        topics=_NFCORPUS_TOPICS,
-        size=size,
-        content_profile="topical",
-    )
-
-
 __all__ = [
-    "BEIR_NFCORPUS_METADATA",
     "BEIR_SCIFACT_METADATA",
-    "load_beir_nfcorpus_sample",
     "load_beir_scifact_sample",
 ]

@@ -5,21 +5,23 @@ from typing import cast
 
 import click
 
+from snowiki.bench.catalog import official_suite_dataset_ids
 from snowiki.bench.datasets import (
-    BENCHMARK_DATASET_IDS,
     RefreshMode,
     fetch_benchmark_dataset,
     normalize_dataset_id,
 )
 from snowiki.cli.output import emit_error
 
+OFFICIAL_FETCH_DATASET_IDS = official_suite_dataset_ids()
+
 
 @click.command("benchmark-fetch")
 @click.option(
     "--dataset",
-    type=click.Choice(BENCHMARK_DATASET_IDS, case_sensitive=False),
+    type=click.Choice(OFFICIAL_FETCH_DATASET_IDS, case_sensitive=False),
     required=True,
-    help="Public benchmark dataset to fetch into the benchmark-owned cache.",
+    help="Official benchmark dataset to fetch into the benchmark-owned cache.",
 )
 @click.option(
     "--data-root",

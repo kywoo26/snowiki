@@ -28,7 +28,7 @@ def _provenance_payload(**overrides: object) -> dict[str, object]:
         "visibility_tier": "public",
         "contamination_status": "clean",
         "family_dedupe_key": "family-report",
-        "authority_tier": "public_anchor",
+        "authority_tier": "official_suite",
     }
     payload.update(overrides)
     return payload
@@ -318,7 +318,8 @@ def test_generate_report_exposes_unified_benchmark_gate(
         {"metric": "p50_ms", "value": 5950.0, "operator": "<="},
         {"metric": "p95_ms", "value": 6300.0, "operator": "<="},
     ]
-    assert metadata["dataset_tier"] == "regression"
+    assert metadata["dataset_tier"] == "regression_harness"
+    assert metadata["authority_class"] == "regression_harness"
     assert metadata["latency_sampling_policy"] == {
         "mode": "exhaustive",
         "population_query_count": 18,
@@ -514,7 +515,7 @@ def test_generate_report_structural_failures_block_before_thresholds(
     )
 
 
-def test_generate_report_non_regression_retrieval_failures_are_informational(
+def test_generate_report_official_suite_retrieval_failures_are_informational(
     tmp_path: Path, monkeypatch, repo_root: Path
 ) -> None:
     from snowiki.bench.corpus import BenchmarkCorpusManifest
@@ -523,12 +524,12 @@ def test_generate_report_non_regression_retrieval_failures_are_informational(
     generate_report = report_module.generate_report
     render_report_text = report_module.render_report_text
     manifest = BenchmarkCorpusManifest(
-        tier="snowiki_shaped",
-        documents=[{"id": "doc-1", "content": "Snowiki shaped corpus note."}],
+        tier="official_suite",
+        documents=[{"id": "doc-1", "content": "Official suite corpus note."}],
         queries=[
             {
                 "id": "q-1",
-                "text": "snowiki shaped corpus note",
+                "text": "official suite corpus note",
                 "group": "mixed_ko_en",
                 "kind": "known-item",
             }
@@ -538,9 +539,9 @@ def test_generate_report_non_regression_retrieval_failures_are_informational(
                 {"query_id": "q-1", "doc_id": "doc-1", "relevance": 1}
             ]
         },
-        dataset_id="snowiki_shaped",
-        dataset_name="Snowiki Shaped",
-        dataset_description="Shaped benchmark suite.",
+        dataset_id="miracl_ko",
+        dataset_name="MIRACL Korean",
+        dataset_description="Official benchmark manifest sample.",
     )
     monkeypatch.setattr(
         report_module,
@@ -563,8 +564,8 @@ def test_generate_report_non_regression_retrieval_failures_are_informational(
                 "query": {"p50_ms": 6.0, "p95_ms": 12.0},
             },
             "corpus": {
-                "dataset": "snowiki_shaped",
-                "tier": "snowiki_shaped",
+                "dataset": "miracl_ko",
+                "tier": "official_suite",
                 "queries_available": 1,
                 "queries_evaluated": 1,
             },
@@ -650,7 +651,7 @@ def test_generate_report_non_regression_retrieval_failures_are_informational(
             tmp_path,
             preset_name="retrieval",
             manifest=manifest,
-            dataset_name="snowiki_shaped",
+            dataset_name="miracl_ko",
         ),
     )
     verdict = cast(dict[str, Any], report["benchmark_verdict"])
@@ -775,7 +776,7 @@ def test_generate_report_includes_provenance_metadata_when_present(
                         "benchmarks/queries/query-1.json",
                         source_class="human_curated",
                         collection_method="manual_entry",
-                        authority_tier="snowiki_shaped",
+                        authority_tier="official_suite",
                     )
                 ],
                 "judgment_assets": [
@@ -785,7 +786,7 @@ def test_generate_report_includes_provenance_metadata_when_present(
                         source_class="mixed",
                         authoring_method="human_reviewed",
                         collection_method="manual_entry",
-                        authority_tier="snowiki_shaped",
+                        authority_tier="official_suite",
                     )
                 ],
             }
@@ -800,35 +801,33 @@ def test_generate_report_includes_provenance_metadata_when_present(
             "doc-1", "benchmarks/corpus/doc-1.json", source_class="public_dataset"
         )
     ]
-    assert retrieval["query_assets"][0]["provenance"]["authority_tier"] == "snowiki_shaped"
+    assert retrieval["query_assets"][0]["provenance"]["authority_tier"] == "official_suite"
     assert retrieval["judgment_assets"][0]["provenance"]["authoring_method"] == "human_reviewed"
 
 
 def test_tier_aware_latency_policy_is_applied() -> None:
     from snowiki.bench.phase1_latency import get_latency_policy
 
-    regression_policy = get_latency_policy("regression", 90)
-    public_policy = get_latency_policy("public_anchor", 100)
-    shaped_policy = get_latency_policy("snowiki_shaped", 80)
-    holdout_policy = get_latency_policy("hidden_holdout", 60)
+    regression_policy = get_latency_policy("regression_harness", 90)
+    official_large_policy = get_latency_policy("official_suite", 100)
+    official_small_policy = get_latency_policy("official_suite", 20)
 
     assert regression_policy.mode == "exhaustive"
-    assert public_policy.mode == "stratified"
-    assert shaped_policy.mode == "stratified"
-    assert holdout_policy.mode == "fixed_sample"
-    assert holdout_policy.sample_size == 20
+    assert regression_policy.sample_size is None
+    assert official_large_policy.mode == "stratified"
+    assert official_small_policy.mode == "exhaustive"
 
 
 def test_stratified_sampling_works_for_large_tiers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from snowiki.bench import phase1_latency
-    from snowiki.bench.anchors.snowiki_shaped import load_snowiki_shaped_suite
+    from snowiki.bench.anchors.korean import load_miracl_ko_sample
     from snowiki.bench.presets import get_preset
 
     fixture_path = tmp_path / "fixture.jsonl"
     _ = fixture_path.write_text("{}\n", encoding="utf-8")
-    manifest = load_snowiki_shaped_suite(size=100)
+    manifest = load_miracl_ko_sample(size=100)
 
     monkeypatch.setattr(phase1_latency, "PHASE_1_WARMUPS", 0)
     monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 1)
@@ -862,7 +861,7 @@ def test_stratified_sampling_works_for_large_tiers(
         tmp_path / "requested-root",
         preset=get_preset("retrieval"),
         manifest=manifest,
-        dataset_name="snowiki_shaped",
+        dataset_name="miracl_ko",
     )
     protocol = cast(dict[str, Any], report["protocol"])
     sampling_policy = cast(dict[str, Any], protocol["sampling_policy"])
@@ -870,8 +869,8 @@ def test_stratified_sampling_works_for_large_tiers(
 
     assert sampling_policy["mode"] == "stratified"
     assert sampling_policy["sampled"] is True
-    assert len(cast(list[str], sampling_policy["strata"])) >= 3
-    assert corpus["queries_available"] == 90
+    assert cast(list[str], sampling_policy["strata"]) == ["known-item", "topical"]
+    assert corpus["queries_available"] == 100
     assert corpus["queries_evaluated"] == 20
     assert len(query_calls) == 20
 
@@ -905,7 +904,7 @@ def test_report_includes_sampling_policy_metadata(
             },
             "corpus": {
                 "dataset": "miracl_ko",
-                "tier": "public_anchor",
+                "tier": "official_suite",
                 "queries_available": 60,
                 "queries_evaluated": 20,
             },
@@ -989,7 +988,8 @@ def test_report_includes_sampling_policy_metadata(
     rendered = report_module.render_report_text(report)
 
     assert metadata["dataset_name"] == manifest.dataset_name
-    assert metadata["dataset_tier"] == "public_anchor"
+    assert metadata["dataset_tier"] == "official_suite"
+    assert metadata["authority_class"] == "official_suite"
     assert metadata["latency_sampling_policy"]["mode"] == "stratified"
     assert metadata["latency_sampling_policy"]["sampled_query_count"] == 20
     assert report["performance_threshold_policy"] == []
@@ -1003,12 +1003,12 @@ def test_report_includes_dataset_sample_metadata_when_present(
 
     report_module, benchmark_report = _load_report_symbols()
     manifest = BenchmarkCorpusManifest(
-        tier="public_anchor",
-        documents=[{"id": "doc-1", "content": "Public anchor document."}],
+        tier="official_suite",
+        documents=[{"id": "doc-1", "content": "Official suite document."}],
         queries=[
             {
                 "id": "q-1",
-                "text": "public anchor query",
+                "text": "official suite query",
                 "group": "ko",
                 "kind": "known-item",
             }
@@ -1049,7 +1049,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
             },
             "corpus": {
                 "dataset": "miracl_ko",
-                "tier": "public_anchor",
+                "tier": "official_suite",
                 "queries_available": 200,
                 "queries_evaluated": 20,
             },
@@ -1179,7 +1179,7 @@ def test_report_size_is_bounded_for_large_tiers(
             },
             "corpus": {
                 "dataset": "miracl_ko",
-                "tier": "public_anchor",
+                "tier": "official_suite",
                 "queries_available": 60,
                 "queries_evaluated": 20,
             },
@@ -1354,7 +1354,7 @@ def test_generate_report_rejects_authoritative_assets_without_required_provenanc
                         "license": "CC-BY-4.0",
                         "collection_method": "manual_entry",
                         "contamination_status": "clean",
-                        "authority_tier": "public_anchor",
+                        "authority_tier": "official_suite",
                     },
                 }
             ],
@@ -1456,7 +1456,7 @@ def _operational_evidence_payload(*, measured: bool) -> dict[str, object]:
     }
 
 
-def test_report_internal_helpers_cover_coercion_redaction_and_empty_audit() -> None:
+def test_report_internal_helpers_cover_coercion_bounding_and_empty_audit() -> None:
     report_module, benchmark_report = _load_report_symbols()
 
     assert report_module._coerce_int(True) == 1
@@ -1466,7 +1466,7 @@ def test_report_internal_helpers_cover_coercion_redaction_and_empty_audit() -> N
     assert report_module._coerce_int("bad", default=9) == 9
     assert report_module._coerce_int(object(), default=9) == 9
 
-    redacted = report_module._redact_hidden_holdout_retrieval_payload(
+    bounded = report_module._bound_retrieval_payload(
         {
             "baselines": {
                 "lexical": {
@@ -1482,32 +1482,22 @@ def test_report_internal_helpers_cover_coercion_redaction_and_empty_audit() -> N
                 },
                 "raw": "keep-me",
             }
-        }
+        },
+        query_count=21,
+        tier="official_suite",
     )
 
-    baselines = cast(dict[str, object], redacted["baselines"])
-    lexical = cast(dict[str, object], baselines["lexical"])
-    quality = cast(dict[str, object], lexical["quality"])
-    overall = cast(dict[str, object], quality["overall"])
-    slices = cast(dict[str, object], quality["slices"])
-
-    assert redacted["sealed_holdout"] is True
-    assert lexical["queries"] == {}
-    assert overall["per_query"] == []
-    assert cast(dict[str, object], cast(dict[str, object], slices["group"])["hidden"])[
-        "per_query"
-    ] == []
-    assert cast(dict[str, object], cast(dict[str, object], slices["subset"])["hidden"])[
-        "per_query"
-    ] == []
-    assert cast(dict[str, object], slices["kind"])["raw"] == "keep"
-    assert baselines["raw"] == "keep-me"
+    assert bounded == {
+        "applied": False,
+        "per_query_detail_limit": None,
+        "entries_removed": 0,
+        "baselines_truncated": [],
+    }
 
     assert report_module.generate_audit_report(benchmark_report.model_validate({})) == {}
 
 
-def test_dataset_payload_from_manifest_covers_regression_visible_and_hidden_paths() -> None:
-    from snowiki.bench.anchors.hidden_holdout import load_hidden_holdout_suite
+def test_dataset_payload_from_manifest_covers_regression_and_official_paths() -> None:
     from snowiki.bench.anchors.korean import load_miracl_ko_sample
 
     report_module, _ = _load_report_symbols()
@@ -1519,7 +1509,7 @@ def test_dataset_payload_from_manifest_covers_regression_visible_and_hidden_path
     assert regression_payload == {
         "id": "regression",
         "name": "Phase 1 regression fixtures",
-        "tier": "regression",
+        "tier": "regression_harness",
         "description": (
             "Deterministic local regression fixtures used for "
             "candidate-screening benchmark runs."
@@ -1530,17 +1520,9 @@ def test_dataset_payload_from_manifest_covers_regression_visible_and_hidden_path
         load_miracl_ko_sample(size=2),
         dataset_name="miracl_ko",
     )
-    assert visible_payload["tier"] == "public_anchor"
+    assert visible_payload["tier"] == "official_suite"
     assert cast(dict[str, object], visible_payload["metadata"])["sample_size"] == 2
     assert "provenance" in visible_payload
-
-    hidden_payload = report_module._dataset_payload_from_manifest(
-        load_hidden_holdout_suite(size=2),
-        dataset_name="hidden_holdout",
-    )
-    assert hidden_payload["tier"] == "hidden_holdout"
-    assert "provenance" not in hidden_payload
-    assert cast(dict[str, object], hidden_payload["provenance_status"])["sealed"] is True
 
 
 def test_baselines_parsing_helpers_cover_error_and_path_resolution(
@@ -1739,17 +1721,17 @@ def test_phase1_latency_helper_branches_are_covered(
     assert loaded_specs == query_specs
 
     assert phase1_latency._requested_latency_policy(
-        "public_anchor",
+        "official_suite",
         query_count=60,
         latency_sample="fixed_sample",
     ).mode == "fixed_sample"
     assert phase1_latency._requested_latency_policy(
-        "public_anchor",
+        "official_suite",
         query_count=60,
         latency_sample="stratified",
     ).mode == "stratified"
     assert phase1_latency._requested_latency_policy(
-        "public_anchor",
+        "official_suite",
         query_count=60,
         latency_sample="exhaustive",
     ).mode == "exhaustive"
@@ -1808,9 +1790,9 @@ def test_verdict_internal_helpers_cover_edge_cases() -> None:
     verdict = import_module("snowiki.bench.verdict")
     models = import_module("snowiki.bench.models")
 
-    assert verdict._report_tier({"metadata": {"dataset_tier": "public_anchor"}}) == "public_anchor"
-    assert verdict._report_tier({"dataset": {"tier": "snowiki_shaped"}}) == "snowiki_shaped"
-    assert verdict._report_tier({}) == "regression"
+    assert verdict._report_tier({"metadata": {"dataset_tier": "official_suite"}}) == "official_suite"
+    assert verdict._report_tier({"dataset": {"tier": "official_suite"}}) == "official_suite"
+    assert verdict._report_tier({}) == "regression_harness"
 
     assert verdict.performance_threshold_failure_count({"performance_thresholds": "bad"}) == 0
     assert verdict.retrieval_threshold_failure_count({"retrieval": {"baselines": "bad"}}) == 0

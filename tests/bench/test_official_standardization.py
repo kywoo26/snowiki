@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from snowiki.bench.catalog import OFFICIAL_BENCHMARK_SUITE
 from snowiki.bench.policy import (
-    OFFICIAL_BALANCED_CORE,
     get_layer_policy,
     get_quick_pr_suite,
     get_scheduled_suite,
-    is_local_diagnostic,
     is_official,
+    is_regression_harness,
 )
 
 
@@ -24,14 +24,14 @@ class TestOfficialBackbone:
             "beir_nq",
             "beir_scifact",
         }
-        actual = {d.dataset_id for d in OFFICIAL_BALANCED_CORE}
+        actual = {d.dataset_id for d in OFFICIAL_BENCHMARK_SUITE}
         assert actual == expected
 
-    def test_all_official_standard(self) -> None:
-        for entry in OFFICIAL_BALANCED_CORE:
-            assert entry.authority_class == "official_standard"
+    def test_all_official_suite(self) -> None:
+        for entry in OFFICIAL_BENCHMARK_SUITE:
+            assert entry.authority_class == "official_suite"
             assert is_official(entry.dataset_id)
-            assert not is_local_diagnostic(entry.dataset_id)
+            assert not is_regression_harness(entry.dataset_id)
 
 
 class TestLayerContracts:
@@ -43,7 +43,7 @@ class TestLayerContracts:
         assert policy["blocking"] is True
 
     def test_scheduled_exact_metrics(self) -> None:
-        policy = get_layer_policy("scheduled_official_broad")
+        policy = get_layer_policy("scheduled_official_standard")
         assert policy["metrics"] == ("nDCG@10", "Recall@100", "MRR@10", "P95 latency")
         assert policy["blocking"] is False
 
@@ -69,24 +69,16 @@ class TestSuiteDefinitions:
     def test_scheduled_suite_exact(self) -> None:
         suite = get_scheduled_suite()
         assert len(suite) == 6
-        assert set(suite) == {d.dataset_id for d in OFFICIAL_BALANCED_CORE}
+        assert set(suite) == {d.dataset_id for d in OFFICIAL_BENCHMARK_SUITE}
 
 
-class TestLocalDiagnosticIsolation:
-    """Verify local diagnostics are excluded from official paths."""
+class TestRegressionHarnessIsolation:
+    """Verify the regression harness is excluded from official paths."""
 
-    def test_regression_is_diagnostic(self) -> None:
-        assert is_local_diagnostic("regression")
+    def test_regression_is_regression_harness(self) -> None:
+        assert is_regression_harness("regression")
         assert not is_official("regression")
 
-    def test_shaped_is_diagnostic(self) -> None:
-        assert is_local_diagnostic("snowiki_shaped")
-        assert not is_official("snowiki_shaped")
-
-    def test_holdout_is_diagnostic(self) -> None:
-        assert is_local_diagnostic("hidden_holdout")
-        assert not is_official("hidden_holdout")
-
-    def test_no_diagnostic_in_official_registry(self) -> None:
-        for entry in OFFICIAL_BALANCED_CORE:
-            assert not is_local_diagnostic(entry.dataset_id)
+    def test_no_regression_harness_dataset_in_official_registry(self) -> None:
+        for entry in OFFICIAL_BENCHMARK_SUITE:
+            assert not is_regression_harness(entry.dataset_id)

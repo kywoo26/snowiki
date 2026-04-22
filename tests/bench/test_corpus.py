@@ -39,7 +39,7 @@ def test_seed_canonical_benchmark_root_uses_full_canonical_fixture_set(
 
 def test_load_corpus_from_manifest_ingests_documents_correctly(tmp_path: Path) -> None:
     manifest = corpus.BenchmarkCorpusManifest(
-        tier="public_anchor",
+        tier="official_suite",
         documents=[
             {
                 "id": "public-anchor-doc-1",
@@ -66,7 +66,7 @@ def test_load_corpus_from_manifest_ingests_documents_correctly(tmp_path: Path) -
         "public-anchor-doc-1",
         "public-anchor-doc-2",
     ]
-    assert {item["source"] for item in seeded} == {"benchmark_manifest_public_anchor"}
+    assert {item["source"] for item in seeded} == {"benchmark_manifest_official_suite"}
     assert {record["id"] for record in records} >= {
         "public-anchor-doc-1",
         "public-anchor-doc-2",
@@ -75,9 +75,9 @@ def test_load_corpus_from_manifest_ingests_documents_correctly(tmp_path: Path) -
         record for record in records if record["id"] == "public-anchor-doc-1"
     )
     assert first_record["record_type"] == "session"
-    assert first_record["source_type"] == "benchmark_manifest_public_anchor"
+    assert first_record["source_type"] == "benchmark_manifest_official_suite"
     assert first_record["content"] == "Aurora benchmark note about lexical retrieval behavior."
-    assert first_record["metadata"]["benchmark_tier"] == "public_anchor"
+    assert first_record["metadata"]["benchmark_tier"] == "official_suite"
     assert compiled_pages
 
 
@@ -100,7 +100,7 @@ def test_load_corpus_from_manifest_regression_tier_uses_all_canonical_fixtures(
 
     seeded = corpus.load_corpus_from_manifest(
         corpus.BenchmarkCorpusManifest(
-            tier="regression",
+            tier="regression_harness",
             documents=[],
             fixture_paths=corpus.CANONICAL_BENCHMARK_FIXTURE_PATHS,
         ),
@@ -119,7 +119,7 @@ def test_load_corpus_from_manifest_regression_tier_uses_all_canonical_fixtures(
 
 def test_generic_document_ids_work_without_fixture_provenance(tmp_path: Path) -> None:
     manifest = corpus.BenchmarkCorpusManifest(
-        tier="snowiki_shaped",
+        tier="official_suite",
         documents=[
             {
                 "id": "snowiki-shaped-doc-7",

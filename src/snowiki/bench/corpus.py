@@ -26,9 +26,7 @@ CANONICAL_BENCHMARK_FIXTURE_PATHS: dict[str, str] = {
     "omo_compaction": "fixtures/opencode/with_compaction.db",
 }
 
-type BenchmarkCorpusTier = Literal[
-    "regression", "public_anchor", "snowiki_shaped", "hidden_holdout"
-]
+type BenchmarkCorpusTier = Literal["official_suite", "regression_harness"]
 
 
 @dataclass(frozen=True)
@@ -144,7 +142,7 @@ def _document_record_payload(
     summary = (
         str(summary_value).strip()
         if isinstance(summary_value, str) and summary_value.strip()
-        else f"Benchmark corpus document `{document_id}` from the {tier} tier."
+        else f"Benchmark corpus document `{document_id}` from the {tier} corpus."
     )
     payload_metadata: dict[str, object] = {
         **metadata,
@@ -216,7 +214,7 @@ def load_corpus_from_manifest(
 def seed_canonical_benchmark_root(root: Path) -> list[SeededFixture]:
     return load_corpus_from_manifest(
         BenchmarkCorpusManifest(
-            tier="regression",
+            tier="regression_harness",
             documents=[],
             fixture_paths=CANONICAL_BENCHMARK_FIXTURE_PATHS,
         ),
