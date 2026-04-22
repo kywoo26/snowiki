@@ -93,7 +93,7 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
         },
     }
     assert corpus["dataset"] == "regression"
-    assert corpus["tier"] == "regression"
+    assert corpus["tier"] == "regression_harness"
     assert corpus["fixtures_indexed"] == 2
     assert corpus["queries_available"] == 2
     assert corpus["queries_evaluated"] == 2

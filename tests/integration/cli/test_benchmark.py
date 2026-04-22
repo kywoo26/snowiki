@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import cast
 
 import pytest
 from click.testing import CliRunner
@@ -19,6 +20,14 @@ _EXPANDED_BASELINES = [
     "bm25s_mecab_full",
     "bm25s_hf_wordpiece",
 ]
+
+
+def _removed_dataset_ids() -> tuple[str, ...]:
+    return (
+        "hidden_" + "holdout",
+        "snowiki" + "_shaped",
+        "beir_" + "nfcorpus",
+    )
 
 
 def _fake_report(
@@ -556,10 +565,10 @@ def test_benchmark_regression_ignores_sample_mode(
         ("miracl_ko", ["--sample-mode", "quick"], "quick"),
         ("trec_dl_2020_passage", ["--sample-mode", "full"], "full"),
         ("beir_scifact", [], "standard"),
-        ("beir_nfcorpus", ["--sample-mode", "full"], "full"),
+        ("beir_nq", ["--sample-mode", "full"], "full"),
     ],
 )
-def test_benchmark_public_anchor_cli_propagates_sample_mode(
+def test_benchmark_official_dataset_cli_propagates_sample_mode(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     dataset: str,
@@ -663,7 +672,7 @@ def test_benchmark_non_regression_retrieval_failures_are_non_blocking(
             "--preset",
             "retrieval",
             "--dataset",
-            "snowiki_shaped",
+            "beir_scifact",
             "--output",
             str(report_path),
         ],
@@ -677,6 +686,59 @@ def test_benchmark_non_regression_retrieval_failures_are_non_blocking(
         "Unified benchmark verdict: PASS (blocking_stage=None, exit_code=0)"
         in result.output
     )
+
+
+def test_benchmark_passes_canonical_execution_layer_to_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    report_path = tmp_path / "reports" / "benchmark.json"
+    captured_kwargs: dict[str, object] = {}
+
+    monkeypatch.setattr(
+        benchmark_command,
+        "_ensure_seeded_root",
+        lambda root, *, dataset, sample_mode: None,
+    )
+
+    def fake_generate_report(*args, **kwargs) -> dict[str, object]:
+        captured_kwargs.update(kwargs)
+        report = _fake_report(retrieval_fail=True, retrieval_blocking=False)
+        metadata = cast(dict[str, object], report.setdefault("metadata", {}))
+        execution_layer = kwargs.get("execution_layer")
+        if execution_layer is not None:
+            metadata["execution_layer"] = execution_layer
+        return report
+
+    monkeypatch.setattr(benchmark_command, "generate_report", fake_generate_report)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "--preset",
+            "retrieval",
+            "--dataset",
+            "beir_scifact",
+            "--layer",
+            "scheduled_official_broad",
+            "--output",
+            str(report_path),
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path / "root")},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured_kwargs["execution_layer"] == "scheduled_official_standard"
+
+
+def test_benchmark_help_includes_legacy_layer_alias_for_compatibility() -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["benchmark", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "scheduled_official_broad" in result.output
 
 
 def test_benchmark_structural_failures_take_precedence_over_threshold_failures(
@@ -719,28 +781,23 @@ def test_benchmark_help_mentions_isolated_temp_root() -> None:
     result = runner.invoke(app, ["benchmark", "--help"])
 
     assert result.exit_code == 0, result.output
-    assert "hidden_holdout" in result.output
+    assert "regression" in result.output
+    assert "ms_marco_passage" in result.output
+    assert "beir_scifact" in result.output
+    for removed_dataset_id in _removed_dataset_ids():
+        assert removed_dataset_id not in result.output
     assert "beir_small" not in result.output
     assert "--sample-mode" in result.output
-    assert "Public-anchor dataset sample mode" in result.output
+    assert "Official benchmark sample mode" in result.output
     assert "quick=150" in result.output
-    assert "hidden-holdout tiers" in result.output
+    assert "Ignored" in result.output
+    assert "regression" in result.output
     assert "defaults to an isolated" in result.output
     assert "temporary benchmark root" in result.output
 
 
-def test_benchmark_hidden_holdout_dataset_warns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_benchmark_rejects_removed_dataset_in_cli_choice(tmp_path: Path) -> None:
     report_path = tmp_path / "reports" / "benchmark.json"
-    monkeypatch.setattr(
-        benchmark_command,
-        "_ensure_seeded_root",
-        lambda root, *, dataset, sample_mode: None,
-    )
-    monkeypatch.setattr(
-        benchmark_command,
-        "generate_report",
-        lambda *args, **kwargs: _fake_report(),
-    )
 
     runner = CliRunner()
     result = runner.invoke(
@@ -750,26 +807,24 @@ def test_benchmark_hidden_holdout_dataset_warns(tmp_path: Path, monkeypatch: pyt
             "--preset",
             "core",
             "--dataset",
-            "hidden_holdout",
+            _removed_dataset_ids()[0],
             "--output",
             str(report_path),
         ],
         env={"SNOWIKI_ROOT": str(tmp_path / "root")},
     )
 
-    assert result.exit_code == 0, result.output
-    assert (
-        "Warning: hidden_holdout is a development-only synthetic facsimile" in result.output
-    )
+    assert result.exit_code != 0, result.output
+    assert "Invalid value for '--dataset'" in result.output
 
 
-def test_benchmark_public_anchor_uses_cached_manifest_loader(
+def test_benchmark_official_dataset_uses_cached_manifest_loader(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     report_path = tmp_path / "reports" / "benchmark.json"
     loader_calls: list[str] = []
     manifest = BenchmarkCorpusManifest(
-        tier="public_anchor",
+        tier="official_suite",
         documents=[
             {
                 "id": "miracl-doc-1",
@@ -837,13 +892,13 @@ def test_benchmark_public_anchor_uses_cached_manifest_loader(
     assert loader_calls == ["quick"]
 
 
-def test_benchmark_public_anchor_default_loader_sample_mode_is_standard(
+def test_benchmark_official_dataset_default_loader_sample_mode_is_standard(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     report_path = tmp_path / "reports" / "benchmark.json"
     loader_calls: list[str] = []
     manifest = BenchmarkCorpusManifest(
-        tier="public_anchor",
+        tier="official_suite",
         documents=[
             {
                 "id": "scifact-doc-1",
@@ -904,87 +959,7 @@ def test_benchmark_public_anchor_default_loader_sample_mode_is_standard(
     assert loader_calls == ["standard"]
 
 
-@pytest.mark.parametrize(
-    ("dataset", "loader_name"),
-    [
-        ("snowiki_shaped", "load_snowiki_shaped_suite"),
-        ("hidden_holdout", "load_hidden_holdout_suite"),
-    ],
-)
-def test_benchmark_non_public_datasets_ignore_sample_mode(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    dataset: str,
-    loader_name: str,
-) -> None:
-    report_path = tmp_path / "reports" / "benchmark.json"
-    tier = "snowiki_shaped" if dataset == "snowiki_shaped" else "hidden_holdout"
-    manifest = BenchmarkCorpusManifest(
-        tier=tier,
-        documents=[
-            {
-                "id": f"{dataset}-doc-1",
-                "content": "fixture content",
-                "metadata": {"title": "fixture title"},
-            }
-        ],
-        queries=[
-            {
-                "id": f"{dataset}-q-1",
-                "text": "fixture query",
-                "group": "fixture",
-                "kind": "known-item",
-            }
-        ],
-        judgments={
-            f"{dataset}-q-1": [
-                {
-                    "query_id": f"{dataset}-q-1",
-                    "doc_id": f"{dataset}-doc-1",
-                    "relevance": 1,
-                }
-            ]
-        },
-        dataset_id=dataset,
-        dataset_name=dataset,
-        dataset_metadata={"synthetic_sample": True},
-    )
-    loader_calls: list[str] = []
-
-    monkeypatch.setattr(
-        benchmark_command,
-        loader_name,
-        lambda: loader_calls.append(dataset) or manifest,
-    )
-    monkeypatch.setattr(benchmark_command, "load_corpus_from_manifest", lambda *args, **kwargs: [])
-    monkeypatch.setattr(
-        benchmark_command,
-        "generate_report",
-        lambda *args, **kwargs: _fake_report(retrieval_blocking=False),
-    )
-
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "benchmark",
-            "--preset",
-            "retrieval",
-            "--dataset",
-            dataset,
-            "--sample-mode",
-            "full",
-            "--output",
-            str(report_path),
-        ],
-        env={"SNOWIKI_ROOT": str(tmp_path / "root")},
-    )
-
-    assert result.exit_code == 0, result.output
-    assert loader_calls == [dataset]
-
-
-def test_benchmark_public_anchor_requires_explicit_fetch_first(
+def test_benchmark_official_dataset_requires_explicit_fetch_first(
     tmp_path: Path,
 ) -> None:
     report_path = tmp_path / "reports" / "benchmark.json"

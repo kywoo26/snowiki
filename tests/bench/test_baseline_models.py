@@ -85,7 +85,7 @@ def _provenance_payload(**overrides: object) -> dict[str, object]:
         "visibility_tier": "public",
         "contamination_status": "clean",
         "family_dedupe_key": "family-a",
-        "authority_tier": "public_anchor",
+        "authority_tier": "official_suite",
     }
     payload.update(overrides)
     return payload
@@ -234,21 +234,16 @@ def test_benchmark_provenance_accepts_valid_authoritative_payload() -> None:
     assert manifest.to_report_dict()["provenance"] == _provenance_payload()
 
 
-def test_assistant_generated_assets_cannot_be_authoritative() -> None:
+def test_assistant_generated_official_suite_assets_cannot_be_authoritative() -> None:
     payloads = (
         _provenance_payload(
             authoring_method="assistant_generated",
-            authority_tier="public_anchor",
+            authority_tier="official_suite",
         ),
         _provenance_payload(
             authoring_method="assistant_generated",
-            authority_tier="snowiki_shaped",
-            visibility_tier="developer_visible",
-        ),
-        _provenance_payload(
-            authoring_method="assistant_generated",
-            authority_tier="hidden_holdout",
-            visibility_tier="hidden_holdout",
+            authority_tier="official_suite",
+            source_class="mixed",
         ),
     )
 
@@ -259,14 +254,13 @@ def test_assistant_generated_assets_cannot_be_authoritative() -> None:
             )
 
 
-def test_hidden_holdout_requires_clean_contamination_status() -> None:
+def test_regression_harness_requires_developer_visible_assets() -> None:
     with pytest.raises(ValidationError):
         _ = BenchmarkAssetManifest.model_validate(
             _asset_manifest_payload(
                 provenance=_provenance_payload(
-                    visibility_tier="hidden_holdout",
-                    contamination_status="suspected",
-                    authority_tier="hidden_holdout",
+                    visibility_tier="public",
+                    authority_tier="regression_harness",
                 )
             )
         )
@@ -280,7 +274,7 @@ def test_authoritative_assets_fail_closed_when_provenance_fields_are_missing() -
             "license": "CC-BY-4.0",
             "collection_method": "miracl_official",
             "contamination_status": "clean",
-            "authority_tier": "public_anchor",
+            "authority_tier": "official_suite",
         }
     )
 

@@ -126,12 +126,7 @@ def _load_query_specs_for_preset(
 def get_latency_policy(tier: str, query_count: int) -> LatencySamplingPolicy:
     """Resolve the default latency sampling policy for a dataset tier."""
 
-    if tier == "hidden_holdout":
-        return LatencySamplingPolicy(
-            mode="fixed_sample",
-            sample_size=min(PHASE_1_FIXED_SAMPLE_SIZE, query_count),
-        )
-    if tier in {"public_anchor", "snowiki_shaped"} and query_count > 50:
+    if tier == "official_suite" and query_count > 50:
         return LatencySamplingPolicy(mode="stratified")
     return LatencySamplingPolicy(mode="exhaustive")
 
@@ -374,7 +369,7 @@ def run_phase1_latency_evaluation(
         performance measurements.
     """
     fixtures = _canonical_fixtures()
-    dataset_tier = manifest.tier if manifest is not None else "regression"
+    dataset_tier = manifest.tier if manifest is not None else "regression_harness"
     query_specs = _load_query_specs_for_preset(preset, manifest=manifest)
     requested_policy = _requested_latency_policy(
         dataset_tier,

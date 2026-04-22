@@ -63,10 +63,6 @@ _PUBLIC_DATASET_METADATA: Final[dict[BenchmarkDatasetId, dict[str, str]]] = {
         "name": "BEIR SciFact",
         "description": "Deterministic manifest sampled from the real cached BEIR SciFact public benchmark assets.",
     },
-    "beir_nfcorpus": {
-        "name": "BEIR NFCorpus",
-        "description": "Deterministic manifest sampled from the real cached BEIR NFCorpus public benchmark assets.",
-    },
 }
 
 
@@ -299,22 +295,6 @@ def load_miracl_en_cached_manifest(
     )
 
 
-def load_beir_nfcorpus_cached_manifest(
-    size: int | None = None,
-    *,
-    sample_mode: PublicAnchorSampleMode = "standard",
-    data_root: Path | None = None,
-) -> BenchmarkCorpusManifest:
-    """Build a real BEIR NFCorpus benchmark manifest from cached public assets."""
-
-    return _load_beir_cached_manifest(
-        "beir_nfcorpus",
-        size=size,
-        sample_mode=sample_mode,
-        data_root=data_root,
-    )
-
-
 def _load_beir_cached_manifest(
     dataset_id: BenchmarkDatasetId,
     *,
@@ -469,7 +449,7 @@ def _build_real_manifest(
     )
 
     return BenchmarkCorpusManifest(
-        tier="public_anchor",
+        tier="official_suite",
         documents=documents,
         queries=queries,
         judgments=judgments,
@@ -535,7 +515,7 @@ def _public_anchor_provenance(
         visibility_tier="public",
         contamination_status="clean",
         family_dedupe_key=f"public-anchor:{dataset_id}:{language}",
-        authority_tier="public_anchor",
+        authority_tier="official_suite",
     )
 
 
@@ -777,7 +757,6 @@ __all__ = [
     "PublicAnchorSampleMode",
     "QUICK_SIZE",
     "STANDARD_SIZE",
-    "load_beir_nfcorpus_cached_manifest",
     "load_beir_nq_cached_manifest",
     "load_beir_scifact_cached_manifest",
     "load_miracl_en_cached_manifest",

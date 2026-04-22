@@ -47,12 +47,7 @@ jobs:
         if: steps.preflight.outputs.cached == 'true'
         run: |
           mkdir -p reports
-          uv run snowiki benchmark \
-            --preset retrieval \
-            --dataset ${{ matrix.dataset }} \
-            --sample-mode standard \
-            --layer scheduled_official_broad \
-            --output "reports/${{ matrix.dataset }}.json"
+          uv run snowiki benchmark             --preset retrieval             --dataset ${{ matrix.dataset }}             --sample-mode standard             --layer scheduled_official_standard             --output "reports/${{ matrix.dataset }}.json"
 
       - name: Upload benchmark report artifact
         if: steps.preflight.outputs.cached == 'true'
@@ -82,7 +77,7 @@ jobs:
             echo ""
             if [ "${{ steps.preflight.outputs.cached }}" = "true" ]; then
               echo "- Status: completed"
-              echo "- Layer: scheduled_official_broad"
+              echo "- Layer: scheduled_official_standard"
               echo "- Sample mode: standard"
             else
               echo "- Status: infra_skipped"

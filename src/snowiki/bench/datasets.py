@@ -19,7 +19,6 @@ BenchmarkDatasetId = Literal[
     "miracl_en",
     "beir_nq",
     "beir_scifact",
-    "beir_nfcorpus",
 ]
 RefreshMode = Literal["if-missing", "force"]
 
@@ -46,7 +45,7 @@ class BenchmarkDatasetSpec:
 
     dataset_id: BenchmarkDatasetId
     language: str
-    tier: Literal["public_anchor"]
+    tier: Literal["official_suite"]
     citation: str
     license: str
     source_url: str
@@ -92,7 +91,7 @@ BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]
     "ms_marco_passage": BenchmarkDatasetSpec(
         dataset_id="ms_marco_passage",
         language="en",
-        tier="public_anchor",
+        tier="official_suite",
         citation=(
             "Nguyen et al. MS MARCO: A Human Generated MAchine Reading COmprehension Dataset."
         ),
@@ -115,7 +114,7 @@ BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]
     "trec_dl_2020_passage": BenchmarkDatasetSpec(
         dataset_id="trec_dl_2020_passage",
         language="en",
-        tier="public_anchor",
+        tier="official_suite",
         citation=(
             "Craswell et al. TREC Deep Learning Track 2020."
         ),
@@ -138,7 +137,7 @@ BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]
     "miracl_en": BenchmarkDatasetSpec(
         dataset_id="miracl_en",
         language="en",
-        tier="public_anchor",
+        tier="official_suite",
         citation=(
             "Zhang et al. MIRACL: A Multilingual Retrieval Dataset Covering 18 "
             "Diverse Languages."
@@ -163,7 +162,7 @@ BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]
     "beir_nq": BenchmarkDatasetSpec(
         dataset_id="beir_nq",
         language="en",
-        tier="public_anchor",
+        tier="official_suite",
         citation=(
             "Thakur et al. BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation "
             "of Information Retrieval Models."
@@ -192,7 +191,7 @@ BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]
     "miracl_ko": BenchmarkDatasetSpec(
         dataset_id="miracl_ko",
         language="ko",
-        tier="public_anchor",
+        tier="official_suite",
         citation=(
             "Zhang et al. MIRACL: A Multilingual Retrieval Dataset Covering 18 "
             "Diverse Languages."
@@ -217,7 +216,7 @@ BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]
     "beir_scifact": BenchmarkDatasetSpec(
         dataset_id="beir_scifact",
         language="en",
-        tier="public_anchor",
+        tier="official_suite",
         citation=(
             "Wadden et al. Fact or Fiction: Verifying Scientific Claims. EMNLP 2020."
         ),
@@ -236,35 +235,6 @@ BENCHMARK_DATASET_REGISTRY: Final[dict[BenchmarkDatasetId, BenchmarkDatasetSpec]
                 label="qrels",
                 name="BEIR SciFact qrels",
                 repo_id="BeIR/scifact-qrels",
-                repo_type="dataset",
-                default_revision="main",
-                allow_patterns=("test.tsv",),
-            ),
-        ),
-    ),
-    "beir_nfcorpus": BenchmarkDatasetSpec(
-        dataset_id="beir_nfcorpus",
-        language="en",
-        tier="public_anchor",
-        citation=(
-            "Thakur et al. BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation "
-            "of Information Retrieval Models."
-        ),
-        license="cc-by-sa-4.0",
-        source_url="https://huggingface.co/datasets/BeIR/nfcorpus",
-        sources=(
-            BenchmarkDatasetSourceSpec(
-                label="corpus_queries",
-                name="BEIR NFCorpus corpus and queries",
-                repo_id="BeIR/nfcorpus",
-                repo_type="dataset",
-                default_revision="main",
-                allow_patterns=("corpus/*.parquet", "queries/*.parquet"),
-            ),
-            BenchmarkDatasetSourceSpec(
-                label="qrels",
-                name="BEIR NFCorpus qrels",
-                repo_id="BeIR/nfcorpus-qrels",
                 repo_type="dataset",
                 default_revision="main",
                 allow_patterns=("test.tsv",),

@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from importlib import import_module
-from pathlib import Path
-from typing import Literal, Protocol, cast
-
 from .contract import (
     DEFAULT_NO_ANSWER_SCORING_POLICY,
     PHASE_1_CORPUS,
@@ -56,59 +52,16 @@ from .policy import (
 )
 from .presets import BenchmarkPreset, get_preset, list_presets
 from .quality import QualitySummary, evaluate_quality
-
-_RENDER = import_module("snowiki.bench.render")
-_REPORT = import_module("snowiki.bench.report")
-_VERDICT = import_module("snowiki.bench.verdict")
-
-
-class _RenderReportText(Protocol):
-    def __call__(self, report: dict[str, object]) -> str: ...
-
-
-class _WriteTokenizerComparisonArtifact(Protocol):
-    def __call__(self, report: dict[str, object], output_path: Path) -> Path: ...
-
-
-class _GenerateReport(Protocol):
-    def __call__(
-        self,
-        root: Path,
-        *,
-        preset_name: str,
-        manifest: BenchmarkCorpusManifest | None = None,
-        dataset_name: str = "regression",
-        isolated_root: bool = True,
-        latency_sample: Literal["exhaustive", "stratified", "fixed_sample"] | None = None,
-    ) -> dict[str, object]: ...
-
-
-class _ReportToInt(Protocol):
-    def __call__(self, report: dict[str, object]) -> int: ...
-
-
-class _ReportToDict(Protocol):
-    def __call__(
-        self, report: dict[str, object], *, tier: str | None = None
-    ) -> dict[str, object]: ...
-
-
-render_report_text = cast(_RenderReportText, _RENDER.render_report_text)
-write_tokenizer_comparison_artifact = cast(
-    _WriteTokenizerComparisonArtifact,
-    _RENDER.write_tokenizer_comparison_artifact,
+from .render import render_report_text, write_tokenizer_comparison_artifact
+from .report import generate_report
+from .verdict import (
+    benchmark_exit_code,
+    benchmark_verdict,
+    informational_warning_count,
+    performance_threshold_failure_count,
+    retrieval_threshold_failure_count,
+    structural_failure_count,
 )
-generate_report = cast(_GenerateReport, _REPORT.generate_report)
-benchmark_exit_code = cast(_ReportToInt, _VERDICT.benchmark_exit_code)
-benchmark_verdict = cast(_ReportToDict, _VERDICT.benchmark_verdict)
-informational_warning_count = cast(_ReportToInt, _VERDICT.informational_warning_count)
-performance_threshold_failure_count = cast(
-    _ReportToInt, _VERDICT.performance_threshold_failure_count
-)
-retrieval_threshold_failure_count = cast(
-    _ReportToInt, _VERDICT.retrieval_threshold_failure_count
-)
-structural_failure_count = cast(_ReportToInt, _VERDICT.structural_failure_count)
 
 __all__ = [
     "BenchmarkFixture",
@@ -169,9 +122,4 @@ __all__ = [
     "validate_record_dict",
     "validate_phase1_workspace",
     "write_tokenizer_comparison_artifact",
-    "AuthorityClass",
-    "BenchmarkPolicy",
-    "ExecutionLayer",
-    "LanguageAxis",
-    "OfficialDatasetEntry",
 ]

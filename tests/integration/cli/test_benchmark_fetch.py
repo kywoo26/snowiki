@@ -15,6 +15,10 @@ from snowiki.cli.commands import benchmark_fetch as benchmark_fetch_command
 from snowiki.cli.main import app
 
 
+def _removed_fetch_dataset_ids() -> tuple[str, ...]:
+    return ("beir_" + "nfcorpus",)
+
+
 def test_benchmark_fetch_command_reports_paths(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -114,6 +118,11 @@ def test_benchmark_fetch_help_mentions_supported_datasets() -> None:
     result = runner.invoke(app, ["benchmark-fetch", "--help"])
 
     assert result.exit_code == 0, result.output
+    assert "ms_marco_passage" in result.output
+    assert "trec_dl_2020_passage" in result.output
+    assert "miracl_en" in result.output
     assert "miracl_ko" in result.output
+    assert "beir_nq" in result.output
     assert "beir_scifact" in result.output
-    assert "beir_nfcorpus" in result.output
+    for removed_dataset_id in _removed_fetch_dataset_ids():
+        assert removed_dataset_id not in result.output

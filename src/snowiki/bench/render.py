@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from importlib import import_module
 from pathlib import Path
 from typing import cast
 
-_VERDICT = import_module("snowiki.bench.verdict")
-_retrieval_threshold_entries = _VERDICT._retrieval_threshold_entries
-informational_warning_count = _VERDICT.informational_warning_count
-performance_threshold_failure_count = _VERDICT.performance_threshold_failure_count
-retrieval_threshold_failure_count = _VERDICT.retrieval_threshold_failure_count
-structural_failure_count = _VERDICT.structural_failure_count
+from .verdict import (
+    _retrieval_threshold_entries,
+    informational_warning_count,
+    performance_threshold_failure_count,
+    retrieval_threshold_failure_count,
+    structural_failure_count,
+)
 
 
 def _render_thresholds(thresholds: object) -> str:
@@ -451,8 +451,7 @@ def render_report_text(report: dict[str, object]) -> str:
         )
         lines.append(
             "- provenance_quota="
-            f"assets={provenance_quota.get('asset_count', 0)}, "
-            f"hidden_holdout_assets={provenance_quota.get('hidden_holdout_asset_count', 0)}"
+            f"assets={provenance_quota.get('asset_count', 0)}"
         )
     lines.append(
         "Unified benchmark verdict: "

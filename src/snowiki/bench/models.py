@@ -76,19 +76,17 @@ class BenchmarkProvenance(BaseModel):
     ]
     license: str
     collection_method: str
-    visibility_tier: Literal["public", "developer_visible", "hidden_holdout"]
+    visibility_tier: Literal["public", "developer_visible"]
     contamination_status: Literal[
         "clean", "suspected", "confirmed_contaminated", "unknown"
     ]
     family_dedupe_key: str | None = None
-    authority_tier: Literal[
-        "regression", "public_anchor", "snowiki_shaped", "hidden_holdout"
-    ]
+    authority_tier: Literal["official_suite", "regression_harness"]
 
     @model_validator(mode="after")
     def _validate_provenance_rules(self) -> BenchmarkProvenance:
-        restricted_assistant_tiers = {"public_anchor", "snowiki_shaped", "hidden_holdout"}
-        authoritative_tiers = {"public_anchor", "snowiki_shaped", "hidden_holdout"}
+        restricted_assistant_tiers = {"official_suite"}
+        authoritative_tiers = {"official_suite"}
 
         if (
             self.authoring_method == "assistant_generated"
@@ -98,11 +96,18 @@ class BenchmarkProvenance(BaseModel):
                 "assistant-generated assets cannot be marked as authoritative benchmark assets"
             )
         if (
-            self.visibility_tier == "hidden_holdout"
-            and self.contamination_status != "clean"
+            self.authority_tier == "official_suite"
+            and self.visibility_tier != "public"
         ):
             raise ValueError(
-                "hidden holdout assets must declare a clean contamination status"
+                "official benchmark assets must remain publicly visible"
+            )
+        if (
+            self.authority_tier == "regression_harness"
+            and self.visibility_tier != "developer_visible"
+        ):
+            raise ValueError(
+                "regression harness assets must remain developer-visible"
             )
         if self.authority_tier in authoritative_tiers and not self.visibility_tier:
             raise ValueError(

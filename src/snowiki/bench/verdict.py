@@ -17,6 +17,7 @@ from .models import (
     CandidateMatrixEntry,
     CandidateMatrixReport,
 )
+from .run_context import get_execution_layer_policy
 
 _PERFORMANCE_THRESHOLD_METRICS = {"p50_ms", "p95_ms"}
 _RETRIEVAL_THRESHOLD_METRICS = {"recall_at_k", "mrr", "ndcg_at_k"}
@@ -204,7 +205,7 @@ def _report_tier(report: dict[str, object]) -> str:
     dataset_tier = dataset.get("tier")
     if isinstance(dataset_tier, str) and dataset_tier:
         return dataset_tier
-    return "regression"
+    return "regression_harness"
 
 
 def _evaluate_policy_stages(
@@ -216,8 +217,12 @@ def _evaluate_policy_stages(
     tier: str,
     layer: str | None = None,
 ) -> list[dict[str, object]]:
-    is_official_layer = layer in ("pr_official_quick", "scheduled_official_broad")
-    retrieval_blocking = tier == "regression" or is_official_layer
+    retrieval_blocking = tier == "regression_harness"
+    if layer is not None:
+        try:
+            retrieval_blocking = get_execution_layer_policy(layer).blocking
+        except ValueError:
+            retrieval_blocking = tier == "regression_harness"
     return [
         {
             "name": "structural",
@@ -272,6 +277,9 @@ def benchmark_verdict(
         tier=dataset_tier,
         layer=layer,
     )
+    threshold_failures = [
+        stage for stage in stages if stage["name"] != "structural" and stage["blocking"]
+    ]
     if structural_failures:
         return {
             "verdict": "FAIL",
@@ -280,7 +288,7 @@ def benchmark_verdict(
             "order": [stage["name"] for stage in stages],
             "stages": stages,
         }
-    if performance_failures or (dataset_tier == "regression" and retrieval_failures):
+    if any(stage["verdict"] == "FAIL" for stage in threshold_failures):
         return {
             "verdict": "FAIL",
             "exit_code": 1,
