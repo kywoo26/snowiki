@@ -63,7 +63,7 @@ def test_dataset_payload_from_manifest_covers_regression_and_official_paths() ->
     )
     assert regression_payload == {
         "id": "regression",
-        "name": "Phase 1 regression fixtures",
+        "name": "Canonical regression fixtures",
         "tier": "regression_harness",
         "description": (
             "Deterministic local regression fixtures used for "

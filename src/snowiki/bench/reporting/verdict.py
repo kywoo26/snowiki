@@ -6,7 +6,7 @@ from typing import cast
 
 from ..contract import (
     BENCHMARK_THRESHOLDS,
-    STEP_03_CANDIDATE_POLICY,
+    CANDIDATE_POLICY,
     CandidatePolicyThresholds,
     MetricThreshold,
 )
@@ -326,11 +326,11 @@ def benchmark_exit_code(report: dict[str, object]) -> int:
 def evaluate_candidate_policy(
     candidate_matrix: CandidateMatrixReport,
 ) -> tuple[CandidateDecision, ...]:
-    thresholds = STEP_03_CANDIDATE_POLICY["thresholds"]
+    thresholds = CANDIDATE_POLICY["thresholds"]
     control_entry = _decision_entry(
         candidate_matrix,
-        STEP_03_CANDIDATE_POLICY["control_candidate_name"],
-        STEP_03_CANDIDATE_POLICY["control_decision_baseline"],
+        CANDIDATE_POLICY["control_candidate_name"],
+        CANDIDATE_POLICY["control_decision_baseline"],
     )
     decisions: list[CandidateDecision] = []
 
@@ -370,13 +370,13 @@ def _decision_entry(
 def _control_decision(entry: CandidateMatrixEntry | None) -> CandidateDecision:
     if entry is None or entry.baseline is None:
         return CandidateDecision(
-            candidate_name=STEP_03_CANDIDATE_POLICY["control_candidate_name"],
-            evidence_baseline=STEP_03_CANDIDATE_POLICY["control_decision_baseline"],
+            candidate_name=CANDIDATE_POLICY["control_candidate_name"],
+            evidence_baseline=CANDIDATE_POLICY["control_decision_baseline"],
             disposition="reject",
             overall_quality_gate_passed=False,
             operational_evidence_present=False,
             mixed_deltas=dict.fromkeys(
-                STEP_03_CANDIDATE_POLICY["mixed_delta_metrics"], 0.0
+                CANDIDATE_POLICY["mixed_delta_metrics"], 0.0
             ),
             ko_recall_delta=0.0,
             en_recall_delta=0.0,
@@ -399,7 +399,7 @@ def _control_decision(entry: CandidateMatrixEntry | None) -> CandidateDecision:
         overall_quality_gate_passed=overall_pass,
         operational_evidence_present=operational_present,
         mixed_deltas=dict.fromkeys(
-            STEP_03_CANDIDATE_POLICY["mixed_delta_metrics"], 0.0
+            CANDIDATE_POLICY["mixed_delta_metrics"], 0.0
         ),
         ko_recall_delta=0.0,
         en_recall_delta=0.0,
@@ -422,7 +422,7 @@ def _candidate_decision(
     candidate_name: str,
     evidence_baseline: str | None,
 ) -> CandidateDecision:
-    mixed_metrics = tuple(STEP_03_CANDIDATE_POLICY["mixed_delta_metrics"])
+    mixed_metrics = tuple(CANDIDATE_POLICY["mixed_delta_metrics"])
     if (
         entry is None
         or entry.baseline is None

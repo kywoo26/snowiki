@@ -11,7 +11,6 @@ import json
 from pathlib import Path
 from typing import TypedDict, cast
 
-from snowiki.bench.contract import BENCHMARK_CORPUS
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.lint import run_lint
 from snowiki.cli.commands.query import QueryResult, run_query
@@ -20,6 +19,8 @@ from snowiki.cli.commands.status import run_status
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.config import resolve_repo_asset_path
 from snowiki.lint.integrity import check_layer_integrity
+
+from ..contract import BENCHMARK_CORPUS
 
 
 class FixtureSpec(TypedDict):
@@ -93,7 +94,7 @@ def _project_benchmark_status(status_payload: dict[str, object]) -> StatusResult
         status_payload: Current runtime status payload.
 
     Returns:
-        A benchmark-compatible status payload with legacy zone/manifest fields.
+        A benchmark-compatible status payload with zone/manifest fields.
     """
     manifest_path = Path(str(status_payload["root"])) / "index" / "manifest.json"
     manifest = _load_json(manifest_path) if manifest_path.exists() else None
@@ -523,7 +524,7 @@ def run_correctness_flow(root: Path) -> CorrectnessFlowResult:
         root: Workspace root as a filesystem path.
 
     Returns:
-        A complete phase 1 correctness result payload.
+        A complete correctness result payload.
     """
     fixtures: list[FixtureResult] = []
     for fixture in _FIXTURES:

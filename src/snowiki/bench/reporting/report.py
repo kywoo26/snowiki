@@ -112,7 +112,7 @@ def _dataset_payload_from_manifest(
     if manifest is None:
         return {
             "id": dataset_name,
-            "name": "Phase 1 regression fixtures",
+            "name": "Canonical regression fixtures",
             "tier": "regression_harness",
             "description": "Deterministic local regression fixtures used for candidate-screening benchmark runs.",
         }
@@ -347,7 +347,7 @@ def generate_audit_report(report: BenchmarkReport) -> dict[str, object]:
         1 for pooled_review in report.pooled_reviews if pooled_review.disagreement_flag
     )
     return {
-        "policy": dict(report.audit_policy),
+        "policy": dict(report.audit_policy or {}),
         "samples": {
             "count": len(report.audit_samples),
             "reviewer_assignments": sum(

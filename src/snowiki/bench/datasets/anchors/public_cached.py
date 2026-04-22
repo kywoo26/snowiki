@@ -10,9 +10,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import Final, Literal, cast
 
-from snowiki.bench.reporting.models import BenchmarkAssetManifest, BenchmarkProvenance
-from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
-
+from ...reporting.models import BenchmarkAssetManifest, BenchmarkProvenance
+from ...runtime.corpus import BenchmarkCorpusManifest
 from ..cache import get_benchmark_materialized_root, resolve_cached_benchmark_dataset
 from ..registry import get_benchmark_dataset_spec
 from ..specs import (
@@ -708,7 +707,7 @@ def _iter_trec_qrels_rows(path: Path) -> Iterable[dict[str, object]]:
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        query_id, _placeholder, doc_id, relevance = line.split()
+        query_id, _, doc_id, relevance = line.split()
         yield {
             "query_id": query_id,
             "doc_id": doc_id,

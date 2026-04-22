@@ -79,7 +79,7 @@ class BenchmarkContract(TypedDict):
     metadata: MetadataContract
 
 
-class Step3CandidatePolicyContract(TypedDict):
+class CandidatePolicyContract(TypedDict):
     control_candidate_name: str
     control_decision_baseline: str
     mixed_delta_metrics: list[str]
@@ -114,7 +114,7 @@ BENCHMARK_THRESHOLDS: ThresholdsContract = {
     },
 }
 
-STEP_03_CANDIDATE_POLICY: Step3CandidatePolicyContract = {
+CANDIDATE_POLICY: CandidatePolicyContract = {
     "control_candidate_name": "regex_v1",
     "control_decision_baseline": "lexical",
     "mixed_delta_metrics": ["recall_at_k", "mrr", "ndcg_at_k"],

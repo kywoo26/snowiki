@@ -7,7 +7,15 @@ from typing import cast
 
 import pytest
 
-from snowiki.bench import datasets
+from snowiki.bench.datasets import (
+    BenchmarkDatasetCacheMissingError,
+    fetch_benchmark_dataset,
+    get_benchmark_downloads_root,
+    get_benchmark_hf_cache_root,
+    get_benchmark_locks_root,
+    get_benchmark_materialized_root,
+    resolve_cached_benchmark_dataset,
+)
 from snowiki.bench.datasets import cache as datasets_cache
 from snowiki.bench.datasets import fetch as datasets_fetch
 
@@ -15,14 +23,14 @@ from snowiki.bench.datasets import fetch as datasets_fetch
 def test_benchmark_dataset_path_helpers_create_benchmark_subdirectories(
     tmp_path: Path,
 ) -> None:
-    assert datasets.get_benchmark_hf_cache_root(tmp_path) == tmp_path.resolve() / "hf"
-    assert datasets.get_benchmark_locks_root(tmp_path) == tmp_path.resolve() / "locks"
+    assert get_benchmark_hf_cache_root(tmp_path) == tmp_path.resolve() / "hf"
+    assert get_benchmark_locks_root(tmp_path) == tmp_path.resolve() / "locks"
     assert (
-        datasets.get_benchmark_materialized_root(tmp_path)
+        get_benchmark_materialized_root(tmp_path)
         == tmp_path.resolve() / "materialized"
     )
     assert (
-        datasets.get_benchmark_downloads_root(tmp_path)
+        get_benchmark_downloads_root(tmp_path)
         == tmp_path.resolve() / "downloads"
     )
 
@@ -55,7 +63,7 @@ def test_fetch_benchmark_dataset_writes_multi_source_lock_metadata(
         lambda _value: "2026-04-20T00:00:00Z",
     )
 
-    result = datasets.fetch_benchmark_dataset(
+    result = fetch_benchmark_dataset(
         "beir_scifact",
         data_root=tmp_path,
         refresh="force",
@@ -185,7 +193,7 @@ def test_fetch_benchmark_dataset_reuses_matching_multi_source_lock(
 
     monkeypatch.setattr(datasets_fetch, "snapshot_download", fail_snapshot_download)
 
-    result = datasets.fetch_benchmark_dataset("beir_nq", data_root=tmp_path)
+    result = fetch_benchmark_dataset("beir_nq", data_root=tmp_path)
 
     assert result.lock_path == lock_path
     assert [source.snapshot_path for source in result.sources] == [
@@ -209,7 +217,7 @@ def test_fetch_benchmark_dataset_materializes_returned_snapshot_directory(
         lambda _value: "2026-04-20T00:00:00Z",
     )
 
-    result = datasets.fetch_benchmark_dataset(
+    result = fetch_benchmark_dataset(
         "miracl_ko",
         data_root=tmp_path,
         refresh="force",
@@ -221,8 +229,8 @@ def test_fetch_benchmark_dataset_materializes_returned_snapshot_directory(
 
 
 def test_resolve_cached_benchmark_dataset_requires_fetch_first(tmp_path: Path) -> None:
-    with pytest.raises(datasets.BenchmarkDatasetCacheMissingError) as exc_info:
-        _ = datasets.resolve_cached_benchmark_dataset("beir_nq", data_root=tmp_path)
+    with pytest.raises(BenchmarkDatasetCacheMissingError) as exc_info:
+        _ = resolve_cached_benchmark_dataset("beir_nq", data_root=tmp_path)
 
     expected_message = (
         "benchmark dataset 'beir_nq' is not cached under "

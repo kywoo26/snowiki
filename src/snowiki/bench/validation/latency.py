@@ -14,16 +14,15 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal, NotRequired, TypedDict, cast
 
-from snowiki.bench.contract import BENCHMARK_CORPUS
-from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.query import run_query
 from snowiki.cli.commands.rebuild import run_rebuild
 from snowiki.config import get_repo_root, resolve_repo_asset_path
 from snowiki.storage.zones import relative_to_root_or_posix
 
+from ..contract import BENCHMARK_CORPUS
 from ..contract.presets import BenchmarkPreset
-from ..runtime.corpus import canonical_benchmark_fixtures
+from ..runtime.corpus import BenchmarkCorpusManifest, canonical_benchmark_fixtures
 from ..runtime.latency import summarize_latencies
 
 BENCHMARK_WARMUPS = 1
@@ -358,7 +357,7 @@ def run_latency_evaluation(
     dataset_name: str = "regression",
     latency_sample: Literal["exhaustive", "stratified", "fixed_sample"] | None = None,
 ) -> dict[str, object]:
-    """Measure phase 1 latency for ingest, rebuild, and query flows.
+    """Measure benchmark latency for ingest, rebuild, and query flows.
 
     Args:
         root: Workspace root as a filesystem path.

@@ -240,7 +240,7 @@ def test_verdict_internal_helpers_cover_edge_cases() -> None:
     assert verdict._candidate_decision(
         None,
         control_entry,
-        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        verdict.CANDIDATE_POLICY["thresholds"],
         candidate_name="kiwi_morphology_v1",
         evidence_baseline="bm25s_kiwi_full",
     ).reasons == ["missing_benchmark_evidence"]
@@ -266,7 +266,7 @@ def test_verdict_internal_helpers_cover_edge_cases() -> None:
     assert verdict._candidate_decision(
         overall_fail_entry,
         control_entry,
-        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        verdict.CANDIDATE_POLICY["thresholds"],
         candidate_name="kiwi_morphology_v1",
         evidence_baseline="bm25s_kiwi_full",
     ).reasons == ["overall_quality_gate_failed"]
@@ -291,7 +291,7 @@ def test_verdict_internal_helpers_cover_edge_cases() -> None:
     assert verdict._candidate_decision(
         no_improvement_entry,
         control_entry,
-        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        verdict.CANDIDATE_POLICY["thresholds"],
         candidate_name="kiwi_morphology_v1",
         evidence_baseline="bm25s_kiwi_full",
     ).reasons == ["no_material_mixed_improvement"]
@@ -316,7 +316,7 @@ def test_verdict_internal_helpers_cover_edge_cases() -> None:
     benchmark_only = verdict._candidate_decision(
         benchmark_only_entry,
         control_entry,
-        verdict.STEP_03_CANDIDATE_POLICY["thresholds"],
+        verdict.CANDIDATE_POLICY["thresholds"],
         candidate_name="kiwi_morphology_v1",
         evidence_baseline="bm25s_kiwi_full",
     )

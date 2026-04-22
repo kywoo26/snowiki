@@ -64,13 +64,13 @@ class BenchmarkDatasetFetchResult:
 
     @property
     def snapshot_path(self) -> Path:
-        """Return the first source snapshot path for legacy callers."""
+        """Return the first source snapshot path."""
 
         return self.sources[0].snapshot_path
 
     @property
     def requested_revision(self) -> str:
-        """Return the first requested revision for legacy callers."""
+        """Return the first requested revision."""
 
         return self.sources[0].requested_revision
 
