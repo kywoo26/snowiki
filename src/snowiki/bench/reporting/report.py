@@ -13,9 +13,9 @@ from ..runtime.corpus import BenchmarkCorpusManifest
 from ..validation.correctness import (
     CheckIssue,
     ValidationResult,
-    validate_phase1_workspace,
+    validate_workspace,
 )
-from ..validation.latency import run_phase1_latency_evaluation
+from ..validation.latency import run_latency_evaluation
 from .models import (
     BENCHMARK_ASSET_MANIFEST_LIST_ADAPTER,
     BenchmarkAssetManifest,
@@ -394,10 +394,10 @@ def generate_report(
     execution_layer: str | None = None,
 ) -> dict[str, object]:
     preset = get_preset(preset_name)
-    structural = _structural_validation_summary(validate_phase1_workspace(root))
+    structural = _structural_validation_summary(validate_workspace(root))
     dataset_payload = _dataset_payload_from_manifest(manifest, dataset_name=dataset_name)
     dataset_tier = str(dataset_payload.get("tier", "regression_harness"))
-    performance = run_phase1_latency_evaluation(
+    performance = run_latency_evaluation(
         root,
         preset=preset,
         manifest=manifest,

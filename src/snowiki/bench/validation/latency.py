@@ -1,7 +1,7 @@
-"""Phase 1 latency benchmarking helpers.
+"""Latency benchmarking helpers.
 
 This module measures ingest, rebuild, and query latency using the canonical
-benchmark corpus and configured phase 1 presets.
+benchmark corpus and configured presets.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal, NotRequired, TypedDict, cast
 
-from snowiki.bench.contract import PHASE_1_CORPUS
+from snowiki.bench.contract import BENCHMARK_CORPUS
 from snowiki.bench.runtime.corpus import BenchmarkCorpusManifest
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.query import run_query
@@ -26,11 +26,11 @@ from ..contract.presets import BenchmarkPreset
 from ..runtime.corpus import canonical_benchmark_fixtures
 from ..runtime.latency import summarize_latencies
 
-PHASE_1_WARMUPS = 1
-PHASE_1_REPETITIONS = 5
-PHASE_1_QUERY_MODE = "lexical"
-PHASE_1_FIXED_SAMPLE_SIZE = 20
-PHASE_1_STRATIFIED_SAMPLE_SIZE = 20
+BENCHMARK_WARMUPS = 1
+BENCHMARK_REPETITIONS = 5
+BENCHMARK_QUERY_MODE = "lexical"
+BENCHMARK_FIXED_SAMPLE_SIZE = 20
+BENCHMARK_STRATIFIED_SAMPLE_SIZE = 20
 
 
 class FixtureSpec(TypedDict):
@@ -118,7 +118,7 @@ def _load_query_specs_for_preset(
     if manifest is not None and manifest.queries is not None:
         return _query_specs_from_rows(manifest.queries, preset=preset)
 
-    payload = _load_json(resolve_repo_asset_path(PHASE_1_CORPUS["queries"]))
+    payload = _load_json(resolve_repo_asset_path(BENCHMARK_CORPUS["queries"]))
     rows = cast(list[dict[str, object]], payload["queries"])
     return _query_specs_from_rows(rows, preset=preset)
 
@@ -142,7 +142,7 @@ def _requested_latency_policy(
     if latency_sample == "fixed_sample":
         return LatencySamplingPolicy(
             mode="fixed_sample",
-            sample_size=min(PHASE_1_FIXED_SAMPLE_SIZE, query_count),
+            sample_size=min(BENCHMARK_FIXED_SAMPLE_SIZE, query_count),
         )
     if latency_sample == "stratified":
         return LatencySamplingPolicy(mode="stratified")
@@ -211,7 +211,7 @@ def _stratified_sample_query_positions(
     if not queries:
         return []
 
-    target = min(PHASE_1_STRATIFIED_SAMPLE_SIZE, len(queries))
+    target = min(BENCHMARK_STRATIFIED_SAMPLE_SIZE, len(queries))
     if target <= 0:
         return []
     if not strata:
@@ -283,7 +283,7 @@ def _sampled_queries(
         return queries, materialized_policy
     if materialized_policy.mode == "fixed_sample":
         positions = _fixed_sample_query_positions(
-            len(queries), materialized_policy.sample_size or PHASE_1_FIXED_SAMPLE_SIZE
+            len(queries), materialized_policy.sample_size or BENCHMARK_FIXED_SAMPLE_SIZE
         )
         return tuple(queries[position] for position in positions), materialized_policy
     positions = _stratified_sample_query_positions(
@@ -324,7 +324,7 @@ def _run_rebuild_flow(root: Path) -> None:
 def _run_query_flow(root: Path, *, queries: tuple[str, ...], top_k: int) -> None:
     _run_rebuild_flow(root)
     for query_text in queries:
-        _ = run_query(root, query_text, mode=PHASE_1_QUERY_MODE, top_k=top_k)
+        _ = run_query(root, query_text, mode=BENCHMARK_QUERY_MODE, top_k=top_k)
 
 
 def _measure_flow(
@@ -350,7 +350,7 @@ def _measure_flow(
     return summarize_latencies(durations_ms).to_dict()
 
 
-def run_phase1_latency_evaluation(
+def run_latency_evaluation(
     root: Path,
     *,
     preset: BenchmarkPreset,
@@ -395,22 +395,22 @@ def run_phase1_latency_evaluation(
             "ingest": _measure_flow(
                 "ingest",
                 parent_root=base_root,
-                warmups=PHASE_1_WARMUPS,
-                repetitions=PHASE_1_REPETITIONS,
+                warmups=BENCHMARK_WARMUPS,
+                repetitions=BENCHMARK_REPETITIONS,
                 callback=_run_ingest_flow,
             ),
             "rebuild": _measure_flow(
                 "rebuild",
                 parent_root=base_root,
-                warmups=PHASE_1_WARMUPS,
-                repetitions=PHASE_1_REPETITIONS,
+                warmups=BENCHMARK_WARMUPS,
+                repetitions=BENCHMARK_REPETITIONS,
                 callback=_run_rebuild_flow,
             ),
             "query": _measure_flow(
                 "query",
                 parent_root=base_root,
-                warmups=PHASE_1_WARMUPS,
-                repetitions=PHASE_1_REPETITIONS,
+                warmups=BENCHMARK_WARMUPS,
+                repetitions=BENCHMARK_REPETITIONS,
                 callback=run_query_iteration,
             ),
         }
@@ -419,8 +419,8 @@ def run_phase1_latency_evaluation(
         "corpus": {
             "dataset": dataset_name,
             "tier": dataset_tier,
-            "queries_path": PHASE_1_CORPUS["queries"],
-            "judgments_path": PHASE_1_CORPUS["judgments"],
+            "queries_path": BENCHMARK_CORPUS["queries"],
+            "judgments_path": BENCHMARK_CORPUS["judgments"],
             "fixtures": [
                 {
                     "source": fixture["source"],
@@ -434,9 +434,9 @@ def run_phase1_latency_evaluation(
         },
         "protocol": {
             "isolated_root": True,
-            "warmups": PHASE_1_WARMUPS,
-            "repetitions": PHASE_1_REPETITIONS,
-            "query_mode": PHASE_1_QUERY_MODE,
+            "warmups": BENCHMARK_WARMUPS,
+            "repetitions": BENCHMARK_REPETITIONS,
+            "query_mode": BENCHMARK_QUERY_MODE,
             "top_k": preset.top_k,
             "top_ks": list(preset.top_ks),
             "sampling_policy": _sampling_policy_payload(

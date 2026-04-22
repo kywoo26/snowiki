@@ -339,7 +339,7 @@ def test_cached_public_anchor_report_includes_real_dataset_provenance(
     report_module = import_module("snowiki.bench.reporting.report")
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},

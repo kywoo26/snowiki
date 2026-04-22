@@ -1,4 +1,4 @@
-"""Phase 1 correctness validation helpers for benchmark runs.
+"""Correctness validation helpers for benchmark runs.
 
 This module ingests benchmark fixtures, validates the workspace, and checks a
 small set of canonical queries against expected fixture matches.
@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import TypedDict, cast
 
-from snowiki.bench.contract import PHASE_1_CORPUS
+from snowiki.bench.contract import BENCHMARK_CORPUS
 from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.lint import run_lint
 from snowiki.cli.commands.query import QueryResult, run_query
@@ -142,7 +142,7 @@ class RebuildResult(TypedDict):
 
 
 class FailureResult(TypedDict):
-    """Flattened failure entry used by phase 1 validation.
+    """Flattened failure entry used by correctness validation.
 
     Attributes:
         stage: Validation stage name.
@@ -158,7 +158,7 @@ class FailureResult(TypedDict):
 
 
 class QueryExpectation(TypedDict):
-    """Expected query outcome for the phase 1 correctness flow.
+    """Expected query outcome for the correctness flow.
 
     Attributes:
         query_id: Query identifier.
@@ -271,8 +271,8 @@ def _project_benchmark_check_result(
     }
 
 
-class Phase1FlowResult(TypedDict):
-    """Complete result payload for the phase 1 correctness flow.
+class CorrectnessFlowResult(TypedDict):
+    """Complete result payload for the correctness flow.
 
     Attributes:
         ok: Whether the entire flow passed.
@@ -327,29 +327,29 @@ _FIXTURES: tuple[FixtureSpec, ...] = (
         "path": resolve_repo_asset_path("fixtures/opencode/basic.db"),
     },
 )
-_PHASE_1_QUERY_IDS: tuple[str, ...] = ("ko-001", "mix-001")
+_BENCHMARK_QUERY_IDS: tuple[str, ...] = ("ko-001", "mix-001")
 
 
 def _load_json(path: Path) -> dict[str, object]:
     return cast(dict[str, object], json.loads(path.read_text(encoding="utf-8")))
 
 
-def _load_phase_1_queries() -> list[dict[str, object]]:
-    corpus_path = resolve_repo_asset_path(PHASE_1_CORPUS["queries"])
+def _load_benchmark_queries() -> list[dict[str, object]]:
+    corpus_path = resolve_repo_asset_path(BENCHMARK_CORPUS["queries"])
     payload = _load_json(corpus_path)
     entries = cast(list[dict[str, object]], payload["queries"])
     selected = [
-        entry for entry in entries if str(entry.get("id")) in _PHASE_1_QUERY_IDS
+        entry for entry in entries if str(entry.get("id")) in _BENCHMARK_QUERY_IDS
     ]
-    selected.sort(key=lambda entry: _PHASE_1_QUERY_IDS.index(str(entry["id"])))
+    selected.sort(key=lambda entry: _BENCHMARK_QUERY_IDS.index(str(entry["id"])))
     return selected
 
 
-def _load_phase_1_judgments() -> dict[str, list[str]]:
-    corpus_path = resolve_repo_asset_path(PHASE_1_CORPUS["judgments"])
+def _load_benchmark_judgments() -> dict[str, list[str]]:
+    corpus_path = resolve_repo_asset_path(BENCHMARK_CORPUS["judgments"])
     payload = _load_json(corpus_path)
     judgments = cast(dict[str, list[str]], payload["judgments"])
-    return {query_id: list(judgments[query_id]) for query_id in _PHASE_1_QUERY_IDS}
+    return {query_id: list(judgments[query_id]) for query_id in _BENCHMARK_QUERY_IDS}
 
 
 def _fixture_sources() -> dict[str, str]:
@@ -464,11 +464,11 @@ def _collect_matches(
     return matched_ids
 
 
-def _run_phase_1_queries(root: Path) -> list[QueryExpectation]:
-    judgments = _load_phase_1_judgments()
+def _run_benchmark_queries(root: Path) -> list[QueryExpectation]:
+    judgments = _load_benchmark_judgments()
     hit_lookup = _hit_fixture_lookup(root)
     expectations: list[QueryExpectation] = []
-    for query_entry in _load_phase_1_queries():
+    for query_entry in _load_benchmark_queries():
         query_id = str(query_entry["id"])
         text = str(query_entry["text"])
         expected_ids = judgments[query_id]
@@ -486,8 +486,8 @@ def _run_phase_1_queries(root: Path) -> list[QueryExpectation]:
     return expectations
 
 
-def validate_phase1_workspace(root: Path) -> ValidationResult:
-    """Validate the phase 1 benchmark workspace.
+def validate_workspace(root: Path) -> ValidationResult:
+    """Validate the benchmark workspace.
 
     Args:
         root: Workspace root as a filesystem path.
@@ -516,8 +516,8 @@ def validate_phase1_workspace(root: Path) -> ValidationResult:
     }
 
 
-def run_phase1_correctness_flow(root: Path) -> Phase1FlowResult:
-    """Run the full phase 1 correctness flow.
+def run_correctness_flow(root: Path) -> CorrectnessFlowResult:
+    """Run the full correctness flow.
 
     Args:
         root: Workspace root as a filesystem path.
@@ -537,8 +537,8 @@ def run_phase1_correctness_flow(root: Path) -> Phase1FlowResult:
         )
 
     rebuild = cast(RebuildResult, cast(object, run_rebuild(root)))
-    validation = validate_phase1_workspace(root)
-    queries = _run_phase_1_queries(root)
+    validation = validate_workspace(root)
+    queries = _run_benchmark_queries(root)
     failures = [*validation["failures"], *_query_failures(queries)]
     return {
         "ok": not failures,

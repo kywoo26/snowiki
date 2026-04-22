@@ -352,7 +352,7 @@ def _fake_report(
             "blocking_stage": (
                 "structural"
                 if structural_fail
-                else "phase1_thresholds"
+                else "performance_thresholds"
                 if performance_fail or (retrieval_fail and retrieval_blocking)
                 else None
             ),
@@ -393,7 +393,7 @@ def _fake_report(
     }
 
 
-def test_benchmark_writes_json_report_and_renders_unified_phase1_gate(
+def test_benchmark_writes_json_report_and_renders_unified_gate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     report_path = tmp_path / "reports" / "benchmark.json"
@@ -640,7 +640,7 @@ def test_benchmark_returns_non_zero_when_performance_threshold_fails(
     assert "Performance threshold failures:" in result.output
     assert "Performance threshold verdict: FAIL (1 failures)" in result.output
     assert (
-        "Unified benchmark verdict: FAIL (blocking_stage=phase1_thresholds, exit_code=1)"
+        "Unified benchmark verdict: FAIL (blocking_stage=performance_thresholds, exit_code=1)"
         in result.output
     )
     assert report_path.exists()

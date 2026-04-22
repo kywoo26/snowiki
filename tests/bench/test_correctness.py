@@ -70,7 +70,7 @@ class FailureResult(TypedDict):
     message: str
 
 
-class Phase1FlowResult(TypedDict):
+class CorrectnessFlowResult(TypedDict):
     ok: bool
     root: str
     fixtures: list[FixtureResult]
@@ -92,17 +92,17 @@ class ValidationResult(TypedDict):
 
 if TYPE_CHECKING:
 
-    class Phase1Module(Protocol):
-        def run_phase1_correctness_flow(self, root: Path) -> Phase1FlowResult: ...
+    class CorrectnessModule(Protocol):
+        def run_correctness_flow(self, root: Path) -> CorrectnessFlowResult: ...
 
-        def validate_phase1_workspace(self, root: Path) -> ValidationResult: ...
+        def validate_workspace(self, root: Path) -> ValidationResult: ...
 
 
-def _load_phase1_context() -> tuple[Phase1Module, Any]:
+def _load_correctness_context() -> tuple[CorrectnessModule, Any]:
     module = cast(object, import_module("snowiki.bench.validation.correctness"))
     from snowiki.cli.main import app
 
-    return cast("Phase1Module", module), app
+    return cast("CorrectnessModule", module), app
 
 
 def _invoke_json(app: Any, root: Path, args: Sequence[str]) -> JSONObject:
@@ -112,7 +112,7 @@ def _invoke_json(app: Any, root: Path, args: Sequence[str]) -> JSONObject:
     return cast(JSONObject, json.loads(result.output))
 
 
-def _seed_phase1_root(
+def _seed_workspace_root(
     app: object,
     root: Path,
     claude_basic_fixture: Path,
@@ -168,13 +168,13 @@ def _first_compiled_page(root: Path) -> Path:
     return next(path for path in compiled_paths if path.name != "overview.md")
 
 
-def test_run_phase1_correctness_flow_uses_isolated_root_and_known_answers(
+def test_run_correctness_flow_uses_isolated_root_and_known_answers(
     tmp_path: Path,
     repo_root: Path,
 ) -> None:
-    phase1, _ = _load_phase1_context()
+    correctness, _ = _load_correctness_context()
 
-    result = phase1.run_phase1_correctness_flow(tmp_path)
+    result = correctness.run_correctness_flow(tmp_path)
 
     assert result["ok"] is True
     assert result["root"] == tmp_path.as_posix()
@@ -219,14 +219,14 @@ def test_run_phase1_correctness_flow_uses_isolated_root_and_known_answers(
     assert result["failures"] == []
 
 
-def test_validate_phase1_workspace_reports_broken_provenance_and_missing_compiled_layer(
+def test_validate_workspace_reports_broken_provenance_and_missing_compiled_layer(
     tmp_path: Path,
     repo_root: Path,
     claude_basic_fixture: Path,
     opencode_basic_db_fixture: Path,
 ) -> None:
-    phase1, app = _load_phase1_context()
-    _seed_phase1_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
+    correctness, app = _load_correctness_context()
+    _seed_workspace_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
 
     normalized_path = _first_normalized_record(tmp_path)
     payload = _read_json(normalized_path)
@@ -236,7 +236,7 @@ def test_validate_phase1_workspace_reports_broken_provenance_and_missing_compile
     _write_json(normalized_path, payload)
     shutil.rmtree(tmp_path / "compiled")
 
-    result = phase1.validate_phase1_workspace(tmp_path)
+    result = correctness.validate_workspace(tmp_path)
 
     assert result["ok"] is False
     assert result["status"]["zones"]["compiled"] == 0
@@ -272,14 +272,14 @@ def test_validate_phase1_workspace_reports_broken_provenance_and_missing_compile
     ]
 
 
-def test_validate_phase1_workspace_reports_stale_compiled_links_and_structural_lint_failures(
+def test_validate_workspace_reports_stale_compiled_links_and_structural_lint_failures(
     tmp_path: Path,
     repo_root: Path,
     claude_basic_fixture: Path,
     opencode_basic_db_fixture: Path,
 ) -> None:
-    phase1, app = _load_phase1_context()
-    _seed_phase1_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
+    correctness, app = _load_correctness_context()
+    _seed_workspace_root(app, tmp_path, claude_basic_fixture, opencode_basic_db_fixture)
 
     normalized_path = _first_normalized_record(tmp_path)
     normalized_payload = _read_json(normalized_path)
@@ -294,7 +294,7 @@ def test_validate_phase1_workspace_reports_stale_compiled_links_and_structural_l
         encoding="utf-8",
     )
 
-    result = phase1.validate_phase1_workspace(tmp_path)
+    result = correctness.validate_workspace(tmp_path)
 
     assert result["ok"] is False
     assert result["lint"]["error_count"] == 2

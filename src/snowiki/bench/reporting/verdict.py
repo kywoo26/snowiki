@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from ..contract import (
-    PHASE_1_THRESHOLDS,
+    BENCHMARK_THRESHOLDS,
     STEP_03_CANDIDATE_POLICY,
     CandidatePolicyThresholds,
     MetricThreshold,
@@ -34,7 +34,7 @@ def _threshold_to_dict(threshold: MetricThreshold) -> dict[str, object]:
 def _performance_threshold_policy() -> list[dict[str, object]]:
     return [
         _threshold_to_dict(threshold)
-        for threshold in PHASE_1_THRESHOLDS["overall"]
+        for threshold in BENCHMARK_THRESHOLDS["overall"]
         if threshold.metric in _PERFORMANCE_THRESHOLD_METRICS
     ]
 
@@ -43,7 +43,7 @@ def _retrieval_threshold_policy() -> dict[str, object]:
     return {
         "overall": [
             _threshold_to_dict(threshold)
-            for threshold in PHASE_1_THRESHOLDS["overall"]
+            for threshold in BENCHMARK_THRESHOLDS["overall"]
             if threshold.metric in _RETRIEVAL_THRESHOLD_METRICS
         ],
         "slices": {
@@ -52,7 +52,7 @@ def _retrieval_threshold_policy() -> dict[str, object]:
                 for threshold in thresholds
                 if threshold.metric in _RETRIEVAL_THRESHOLD_METRICS
             ]
-            for kind, thresholds in PHASE_1_THRESHOLDS["slices"].items()
+            for kind, thresholds in BENCHMARK_THRESHOLDS["slices"].items()
         },
     }
 
@@ -88,7 +88,7 @@ def _performance_threshold_entries(
     performance = cast(dict[str, dict[str, float]], report.get("performance", {}))
     entries: list[dict[str, object]] = []
     for flow, latencies in performance.items():
-        for threshold in PHASE_1_THRESHOLDS["overall"]:
+        for threshold in BENCHMARK_THRESHOLDS["overall"]:
             if threshold.metric not in _PERFORMANCE_THRESHOLD_METRICS:
                 continue
             value = latencies.get(threshold.metric)
@@ -292,7 +292,7 @@ def benchmark_verdict(
         return {
             "verdict": "FAIL",
             "exit_code": 1,
-            "blocking_stage": "phase1_thresholds",
+            "blocking_stage": "performance_thresholds",
             "order": [stage["name"] for stage in stages],
             "stages": stages,
         }

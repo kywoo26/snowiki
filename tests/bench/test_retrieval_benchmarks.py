@@ -20,7 +20,7 @@ def _load_retrieval_fixtures():
     return importlib.import_module("tests.helpers.retrieval_data")
 
 
-def test_run_baseline_comparison_emits_phase1_retrieval_metrics(
+def test_run_baseline_comparison_emits_retrieval_metrics(
     monkeypatch, benchmarks_dir: Path
 ) -> None:
     repo_root = benchmarks_dir.parent

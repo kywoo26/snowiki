@@ -86,12 +86,12 @@ class Step3CandidatePolicyContract(TypedDict):
     thresholds: CandidatePolicyThresholds
 
 
-PHASE_1_CORPUS: CorpusContract = {
+BENCHMARK_CORPUS: CorpusContract = {
     "queries": "benchmarks/queries.json",
     "judgments": "benchmarks/judgments.json",
 }
 
-PHASE_1_THRESHOLDS: ThresholdsContract = {
+BENCHMARK_THRESHOLDS: ThresholdsContract = {
     "overall": [
         MetricThreshold("recall_at_k", 0.72),
         MetricThreshold("mrr", 0.70),
@@ -114,6 +114,9 @@ PHASE_1_THRESHOLDS: ThresholdsContract = {
     },
 }
 
+PHASE_1_CORPUS: CorpusContract = BENCHMARK_CORPUS
+PHASE_1_THRESHOLDS: ThresholdsContract = BENCHMARK_THRESHOLDS
+
 STEP_03_CANDIDATE_POLICY: Step3CandidatePolicyContract = {
     "control_candidate_name": "regex_v1",
     "control_decision_baseline": "lexical",
@@ -130,11 +133,11 @@ DEFAULT_NO_ANSWER_SCORING_POLICY = NoAnswerScoringPolicy(
 )
 
 
-def get_phase_1_contract() -> Phase1Contract:
-    """Returns the frozen phase-1 benchmark contract."""
+def get_benchmark_contract() -> Phase1Contract:
+    """Returns the frozen benchmark contract."""
     return {
-        "corpus": PHASE_1_CORPUS,
-        "thresholds": PHASE_1_THRESHOLDS,
+        "corpus": BENCHMARK_CORPUS,
+        "thresholds": BENCHMARK_THRESHOLDS,
         "report_schema": {
             "fields": [
                 "gate",
@@ -154,3 +157,8 @@ def get_phase_1_contract() -> Phase1Contract:
             "exclusions": ["sync", "edit"],
         },
     }
+
+
+def get_phase_1_contract() -> Phase1Contract:
+    """Returns the frozen phase-1 benchmark contract."""
+    return get_benchmark_contract()

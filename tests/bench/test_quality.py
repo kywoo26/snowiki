@@ -228,7 +228,7 @@ def test_evaluate_quality_thresholds_marks_regressions_as_failures(
     quality, contract = _load_quality_symbols()
     evaluate_sliced_quality = quality.evaluate_sliced_quality
     evaluate_quality_thresholds = quality.evaluate_quality_thresholds
-    phase_1_thresholds = contract.PHASE_1_THRESHOLDS
+    benchmark_thresholds = contract.PHASE_1_THRESHOLDS
 
     summary = evaluate_sliced_quality(
         {"q1": ["miss"], "q2": ["x", "z", "w"]},
@@ -240,8 +240,8 @@ def test_evaluate_quality_thresholds_marks_regressions_as_failures(
 
     report = evaluate_quality_thresholds(
         summary,
-        overall_thresholds=phase_1_thresholds["overall"],
-        slice_thresholds=phase_1_thresholds["slices"],
+        overall_thresholds=benchmark_thresholds["overall"],
+        slice_thresholds=benchmark_thresholds["slices"],
     )
 
     verdicts = {(entry.gate, entry.metric): entry for entry in report}

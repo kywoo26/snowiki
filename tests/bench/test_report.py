@@ -58,7 +58,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
     render_report_text = report_module.render_report_text
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": True,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -80,7 +80,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -349,7 +349,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
         "threshold": 6300.0,
         "warnings": [],
     }
-    assert verdict["blocking_stage"] == "phase1_thresholds"
+    assert verdict["blocking_stage"] == "performance_thresholds"
     assert verdict["exit_code"] == 1
     assert verdict["order"] == [
         "structural",
@@ -374,7 +374,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
     assert "| kiwi_morphology_v1" in rendered
     assert "top_ks=[1, 3, 5, 10, 20]" in rendered
     assert (
-        "Unified benchmark verdict: FAIL (blocking_stage=phase1_thresholds, exit_code=1)"
+        "Unified benchmark verdict: FAIL (blocking_stage=performance_thresholds, exit_code=1)"
         in rendered
     )
 
@@ -387,7 +387,7 @@ def test_generate_report_structural_failures_block_before_thresholds(
     render_report_text = report_module.render_report_text
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": False,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -405,7 +405,7 @@ def test_generate_report_structural_failures_block_before_thresholds(
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -545,7 +545,7 @@ def test_generate_report_official_suite_retrieval_failures_are_informational(
     )
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": True,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -556,7 +556,7 @@ def test_generate_report_official_suite_retrieval_failures_are_informational(
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -686,7 +686,7 @@ def test_generate_report_includes_provenance_metadata_when_present(
     generate_report = report_module.generate_report
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": True,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -697,7 +697,7 @@ def test_generate_report_includes_provenance_metadata_when_present(
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -823,26 +823,26 @@ def test_stratified_sampling_works_for_large_tiers(
 ) -> None:
     from snowiki.bench.contract.presets import get_preset
     from snowiki.bench.datasets.anchors.korean import load_miracl_ko_sample
-    from snowiki.bench.validation import latency as phase1_latency
+    from snowiki.bench.validation import latency as latency_module
 
     fixture_path = tmp_path / "fixture.jsonl"
     _ = fixture_path.write_text("{}\n", encoding="utf-8")
     manifest = load_miracl_ko_sample(size=100)
 
-    monkeypatch.setattr(phase1_latency, "PHASE_1_WARMUPS", 0)
-    monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 1)
+    monkeypatch.setattr(latency_module, "BENCHMARK_WARMUPS", 0)
+    monkeypatch.setattr(latency_module, "BENCHMARK_REPETITIONS", 1)
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "_canonical_fixtures",
         lambda: ({"source": "claude", "path": fixture_path},),
     )
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "run_ingest",
         lambda path, *, source, root: {"path": path.as_posix(), "source": source},
     )
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "run_rebuild",
         lambda root: {"root": root.as_posix()},
     )
@@ -853,11 +853,11 @@ def test_stratified_sampling_works_for_large_tiers(
         query_calls.append(query)
         return {"query": query, "mode": mode, "top_k": top_k}
 
-    monkeypatch.setattr(phase1_latency, "run_query", fake_query)
+    monkeypatch.setattr(latency_module, "run_query", fake_query)
     ticks = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     monkeypatch.setattr("time.perf_counter", lambda: next(ticks))
 
-    report = phase1_latency.run_phase1_latency_evaluation(
+    report = latency_module.run_latency_evaluation(
         tmp_path / "requested-root",
         preset=get_preset("retrieval"),
         manifest=manifest,
@@ -884,7 +884,7 @@ def test_report_includes_sampling_policy_metadata(
     manifest = load_miracl_ko_sample(size=60)
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": True,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -895,7 +895,7 @@ def test_report_includes_sampling_policy_metadata(
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -1029,7 +1029,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
     )
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": True,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -1040,7 +1040,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -1159,7 +1159,7 @@ def test_report_size_is_bounded_for_large_tiers(
     manifest = load_miracl_ko_sample(size=60)
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": True,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -1170,7 +1170,7 @@ def test_report_size_is_bounded_for_large_tiers(
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -1303,7 +1303,7 @@ def test_generate_report_rejects_authoritative_assets_without_required_provenanc
     generate_report = report_module.generate_report
     monkeypatch.setattr(
         report_module,
-        "validate_phase1_workspace",
+        "validate_workspace",
         lambda root: {
             "ok": True,
             "status": {"root": root.as_posix(), "zones": {}, "index_manifest": None},
@@ -1314,7 +1314,7 @@ def test_generate_report_rejects_authoritative_assets_without_required_provenanc
     )
     monkeypatch.setattr(
         report_module,
-        "run_phase1_latency_evaluation",
+        "run_latency_evaluation",
         lambda root, preset, **kwargs: {
             "performance": {
                 "ingest": {"p50_ms": 12.0, "p95_ms": 18.0},
@@ -1691,10 +1691,10 @@ def test_baselines_lookup_tokenizer_and_operational_helpers_cover_edge_cases(
     assert evidence["regex_v1"].disk_size_mb == 2.0
 
 
-def test_phase1_latency_helper_branches_are_covered(
+def test_latency_helper_branches_are_covered(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    phase1_latency = import_module("snowiki.bench.validation.latency")
+    latency_module = import_module("snowiki.bench.validation.latency")
     presets = import_module("snowiki.bench.contract.presets")
     preset = presets.get_preset("retrieval")
 
@@ -1709,62 +1709,62 @@ def test_phase1_latency_helper_branches_are_covered(
         {"id": "q2", "text": " ", "kind": "known-item"},
         {"id": "q3", "text": "skip", "kind": "temporal"},
     ]
-    query_specs = phase1_latency._query_specs_from_rows(rows, preset=preset)
+    query_specs = latency_module._query_specs_from_rows(rows, preset=preset)
     assert query_specs == ({"text": "alpha", "kind": "known-item", "id": "q1", "group": "ko", "tags": ["keep"]},)
 
     payload_path = tmp_path / "queries.json"
     payload_path.write_text('{"queries": []}', encoding="utf-8")
-    assert phase1_latency._load_json(payload_path) == {"queries": []}
+    assert latency_module._load_json(payload_path) == {"queries": []}
 
-    monkeypatch.setattr(phase1_latency, "_load_json", lambda path: {"queries": rows})
-    loaded_specs = phase1_latency._load_query_specs_for_preset(preset)
+    monkeypatch.setattr(latency_module, "_load_json", lambda path: {"queries": rows})
+    loaded_specs = latency_module._load_query_specs_for_preset(preset)
     assert loaded_specs == query_specs
 
-    assert phase1_latency._requested_latency_policy(
+    assert latency_module._requested_latency_policy(
         "official_suite",
         query_count=60,
         latency_sample="fixed_sample",
     ).mode == "fixed_sample"
-    assert phase1_latency._requested_latency_policy(
+    assert latency_module._requested_latency_policy(
         "official_suite",
         query_count=60,
         latency_sample="stratified",
     ).mode == "stratified"
-    assert phase1_latency._requested_latency_policy(
+    assert latency_module._requested_latency_policy(
         "official_suite",
         query_count=60,
         latency_sample="exhaustive",
     ).mode == "exhaustive"
 
-    assert phase1_latency._derive_latency_strata(
+    assert latency_module._derive_latency_strata(
         (
             {"text": "alpha", "kind": "known-item", "group": "shared"},
             {"text": "beta", "kind": "topical", "group": "shared"},
         )
     ) == ["known-item", "topical"]
-    assert phase1_latency._derive_latency_strata(
+    assert latency_module._derive_latency_strata(
         ({"text": "alpha", "kind": "", "group": ""},)
     ) == ["all"]
 
-    materialized = phase1_latency._materialize_latency_policy(
-        phase1_latency.LatencySamplingPolicy(mode="stratified"),
+    materialized = latency_module._materialize_latency_policy(
+        latency_module.LatencySamplingPolicy(mode="stratified"),
         queries=(
             {"text": "alpha", "kind": "known-item", "group": "shared"},
             {"text": "beta", "kind": "topical", "group": "shared"},
         ),
     )
     assert materialized.strata == ["known-item", "topical"]
-    assert phase1_latency._materialize_latency_policy(
-        phase1_latency.LatencySamplingPolicy(mode="stratified", strata=["preset"]),
+    assert latency_module._materialize_latency_policy(
+        latency_module.LatencySamplingPolicy(mode="stratified", strata=["preset"]),
         queries=query_specs,
     ).strata == ["preset"]
 
-    assert phase1_latency._evenly_spaced_positions(0, 3) == []
-    assert phase1_latency._evenly_spaced_positions(3, 5) == [0, 1, 2]
-    assert phase1_latency._fixed_sample_query_positions(3, 5) == [0, 1, 2]
-    assert phase1_latency._stratified_sample_query_positions((), strata=["ko"]) == []
-    assert phase1_latency._stratified_sample_query_positions(query_specs, strata=[]) == [0]
-    assert phase1_latency._stratified_sample_query_positions(
+    assert latency_module._evenly_spaced_positions(0, 3) == []
+    assert latency_module._evenly_spaced_positions(3, 5) == [0, 1, 2]
+    assert latency_module._fixed_sample_query_positions(3, 5) == [0, 1, 2]
+    assert latency_module._stratified_sample_query_positions((), strata=["ko"]) == []
+    assert latency_module._stratified_sample_query_positions(query_specs, strata=[]) == [0]
+    assert latency_module._stratified_sample_query_positions(
         query_specs,
         strata=["missing"],
     ) == [0]
@@ -1780,7 +1780,7 @@ def test_phase1_latency_helper_branches_are_covered(
             for index in range(5)
         ),
     )
-    assert phase1_latency._stratified_sample_query_positions(
+    assert latency_module._stratified_sample_query_positions(
         cast(Any, mixed_queries),
         strata=["ko"],
     ) == [0, 1, 2, 3, 4]

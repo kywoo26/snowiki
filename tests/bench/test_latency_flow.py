@@ -8,13 +8,13 @@ from typing import cast
 import pytest
 
 from snowiki.bench.contract.presets import get_preset
-from snowiki.bench.validation import latency as phase1_latency
+from snowiki.bench.validation import latency as latency_module
 from snowiki.search.indexer import SearchDocument, SearchHit
 
-run_phase1_latency_evaluation = phase1_latency.run_phase1_latency_evaluation
+run_latency_evaluation = latency_module.run_latency_evaluation
 
 
-def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
+def test_latency_evaluation_covers_all_flows_with_isolated_roots(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     claude_fixture = tmp_path / "basic.jsonl"
@@ -22,10 +22,10 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
     omo_fixture = tmp_path / "basic.db"
     _ = omo_fixture.write_bytes(b"fixture")
 
-    monkeypatch.setattr(phase1_latency, "PHASE_1_WARMUPS", 1)
-    monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 2)
+    monkeypatch.setattr(latency_module, "BENCHMARK_WARMUPS", 1)
+    monkeypatch.setattr(latency_module, "BENCHMARK_REPETITIONS", 2)
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "_canonical_fixtures",
         lambda: (
             {"source": "claude", "path": claude_fixture},
@@ -33,7 +33,7 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
         ),
     )
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "_load_query_specs_for_preset",
         lambda _preset, manifest=None: (
             {"text": "first query", "kind": "known-item"},
@@ -64,14 +64,14 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
             "top_k": top_k,
         }
 
-    monkeypatch.setattr(phase1_latency, "run_ingest", fake_ingest)
-    monkeypatch.setattr(phase1_latency, "run_rebuild", fake_rebuild)
-    monkeypatch.setattr(phase1_latency, "run_query", fake_query)
+    monkeypatch.setattr(latency_module, "run_ingest", fake_ingest)
+    monkeypatch.setattr(latency_module, "run_rebuild", fake_rebuild)
+    monkeypatch.setattr(latency_module, "run_query", fake_query)
 
     ticks = iter([0.0, 1.0, 10.0, 13.0, 20.0, 21.0, 30.0, 34.0, 40.0, 41.0, 50.0, 55.0])
     monkeypatch.setattr(time, "perf_counter", lambda: next(ticks))
 
-    report = run_phase1_latency_evaluation(
+    report = run_latency_evaluation(
         tmp_path / "requested-root", preset=get_preset("core")
     )
     protocol = cast(dict[str, object], report["protocol"])
@@ -130,7 +130,7 @@ def test_phase1_latency_evaluation_covers_all_flows_with_isolated_roots(
     assert all("requested-root" not in root for root in unique_ingest_roots)
 
 
-def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expanded_benchmarks(
+def test_latency_evaluation_keeps_runtime_query_mode_lexical_with_expanded_benchmarks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     claude_fixture = tmp_path / "basic.jsonl"
@@ -153,19 +153,19 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
     def fake_rebuild(root: Path) -> dict[str, object]:
         return {"root": root.as_posix()}
 
-    monkeypatch.setattr(phase1_latency, "PHASE_1_WARMUPS", 0)
-    monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 1)
-    monkeypatch.setattr(phase1_latency, "_canonical_fixtures", fake_canonical_fixtures)
+    monkeypatch.setattr(latency_module, "BENCHMARK_WARMUPS", 0)
+    monkeypatch.setattr(latency_module, "BENCHMARK_REPETITIONS", 1)
+    monkeypatch.setattr(latency_module, "_canonical_fixtures", fake_canonical_fixtures)
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "_load_query_specs_for_preset",
         fake_load_query_specs_for_preset,
     )
 
     query_calls: list[dict[str, object]] = []
 
-    monkeypatch.setattr(phase1_latency, "run_ingest", fake_ingest)
-    monkeypatch.setattr(phase1_latency, "run_rebuild", fake_rebuild)
+    monkeypatch.setattr(latency_module, "run_ingest", fake_ingest)
+    monkeypatch.setattr(latency_module, "run_rebuild", fake_rebuild)
 
     def fake_query(
         root: Path, query: str, *, mode: str, top_k: int
@@ -179,12 +179,12 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
         query_calls.append(payload)
         return payload
 
-    monkeypatch.setattr(phase1_latency, "run_query", fake_query)
+    monkeypatch.setattr(latency_module, "run_query", fake_query)
 
     ticks = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     monkeypatch.setattr(time, "perf_counter", lambda: next(ticks))
 
-    report = run_phase1_latency_evaluation(
+    report = run_latency_evaluation(
         tmp_path / "requested-root", preset=get_preset("retrieval")
     )
 
@@ -214,21 +214,21 @@ def test_phase1_latency_evaluation_keeps_runtime_query_mode_lexical_with_expande
     assert [call["query"] for call in query_calls] == ["first query", "second query"]
 
 
-def test_phase1_latency_keeps_benchmark_lexical_mode_and_shipped_query_hybrid_noop(
+def test_latency_keeps_benchmark_lexical_mode_and_shipped_query_hybrid_noop(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     claude_fixture = tmp_path / "basic.jsonl"
     _ = claude_fixture.write_text("{}\n", encoding="utf-8")
 
-    monkeypatch.setattr(phase1_latency, "PHASE_1_WARMUPS", 0)
-    monkeypatch.setattr(phase1_latency, "PHASE_1_REPETITIONS", 1)
+    monkeypatch.setattr(latency_module, "BENCHMARK_WARMUPS", 0)
+    monkeypatch.setattr(latency_module, "BENCHMARK_REPETITIONS", 1)
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "_canonical_fixtures",
         lambda: ({"source": "claude", "path": claude_fixture},),
     )
     monkeypatch.setattr(
-        phase1_latency,
+        latency_module,
         "_load_query_specs_for_preset",
         lambda _preset, manifest=None: ({"text": "comparison query", "kind": "known-item"},),
     )
@@ -243,12 +243,12 @@ def test_phase1_latency_keeps_benchmark_lexical_mode_and_shipped_query_hybrid_no
         )
         return {"root": root.as_posix(), "query": query, "mode": mode, "top_k": top_k}
 
-    monkeypatch.setattr(phase1_latency, "run_query", fake_benchmark_query)
+    monkeypatch.setattr(latency_module, "run_query", fake_benchmark_query)
 
     ticks = iter([0.0, 1.0, 2.0, 3.0, 4.0, 5.0])
     monkeypatch.setattr(time, "perf_counter", lambda: next(ticks))
 
-    report = run_phase1_latency_evaluation(
+    report = run_latency_evaluation(
         tmp_path / "requested-root", preset=get_preset("retrieval")
     )
     protocol = cast(dict[str, object], report["protocol"])

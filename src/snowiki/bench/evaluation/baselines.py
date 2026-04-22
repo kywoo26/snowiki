@@ -19,7 +19,7 @@ from snowiki.search.workspace import (
     load_normalized_records,
 )
 
-from ..contract import PHASE_1_CORPUS, PHASE_1_THRESHOLDS
+from ..contract import BENCHMARK_CORPUS, BENCHMARK_THRESHOLDS
 from ..contract.presets import (
     BenchmarkPreset,
     candidate_name_for_benchmark_baseline,
@@ -197,7 +197,7 @@ def _load_queries(
     resolved_path, path_label = _resolve_benchmark_asset_path(
         root,
         queries_path,
-        default_relative_path=PHASE_1_CORPUS["queries"],
+        default_relative_path=BENCHMARK_CORPUS["queries"],
     )
     payload = _load_json(resolved_path)
     return _queries_from_payload(payload, path_label=path_label)
@@ -282,7 +282,7 @@ def _load_judgments(
     resolved_path, path_label = _resolve_benchmark_asset_path(
         root,
         judgments_path,
-        default_relative_path=PHASE_1_CORPUS["judgments"],
+        default_relative_path=BENCHMARK_CORPUS["judgments"],
     )
     try:
         return load_qrels(resolved_path)
@@ -550,8 +550,8 @@ def _attach_threshold_report(summary: SlicedQualitySummary) -> SlicedQualitySumm
         by_kind=summary.by_kind,
         threshold_report=evaluate_quality_thresholds(
             summary,
-            overall_thresholds=PHASE_1_THRESHOLDS["overall"],
-            slice_thresholds=PHASE_1_THRESHOLDS["slices"],
+    overall_thresholds=BENCHMARK_THRESHOLDS["overall"],
+    slice_thresholds=BENCHMARK_THRESHOLDS["slices"],
         ),
     )
 
