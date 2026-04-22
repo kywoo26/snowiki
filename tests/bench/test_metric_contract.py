@@ -15,7 +15,7 @@ class TestLayerMetricContract:
 
     def test_pr_quick_metrics(self) -> None:
         policy = get_layer_policy("pr_official_quick")
-        assert policy["metrics"] == ("nDCG@10", "P95 latency")
+        assert policy["metrics"] == ("nDCG@10", "Recall@100", "MRR@10", "P95 latency")
         assert policy["blocking"] is True
         assert policy["sample_mode"] == "quick"
 

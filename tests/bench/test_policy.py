@@ -119,7 +119,7 @@ class TestLayerPolicy:
     def test_pr_official_quick_defaults(self) -> None:
         policy = get_layer_policy("pr_official_quick")
         assert policy["sample_mode"] == "quick"
-        assert policy["metrics"] == ("nDCG@10", "P95 latency")
+        assert policy["metrics"] == ("nDCG@10", "Recall@100", "MRR@10", "P95 latency")
         assert policy["blocking"] is True
 
     def test_scheduled_official_broad_defaults(self) -> None:
