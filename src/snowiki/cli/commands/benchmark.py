@@ -11,12 +11,21 @@ from typing import Literal, cast
 import click
 
 from snowiki.bench.anchors import (
+    load_beir_arguana_cached_manifest,
+    load_beir_fiqa_2018_cached_manifest,
     load_beir_nfcorpus_cached_manifest,
+    load_beir_nq_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_hidden_holdout_suite,
+    load_miracl_en_cached_manifest,
+    load_miracl_ja_cached_manifest,
     load_miracl_ko_cached_manifest,
+    load_miracl_zh_cached_manifest,
     load_mr_tydi_ko_cached_manifest,
+    load_ms_marco_passage_cached_manifest,
     load_snowiki_shaped_suite,
+    load_trec_dl_2019_passage_cached_manifest,
+    load_trec_dl_2020_passage_cached_manifest,
 )
 from snowiki.bench.anchors.public_cached import PublicAnchorSampleMode
 from snowiki.bench.corpus import BenchmarkCorpusManifest, load_corpus_from_manifest
@@ -35,9 +44,18 @@ write_tokenizer_comparison_artifact = _BENCH.write_tokenizer_comparison_artifact
 PRESET_NAMES = tuple(preset.name for preset in list_presets())
 DATASET_NAMES = (
     "regression",
+    "ms_marco_passage",
+    "trec_dl_2019_passage",
+    "trec_dl_2020_passage",
     "miracl_ko",
+    "miracl_en",
+    "miracl_ja",
+    "miracl_zh",
     "mr_tydi_ko",
+    "beir_nq",
     "beir_scifact",
+    "beir_fiqa_2018",
+    "beir_arguana",
     "beir_nfcorpus",
     "snowiki_shaped",
     "hidden_holdout",
@@ -52,12 +70,30 @@ def _has_seeded_corpus(root: Path) -> bool:
 def _load_dataset_manifest(
     dataset: str, sample_mode: PublicAnchorSampleMode
 ) -> BenchmarkCorpusManifest | None:
+    if dataset == "ms_marco_passage":
+        return load_ms_marco_passage_cached_manifest(sample_mode=sample_mode)
+    if dataset == "trec_dl_2019_passage":
+        return load_trec_dl_2019_passage_cached_manifest(sample_mode=sample_mode)
+    if dataset == "trec_dl_2020_passage":
+        return load_trec_dl_2020_passage_cached_manifest(sample_mode=sample_mode)
     if dataset == "miracl_ko":
         return load_miracl_ko_cached_manifest(sample_mode=sample_mode)
+    if dataset == "miracl_en":
+        return load_miracl_en_cached_manifest(sample_mode=sample_mode)
+    if dataset == "miracl_ja":
+        return load_miracl_ja_cached_manifest(sample_mode=sample_mode)
+    if dataset == "miracl_zh":
+        return load_miracl_zh_cached_manifest(sample_mode=sample_mode)
     if dataset == "mr_tydi_ko":
         return load_mr_tydi_ko_cached_manifest(sample_mode=sample_mode)
+    if dataset == "beir_nq":
+        return load_beir_nq_cached_manifest(sample_mode=sample_mode)
     if dataset == "beir_scifact":
         return load_beir_scifact_cached_manifest(sample_mode=sample_mode)
+    if dataset == "beir_fiqa_2018":
+        return load_beir_fiqa_2018_cached_manifest(sample_mode=sample_mode)
+    if dataset == "beir_arguana":
+        return load_beir_arguana_cached_manifest(sample_mode=sample_mode)
     if dataset == "beir_nfcorpus":
         return load_beir_nfcorpus_cached_manifest(sample_mode=sample_mode)
     if dataset == "snowiki_shaped":
@@ -138,6 +174,12 @@ def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
     default=None,
     help="Override the tier-aware latency sampling policy for benchmark query timing.",
 )
+@click.option(
+    "--layer",
+    type=click.Choice(("pr_official_quick", "scheduled_official_broad", "release_proof"), case_sensitive=False),
+    default=None,
+    help="Execution layer for official benchmark runs.",
+)
 def command(
     preset: str,
     output: Path,
@@ -145,6 +187,7 @@ def command(
     dataset: str,
     sample_mode: str,
     latency_sample: str | None,
+    layer: str | None,
 ) -> None:
     report: dict[str, object] | None = None
     tokenizer_artifact_path: Path | None = None
@@ -193,6 +236,13 @@ def command(
                 except Exception:
                     pass
             report = generated_report
+            if layer is not None:
+                metadata = cast(dict[str, object], report.setdefault("metadata", {}))
+                metadata["execution_layer"] = layer
+                if dataset in ("regression", "snowiki_shaped", "hidden_holdout"):
+                    metadata["authority_class"] = "local_diagnostic"
+                else:
+                    metadata["authority_class"] = "official_standard"
             tokenizer_artifact_path = output.parent / ".cache" / "tokenizer_comparison.md"
             _ = write_tokenizer_comparison_artifact(report, tokenizer_artifact_path)
     except Exception as exc:

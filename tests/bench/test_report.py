@@ -301,7 +301,7 @@ def test_generate_report_exposes_unified_benchmark_gate(
         "mrr",
         "ndcg_at_k",
     }
-    assert report["report_version"] == "1.3"
+    assert report["report_version"] == "1.4"
     assert cast(dict[str, Any], report["preset"])["top_ks"] == [1, 3, 5, 10, 20]
     assert threshold_policy["slices"] == {
         "known-item": [

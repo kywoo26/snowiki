@@ -1,0 +1,94 @@
+name: benchmark-official-pr
+
+on:
+  pull_request:
+    paths:
+      - "src/snowiki/**"
+      - "benchmarks/**"
+      - ".github/workflows/benchmark*.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+jobs:
+  official-pr-benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dataset:
+          - ms_marco_passage
+          - miracl_ko
+          - miracl_ja
+          - miracl_zh
+      fail-fast: false
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up uv with Python 3.14
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync dependencies
+        run: uv sync --group dev
+
+      - name: Preflight dataset cache
+        id: preflight
+        run: |
+          if uv run snowiki benchmark-fetch --dataset ${{ matrix.dataset }} --offline; then
+            echo "cached=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cached=false" >> "$GITHUB_OUTPUT"
+          fi
+        continue-on-error: true
+
+      - name: Run official PR benchmark
+        if: steps.preflight.outputs.cached == 'true'
+        run: |
+          mkdir -p reports
+          uv run snowiki benchmark \
+            --preset retrieval \
+            --dataset ${{ matrix.dataset }} \
+            --sample-mode quick \
+            --layer pr_official_quick \
+            --output "reports/${{ matrix.dataset }}.json"
+
+      - name: Upload benchmark report artifact
+        if: steps.preflight.outputs.cached == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-pr-${{ matrix.dataset }}
+          path: reports/${{ matrix.dataset }}.json
+          if-no-files-found: error
+
+      - name: Record infra skip
+        if: steps.preflight.outputs.cached != 'true'
+        run: |
+          mkdir -p reports
+          echo '{"dataset_id":"${{ matrix.dataset }}","status":"infra_skipped","reason":"dataset not cached"}' > "reports/${{ matrix.dataset }}.json"
+
+      - name: Upload infra skip artifact
+        if: steps.preflight.outputs.cached != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-pr-${{ matrix.dataset }}-skipped
+          path: reports/${{ matrix.dataset }}.json
+
+      - name: Append workflow summary
+        run: |
+          {
+            echo "## Official PR Benchmark: ${{ matrix.dataset }}"
+            echo ""
+            if [ "${{ steps.preflight.outputs.cached }}" = "true" ]; then
+              echo "- Status: completed"
+              echo "- Layer: pr_official_quick"
+              echo "- Sample mode: quick"
+            else
+              echo "- Status: infra_skipped"
+              echo "- Reason: dataset not cached"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

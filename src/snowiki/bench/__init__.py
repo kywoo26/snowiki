@@ -43,6 +43,17 @@ from .models import (
 )
 from .phase1_correctness import run_phase1_correctness_flow, validate_phase1_workspace
 from .phase1_latency import run_phase1_latency_evaluation
+from .policy import (
+    AuthorityClass,
+    BenchmarkPolicy,
+    ExecutionLayer,
+    LanguageAxis,
+    OfficialDatasetEntry,
+    get_dataset_authority,
+    get_layer_policy,
+    is_local_diagnostic,
+    is_official,
+)
 from .presets import BenchmarkPreset, get_preset, list_presets
 from .quality import QualitySummary, evaluate_quality
 
@@ -104,17 +115,22 @@ __all__ = [
     "BenchmarkCorpusManifest",
     "BenchmarkHit",
     "BenchmarkPreset",
+    "BenchmarkPolicy",
     "BenchmarkReport",
     "BaselineResult",
     "CANONICAL_BENCHMARK_FIXTURE_PATHS",
     "CorpusSummary",
+    "AuthorityClass",
     "canonical_benchmark_fixtures",
     "load_corpus_from_manifest",
     "DEFAULT_NO_ANSWER_SCORING_POLICY",
+    "ExecutionLayer",
     "LatencyMetrics",
     "LatencySummary",
+    "LanguageAxis",
     "MetricThreshold",
     "NoAnswerScoringPolicy",
+    "OfficialDatasetEntry",
     "PHASE_1_CORPUS",
     "PHASE_1_THRESHOLDS",
     "PageModel",
@@ -133,9 +149,13 @@ __all__ = [
     "benchmark_verdict",
     "evaluate_quality",
     "generate_report",
+    "get_dataset_authority",
+    "get_layer_policy",
     "get_phase_1_contract",
     "get_preset",
     "informational_warning_count",
+    "is_local_diagnostic",
+    "is_official",
     "list_presets",
     "measure_latency",
     "performance_threshold_failure_count",
@@ -149,4 +169,9 @@ __all__ = [
     "validate_record_dict",
     "validate_phase1_workspace",
     "write_tokenizer_comparison_artifact",
+    "AuthorityClass",
+    "BenchmarkPolicy",
+    "ExecutionLayer",
+    "LanguageAxis",
+    "OfficialDatasetEntry",
 ]

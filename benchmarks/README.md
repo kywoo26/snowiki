@@ -4,14 +4,44 @@ This playbook guides performance-sensitive changes and search quality verificati
 
 ## Benchmark Authority Model
 
-Benchmarks in Snowiki are organized into four authority tiers. Each tier has a defined scope and determines what claims it can support.
+Benchmarks in Snowiki are organized into **execution layers** and **evidence authority classes**. Execution layers define when a benchmark runs; authority classes define what claims the results can support.
 
-| Tier | Scope | Gating Power |
+### Execution Layers
+
+| Layer | Trigger | Datasets | Metrics | Blocking |
+| :--- | :--- | :--- | :--- | :--- |
+| `pr_official_quick` | PRs touching benchmark-relevant paths | ms_marco_passage, miracl_ko, miracl_ja, miracl_zh | nDCG@10, P95 latency | Yes |
+| `scheduled_official_broad` | Weekday-nightly cron + manual | All 12 official datasets | nDCG@10, Recall@100, MRR@10, P95 latency | No |
+| `release_proof` | Manual only (disabled-by-default) | Holdout set (not configured) | Full scorecard | Yes |
+
+### Authority Classes
+
+| Class | Scope | Gating Power |
 | :--- | :--- | :--- |
-| `regression` | Fast, deterministic checks run on every candidate change. | **Candidate-screening only.** A regression-tier pass is necessary but not sufficient for release-quality claims. |
-| `public_anchor` | Public, reproducible datasets with community or third-party provenance. | **Release-quality claims.** Results on public anchors can be cited in release notes and compared externally. |
-| `snowiki_shaped` | Internally curated datasets that reflect real Snowiki user queries and content shapes. | **Release-quality claims.** Used to validate that the engine works well on its actual target workload, complementing public anchors. |
-| `hidden_holdout` | Held-out queries and judgments not visible during development. | **Final proof.** The only tier that can definitively confirm a claim is not overfit to known benchmarks. |
+| `official_standard` | Downloaded public datasets (MS MARCO, TREC DL, MIRACL, Mr.TyDi, BEIR) | **Release-quality claims.** Results can be cited in release notes and compared externally. |
+| `official_candidate` | Datasets awaiting review | **Provisional.** Must be promoted to `official_standard` before release claims. |
+| `local_diagnostic` | regression, snowiki_shaped, hidden_holdout | **Candidate-screening only.** Cannot appear in official scorecards or release claims. |
+
+### Official Balanced-Core Backbone
+
+The official benchmark backbone consists of exactly these 12 datasets:
+
+| Dataset | Language | Source |
+| :--- | :--- | :--- |
+| `ms_marco_passage` | en | Microsoft MSMARCO |
+| `trec_dl_2019_passage` | en | NIST TREC DL 2019 |
+| `trec_dl_2020_passage` | en | NIST TREC DL 2020 |
+| `miracl_ko` | ko | MIRACL Korean |
+| `miracl_en` | en | MIRACL English |
+| `miracl_ja` | multilingual | MIRACL Japanese |
+| `miracl_zh` | multilingual | MIRACL Chinese |
+| `mr_tydi_ko` | ko | Mr.TyDi Korean |
+| `beir_nq` | en | BEIR Natural Questions |
+| `beir_scifact` | en | BEIR SciFact |
+| `beir_fiqa_2018` | en | BEIR FiQA 2018 |
+| `beir_arguana` | en | BEIR ArguAna |
+
+Local diagnostic datasets (`regression`, `snowiki_shaped`, `hidden_holdout`) are excluded from official scorecards and release claims.
 
 ### Phase 1 as the Regression Tier
 
@@ -112,38 +142,36 @@ The `hidden_holdout` dataset exposed in local development is a **synthetic workf
 ### Example Commands
 
 ```bash
-# Fast regression check
+# Fast regression check (local diagnostic)
 uv run snowiki benchmark --preset core --output reports/core.json
 
-# Retrieval quality check
-uv run snowiki benchmark --preset retrieval --output reports/retrieval.json
+# Official PR quick suite (with layer annotation)
+uv run snowiki benchmark-fetch --dataset ms_marco_passage
+uv run snowiki benchmark --preset retrieval --dataset ms_marco_passage \
+  --sample-mode quick --layer pr_official_quick --output reports/ms_marco.json
 
-# Fetch first, then run MIRACL Korean against real cached public assets
+# Official scheduled broad suite (with layer annotation)
 uv run snowiki benchmark-fetch --dataset miracl_ko
-uv run snowiki benchmark --preset retrieval --dataset miracl_ko --output reports/miracl_ko.json
+uv run snowiki benchmark --preset retrieval --dataset miracl_ko \
+  --sample-mode standard --layer scheduled_official_broad --output reports/miracl_ko.json
 
-# Fetch first, then run Mr. TyDi Korean against real cached public assets
-uv run snowiki benchmark-fetch --dataset mr_tydi_ko
-uv run snowiki benchmark --preset retrieval --dataset mr_tydi_ko --output reports/mr_tydi_ko.json
-
-# Fetch first, then run BEIR SciFact against real cached public assets
-uv run snowiki benchmark-fetch --dataset beir_scifact
-uv run snowiki benchmark --preset retrieval --dataset beir_scifact --output reports/beir_scifact.json
-
-# Fetch first, then run BEIR NFCorpus against real cached public assets
-uv run snowiki benchmark-fetch --dataset beir_nfcorpus
-uv run snowiki benchmark --preset retrieval --dataset beir_nfcorpus --output reports/beir_nfcorpus.json
-
-# Hidden holdout workflow facsimile (development-only, not release proof)
-uv run snowiki benchmark --preset retrieval --dataset hidden_holdout --output reports/hidden_holdout.json
-
-# Full benchmark run
-uv run snowiki benchmark --preset full --output reports/full.json
+# Local diagnostic (not official)
+uv run snowiki benchmark --preset retrieval --dataset hidden_holdout \
+  --layer pr_official_quick --output reports/hidden_holdout.json
 ```
 
 ### Dataset Selection
 
-`snowiki benchmark` now accepts `--dataset regression|miracl_ko|mr_tydi_ko|beir_scifact|beir_nfcorpus|snowiki_shaped|hidden_holdout`.
+`snowiki benchmark` accepts `--dataset` with the following options:
+
+**Official Standard Datasets:**
+- `ms_marco_passage`, `trec_dl_2019_passage`, `trec_dl_2020_passage`
+- `miracl_ko`, `miracl_en`, `miracl_ja`, `miracl_zh`
+- `mr_tydi_ko`
+- `beir_nq`, `beir_scifact`, `beir_fiqa_2018`, `beir_arguana`
+
+**Local Diagnostic Datasets (not official):**
+- `regression`, `snowiki_shaped`, `hidden_holdout`
 
 - `regression` keeps using the deterministic Phase 1 local fixtures.
 - `miracl_ko` loads a compact deterministic sample built from the real cached MIRACL Korean parquet assets. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
@@ -200,14 +228,36 @@ The benchmark produces two types of output:
 
 The stdout summary is intended to be concise and benchmark-focused. Backend library progress bars should not obscure the final structural, performance, retrieval, and unified verdict sections.
 
+## GitHub Actions Workflows
+
+Three workflows support the official benchmark system:
+
+| Workflow | Trigger | Purpose |
+| :--- | :--- | :--- |
+| `benchmark-official-pr` | PR paths + manual | Runs quick PR suite (4 datasets) with Layer 1 metrics |
+| `benchmark-official-scheduled` | Weekday-nightly cron + manual | Runs broad scheduled suite (12 datasets) with Layer 2 metrics |
+| `benchmark-manual` | Manual only | Ad-hoc benchmark runs for any preset |
+
+All workflows support offline preflight. If a dataset is not cached, the run is recorded as `infra_skipped` and the workflow continues.
+
+## Dashboard Decision Matrix
+
+The following directions were evaluated for richer benchmark visualization:
+
+| Direction | Mainstream Adoption | Production Fit | Maintenance Cost | Integration Complexity | Score |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Richer static pipeline | Medium | High | Low | Low | **Recommended for next step** |
+| Interactive portal | High | Medium | High | High | Deferred |
+| Report-store integration | Medium | High | Medium | Medium | Deferred |
+
+**Decision**: Ship artifact-first tables and static plots now. Evaluate interactive portal options after the official benchmark system is stable.
+
 ## Next Steps
 
-The following items remain open for the benchmark program to reach a fully durable maintenance posture:
-
-1. **Threshold calibration for public anchors**: The retrieval gate thresholds (Recall@k >= 0.72, MRR >= 0.70, nDCG@k >= 0.67) are frozen for the regression tier. Public-anchor and snowiki_shaped tiers need tier-specific or dataset-specific threshold policies so that release-quality claims are calibrated against external baselines, not the 90-query regression ceiling.
-2. **Real hidden holdout sealing**: The current `hidden_holdout` dataset is a synthetic workflow facsimile. Establish a genuine held-out query/judgment set that is never visible during development and is only unsealed during release adjudication.
-3. **Precision@K and P99 latency metrics**: These are excluded from Phase 1 and planned for future benchmark evolution once the tier model is stable.
-4. **Benchmark asset update policy**: Define a lightweight PR checklist for adding or modifying benchmark manifests so that provenance, family dedupe, and tier isolation are maintained without regressing existing suites.
+1. **Threshold calibration for official datasets**: Layer-specific thresholds need calibration against external baselines.
+2. **Real hidden holdout sealing**: Establish a genuine held-out set for release proof.
+3. **Interactive dashboard**: Evaluate portal options after benchmark system stabilizes.
+4. **Benchmark asset update policy**: Define PR checklist for adding/modifying datasets.
 
 ## Verification
 
