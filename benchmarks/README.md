@@ -10,7 +10,7 @@ Benchmarks in Snowiki are organized into **execution layers** and **evidence aut
 
 | Layer | Trigger | Datasets | Metrics | Blocking |
 | :--- | :--- | :--- | :--- | :--- |
-| `pr_official_quick` | PRs touching benchmark-relevant paths | ms_marco_passage, miracl_ko, miracl_ja, miracl_zh | nDCG@10, P95 latency | Yes |
+| `pr_official_quick` | PRs touching benchmark-relevant paths | ms_marco_passage, miracl_ko, miracl_ja, miracl_zh | nDCG@10, Recall@100, MRR@10, P95 latency | Yes |
 | `scheduled_official_broad` | Weekday-nightly cron + manual | All 12 official datasets | nDCG@10, Recall@100, MRR@10, P95 latency | No |
 | `release_proof` | Manual only (disabled-by-default) | Holdout set (not configured) | Full scorecard | Yes |
 
@@ -234,8 +234,8 @@ Three workflows support the official benchmark system:
 
 | Workflow | Trigger | Purpose |
 | :--- | :--- | :--- |
-| `benchmark-official-pr` | PR paths + manual | Runs quick PR suite (4 datasets) with Layer 1 metrics |
-| `benchmark-official-scheduled` | Weekday-nightly cron + manual | Runs broad scheduled suite (12 datasets) with Layer 2 metrics |
+| `benchmark-official-pr` | PR paths + manual | Runs quick PR suite (4 datasets) with the unified official metric set |
+| `benchmark-official-scheduled` | Weekday-nightly cron + manual | Runs broad scheduled suite (12 datasets) with the unified official metric set |
 | `benchmark-manual` | Manual only | Ad-hoc benchmark runs for any preset |
 
 All workflows support offline preflight. If a dataset is not cached, the run is recorded as `infra_skipped` and the workflow continues.
