@@ -10,36 +10,30 @@ Benchmarks in Snowiki are organized into **execution layers** and **evidence aut
 
 | Layer | Trigger | Datasets | Metrics | Blocking |
 | :--- | :--- | :--- | :--- | :--- |
-| `pr_official_quick` | PRs touching benchmark-relevant paths | ms_marco_passage, miracl_ko, miracl_ja, miracl_zh | nDCG@10, Recall@100, MRR@10, P95 latency | Yes |
-| `scheduled_official_broad` | Weekday-nightly cron + manual | All 12 official datasets | nDCG@10, Recall@100, MRR@10, P95 latency | No |
+| `pr_official_quick` | PRs touching benchmark-relevant paths | Same 6 official ko/en datasets, quick volume (150-query cap) | nDCG@10, Recall@100, MRR@10, P95 latency | Yes |
+| `scheduled_official_broad` | Weekday-nightly cron + manual | Same 6 official ko/en datasets, standard volume (500-query cap) | nDCG@10, Recall@100, MRR@10, P95 latency | No |
 | `release_proof` | Manual only (disabled-by-default) | Holdout set (not configured) | Full scorecard | Yes |
 
 ### Authority Classes
 
 | Class | Scope | Gating Power |
 | :--- | :--- | :--- |
-| `official_standard` | Downloaded public datasets (MS MARCO, TREC DL, MIRACL, Mr.TyDi, BEIR) | **Release-quality claims.** Results can be cited in release notes and compared externally. |
+| `official_standard` | Downloaded public datasets in the fixed ko/en standard suite (MS MARCO, TREC DL, MIRACL, BEIR) | **Release-quality claims.** Results can be cited in release notes and compared externally. |
 | `official_candidate` | Datasets awaiting review | **Provisional.** Must be promoted to `official_standard` before release claims. |
 | `local_diagnostic` | regression, snowiki_shaped, hidden_holdout | **Candidate-screening only.** Cannot appear in official scorecards or release claims. |
 
 ### Official Balanced-Core Backbone
 
-The official benchmark backbone consists of exactly these 12 datasets:
+The official benchmark backbone consists of exactly these 6 datasets:
 
 | Dataset | Language | Source |
 | :--- | :--- | :--- |
 | `ms_marco_passage` | en | Microsoft MSMARCO |
-| `trec_dl_2019_passage` | en | NIST TREC DL 2019 |
 | `trec_dl_2020_passage` | en | NIST TREC DL 2020 |
 | `miracl_ko` | ko | MIRACL Korean |
 | `miracl_en` | en | MIRACL English |
-| `miracl_ja` | multilingual | MIRACL Japanese |
-| `miracl_zh` | multilingual | MIRACL Chinese |
-| `mr_tydi_ko` | ko | Mr.TyDi Korean |
 | `beir_nq` | en | BEIR Natural Questions |
 | `beir_scifact` | en | BEIR SciFact |
-| `beir_fiqa_2018` | en | BEIR FiQA 2018 |
-| `beir_arguana` | en | BEIR ArguAna |
 
 Local diagnostic datasets (`regression`, `snowiki_shaped`, `hidden_holdout`) are excluded from official scorecards and release claims.
 
@@ -116,7 +110,7 @@ uv run snowiki benchmark-fetch --dataset miracl_ko
 uv run snowiki benchmark-fetch --dataset beir_scifact --data-root benchmarks --refresh force
 
 # Reuse only locally cached files (no network)
-uv run snowiki benchmark-fetch --dataset mr_tydi_ko --offline
+uv run snowiki benchmark-fetch --dataset beir_nq --offline
 ```
 
 The fetch command stores dataset payloads in the benchmark data root / HF cache and writes small local lock metadata describing every resolved source snapshot, revision, provenance metadata, and allow-listed file scope. Corpora and qrels remain outside git-managed benchmark assets.
@@ -165,17 +159,18 @@ uv run snowiki benchmark --preset retrieval --dataset hidden_holdout \
 `snowiki benchmark` accepts `--dataset` with the following options:
 
 **Official Standard Datasets:**
-- `ms_marco_passage`, `trec_dl_2019_passage`, `trec_dl_2020_passage`
-- `miracl_ko`, `miracl_en`, `miracl_ja`, `miracl_zh`
-- `mr_tydi_ko`
-- `beir_nq`, `beir_scifact`, `beir_fiqa_2018`, `beir_arguana`
+- `ms_marco_passage`, `trec_dl_2020_passage`
+- `miracl_ko`, `miracl_en`
+- `beir_nq`, `beir_scifact`
 
 **Local Diagnostic Datasets (not official):**
 - `regression`, `snowiki_shaped`, `hidden_holdout`
 
+**Additional Public-Anchor Dataset (supported, but not part of the official standard suite):**
+- `beir_nfcorpus`
+
 - `regression` keeps using the deterministic Phase 1 local fixtures.
 - `miracl_ko` loads a compact deterministic sample built from the real cached MIRACL Korean parquet assets. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
-- `mr_tydi_ko` loads a compact deterministic sample built from the real cached Mr. TyDi Korean corpus plus dev IR queries/qrels. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
 - `beir_scifact` loads a compact deterministic sample built from the real cached BEIR SciFact corpus/queries repo plus the separate SciFact qrels repo. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
 - `beir_nfcorpus` loads a compact deterministic sample built from the real cached BEIR NFCorpus corpus/queries repo plus the separate NFCorpus qrels repo. Query IDs, document IDs, and qrels come from the public dataset; run `benchmark-fetch` first.
 - `snowiki_shaped` loads a deterministic internal scripted-crawl facsimile with mixed Korean+English, code/doc, topical, temporal, and no-answer coverage for Snowiki-shaped evaluation.
@@ -234,8 +229,8 @@ Three workflows support the official benchmark system:
 
 | Workflow | Trigger | Purpose |
 | :--- | :--- | :--- |
-| `benchmark-official-pr` | PR paths + manual | Runs quick PR suite (4 datasets) with the unified official metric set |
-| `benchmark-official-scheduled` | Weekday-nightly cron + manual | Runs broad scheduled suite (12 datasets) with the unified official metric set |
+| `benchmark-official-pr` | PR paths + manual | Runs the fixed 6-dataset ko/en official suite at quick volume (150-query cap) |
+| `benchmark-official-scheduled` | Weekday-nightly cron + manual | Runs the same 6-dataset ko/en official suite at standard volume (500-query cap) |
 | `benchmark-manual` | Manual only | Ad-hoc benchmark runs for any preset |
 
 All workflows support offline preflight. If a dataset is not cached, the run is recorded as `infra_skipped` and the workflow continues.

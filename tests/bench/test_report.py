@@ -1022,7 +1022,7 @@ def test_report_includes_dataset_sample_metadata_when_present(
         dataset_metadata={
             "sample_mode": "quick",
             "queries_available": 812,
-            "sample_size": 200,
+            "sample_size": 150,
             "sampling_strategy": "deterministic_qrels_bounded_mode",
             "synthetic_sample": False,
         },
@@ -1053,22 +1053,22 @@ def test_report_includes_dataset_sample_metadata_when_present(
                 "queries_available": 200,
                 "queries_evaluated": 20,
             },
-            "protocol": {
-                "isolated_root": True,
-                "warmups": 1,
-                "repetitions": 5,
-                "query_mode": "lexical",
-                "top_k": 5,
-                "top_ks": [1, 3, 5, 10, 20],
-                "dataset_mode": "manifest",
-                "sampling_policy": {
-                    "mode": "stratified",
-                    "population_query_count": 200,
-                    "sampled_query_count": 20,
-                    "sampled": True,
-                    "strata": ["known-item"],
+                "protocol": {
+                    "isolated_root": True,
+                    "warmups": 1,
+                    "repetitions": 5,
+                    "query_mode": "lexical",
+                    "top_k": 5,
+                    "top_ks": [1, 3, 5, 10, 20],
+                    "dataset_mode": "manifest",
+                    "sampling_policy": {
+                        "mode": "stratified",
+                        "population_query_count": 150,
+                        "sampled_query_count": 20,
+                        "sampled": True,
+                        "strata": ["known-item"],
+                    },
                 },
-            },
         },
     )
     monkeypatch.setattr(
@@ -1135,19 +1135,19 @@ def test_report_includes_dataset_sample_metadata_when_present(
 
     assert dataset_metadata["sample_mode"] == "quick"
     assert dataset_metadata["queries_available"] == 812
-    assert dataset_metadata["sample_size"] == 200
+    assert dataset_metadata["sample_size"] == 150
     assert metadata["sample_mode"] == "quick"
     assert metadata["queries_available"] == 812
-    assert metadata["sample_size"] == 200
+    assert metadata["sample_size"] == 150
     assert "sampling_strategy" not in metadata
     assert metadata["latency_sampling_policy"] == {
         "mode": "stratified",
-        "population_query_count": 200,
+        "population_query_count": 150,
         "sampled_query_count": 20,
         "sampled": True,
         "strata": ["known-item"],
     }
-    assert "Dataset sample mode: quick (200/812 queries)" in rendered
+    assert "Dataset sample mode: quick (150/812 queries)" in rendered
 
 
 def test_report_size_is_bounded_for_large_tiers(

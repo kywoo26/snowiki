@@ -15,7 +15,6 @@ from snowiki.bench.anchors.public_cached import (
     load_beir_nfcorpus_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_miracl_ko_cached_manifest,
-    load_mr_tydi_ko_cached_manifest,
     resolve_public_anchor_sample_count,
 )
 from snowiki.bench.corpus import BenchmarkCorpusManifest, load_corpus_from_manifest
@@ -125,39 +124,6 @@ def _seed_miracl_cache(tmp_path: Path) -> Path:
     return data_root
 
 
-def _seed_mr_tydi_cache(tmp_path: Path) -> Path:
-    data_root = tmp_path / "benchmark-data"
-    query_snapshot = data_root / "hf" / "mr-tydi" / "snapshots" / "fixture"
-    corpus_snapshot = data_root / "hf" / "mr-tydi-corpus" / "snapshots" / "fixture"
-    topics_path = query_snapshot / "mrtydi-v1.1-korean/ir-format-data/topics.dev.txt"
-    topics_path.parent.mkdir(parents=True, exist_ok=True)
-    _ = topics_path.write_text(
-        "0\t월드컵 개최 국가는 몇 개인가?\n"
-        "2\t합성생물학의 다른 연구 방식은?\n"
-        "4\t룩셈부르크의 수도는 어디인가?\n",
-        encoding="utf-8",
-    )
-    qrels_path = query_snapshot / "mrtydi-v1.1-korean/ir-format-data/qrels.dev.txt"
-    _ = qrels_path.write_text(
-        "0 Q0 mr-doc-1#0 1\n2 Q0 mr-doc-2#0 1\n4 Q0 mr-doc-3#0 1\n",
-        encoding="utf-8",
-    )
-    _write_jsonl_gz(
-        corpus_snapshot / "mrtydi-v1.1-korean/corpus.jsonl.gz",
-        [
-            {"docid": "mr-doc-1#0", "title": "월드컵", "text": "월드컵 개최 국가 수 안내"},
-            {"docid": "mr-doc-2#0", "title": "합성생물학", "text": "합성생물학 연구 방식 설명"},
-            {"docid": "mr-doc-3#0", "title": "룩셈부르크", "text": "룩셈부르크 수도 안내"},
-        ],
-    )
-    _write_lock(
-        dataset_id="mr_tydi_ko",
-        data_root=data_root,
-        source_paths={"queries_qrels": query_snapshot, "corpus": corpus_snapshot},
-    )
-    return data_root
-
-
 def _seed_beir_scifact_cache(tmp_path: Path) -> Path:
     data_root = tmp_path / "benchmark-data"
     corpus_snapshot = data_root / "hf" / "beir-scifact" / "snapshots" / "fixture"
@@ -248,14 +214,6 @@ def _seed_beir_nfcorpus_cache(tmp_path: Path) -> Path:
             "ko",
         ),
         (
-            load_mr_tydi_ko_cached_manifest,
-            _seed_mr_tydi_cache,
-            "mr_tydi_ko",
-            ["0", "2"],
-            ["mr-doc-1#0", "mr-doc-2#0"],
-            "ko",
-        ),
-        (
             load_beir_scifact_cached_manifest,
             _seed_beir_scifact_cache,
             "beir_scifact",
@@ -311,7 +269,7 @@ def test_cached_public_anchor_manifest_uses_real_cached_assets(
     [
         (0, "quick", None, 0),
         (50, "quick", None, 50),
-        (250, "quick", None, 200),
+        (250, "quick", None, 150),
         (300, "standard", None, 300),
         (700, "standard", None, 500),
         (700, "full", None, 700),

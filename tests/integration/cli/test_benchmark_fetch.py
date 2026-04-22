@@ -115,6 +115,5 @@ def test_benchmark_fetch_help_mentions_supported_datasets() -> None:
 
     assert result.exit_code == 0, result.output
     assert "miracl_ko" in result.output
-    assert "mr_tydi_ko" in result.output
     assert "beir_scifact" in result.output
     assert "beir_nfcorpus" in result.output

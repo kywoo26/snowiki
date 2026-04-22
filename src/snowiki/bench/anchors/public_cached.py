@@ -23,7 +23,7 @@ from snowiki.bench.models import BenchmarkAssetManifest, BenchmarkProvenance
 
 PublicAnchorSampleMode = Literal["quick", "standard", "full"]
 
-QUICK_SIZE: Final[int] = 200
+QUICK_SIZE: Final[int] = 150
 STANDARD_SIZE: Final[int] = 500
 FULL_CAP: Final[int] = 1000
 _MAX_IMPORTED_TITLE_LENGTH: Final[int] = 96
@@ -43,10 +43,6 @@ _PUBLIC_DATASET_METADATA: Final[dict[BenchmarkDatasetId, dict[str, str]]] = {
         "name": "MS MARCO Passage Ranking",
         "description": "Classic passage-retrieval benchmark from Bing logs.",
     },
-    "trec_dl_2019_passage": {
-        "name": "TREC DL 2019 Passage",
-        "description": "NIST judged passage ranking track on MS MARCO.",
-    },
     "trec_dl_2020_passage": {
         "name": "TREC DL 2020 Passage",
         "description": "NIST judged passage ranking track on MS MARCO.",
@@ -59,18 +55,6 @@ _PUBLIC_DATASET_METADATA: Final[dict[BenchmarkDatasetId, dict[str, str]]] = {
         "name": "MIRACL English",
         "description": "Deterministic manifest sampled from the real cached MIRACL English public benchmark assets.",
     },
-    "miracl_ja": {
-        "name": "MIRACL Japanese",
-        "description": "Deterministic manifest sampled from the real cached MIRACL Japanese public benchmark assets.",
-    },
-    "miracl_zh": {
-        "name": "MIRACL Chinese",
-        "description": "Deterministic manifest sampled from the real cached MIRACL Chinese public benchmark assets.",
-    },
-    "mr_tydi_ko": {
-        "name": "Mr. TyDi Korean",
-        "description": "Deterministic manifest sampled from the real cached Mr. TyDi Korean public benchmark assets.",
-    },
     "beir_nq": {
         "name": "BEIR Natural Questions",
         "description": "Deterministic manifest sampled from the real cached BEIR NQ public benchmark assets.",
@@ -78,14 +62,6 @@ _PUBLIC_DATASET_METADATA: Final[dict[BenchmarkDatasetId, dict[str, str]]] = {
     "beir_scifact": {
         "name": "BEIR SciFact",
         "description": "Deterministic manifest sampled from the real cached BEIR SciFact public benchmark assets.",
-    },
-    "beir_fiqa_2018": {
-        "name": "BEIR FiQA 2018",
-        "description": "Deterministic manifest sampled from the real cached BEIR FiQA public benchmark assets.",
-    },
-    "beir_arguana": {
-        "name": "BEIR ArguAna",
-        "description": "Deterministic manifest sampled from the real cached BEIR ArguAna public benchmark assets.",
     },
     "beir_nfcorpus": {
         "name": "BEIR NFCorpus",
@@ -199,47 +175,6 @@ def load_ms_marco_passage_cached_manifest(
     )
 
 
-def load_trec_dl_2019_passage_cached_manifest(
-    size: int | None = None,
-    *,
-    sample_mode: PublicAnchorSampleMode = "standard",
-    data_root: Path | None = None,
-) -> BenchmarkCorpusManifest:
-    """Build a real TREC DL 2019 Passage benchmark manifest from cached public assets."""
-
-    fetched = resolve_cached_benchmark_dataset("trec_dl_2019_passage", data_root=data_root)
-    dataset_source = _require_source(fetched, "corpus_queries")
-    cache_dir = get_benchmark_materialized_root(data_root)
-    corpus_rows = _load_parquet_rows(
-        dataset_source.snapshot_path, "v2.1/*_passage*.parquet", cache_dir
-    )
-    query_rows = _load_parquet_rows(
-        dataset_source.snapshot_path, "v2.1/*_queries*.parquet", cache_dir
-    )
-    return _build_real_manifest(
-        dataset_id="trec_dl_2019_passage",
-        size=size,
-        sample_mode=sample_mode,
-        fetched=fetched,
-        corpus_rows=corpus_rows,
-        query_rows=query_rows,
-        qrel_rows=[],
-        corpus_id_keys=("docid", "_id"),
-        query_id_keys=("qid", "_id"),
-        query_text_keys=("query", "text"),
-        qrel_query_keys=("qid",),
-        qrel_doc_keys=("docid",),
-        qrel_score_keys=("relevance", "score"),
-        corpus_asset_path=_asset_path_from_pattern(
-            dataset_source.snapshot_path, "v2.1/*_passage*.parquet"
-        ),
-        query_asset_path=_asset_path_from_pattern(
-            dataset_source.snapshot_path, "v2.1/*_queries*.parquet"
-        ),
-        judgment_asset_path=dataset_source.snapshot_path,
-    )
-
-
 def load_trec_dl_2020_passage_cached_manifest(
     size: int | None = None,
     *,
@@ -315,40 +250,6 @@ def load_miracl_ko_cached_manifest(
     )
 
 
-def load_mr_tydi_ko_cached_manifest(
-    size: int | None = None,
-    *,
-    sample_mode: PublicAnchorSampleMode = "standard",
-    data_root: Path | None = None,
-) -> BenchmarkCorpusManifest:
-    """Build a real Mr. TyDi Korean benchmark manifest from cached public assets."""
-
-    fetched = resolve_cached_benchmark_dataset("mr_tydi_ko", data_root=data_root)
-    query_source = _require_source(fetched, "queries_qrels")
-    corpus_source = _require_source(fetched, "corpus")
-    topics_path = query_source.snapshot_path / "mrtydi-v1.1-korean/ir-format-data/topics.dev.txt"
-    qrels_path = query_source.snapshot_path / "mrtydi-v1.1-korean/ir-format-data/qrels.dev.txt"
-    corpus_path = corpus_source.snapshot_path / "mrtydi-v1.1-korean/corpus.jsonl.gz"
-    return _build_real_manifest(
-        dataset_id="mr_tydi_ko",
-        size=size,
-        sample_mode=sample_mode,
-        fetched=fetched,
-        corpus_rows=_iter_jsonl_gz_rows(corpus_path),
-        query_rows=list(_iter_topics_rows(topics_path)),
-        qrel_rows=list(_iter_trec_qrels_rows(qrels_path)),
-        corpus_id_keys=("docid",),
-        query_id_keys=("query_id",),
-        query_text_keys=("query", "text"),
-        qrel_query_keys=("query_id",),
-        qrel_doc_keys=("doc_id",),
-        qrel_score_keys=("relevance",),
-        corpus_asset_path=corpus_path,
-        query_asset_path=topics_path,
-        judgment_asset_path=qrels_path,
-    )
-
-
 def load_beir_scifact_cached_manifest(
     size: int | None = None,
     *,
@@ -371,42 +272,10 @@ def load_beir_nq_cached_manifest(
     sample_mode: PublicAnchorSampleMode = "standard",
     data_root: Path | None = None,
 ) -> BenchmarkCorpusManifest:
-    """Build a real BEIR NQ benchmark manifest from cached public assets."""
+    """Build a real BEIR Natural Questions benchmark manifest from cached public assets."""
 
     return _load_beir_cached_manifest(
         "beir_nq",
-        size=size,
-        sample_mode=sample_mode,
-        data_root=data_root,
-    )
-
-
-def load_beir_fiqa_2018_cached_manifest(
-    size: int | None = None,
-    *,
-    sample_mode: PublicAnchorSampleMode = "standard",
-    data_root: Path | None = None,
-) -> BenchmarkCorpusManifest:
-    """Build a real BEIR FiQA 2018 benchmark manifest from cached public assets."""
-
-    return _load_beir_cached_manifest(
-        "beir_fiqa_2018",
-        size=size,
-        sample_mode=sample_mode,
-        data_root=data_root,
-    )
-
-
-def load_beir_arguana_cached_manifest(
-    size: int | None = None,
-    *,
-    sample_mode: PublicAnchorSampleMode = "standard",
-    data_root: Path | None = None,
-) -> BenchmarkCorpusManifest:
-    """Build a real BEIR ArguAna benchmark manifest from cached public assets."""
-
-    return _load_beir_cached_manifest(
-        "beir_arguana",
         size=size,
         sample_mode=sample_mode,
         data_root=data_root,
@@ -424,40 +293,6 @@ def load_miracl_en_cached_manifest(
     return _load_miracl_cached_manifest(
         "miracl_en",
         "en",
-        size=size,
-        sample_mode=sample_mode,
-        data_root=data_root,
-    )
-
-
-def load_miracl_ja_cached_manifest(
-    size: int | None = None,
-    *,
-    sample_mode: PublicAnchorSampleMode = "standard",
-    data_root: Path | None = None,
-) -> BenchmarkCorpusManifest:
-    """Build a real MIRACL Japanese benchmark manifest from cached public assets."""
-
-    return _load_miracl_cached_manifest(
-        "miracl_ja",
-        "ja",
-        size=size,
-        sample_mode=sample_mode,
-        data_root=data_root,
-    )
-
-
-def load_miracl_zh_cached_manifest(
-    size: int | None = None,
-    *,
-    sample_mode: PublicAnchorSampleMode = "standard",
-    data_root: Path | None = None,
-) -> BenchmarkCorpusManifest:
-    """Build a real MIRACL Chinese benchmark manifest from cached public assets."""
-
-    return _load_miracl_cached_manifest(
-        "miracl_zh",
-        "zh",
         size=size,
         sample_mode=sample_mode,
         data_root=data_root,
@@ -942,18 +777,12 @@ __all__ = [
     "PublicAnchorSampleMode",
     "QUICK_SIZE",
     "STANDARD_SIZE",
-    "load_beir_arguana_cached_manifest",
-    "load_beir_fiqa_2018_cached_manifest",
     "load_beir_nfcorpus_cached_manifest",
     "load_beir_nq_cached_manifest",
     "load_beir_scifact_cached_manifest",
     "load_miracl_en_cached_manifest",
-    "load_miracl_ja_cached_manifest",
     "load_miracl_ko_cached_manifest",
-    "load_miracl_zh_cached_manifest",
-    "load_mr_tydi_ko_cached_manifest",
     "load_ms_marco_passage_cached_manifest",
-    "load_trec_dl_2019_passage_cached_manifest",
     "load_trec_dl_2020_passage_cached_manifest",
     "resolve_public_anchor_sample_count",
 ]
