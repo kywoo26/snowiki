@@ -554,7 +554,7 @@ def test_benchmark_regression_ignores_sample_mode(
     ("dataset", "extra_args", "expected_sample_mode"),
     [
         ("miracl_ko", ["--sample-mode", "quick"], "quick"),
-        ("mr_tydi_ko", ["--sample-mode", "full"], "full"),
+        ("trec_dl_2020_passage", ["--sample-mode", "full"], "full"),
         ("beir_scifact", [], "standard"),
         ("beir_nfcorpus", ["--sample-mode", "full"], "full"),
     ],
@@ -723,7 +723,7 @@ def test_benchmark_help_mentions_isolated_temp_root() -> None:
     assert "beir_small" not in result.output
     assert "--sample-mode" in result.output
     assert "Public-anchor dataset sample mode" in result.output
-    assert "quick=200" in result.output
+    assert "quick=150" in result.output
     assert "hidden-holdout tiers" in result.output
     assert "defaults to an isolated" in result.output
     assert "temporary benchmark root" in result.output

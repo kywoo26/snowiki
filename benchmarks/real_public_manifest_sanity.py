@@ -10,15 +10,13 @@ from snowiki.bench.anchors.public_cached import (
     load_beir_nfcorpus_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_miracl_ko_cached_manifest,
-    load_mr_tydi_ko_cached_manifest,
 )
 from snowiki.bench.corpus import BenchmarkCorpusManifest
 
 _EXPECTED_COUNTS: Final[dict[str, tuple[int, int, int]]] = {
-    "MIRACL KO": (200, 213, 213),
-    "Mr. TyDi KO": (200, 303, 303),
-    "BEIR SciFact": (200, 300, 300),
-    "BEIR NFCorpus": (200, 323, 323),
+    "MIRACL KO": (150, 213, 213),
+    "BEIR SciFact": (150, 300, 300),
+    "BEIR NFCorpus": (150, 323, 323),
 }
 _MODES: Final[tuple[PublicAnchorSampleMode, ...]] = ("quick", "standard", "full")
 
@@ -78,7 +76,6 @@ def main() -> int:
     data_root = args.data_root
     datasets = (
         ("MIRACL KO", load_miracl_ko_cached_manifest),
-        ("Mr. TyDi KO", load_mr_tydi_ko_cached_manifest),
         ("BEIR SciFact", load_beir_scifact_cached_manifest),
         ("BEIR NFCorpus", load_beir_nfcorpus_cached_manifest),
     )

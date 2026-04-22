@@ -15,20 +15,14 @@ from snowiki.bench.policy import (
 class TestOfficialBackbone:
     """Verify the exact official dataset backbone."""
 
-    def test_exact_12_datasets(self) -> None:
+    def test_exact_6_datasets(self) -> None:
         expected = {
             "ms_marco_passage",
-            "trec_dl_2019_passage",
             "trec_dl_2020_passage",
             "miracl_ko",
             "miracl_en",
-            "miracl_ja",
-            "miracl_zh",
-            "mr_tydi_ko",
             "beir_nq",
             "beir_scifact",
-            "beir_fiqa_2018",
-            "beir_arguana",
         }
         actual = {d.dataset_id for d in OFFICIAL_BALANCED_CORE}
         assert actual == expected
@@ -65,14 +59,16 @@ class TestSuiteDefinitions:
         suite = get_quick_pr_suite()
         assert suite == (
             "ms_marco_passage",
+            "trec_dl_2020_passage",
             "miracl_ko",
-            "miracl_ja",
-            "miracl_zh",
+            "miracl_en",
+            "beir_nq",
+            "beir_scifact",
         )
 
     def test_scheduled_suite_exact(self) -> None:
         suite = get_scheduled_suite()
-        assert len(suite) == 12
+        assert len(suite) == 6
         assert set(suite) == {d.dataset_id for d in OFFICIAL_BALANCED_CORE}
 
 

@@ -75,26 +75,22 @@ class TestVerdictLayerSemantics:
 class TestSuiteDefinitions:
     """Tests for official suite definitions."""
 
-    def test_quick_pr_suite_has_four_datasets(self) -> None:
+    def test_quick_pr_suite_has_six_datasets(self) -> None:
         suite = get_quick_pr_suite()
-        assert len(suite) == 4
+        assert len(suite) == 6
         assert suite[0] == "ms_marco_passage"
-        assert "miracl_ko" in suite
-        assert "miracl_ja" in suite
-        assert "miracl_zh" in suite
-
-    def test_scheduled_suite_has_twelve_datasets(self) -> None:
-        suite = get_scheduled_suite()
-        assert len(suite) == 12
-        assert "ms_marco_passage" in suite
-        assert "trec_dl_2019_passage" in suite
         assert "trec_dl_2020_passage" in suite
         assert "miracl_ko" in suite
         assert "miracl_en" in suite
-        assert "miracl_ja" in suite
-        assert "miracl_zh" in suite
-        assert "mr_tydi_ko" in suite
         assert "beir_nq" in suite
         assert "beir_scifact" in suite
-        assert "beir_fiqa_2018" in suite
-        assert "beir_arguana" in suite
+
+    def test_scheduled_suite_has_six_datasets(self) -> None:
+        suite = get_scheduled_suite()
+        assert len(suite) == 6
+        assert "ms_marco_passage" in suite
+        assert "trec_dl_2020_passage" in suite
+        assert "miracl_ko" in suite
+        assert "miracl_en" in suite
+        assert "beir_nq" in suite
+        assert "beir_scifact" in suite

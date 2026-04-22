@@ -17,9 +17,11 @@ jobs:
       matrix:
         dataset:
           - ms_marco_passage
+          - trec_dl_2020_passage
           - miracl_ko
-          - miracl_ja
-          - miracl_zh
+          - miracl_en
+          - beir_nq
+          - beir_scifact
       fail-fast: false
 
     steps:

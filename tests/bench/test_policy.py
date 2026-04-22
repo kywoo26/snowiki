@@ -22,17 +22,11 @@ class TestOfficialRegistry:
     def test_registry_has_expected_datasets(self) -> None:
         expected_ids = {
             "ms_marco_passage",
-            "trec_dl_2019_passage",
             "trec_dl_2020_passage",
             "miracl_ko",
             "miracl_en",
-            "miracl_ja",
-            "miracl_zh",
-            "mr_tydi_ko",
             "beir_nq",
             "beir_scifact",
-            "beir_fiqa_2018",
-            "beir_arguana",
         }
         actual_ids = {d.dataset_id for d in OFFICIAL_BALANCED_CORE}
         assert actual_ids == expected_ids
@@ -41,8 +35,8 @@ class TestOfficialRegistry:
         for entry in OFFICIAL_BALANCED_CORE:
             assert entry.authority_class == "official_standard"
 
-    def test_registry_has_12_datasets(self) -> None:
-        assert len(OFFICIAL_BALANCED_CORE) == 12
+    def test_registry_has_6_datasets(self) -> None:
+        assert len(OFFICIAL_BALANCED_CORE) == 6
 
 
 class TestLanguageAxes:
@@ -53,27 +47,22 @@ class TestLanguageAxes:
         en_ids = {d.dataset_id for d in en_datasets}
         expected = {
             "ms_marco_passage",
-            "trec_dl_2019_passage",
             "trec_dl_2020_passage",
             "miracl_en",
             "beir_nq",
             "beir_scifact",
-            "beir_fiqa_2018",
-            "beir_arguana",
         }
         assert en_ids == expected
 
     def test_korean_datasets(self) -> None:
         ko_datasets = get_official_datasets_by_language("ko")
         ko_ids = {d.dataset_id for d in ko_datasets}
-        expected = {"miracl_ko", "mr_tydi_ko"}
+        expected = {"miracl_ko"}
         assert ko_ids == expected
 
     def test_multilingual_datasets(self) -> None:
         multi_datasets = get_official_datasets_by_language("multilingual")
-        multi_ids = {d.dataset_id for d in multi_datasets}
-        expected = {"miracl_ja", "miracl_zh"}
-        assert multi_ids == expected
+        assert multi_datasets == ()
 
 
 class TestLocalDiagnostics:
@@ -143,9 +132,11 @@ class TestSuiteDefinitions:
         suite = get_quick_pr_suite()
         expected = (
             "ms_marco_passage",
+            "trec_dl_2020_passage",
             "miracl_ko",
-            "miracl_ja",
-            "miracl_zh",
+            "miracl_en",
+            "beir_nq",
+            "beir_scifact",
         )
         assert suite == expected
         # All must be official
@@ -154,7 +145,7 @@ class TestSuiteDefinitions:
 
     def test_scheduled_suite(self) -> None:
         suite = get_scheduled_suite()
-        assert len(suite) == 12
+        assert len(suite) == 6
         # All must be official
         for dataset_id in suite:
             assert is_official(dataset_id)

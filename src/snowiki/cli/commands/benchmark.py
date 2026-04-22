@@ -11,20 +11,14 @@ from typing import Literal, cast
 import click
 
 from snowiki.bench.anchors import (
-    load_beir_arguana_cached_manifest,
-    load_beir_fiqa_2018_cached_manifest,
     load_beir_nfcorpus_cached_manifest,
     load_beir_nq_cached_manifest,
     load_beir_scifact_cached_manifest,
     load_hidden_holdout_suite,
     load_miracl_en_cached_manifest,
-    load_miracl_ja_cached_manifest,
     load_miracl_ko_cached_manifest,
-    load_miracl_zh_cached_manifest,
-    load_mr_tydi_ko_cached_manifest,
     load_ms_marco_passage_cached_manifest,
     load_snowiki_shaped_suite,
-    load_trec_dl_2019_passage_cached_manifest,
     load_trec_dl_2020_passage_cached_manifest,
 )
 from snowiki.bench.anchors.public_cached import PublicAnchorSampleMode
@@ -45,17 +39,11 @@ PRESET_NAMES = tuple(preset.name for preset in list_presets())
 DATASET_NAMES = (
     "regression",
     "ms_marco_passage",
-    "trec_dl_2019_passage",
     "trec_dl_2020_passage",
     "miracl_ko",
     "miracl_en",
-    "miracl_ja",
-    "miracl_zh",
-    "mr_tydi_ko",
     "beir_nq",
     "beir_scifact",
-    "beir_fiqa_2018",
-    "beir_arguana",
     "beir_nfcorpus",
     "snowiki_shaped",
     "hidden_holdout",
@@ -72,28 +60,16 @@ def _load_dataset_manifest(
 ) -> BenchmarkCorpusManifest | None:
     if dataset == "ms_marco_passage":
         return load_ms_marco_passage_cached_manifest(sample_mode=sample_mode)
-    if dataset == "trec_dl_2019_passage":
-        return load_trec_dl_2019_passage_cached_manifest(sample_mode=sample_mode)
     if dataset == "trec_dl_2020_passage":
         return load_trec_dl_2020_passage_cached_manifest(sample_mode=sample_mode)
     if dataset == "miracl_ko":
         return load_miracl_ko_cached_manifest(sample_mode=sample_mode)
     if dataset == "miracl_en":
         return load_miracl_en_cached_manifest(sample_mode=sample_mode)
-    if dataset == "miracl_ja":
-        return load_miracl_ja_cached_manifest(sample_mode=sample_mode)
-    if dataset == "miracl_zh":
-        return load_miracl_zh_cached_manifest(sample_mode=sample_mode)
-    if dataset == "mr_tydi_ko":
-        return load_mr_tydi_ko_cached_manifest(sample_mode=sample_mode)
     if dataset == "beir_nq":
         return load_beir_nq_cached_manifest(sample_mode=sample_mode)
     if dataset == "beir_scifact":
         return load_beir_scifact_cached_manifest(sample_mode=sample_mode)
-    if dataset == "beir_fiqa_2018":
-        return load_beir_fiqa_2018_cached_manifest(sample_mode=sample_mode)
-    if dataset == "beir_arguana":
-        return load_beir_arguana_cached_manifest(sample_mode=sample_mode)
     if dataset == "beir_nfcorpus":
         return load_beir_nfcorpus_cached_manifest(sample_mode=sample_mode)
     if dataset == "snowiki_shaped":
@@ -163,7 +139,7 @@ def _benchmark_root_context(root: Path | None) -> Iterator[Path]:
     default="standard",
     show_default=True,
     help=(
-        "Public-anchor dataset sample mode (quick=200, standard=500, "
+        "Public-anchor dataset sample mode (quick=150, standard=500, "
         + "full=min(all,1000)). Ignored for regression, shaped, and "
         + "hidden-holdout tiers."
     ),

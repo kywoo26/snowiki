@@ -233,7 +233,5 @@ def load_mr_tydi_ko_sample(size: int = 100) -> BenchmarkCorpusManifest:
 
 __all__ = [
     "MIRACL_KO_METADATA",
-    "MR_TYDI_KO_METADATA",
     "load_miracl_ko_sample",
-    "load_mr_tydi_ko_sample",
 ]

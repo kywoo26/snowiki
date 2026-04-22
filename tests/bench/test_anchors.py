@@ -14,9 +14,7 @@ from snowiki.bench.anchors.english import (
 )
 from snowiki.bench.anchors.korean import (
     MIRACL_KO_METADATA,
-    MR_TYDI_KO_METADATA,
     load_miracl_ko_sample,
-    load_mr_tydi_ko_sample,
 )
 from snowiki.bench.anchors.snowiki_shaped import (
     LLM_GENERATED_QUOTA,
@@ -41,7 +39,6 @@ def _anchor_report(
 ) -> tuple[BenchmarkCorpusManifest, dict[str, object]]:
     loaders = {
         "miracl_ko": load_miracl_ko_sample,
-        "mr_tydi_ko": load_mr_tydi_ko_sample,
         "beir_scifact": load_beir_scifact_sample,
         "beir_nfcorpus": load_beir_nfcorpus_sample,
         "snowiki_shaped": load_snowiki_shaped_suite,
@@ -106,30 +103,10 @@ def test_miracl_korean_manifest_validates(
     assert dataset_payload["tier"] == "public_anchor"
 
 
-def test_mr_tydi_korean_manifest_validates(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    manifest, report = _anchor_report(
-        tmp_path,
-        dataset="mr_tydi_ko",
-        monkeypatch=monkeypatch,
-    )
-    dataset_payload = cast(dict[str, object], report["dataset"])
-
-    assert manifest.tier == "public_anchor"
-    assert manifest.dataset_name == MR_TYDI_KO_METADATA["name"]
-    assert len(manifest.documents) == 6
-    assert len(manifest.queries or []) == 6
-    assert len(manifest.judgments or {}) == 6
-    assert dataset_payload["name"] == MR_TYDI_KO_METADATA["name"]
-
-
 def test_anchor_provenance_metadata_is_correct() -> None:
     miracl_manifest = load_miracl_ko_sample(size=4)
-    mr_tydi_manifest = load_mr_tydi_ko_sample(size=4)
 
     miracl_provenance = miracl_manifest.corpus_assets[0].provenance
-    mr_tydi_provenance = mr_tydi_manifest.corpus_assets[0].provenance
 
     assert miracl_manifest.dataset_metadata is not None
     assert miracl_manifest.dataset_metadata["license"] == "Apache-2.0"
@@ -139,13 +116,6 @@ def test_anchor_provenance_metadata_is_correct() -> None:
     )
     assert miracl_provenance.family_dedupe_key == "public-anchor:miracl_ko:ko"
     assert miracl_provenance.authority_tier == "public_anchor"
-    assert mr_tydi_manifest.dataset_metadata is not None
-    assert mr_tydi_manifest.dataset_metadata["license"] == "CC-BY-3.0"
-    assert (
-        mr_tydi_manifest.dataset_metadata["citation"] == MR_TYDI_KO_METADATA["citation"]
-    )
-    assert mr_tydi_provenance.family_dedupe_key == "public-anchor:mr_tydi_ko:ko"
-    assert mr_tydi_provenance.authority_tier == "public_anchor"
 
 
 def test_beir_scifact_manifest_validates(
@@ -211,13 +181,9 @@ def test_english_anchor_provenance_metadata_is_correct() -> None:
 
 def test_anchor_documents_have_korean_content() -> None:
     miracl_manifest = load_miracl_ko_sample(size=4)
-    mr_tydi_manifest = load_mr_tydi_ko_sample(size=4)
 
     assert all(
         _has_hangul(str(document["content"])) for document in miracl_manifest.documents
-    )
-    assert all(
-        _has_hangul(str(document["content"])) for document in mr_tydi_manifest.documents
     )
     assert all(
         _has_hangul(

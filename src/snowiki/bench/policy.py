@@ -35,7 +35,6 @@ class BenchmarkPolicy:
     dataset_id: str
 
 
-# Official balanced-core benchmark backbone
 # Ordered by priority / standardness
 OFFICIAL_BALANCED_CORE: Final[tuple[OfficialDatasetEntry, ...]] = (
     OfficialDatasetEntry(
@@ -45,14 +44,6 @@ OFFICIAL_BALANCED_CORE: Final[tuple[OfficialDatasetEntry, ...]] = (
         language_axis="en",
         description="Classic passage-retrieval benchmark from Bing logs.",
         source_url="https://github.com/microsoft/MSMARCO-Passage-Ranking",
-    ),
-    OfficialDatasetEntry(
-        dataset_id="trec_dl_2019_passage",
-        name="TREC DL 2019 Passage",
-        authority_class="official_standard",
-        language_axis="en",
-        description="NIST judged passage ranking track on MS MARCO.",
-        source_url="https://microsoft.github.io/msmarco/TREC-Deep-Learning-2019",
     ),
     OfficialDatasetEntry(
         dataset_id="trec_dl_2020_passage",
@@ -79,30 +70,6 @@ OFFICIAL_BALANCED_CORE: Final[tuple[OfficialDatasetEntry, ...]] = (
         source_url="https://github.com/project-miracl/miracl",
     ),
     OfficialDatasetEntry(
-        dataset_id="miracl_ja",
-        name="MIRACL Japanese",
-        authority_class="official_standard",
-        language_axis="multilingual",
-        description="Multilingual IR benchmark — Japanese slice.",
-        source_url="https://github.com/project-miracl/miracl",
-    ),
-    OfficialDatasetEntry(
-        dataset_id="miracl_zh",
-        name="MIRACL Chinese",
-        authority_class="official_standard",
-        language_axis="multilingual",
-        description="Multilingual IR benchmark — Chinese slice.",
-        source_url="https://github.com/project-miracl/miracl",
-    ),
-    OfficialDatasetEntry(
-        dataset_id="mr_tydi_ko",
-        name="Mr. TyDi Korean",
-        authority_class="official_standard",
-        language_axis="ko",
-        description="Multilingual dense retrieval — Korean slice.",
-        source_url="https://github.com/castorini/mr.tydi",
-    ),
-    OfficialDatasetEntry(
         dataset_id="beir_nq",
         name="BEIR Natural Questions",
         authority_class="official_standard",
@@ -116,22 +83,6 @@ OFFICIAL_BALANCED_CORE: Final[tuple[OfficialDatasetEntry, ...]] = (
         authority_class="official_standard",
         language_axis="en",
         description="BEIR zero-shot retrieval — scientific claim verification.",
-        source_url="https://github.com/beir-cellar/beir",
-    ),
-    OfficialDatasetEntry(
-        dataset_id="beir_fiqa_2018",
-        name="BEIR FiQA 2018",
-        authority_class="official_standard",
-        language_axis="en",
-        description="BEIR zero-shot retrieval — finance QA.",
-        source_url="https://github.com/beir-cellar/beir",
-    ),
-    OfficialDatasetEntry(
-        dataset_id="beir_arguana",
-        name="BEIR ArguAna",
-        authority_class="official_standard",
-        language_axis="en",
-        description="BEIR zero-shot retrieval — argument retrieval.",
         source_url="https://github.com/beir-cellar/beir",
     ),
 )
@@ -225,12 +176,7 @@ def get_official_datasets_by_language(
 
 def get_quick_pr_suite() -> tuple[str, ...]:
     """Return the official quick PR suite dataset IDs."""
-    return (
-        "ms_marco_passage",
-        "miracl_ko",
-        "miracl_ja",
-        "miracl_zh",
-    )
+    return tuple(d.dataset_id for d in OFFICIAL_BALANCED_CORE)
 
 
 def get_scheduled_suite() -> tuple[str, ...]:

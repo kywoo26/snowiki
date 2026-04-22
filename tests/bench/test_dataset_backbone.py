@@ -23,17 +23,11 @@ class TestOfficialDatasetRegistry:
     def test_registry_has_expected_datasets(self) -> None:
         expected = {
             "ms_marco_passage",
-            "trec_dl_2019_passage",
             "trec_dl_2020_passage",
             "miracl_ko",
             "miracl_en",
-            "miracl_ja",
-            "miracl_zh",
-            "mr_tydi_ko",
             "beir_nq",
             "beir_scifact",
-            "beir_fiqa_2018",
-            "beir_arguana",
             "beir_nfcorpus",
         }
         actual = set(BENCHMARK_DATASET_IDS)
@@ -52,7 +46,7 @@ class TestOfficialDatasetRegistry:
     def test_beir_datasets_have_separate_qrels(self) -> None:
         from snowiki.bench.datasets import BenchmarkDatasetId
 
-        beir_datasets: list[BenchmarkDatasetId] = ["beir_nq", "beir_scifact", "beir_fiqa_2018", "beir_arguana"]
+        beir_datasets: list[BenchmarkDatasetId] = ["beir_nq", "beir_scifact"]
         for dataset_id in beir_datasets:
             spec = BENCHMARK_DATASET_REGISTRY[dataset_id]
             labels = {s.label for s in spec.sources}
@@ -62,7 +56,7 @@ class TestOfficialDatasetRegistry:
     def test_miracl_datasets_use_single_source(self) -> None:
         from snowiki.bench.datasets import BenchmarkDatasetId
 
-        miracl_datasets: list[BenchmarkDatasetId] = ["miracl_ko", "miracl_en", "miracl_ja", "miracl_zh"]
+        miracl_datasets: list[BenchmarkDatasetId] = ["miracl_ko", "miracl_en"]
         for dataset_id in miracl_datasets:
             spec = BENCHMARK_DATASET_REGISTRY[dataset_id]
             assert len(spec.sources) == 1
