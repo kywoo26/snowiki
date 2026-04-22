@@ -220,11 +220,11 @@ def test_fetch_benchmark_dataset_materializes_returned_snapshot_directory(
 
 def test_resolve_cached_benchmark_dataset_requires_fetch_first(tmp_path: Path) -> None:
     with pytest.raises(datasets.BenchmarkDatasetCacheMissingError) as exc_info:
-        _ = datasets.resolve_cached_benchmark_dataset("mr_tydi_ko", data_root=tmp_path)
+        _ = datasets.resolve_cached_benchmark_dataset("beir_nq", data_root=tmp_path)
 
     assert (
         str(exc_info.value)
-        == "benchmark dataset 'mr_tydi_ko' is not cached under "
+        == "benchmark dataset 'beir_nq' is not cached under "
         f"{tmp_path.resolve().as_posix()}; run `uv run snowiki benchmark-fetch "
-        "--dataset mr_tydi_ko` first"
+        f"--dataset beir_nq` first"
     )
