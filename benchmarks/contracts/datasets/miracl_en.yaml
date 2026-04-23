@@ -1,0 +1,31 @@
+dataset_id: miracl_en
+name: MIRACL English
+language: en
+purpose_tags:
+  - passage-retrieval
+  - multilingual
+  - en
+corpus_path: benchmarks/datasets/miracl_en/corpus.parquet
+queries_path: benchmarks/datasets/miracl_en/queries.parquet
+judgments_path: benchmarks/datasets/miracl_en/judgments.parquet
+field_mappings:
+  corpus_id_keys:
+    - _id
+  corpus_text_keys:
+    - text
+    - content
+    - contents
+  query_id_keys:
+    - _id
+  query_text_keys:
+    - text
+  judgment_query_id_keys:
+    - query-id
+  judgment_doc_id_keys:
+    - corpus-id
+  judgment_relevance_keys:
+    - score
+supported_levels:
+  - quick
+  - standard
+  - full

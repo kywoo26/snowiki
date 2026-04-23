@@ -30,7 +30,6 @@ from .registry import (
     get,
     is_tokenizer_compatible,
     register,
-    resolve_legacy_tokenizer,
 )
 from .rerank import NoOpReranker
 from .semantic_abstraction import DisabledSemanticBackend, SemanticBackend
@@ -77,7 +76,6 @@ __all__ = [
     "normalize_recall_hits",
     "normalize_recall_result",
     "register",
-    "resolve_legacy_tokenizer",
     "run_authoritative_recall",
     "temporal_recall",
     "tokenize_text",

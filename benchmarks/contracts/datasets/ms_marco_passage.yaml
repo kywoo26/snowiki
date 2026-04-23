@@ -1,0 +1,35 @@
+dataset_id: ms_marco_passage
+name: MS MARCO Passage Ranking
+language: en
+purpose_tags:
+  - passage-retrieval
+  - web-search
+  - en
+corpus_path: benchmarks/datasets/ms_marco_passage/corpus.parquet
+queries_path: benchmarks/datasets/ms_marco_passage/queries.parquet
+judgments_path: benchmarks/datasets/ms_marco_passage/judgments.parquet
+field_mappings:
+  corpus_id_keys:
+    - docid
+    - _id
+  corpus_text_keys:
+    - text
+    - content
+    - contents
+  query_id_keys:
+    - qid
+    - _id
+  query_text_keys:
+    - query
+    - text
+  judgment_query_id_keys:
+    - qid
+  judgment_doc_id_keys:
+    - docid
+  judgment_relevance_keys:
+    - relevance
+    - score
+supported_levels:
+  - quick
+  - standard
+  - full

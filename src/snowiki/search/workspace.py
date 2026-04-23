@@ -18,7 +18,6 @@ from .registry import (
     default,
     get,
     is_tokenizer_compatible,
-    resolve_legacy_tokenizer,
 )
 from .registry import create as create_tokenizer
 
@@ -121,7 +120,7 @@ def normalize_stored_tokenizer_name(metadata: Mapping[str, object]) -> str | Non
         try:
             return get(name).name
         except KeyError:
-            return resolve_legacy_tokenizer(benchmark_alias=name)
+            return None
 
     has_legacy_flags = (
         "use_kiwi_tokenizer" in metadata or "kiwi_lexical_candidate_mode" in metadata
@@ -138,14 +137,13 @@ def normalize_stored_tokenizer_name(metadata: Mapping[str, object]) -> str | Non
         use_kiwi_tokenizer = True
     else:
         use_kiwi_tokenizer = None
-    return resolve_legacy_tokenizer(
-        use_kiwi_tokenizer=use_kiwi_tokenizer,
-        kiwi_lexical_candidate_mode=(
-            raw_kiwi_lexical_candidate_mode
-            if isinstance(raw_kiwi_lexical_candidate_mode, str)
-            else None
-        ),
-    )
+    if use_kiwi_tokenizer is False:
+        return default().name
+    if use_kiwi_tokenizer is True:
+        if raw_kiwi_lexical_candidate_mode == "nouns":
+            return "kiwi_nouns_v1"
+        return "kiwi_morphology_v1"
+    return default().name
 
 
 def require_tokenizer_compatibility(

@@ -1,0 +1,16 @@
+matrix_id: official_six
+datasets:
+  - ms_marco_passage
+  - trec_dl_2020_passage
+  - miracl_ko
+  - miracl_en
+  - beir_nq
+  - beir_scifact
+levels:
+  quick:
+    query_cap: 150
+  standard:
+    query_cap: 500
+  full:
+    query_cap: 1000
+    note: Full means min(all, 1000).

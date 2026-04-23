@@ -104,8 +104,22 @@ def pytest_collection_modifyitems(
     del config
     for item in items:
         path = Path(str(item.path)).as_posix()
+        if (
+            path.endswith("/tests/integration/cli/test_benchmark.py")
+            or path.endswith("/tests/integration/cli/test_benchmark_contract.py")
+        ):
+            continue
         if "/tests/integration/" in path:
             item.add_marker(pytest.mark.integration)
+        if (
+            path.endswith("/tests/bench/test_package_shape.py")
+            or path.endswith("/tests/bench/test_targets.py")
+            or path.endswith("/tests/bench/test_metrics.py")
+            or path.endswith("/tests/bench/test_runner.py")
+            or path.endswith("/tests/bench/test_datasets.py")
+            or path.endswith("/tests/bench/test_report.py")
+        ):
+            continue
         if "/tests/bench/" in path or "/tests/integration/bench/" in path:
             item.add_marker(pytest.mark.bench)
         if "/tests/perf/" in path:

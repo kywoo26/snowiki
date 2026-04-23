@@ -3,15 +3,41 @@ name: benchmark-manual
 on:
   workflow_dispatch:
     inputs:
-      preset:
-        description: Benchmark preset to run
+      matrix:
+        description: Path to evaluation matrix YAML
         required: true
-        default: retrieval
-        type: choice
-        options:
-          - core
-          - retrieval
-          - full
+        default: benchmarks/contracts/official_matrix.yaml
+        type: string
+      output:
+        description: Output report path
+        required: true
+        default: reports/benchmark.json
+        type: string
+      dataset:
+        description: Filter to a specific dataset (optional)
+        required: false
+        default: ''
+        type: string
+      level:
+        description: Filter to a specific level (optional)
+        required: false
+        default: ''
+        type: string
+      target:
+        description: Filter to a specific target (optional)
+        required: false
+        default: ''
+        type: string
+      metric:
+        description: Filter to a specific metric (optional)
+        required: false
+        default: ''
+        type: string
+      fail_fast:
+        description: Stop on first failure
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   benchmark:
@@ -33,14 +59,20 @@ jobs:
 
       - name: Run benchmark
         run: |
-          mkdir -p reports
-          uv run snowiki benchmark --preset "${{ inputs.preset }}" --output "reports/${{ inputs.preset }}.json"
+          mkdir -p "$(dirname '${{ inputs.output }}')"
+          args="--matrix '${{ inputs.matrix }}' --output '${{ inputs.output }}'"
+          [ -n '${{ inputs.dataset }}' ] && args="$args --dataset '${{ inputs.dataset }}'"
+          [ -n '${{ inputs.level }}' ] && args="$args --level '${{ inputs.level }}'"
+          [ -n '${{ inputs.target }}' ] && args="$args --target '${{ inputs.target }}'"
+          [ -n '${{ inputs.metric }}' ] && args="$args --metric '${{ inputs.metric }}'"
+          [ '${{ inputs.fail_fast }}' = 'true' ] && args="$args --fail-fast"
+          uv run snowiki benchmark $args
 
       - name: Upload benchmark report artifact
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-${{ inputs.preset }}-report
-          path: reports/${{ inputs.preset }}.json
+          name: benchmark-report
+          path: ${{ inputs.output }}
           if-no-files-found: error
 
       - name: Append workflow summary
@@ -48,7 +80,12 @@ jobs:
           {
             echo "## Manual benchmark run"
             echo ""
-            echo "- Preset: \\`${{ inputs.preset }}\\`"
-            echo "- Report artifact: \\`benchmark-${{ inputs.preset }}-report\\`"
-            echo "- JSON path: \\`reports/${{ inputs.preset }}.json\\`"
+            echo "- Matrix: \`${{ inputs.matrix }}\`"
+            echo "- Output: \`${{ inputs.output }}\`"
+            [ -n '${{ inputs.dataset }}' ] && echo "- Dataset filter: \`${{ inputs.dataset }}\`"
+            [ -n '${{ inputs.level }}' ] && echo "- Level filter: \`${{ inputs.level }}\`"
+            [ -n '${{ inputs.target }}' ] && echo "- Target filter: \`${{ inputs.target }}\`"
+            [ -n '${{ inputs.metric }}' ] && echo "- Metric filter: \`${{ inputs.metric }}\`"
+            [ '${{ inputs.fail_fast }}' = 'true' ] && echo "- Fail fast: enabled"
+            echo "- Report artifact: \`benchmark-report\`"
           } >> "$GITHUB_STEP_SUMMARY"

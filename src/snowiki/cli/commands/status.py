@@ -7,7 +7,6 @@ from typing import Any
 
 import click
 
-from snowiki.bench.evaluation import CANDIDATE_MATRIX
 from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.taxonomy import PageType
 from snowiki.config import get_snowiki_root
@@ -177,9 +176,7 @@ def run_status(root: Path) -> dict[str, Any]:
             latest_compiled_update=latest_compiled_update,
         ),
         "manifest": _manifest_stats(manifest),
-        "candidate_matrix": [
-            candidate.model_dump(mode="json") for candidate in CANDIDATE_MATRIX
-        ],
+        "candidate_matrix": [],
     }
 
 

@@ -11,7 +11,7 @@ from .kiwi_tokenizer import (
     KIWI_LEXICAL_CANDIDATE_MODES,
     KiwiLexicalCandidateMode,
 )
-from .registry import SearchTokenizer, create, default, get, resolve_legacy_tokenizer
+from .registry import SearchTokenizer, create, default, get
 from .workspace import normalize_stored_tokenizer_name, require_tokenizer_compatibility
 
 if TYPE_CHECKING:
@@ -142,12 +142,10 @@ class BM25SearchIndex:
         use_kiwi_tokenizer: bool,
         kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode,
     ) -> str:
-        resolved = tokenizer_name or resolve_legacy_tokenizer(
+        resolved = tokenizer_name or cls._resolve_tokenizer_name_from_flags(
             use_kiwi_tokenizer=use_kiwi_tokenizer,
             kiwi_lexical_candidate_mode=kiwi_lexical_candidate_mode,
         )
-        if resolved is None:
-            resolved = default().name
 
         spec = get(resolved)
         if resolved not in cls._TOKENIZER_NAMES:
@@ -155,9 +153,20 @@ class BM25SearchIndex:
             raise ValueError(
                 f"Invalid BM25 tokenizer: {resolved}. Must be one of {supported}"
             )
-        if not spec.benchmark_supported:
-            raise ValueError(f"Tokenizer is not benchmark-supported: {resolved}")
         return spec.name
+
+    @classmethod
+    def _resolve_tokenizer_name_from_flags(
+        cls,
+        *,
+        use_kiwi_tokenizer: bool,
+        kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode,
+    ) -> str:
+        if use_kiwi_tokenizer is False:
+            return default().name
+        if kiwi_lexical_candidate_mode == "nouns":
+            return "kiwi_nouns_v1"
+        return "kiwi_morphology_v1"
 
     @classmethod
     def _legacy_tokenizer_flags(

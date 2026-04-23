@@ -1,36 +1,31 @@
 from __future__ import annotations
 
-from .contract import (
-    BENCHMARK_CORPUS,
-    BENCHMARK_THRESHOLDS,
-    DEFAULT_NO_ANSWER_SCORING_POLICY,
-    MetricThreshold,
-    NoAnswerScoringPolicy,
-    ReportEntry,
-    get_benchmark_contract,
+from .datasets import load_matrix
+from .metrics import MetricRegistry
+from .report import render_json
+from .runner import run_matrix
+from .specs import (
+    BenchmarkRunResult,
+    BenchmarkTargetSpec,
+    CellResult,
+    DatasetManifest,
+    EvaluationMatrix,
+    LevelConfig,
+    MetricResult,
 )
-from .contract.presets import BenchmarkPreset, get_preset, list_presets
-from .reporting.render import render_report_text, write_tokenizer_comparison_artifact
-from .reporting.report import generate_report
-from .reporting.verdict import benchmark_exit_code, benchmark_verdict
-from .runtime.corpus import BenchmarkCorpusManifest, seed_canonical_benchmark_root
+from .targets import TargetRegistry
 
 __all__ = [
-    'BENCHMARK_CORPUS',
-    'BENCHMARK_THRESHOLDS',
-    'BenchmarkCorpusManifest',
-    'BenchmarkPreset',
-    'DEFAULT_NO_ANSWER_SCORING_POLICY',
-    'MetricThreshold',
-    'NoAnswerScoringPolicy',
-    'ReportEntry',
-    'benchmark_exit_code',
-    'benchmark_verdict',
-    'generate_report',
-    'get_benchmark_contract',
-    'get_preset',
-    'list_presets',
-    'render_report_text',
-    'seed_canonical_benchmark_root',
-    'write_tokenizer_comparison_artifact',
+    "EvaluationMatrix",
+    "DatasetManifest",
+    "LevelConfig",
+    "BenchmarkTargetSpec",
+    "BenchmarkRunResult",
+    "CellResult",
+    "MetricResult",
+    "load_matrix",
+    "TargetRegistry",
+    "MetricRegistry",
+    "run_matrix",
+    "render_json",
 ]

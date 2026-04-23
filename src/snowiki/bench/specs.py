@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any, Protocol
+
+
+@dataclass(frozen=True)
+class LevelConfig:
+    """One named evaluation level from the matrix contract."""
+
+    level_id: str
+    query_cap: int
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class EvaluationMatrix:
+    """A thin input contract describing datasets and evaluation levels."""
+
+    matrix_id: str
+    datasets: tuple[str, ...]
+    levels: dict[str, LevelConfig]
+
+
+@dataclass(frozen=True)
+class DatasetManifest:
+    """Metadata-only manifest describing one benchmark dataset."""
+
+    dataset_id: str
+    name: str
+    language: str
+    purpose_tags: tuple[str, ...]
+    corpus_path: str
+    queries_path: str
+    judgments_path: str
+    field_mappings: dict[str, tuple[str, ...]]
+    supported_levels: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BenchmarkTargetSpec:
+    """Registered metadata for one retrieval target adapter."""
+
+    target_id: str
+    description: str | None = None
+    supported_datasets: tuple[str, ...] = ()
+    supported_levels: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class QueryResult:
+    """Normalized retrieval output for one query execution."""
+
+    query_id: str
+    ranked_doc_ids: tuple[str, ...]
+    latency_ms: float | None = None
+
+
+class RetrievalTargetAdapter(Protocol):
+    """Execution seam used by the lean benchmark runner."""
+
+    def run(
+        self,
+        *,
+        manifest: DatasetManifest,
+        level: LevelConfig,
+    ) -> Mapping[str, Any]: ...
+
+
+@dataclass(frozen=True)
+class MetricResult:
+    """One computed metric value for a cell result."""
+
+    metric_id: str
+    value: float | None = None
+    details: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class CellResult:
+    """One matrix cell outcome for dataset, level, and target."""
+
+    dataset_id: str
+    level_id: str
+    target_id: str
+    metrics: tuple[MetricResult, ...] = ()
+    status: str = "not_run"
+    error_message: str | None = None
+    details: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class BenchmarkRunResult:
+    """Aggregate output for one matrix execution attempt."""
+
+    matrix_id: str
+    cells: tuple[CellResult, ...] = ()
+    failures: tuple[str, ...] = ()
+    details: dict[str, Any] = field(default_factory=dict)
