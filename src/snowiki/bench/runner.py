@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import csv
 import json
+import random
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TypeGuard, cast
 
 from snowiki.config import resolve_repo_asset_path
 
-from .datasets import load_dataset_manifest, resolve_dataset_assets
+from .datasets import (
+    load_dataset_manifest,
+    missing_materialized_asset_message,
+    resolve_dataset_assets,
+)
 from .metrics import DEFAULT_METRIC_REGISTRY
 from .specs import (
+    BenchmarkQuery,
     BenchmarkRunResult,
     CellResult,
     DatasetManifest,
@@ -25,6 +31,7 @@ type MatrixSelection = Mapping[str, Sequence[str]] | None
 EXIT_CODE_SUCCESS = 0
 EXIT_CODE_PARTIAL_FAILURE = 1
 EXIT_CODE_INVALID_INPUT = 2
+QUERY_SAMPLING_SEED = 1729
 
 
 def run_cell(
@@ -77,9 +84,27 @@ def run_cell(
             message=str(exc),
         )
     try:
-        execution = target.run(manifest=manifest, level=level)
-        query_results = _coerce_query_results(execution.get("results", ()))
-        qrels = _resolve_qrels(manifest=manifest, execution=execution)
+        all_queries = _load_materialized_queries(manifest)
+        all_qrels = _load_qrels(manifest)
+        selected_queries, qrels, eligible_query_count = _select_queries_for_level(
+            queries=all_queries,
+            qrels=all_qrels,
+            query_cap=level.query_cap,
+        )
+        selected_query_ids = {query.query_id for query in selected_queries}
+        execution = target.run(manifest=manifest, level=level, queries=selected_queries)
+        query_results = tuple(
+            result
+            for result in _coerce_query_results(execution.get("results", ()))
+            if result.query_id in selected_query_ids
+        )
+        returned_query_ids = {result.query_id for result in query_results}
+        if returned_query_ids != selected_query_ids:
+            missing_query_ids = sorted(selected_query_ids - returned_query_ids)
+            raise ValueError(
+                "Benchmark target omitted results for selected queries: "
+                + ", ".join(missing_query_ids)
+            )
         selected_metric_ids = (
             tuple(metric_ids)
             if metric_ids is not None
@@ -103,7 +128,10 @@ def run_cell(
         metrics=metrics,
         status="success",
         details={
+            "eligible_query_count": eligible_query_count,
+            "effective_query_count": len(selected_queries),
             "per_query": _build_per_query_evidence(query_results, qrels, metrics),
+            "sampling_seed": QUERY_SAMPLING_SEED,
         },
     )
 
@@ -273,6 +301,55 @@ def _dataset_manifest_path(dataset_id: str) -> Path:
     )
 
 
+def _load_materialized_queries(manifest: DatasetManifest) -> tuple[BenchmarkQuery, ...]:
+    queries_path = resolve_dataset_assets(manifest)["queries"]
+    if not queries_path.is_file():
+        raise FileNotFoundError(
+            missing_materialized_asset_message(
+                manifest,
+                asset_name="queries",
+                path=queries_path,
+            )
+        )
+    from datasets import load_dataset
+
+    dataset = load_dataset("parquet", data_files=str(queries_path), split="train")
+    query_id_keys = manifest.field_mappings.get("query_id_keys", ())
+    query_text_keys = manifest.field_mappings.get("query_text_keys", ())
+    queries: list[BenchmarkQuery] = []
+    for row in dataset:
+        if not isinstance(row, Mapping):
+            raise ValueError(f"Expected query row mappings in {queries_path}")
+        query_id = _first_value(row, query_id_keys, fallback_keys=("qid",))
+        query_text = _first_value(row, query_text_keys, fallback_keys=("query",))
+        if query_id is None or query_text is None:
+            raise ValueError(f"Missing query field mapping in {queries_path}")
+        queries.append(
+            BenchmarkQuery(query_id=str(query_id), query_text=str(query_text))
+        )
+    return tuple(queries)
+
+
+def _select_queries_for_level(
+    *,
+    queries: Sequence[BenchmarkQuery],
+    qrels: Mapping[str, set[str]],
+    query_cap: int,
+) -> tuple[tuple[BenchmarkQuery, ...], dict[str, set[str]], int]:
+    query_by_id: dict[str, BenchmarkQuery] = {}
+    for query in queries:
+        query_by_id.setdefault(query.query_id, query)
+    eligible_query_ids = sorted(set(query_by_id) & set(qrels))
+    shuffled_query_ids = list(eligible_query_ids)
+    random.Random(QUERY_SAMPLING_SEED).shuffle(shuffled_query_ids)
+    selected_query_ids = tuple(shuffled_query_ids[: min(query_cap, len(shuffled_query_ids))])
+    return (
+        tuple(query_by_id[query_id] for query_id in selected_query_ids),
+        {query_id: set(qrels[query_id]) for query_id in selected_query_ids},
+        len(eligible_query_ids),
+    )
+
+
 def _coerce_query_results(raw_results: object) -> tuple[QueryResult, ...]:
     if not isinstance(raw_results, Sequence) or isinstance(raw_results, str | bytes):
         raise TypeError("Benchmark target results must be a sequence.")
@@ -303,17 +380,16 @@ def _coerce_query_results(raw_results: object) -> tuple[QueryResult, ...]:
     return tuple(query_results)
 
 
-def _resolve_qrels(
-    *,
-    manifest: DatasetManifest,
-    execution: Mapping[str, object],
-) -> dict[str, set[str]]:
-    raw_qrels = execution.get("qrels")
-    if raw_qrels is not None:
-        return _coerce_qrels(raw_qrels)
+def _load_qrels(manifest: DatasetManifest) -> dict[str, set[str]]:
     judgments_path = resolve_dataset_assets(manifest)["judgments"]
     if not judgments_path.is_file():
-        raise FileNotFoundError(f"Missing judgments file: {judgments_path}")
+        raise FileNotFoundError(
+            missing_materialized_asset_message(
+                manifest,
+                asset_name="judgments",
+                path=judgments_path,
+            )
+        )
     if judgments_path.suffix == ".json":
         return _load_json_qrels(judgments_path, manifest.field_mappings)
     return _load_delimited_qrels(judgments_path, manifest.field_mappings)
@@ -371,9 +447,13 @@ def _rows_to_qrels(
     for row in rows:
         if not isinstance(row, Mapping):
             raise ValueError(f"Expected qrels row mappings in {source_path}")
-        query_id = _first_value(row, query_id_keys)
-        doc_id = _first_value(row, doc_id_keys)
-        relevance = _first_value(row, relevance_keys)
+        query_id = _first_value(row, query_id_keys, fallback_keys=("qid",))
+        doc_id = _first_value(row, doc_id_keys, fallback_keys=("docid",))
+        relevance = _first_value(
+            row,
+            relevance_keys,
+            fallback_keys=("relevance",),
+        )
         if query_id is None or doc_id is None:
             raise ValueError(f"Missing qrels field mapping in {source_path}")
         if relevance is not None and _coerce_float(relevance) <= 0:
@@ -382,8 +462,13 @@ def _rows_to_qrels(
     return qrels
 
 
-def _first_value(row: Mapping[str, object], keys: Sequence[str]) -> object | None:
-    for key in keys:
+def _first_value(
+    row: Mapping[str, object],
+    keys: Sequence[str],
+    *,
+    fallback_keys: Sequence[str] = (),
+) -> object | None:
+    for key in (*keys, *fallback_keys):
         value = row.get(key)
         if value not in (None, ""):
             return value
