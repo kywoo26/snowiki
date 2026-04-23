@@ -1,0 +1,325 @@
+from __future__ import annotations
+
+import csv
+import io
+import tempfile
+from collections.abc import Iterable, Mapping, Sequence
+from pathlib import Path
+from typing import cast
+
+from datasets import Dataset, load_dataset
+
+from snowiki.bench.datasets import (
+    load_dataset_manifest,
+    load_matrix,
+    resolve_dataset_assets,
+)
+from snowiki.bench.specs import DatasetSourceLocator
+from snowiki.config import resolve_repo_asset_path
+from snowiki.storage.zones import atomic_write_bytes, atomic_write_json, isoformat_utc
+
+DEFAULT_MATRIX_PATH = Path("benchmarks/contracts/official_matrix.yaml")
+HF_CACHE_DIR = Path("benchmarks/hf")
+MATERIALIZATION_SIDECAR_NAME = "materialization.json"
+
+type DatasetRows = Sequence[Mapping[str, object]] | Iterable[Mapping[str, object]]
+
+
+def materialize_selected_datasets(
+    dataset_ids: Sequence[str] | None = None,
+    *,
+    force: bool = False,
+    dry_run: bool = False,
+) -> list[dict[str, object]]:
+    """Materialize one or more benchmark datasets from pinned HF manifests."""
+
+    selected_dataset_ids = tuple(dataset_ids) if dataset_ids else _default_dataset_ids()
+    return [
+        materialize_dataset(dataset_id, force=force, dry_run=dry_run)
+        for dataset_id in selected_dataset_ids
+    ]
+
+
+def materialize_dataset(
+    dataset_id: str,
+    *,
+    force: bool = False,
+    dry_run: bool = False,
+) -> dict[str, object]:
+    """Fetch, normalize, and materialize one benchmark dataset."""
+
+    manifest = load_dataset_manifest(_dataset_manifest_path(dataset_id))
+    output_paths = resolve_dataset_assets(manifest)
+    sidecar_path = output_paths["corpus"].parent / MATERIALIZATION_SIDECAR_NAME
+    source_locators = _serialize_source_locators(manifest.source)
+    field_mappings = _serialize_field_mappings(manifest.field_mappings)
+    resolved_revisions = _resolve_revisions(manifest.source)
+    action, reason = _determine_action(
+        sidecar_path=sidecar_path,
+        output_paths=output_paths,
+        source_locators=source_locators,
+        field_mappings=field_mappings,
+        force=force,
+    )
+    result: dict[str, object] = {
+        "dataset_id": manifest.dataset_id,
+        "action": action,
+        "reason": reason,
+        "dry_run": dry_run,
+        "output_dir": output_paths["corpus"].parent,
+        "sidecar_path": sidecar_path,
+    }
+    if dry_run:
+        result["planned_paths"] = dict(output_paths)
+    if dry_run or action == "skip":
+        return result
+
+    started_at = isoformat_utc(None)
+    corpus_rows = _normalize_rows(
+        rows=_load_asset_rows(manifest.source["corpus"]),
+        id_keys=manifest.field_mappings["corpus_id_keys"],
+        text_keys=manifest.field_mappings["corpus_text_keys"],
+        id_column="docid",
+        text_column="text",
+        asset_name="corpus",
+    )
+    queries_rows = _normalize_rows(
+        rows=_load_asset_rows(manifest.source["queries"]),
+        id_keys=manifest.field_mappings["query_id_keys"],
+        text_keys=manifest.field_mappings["query_text_keys"],
+        id_column="qid",
+        text_column="query",
+        asset_name="queries",
+    )
+    judgment_rows = _normalize_judgment_rows(
+        rows=_load_asset_rows(manifest.source["judgments"]),
+        query_id_keys=manifest.field_mappings["judgment_query_id_keys"],
+        doc_id_keys=manifest.field_mappings["judgment_doc_id_keys"],
+        relevance_keys=manifest.field_mappings["judgment_relevance_keys"],
+    )
+
+    _write_parquet(output_paths["corpus"], corpus_rows, ["docid", "text"])
+    _write_parquet(output_paths["queries"], queries_rows, ["qid", "query"])
+    _write_judgments_tsv(output_paths["judgments"], judgment_rows)
+
+    completed_at = isoformat_utc(None)
+    sidecar_payload = {
+        "dataset_id": manifest.dataset_id,
+        "source_locators": source_locators,
+        "field_mappings": field_mappings,
+        "resolved_revisions": resolved_revisions,
+        "row_counts": {
+            "corpus": len(corpus_rows),
+            "queries": len(queries_rows),
+            "judgments": len(judgment_rows),
+        },
+        "timestamps": {
+            "started_at": started_at,
+            "completed_at": completed_at,
+        },
+    }
+    _ = atomic_write_json(sidecar_path, sidecar_payload)
+    result["row_counts"] = sidecar_payload["row_counts"]
+    result["materialization"] = sidecar_payload
+    return result
+
+
+def _default_dataset_ids() -> tuple[str, ...]:
+    return load_matrix(resolve_repo_asset_path(DEFAULT_MATRIX_PATH)).datasets
+
+
+def _dataset_manifest_path(dataset_id: str) -> Path:
+    return resolve_repo_asset_path(
+        Path("benchmarks/contracts/datasets") / f"{dataset_id}.yaml"
+    )
+
+
+def _load_asset_rows(locator: DatasetSourceLocator) -> DatasetRows:
+    return cast(
+        DatasetRows,
+        load_dataset(
+            locator.repo_id,
+            locator.config,
+            split=locator.split,
+            revision=locator.revision,
+            cache_dir=resolve_repo_asset_path(HF_CACHE_DIR).as_posix(),
+        ),
+    )
+
+
+def _determine_action(
+    *,
+    sidecar_path: Path,
+    output_paths: Mapping[str, Path],
+    source_locators: Mapping[str, Mapping[str, str]],
+    field_mappings: Mapping[str, Sequence[str]],
+    force: bool,
+) -> tuple[str, str]:
+    if force:
+        return "materialize", "force_requested"
+    if not sidecar_path.is_file():
+        return "materialize", "missing_sidecar"
+    if any(not path.is_file() for path in output_paths.values()):
+        return "materialize", "missing_outputs"
+    cached_payload = _read_materialization_sidecar(sidecar_path)
+    if cached_payload.get("source_locators") != source_locators:
+        return "materialize", "source_locators_changed"
+    if cached_payload.get("field_mappings") != field_mappings:
+        return "materialize", "field_mappings_changed"
+    return "skip", "cache_hit"
+
+
+def _read_materialization_sidecar(path: Path) -> dict[str, object]:
+    import json
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Expected materialization sidecar mapping at {path}")
+    return cast(dict[str, object], payload)
+
+
+def _serialize_source_locators(
+    locators: Mapping[str, DatasetSourceLocator],
+) -> dict[str, dict[str, str]]:
+    return {
+        asset_name: {
+            "repo_id": locator.repo_id,
+            "config": locator.config,
+            "split": locator.split,
+            "revision": locator.revision,
+        }
+        for asset_name, locator in locators.items()
+    }
+
+
+def _resolve_revisions(locators: Mapping[str, DatasetSourceLocator]) -> dict[str, str]:
+    return {
+        asset_name: locator.revision for asset_name, locator in locators.items()
+    }
+
+
+def _serialize_field_mappings(
+    field_mappings: Mapping[str, Sequence[str]],
+) -> dict[str, list[str]]:
+    return {
+        field_name: list(keys) for field_name, keys in field_mappings.items()
+    }
+
+
+def _normalize_rows(
+    *,
+    rows: DatasetRows,
+    id_keys: Sequence[str],
+    text_keys: Sequence[str],
+    id_column: str,
+    text_column: str,
+    asset_name: str,
+) -> list[dict[str, str]]:
+    normalized_rows: list[dict[str, str]] = []
+    for row in rows:
+        raw_id = _require_row_value(row, id_keys, asset_name=asset_name, field_name=id_column)
+        raw_text = _require_row_value(
+            row,
+            text_keys,
+            asset_name=asset_name,
+            field_name=text_column,
+        )
+        normalized_rows.append({id_column: str(raw_id), text_column: str(raw_text)})
+    return normalized_rows
+
+
+def _normalize_judgment_rows(
+    *,
+    rows: DatasetRows,
+    query_id_keys: Sequence[str],
+    doc_id_keys: Sequence[str],
+    relevance_keys: Sequence[str],
+) -> list[dict[str, object]]:
+    normalized_rows: list[dict[str, object]] = []
+    for row in rows:
+        qid = _require_row_value(row, query_id_keys, asset_name="judgments", field_name="qid")
+        docid = _require_row_value(
+            row,
+            doc_id_keys,
+            asset_name="judgments",
+            field_name="docid",
+        )
+        relevance = _require_row_value(
+            row,
+            relevance_keys,
+            asset_name="judgments",
+            field_name="relevance",
+        )
+        normalized_rows.append(
+            {
+                "qid": str(qid),
+                "docid": str(docid),
+                "relevance": relevance,
+            }
+        )
+    return normalized_rows
+
+
+def _require_row_value(
+    row: Mapping[str, object],
+    keys: Sequence[str],
+    *,
+    asset_name: str,
+    field_name: str,
+) -> object:
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    raise ValueError(
+        f"Missing {field_name} mapping for {asset_name}; checked keys: {', '.join(keys)}"
+    )
+
+
+def _write_parquet(
+    path: Path,
+    rows: Sequence[Mapping[str, object]],
+    columns: Sequence[str],
+) -> None:
+    dataset = Dataset.from_dict(
+        {column: [row[column] for row in rows] for column in columns}
+    )
+    _write_dataset_parquet(path, dataset)
+
+
+def _write_dataset_parquet(path: Path, dataset: Dataset) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=f".{path.stem}.",
+            suffix=".tmp",
+            dir=path.parent,
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+        _ = dataset.to_parquet(temp_path.as_posix())
+        _ = temp_path.replace(path)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink()
+
+
+def _write_judgments_tsv(path: Path, rows: Sequence[Mapping[str, object]]) -> None:
+    buffer = io.StringIO()
+    writer = csv.DictWriter(
+        buffer,
+        fieldnames=["qid", "docid", "relevance"],
+        delimiter="\t",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                "qid": row["qid"],
+                "docid": row["docid"],
+                "relevance": row["relevance"],
+            }
+        )
+    _ = atomic_write_bytes(path, buffer.getvalue().encode("utf-8"))
