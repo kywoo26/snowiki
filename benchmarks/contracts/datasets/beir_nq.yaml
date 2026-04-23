@@ -5,9 +5,25 @@ purpose_tags:
   - passage-retrieval
   - question-answering
   - en
-corpus_path: benchmarks/datasets/beir_nq/corpus.parquet
-queries_path: benchmarks/datasets/beir_nq/queries.parquet
-judgments_path: benchmarks/datasets/beir_nq/judgments.tsv
+corpus_path: benchmarks/materialized/beir_nq/corpus.parquet
+queries_path: benchmarks/materialized/beir_nq/queries.parquet
+judgments_path: benchmarks/materialized/beir_nq/judgments.tsv
+source:
+  corpus:
+    repo_id: BeIR/nq
+    config: corpus
+    split: corpus
+    revision: b7253e6c379163d024ddb1d6948152a91a2e3b46
+  queries:
+    repo_id: BeIR/nq
+    config: queries
+    split: queries
+    revision: b7253e6c379163d024ddb1d6948152a91a2e3b46
+  judgments:
+    repo_id: BeIR/nq-qrels
+    config: default
+    split: test
+    revision: 519acd4e48bb3e5da22b2b888ce36c614f4f2bc9
 field_mappings:
   corpus_id_keys:
     - _id

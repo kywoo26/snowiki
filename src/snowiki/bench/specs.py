@@ -36,6 +36,17 @@ class DatasetManifest:
     judgments_path: str
     field_mappings: dict[str, tuple[str, ...]]
     supported_levels: tuple[str, ...]
+    source: dict[str, DatasetSourceLocator] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class DatasetSourceLocator:
+    """Pinned upstream locator for one dataset asset."""
+
+    repo_id: str
+    config: str
+    split: str
+    revision: str
 
 
 @dataclass(frozen=True)
@@ -57,6 +68,14 @@ class QueryResult:
     latency_ms: float | None = None
 
 
+@dataclass(frozen=True)
+class BenchmarkQuery:
+    """One materialized benchmark query selected by the runner."""
+
+    query_id: str
+    query_text: str
+
+
 class RetrievalTargetAdapter(Protocol):
     """Execution seam used by the lean benchmark runner."""
 
@@ -65,6 +84,7 @@ class RetrievalTargetAdapter(Protocol):
         *,
         manifest: DatasetManifest,
         level: LevelConfig,
+        queries: tuple[BenchmarkQuery, ...],
     ) -> Mapping[str, Any]: ...
 
 

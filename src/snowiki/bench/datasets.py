@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from snowiki.config import resolve_repo_asset_path
 
-from .specs import DatasetManifest, EvaluationMatrix, LevelConfig
+from .specs import DatasetManifest, DatasetSourceLocator, EvaluationMatrix, LevelConfig
 
 
 def load_matrix(path: str | Path) -> EvaluationMatrix:
@@ -35,6 +35,7 @@ def load_dataset_manifest(path: str | Path) -> DatasetManifest:
 
     source_path = Path(path)
     payload = _load_yaml_mapping(source_path)
+    source_locators = _load_dataset_sources(payload, source_path)
     field_mapping_payload = _require_mapping(payload, "field_mappings", source_path)
     field_mappings = {
         field_name: tuple(_require_sequence_of_str(field_value, field_name, source_path))
@@ -48,6 +49,7 @@ def load_dataset_manifest(path: str | Path) -> DatasetManifest:
         corpus_path=_require_str(payload, "corpus_path", source_path),
         queries_path=_require_str(payload, "queries_path", source_path),
         judgments_path=_require_str(payload, "judgments_path", source_path),
+        source=source_locators,
         field_mappings=field_mappings,
         supported_levels=tuple(_require_str_list(payload, "supported_levels", source_path)),
     )
@@ -61,6 +63,16 @@ def resolve_dataset_assets(manifest: DatasetManifest) -> dict[str, Path]:
         "queries": _resolve_manifest_path(manifest.queries_path),
         "judgments": _resolve_manifest_path(manifest.judgments_path),
     }
+
+
+def missing_materialized_asset_message(
+    manifest: DatasetManifest,
+    *,
+    asset_name: str,
+    path: Path,
+) -> str:
+    guidance = f"run snowiki benchmark-fetch --dataset {manifest.dataset_id}"
+    return f"Missing {asset_name} file: {path} ({guidance})"
 
 
 def _resolve_manifest_path(raw_path: str) -> Path:
@@ -225,11 +237,52 @@ def _require_mapping(payload: dict[str, Any], key: str, source_path: Path) -> di
     return {str(item_key): item_value for item_key, item_value in value.items()}
 
 
+def _load_dataset_sources(
+    payload: dict[str, Any],
+    source_path: Path,
+) -> dict[str, DatasetSourceLocator]:
+    source_payload = _require_mapping(payload, "source", source_path)
+    required_keys = ("corpus", "queries", "judgments")
+    return {
+        source_key: _load_dataset_source_locator(source_payload, source_key, source_path)
+        for source_key in required_keys
+    }
+
+
+def _load_dataset_source_locator(
+    source_payload: dict[str, Any],
+    key: str,
+    source_path: Path,
+) -> DatasetSourceLocator:
+    locator_payload = _require_mapping(source_payload, key, source_path)
+    return DatasetSourceLocator(
+        repo_id=_require_str(locator_payload, "repo_id", source_path),
+        config=_require_str(locator_payload, "config", source_path),
+        split=_require_str(locator_payload, "split", source_path),
+        revision=_require_pinned_revision(locator_payload, "revision", source_path),
+    )
+
+
 def _require_str(payload: dict[str, Any], key: str, source_path: Path) -> str:
     value = payload.get(key)
     if not isinstance(value, str):
         raise ValueError(f"Expected string for {key!r} in {source_path}")
     return value
+
+
+def _require_pinned_revision(payload: dict[str, Any], key: str, source_path: Path) -> str:
+    raw_revision = payload.get(key)
+    if raw_revision is None:
+        revision = ""
+    elif isinstance(raw_revision, str):
+        revision = raw_revision.strip()
+    else:
+        raise ValueError(f"Expected string for {key!r} in {source_path}")
+    if revision in {"", "main", "master"}:
+        raise ValueError(
+            f"Expected pinned revision for {key!r} in {source_path}, got {revision or '<empty>'}"
+        )
+    return revision
 
 
 def _optional_str(payload: dict[str, Any], key: str, source_path: Path) -> str | None:
