@@ -54,8 +54,25 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
+      - name: Restore benchmark cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            benchmarks/hf
+            benchmarks/materialized
+          key: benchmark-manual-${{ runner.os }}-${{ hashFiles('uv.lock', 'benchmarks/contracts/official_matrix.yaml') }}
+          restore-keys: |
+            benchmark-manual-${{ runner.os }}-
+            benchmark-${{ runner.os }}-
+
       - name: Sync dependencies
         run: uv sync --group dev
+
+      - name: Materialize benchmark datasets
+        run: |
+          args="--matrix '${{ inputs.matrix }}'"
+          [ -n '${{ inputs.dataset }}' ] && args="$args --dataset '${{ inputs.dataset }}'"
+          uv run snowiki benchmark-fetch $args
 
       - name: Run benchmark
         run: |
