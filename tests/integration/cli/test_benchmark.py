@@ -2,16 +2,145 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from textwrap import dedent
 from typing import Any, cast
 
+import pytest
 from click.testing import CliRunner, Result
 
 from snowiki.cli.main import app
+
+pytestmark = pytest.mark.integration
+
+DEFAULT_METRIC_IDS = [
+    "recall_at_100",
+    "mrr_at_10",
+    "ndcg_at_10",
+    "latency_p50_ms",
+    "latency_p95_ms",
+]
+
+
+def _write_benchmark_fixture_repo(repo_root: Path, *, dataset_ids: tuple[str, ...]) -> None:
+    contracts_dir = repo_root / "benchmarks" / "contracts"
+    manifests_dir = contracts_dir / "datasets"
+    manifests_dir.mkdir(parents=True, exist_ok=True)
+    datasets_block = "".join(f"  - {dataset_id}\n" for dataset_id in dataset_ids)
+    matrix_text = (
+        "matrix_id: official_six\n"
+        + "datasets:\n"
+        + datasets_block
+        + "levels:\n"
+        + "  quick:\n"
+        + "    query_cap: 150\n"
+    )
+    _ = (contracts_dir / "official_matrix.yaml").write_text(
+        matrix_text,
+        encoding="utf-8",
+    )
+    for dataset_id in dataset_ids:
+        _ = (manifests_dir / f"{dataset_id}.yaml").write_text(
+            dedent(
+                f"""\
+                dataset_id: {dataset_id}
+                name: Tiny fixture {dataset_id}
+                language: en
+                purpose_tags:
+                  - test
+                corpus_path: benchmarks/materialized/{dataset_id}/corpus.parquet
+                queries_path: benchmarks/materialized/{dataset_id}/queries.parquet
+                judgments_path: benchmarks/materialized/{dataset_id}/judgments.tsv
+                source:
+                  corpus:
+                    repo_id: local/test
+                    config: {dataset_id}
+                    split: corpus
+                    revision: corpus-{dataset_id}-v1
+                  queries:
+                    repo_id: local/test
+                    config: {dataset_id}
+                    split: queries
+                    revision: queries-{dataset_id}-v1
+                  judgments:
+                    repo_id: local/test
+                    config: {dataset_id}
+                    split: judgments
+                    revision: judgments-{dataset_id}-v1
+                field_mappings:
+                  corpus_id_keys:
+                    - id
+                  corpus_text_keys:
+                    - text
+                  query_id_keys:
+                    - id
+                  query_text_keys:
+                    - text
+                  judgment_query_id_keys:
+                    - qid
+                  judgment_doc_id_keys:
+                    - docid
+                  judgment_relevance_keys:
+                    - relevance
+                supported_levels:
+                  - quick
+                """
+            ),
+            encoding="utf-8",
+        )
+
+
+def _patch_temp_benchmark_repo(
+    monkeypatch: pytest.MonkeyPatch,
+    repo_root: Path,
+) -> None:
+    import snowiki.config as config
+
+    config.get_repo_root.cache_clear()
+    monkeypatch.setattr("snowiki.config.get_repo_root", lambda: repo_root)
+
+
+def _patch_fake_benchmark_fetch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows_by_split: dict[str, list[dict[str, object]]] = {
+        "corpus": [
+            {"id": "doc-alpha", "text": "alpha token unique"},
+            {"id": "doc-delta", "text": "delta token unique"},
+        ],
+        "queries": [
+            {"id": "q-alpha", "text": "alpha"},
+            {"id": "q-delta", "text": "delta"},
+        ],
+        "judgments": [
+            {"qid": "q-alpha", "docid": "doc-alpha", "relevance": 1},
+            {"qid": "q-delta", "docid": "doc-delta", "relevance": 1},
+        ],
+    }
+
+    def _fake_load_dataset(
+        repo_id: str,
+        config: str,
+        *,
+        split: str,
+        revision: str,
+        cache_dir: str,
+    ) -> list[dict[str, object]]:
+        del repo_id, config, revision, cache_dir
+        return rows_by_split[split]
+
+    monkeypatch.setattr("snowiki.benchmark_fetch.load_dataset", _fake_load_dataset)
+
+
+def _matrix_path(repo_root: Path) -> Path:
+    return repo_root / "benchmarks" / "contracts" / "official_matrix.yaml"
 
 
 def _invoke_benchmark(*args: str) -> Result:
     runner = CliRunner()
     return runner.invoke(app, ["benchmark", *args])
+
+
+def _invoke_benchmark_fetch(*args: str) -> Result:
+    runner = CliRunner()
+    return runner.invoke(app, ["benchmark-fetch", *args])
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -36,12 +165,113 @@ def test_benchmark_help_shows_lean_option_surface() -> None:
         assert option in result.output
 
 
-def test_benchmark_run_writes_json_and_reports_stub_failure(tmp_path: Path) -> None:
+def test_benchmark_run_succeeds_after_materializing_temp_dataset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "benchmark-repo"
+    dataset_id = "tiny_success"
+    _write_benchmark_fixture_repo(repo_root, dataset_ids=(dataset_id,))
+    _patch_temp_benchmark_repo(monkeypatch, repo_root)
+    _patch_fake_benchmark_fetch_loader(monkeypatch)
+
     output_path = tmp_path / "benchmark.json"
 
+    materialize = _invoke_benchmark_fetch("--dataset", dataset_id)
+
+    assert materialize.exit_code == 0, materialize.output
+    assert (
+        f"dataset={dataset_id} action=materialized reason=missing_sidecar "
+        "corpus=2 queries=2 judgments=2"
+    ) in materialize.output
+
     result = _invoke_benchmark(
+        "--matrix",
+        str(_matrix_path(repo_root)),
         "--dataset",
-        "ms_marco_passage",
+        dataset_id,
+        "--level",
+        "quick",
+        "--target",
+        "lexical_regex_v1",
+        "--output",
+        str(output_path),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "matrix=official_six cells=1 failures=0" in result.output
+
+    payload = _read_json(output_path)
+    assert payload["matrix_id"] == "official_six"
+    assert payload["selection"] == {
+        "dataset_ids": [dataset_id],
+        "level_ids": ["quick"],
+        "target_ids": ["lexical_regex_v1"],
+        "metric_ids": DEFAULT_METRIC_IDS,
+    }
+    assert payload["summary"] == {
+        "total_cells": 1,
+        "success_count": 1,
+        "failure_count": 0,
+    }
+    assert set(payload) == {
+        "generated_at",
+        "matrix_id",
+        "selection",
+        "summary",
+        "cells",
+    }
+
+    cells = payload["cells"]
+    assert isinstance(cells, list)
+    assert len(cells) == 1
+    cell = cells[0]
+    assert isinstance(cell, dict)
+    assert cell["dataset_id"] == dataset_id
+    assert cell["level_id"] == "quick"
+    assert cell["target_id"] == "lexical_regex_v1"
+    assert cell["status"] == "success"
+    assert cell["error"] is None
+
+    metrics = cell["metrics"]
+    assert isinstance(metrics, list)
+    assert metrics == [
+        {"metric_id": "recall_at_100", "value": 1.0},
+        {"metric_id": "mrr_at_10", "value": 1.0},
+        {"metric_id": "ndcg_at_10", "value": 1.0},
+    ]
+    latency = cell["latency"]
+    assert isinstance(latency, dict)
+    assert isinstance(latency["p50"], float)
+    assert isinstance(latency["p95"], float)
+    per_query = cell["per_query"]
+    assert isinstance(per_query, dict)
+    assert set(per_query) == {"q-alpha", "q-delta"}
+    for evidence in per_query.values():
+        assert isinstance(evidence, dict)
+        metrics_by_query = evidence["metrics"]
+        assert isinstance(metrics_by_query, dict)
+        assert metrics_by_query["recall_at_100"] == 1.0
+        assert metrics_by_query["mrr_at_10"] == 1.0
+        assert metrics_by_query["ndcg_at_10"] == 1.0
+
+
+def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "benchmark-repo"
+    dataset_id = "tiny_missing"
+    _write_benchmark_fixture_repo(repo_root, dataset_ids=(dataset_id,))
+    _patch_temp_benchmark_repo(monkeypatch, repo_root)
+
+    output_path = tmp_path / "missing-materialized.json"
+
+    result = _invoke_benchmark(
+        "--matrix",
+        str(_matrix_path(repo_root)),
+        "--dataset",
+        dataset_id,
         "--level",
         "quick",
         "--target",
@@ -52,25 +282,8 @@ def test_benchmark_run_writes_json_and_reports_stub_failure(tmp_path: Path) -> N
 
     assert result.exit_code == 1, result.output
     assert "matrix=official_six cells=1 failures=1" in result.output
-    assert (
-        "Benchmark target lexical_regex_v1 is registered but not executable yet."
-        in result.output
-    )
 
     payload = _read_json(output_path)
-    assert payload["matrix_id"] == "official_six"
-    assert payload["selection"] == {
-        "dataset_ids": ["ms_marco_passage"],
-        "level_ids": ["quick"],
-        "target_ids": ["lexical_regex_v1"],
-        "metric_ids": [
-            "recall_at_100",
-            "mrr_at_10",
-            "ndcg_at_10",
-            "latency_p50_ms",
-            "latency_p95_ms",
-        ],
-    }
     assert payload["summary"] == {
         "total_cells": 1,
         "success_count": 0,
@@ -78,14 +291,18 @@ def test_benchmark_run_writes_json_and_reports_stub_failure(tmp_path: Path) -> N
     }
     assert payload["cells"] == [
         {
-            "dataset_id": "ms_marco_passage",
+            "dataset_id": dataset_id,
             "level_id": "quick",
             "target_id": "lexical_regex_v1",
             "status": "failed",
             "metrics": [],
             "latency": None,
             "per_query": {},
-            "error": "Cell execution failed: Benchmark target lexical_regex_v1 is registered but not executable yet.",
+            "error": (
+                "Cell execution failed: Missing queries file: "
+                f"{repo_root / 'benchmarks' / 'materialized' / dataset_id / 'queries.parquet'} "
+                f"(run snowiki benchmark-fetch --dataset {dataset_id})"
+            ),
         }
     ]
 
@@ -143,14 +360,33 @@ def test_benchmark_invalid_target_reports_clear_error(tmp_path: Path) -> None:
     assert not output_path.exists()
 
 
-def test_benchmark_fail_fast_stops_after_first_failure(tmp_path: Path) -> None:
+def test_benchmark_fail_fast_stops_after_first_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "benchmark-repo"
+    missing_dataset_id = "tiny_missing"
+    materialized_dataset_id = "tiny_materialized"
+    _write_benchmark_fixture_repo(
+        repo_root,
+        dataset_ids=(missing_dataset_id, materialized_dataset_id),
+    )
+    _patch_temp_benchmark_repo(monkeypatch, repo_root)
+    _patch_fake_benchmark_fetch_loader(monkeypatch)
+
+    materialize = _invoke_benchmark_fetch("--dataset", materialized_dataset_id)
+
+    assert materialize.exit_code == 0, materialize.output
+
     output_path = tmp_path / "fail-fast.json"
 
     result = _invoke_benchmark(
+        "--matrix",
+        str(_matrix_path(repo_root)),
         "--dataset",
-        "ms_marco_passage",
+        missing_dataset_id,
         "--dataset",
-        "beir_nq",
+        materialized_dataset_id,
         "--level",
         "quick",
         "--target",
@@ -161,6 +397,7 @@ def test_benchmark_fail_fast_stops_after_first_failure(tmp_path: Path) -> None:
     )
 
     assert result.exit_code == 1, result.output
+    assert "matrix=official_six cells=1 failures=1" in result.output
     payload = _read_json(output_path)
     assert payload["summary"] == {
         "total_cells": 1,
@@ -174,5 +411,5 @@ def test_benchmark_fail_fast_stops_after_first_failure(tmp_path: Path) -> None:
     assert isinstance(first_cell, dict)
     dataset_id = first_cell["dataset_id"]  # noqa: B018
     status = first_cell["status"]  # noqa: B018
-    assert dataset_id == "ms_marco_passage"
+    assert dataset_id == missing_dataset_id
     assert status == "failed"
