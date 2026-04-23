@@ -11,7 +11,6 @@ from snowiki.search import (
     default,
     get,
     is_tokenizer_compatible,
-    resolve_legacy_tokenizer,
 )
 
 CANONICAL_NAMES = {spec.name for spec in all_candidates()}
@@ -63,12 +62,10 @@ def test_default_runtime_tokenizer_contract() -> None:
 
     assert spec.name == DEFAULT_TOKENIZER_NAME
     assert spec.runtime_supported is True
-    assert spec.benchmark_supported is True
 
 
-def test_candidate_listing_by_scope() -> None:
-    assert {spec.name for spec in all_candidates("runtime")} == {"regex_v1"}
-    assert {spec.name for spec in all_candidates("benchmark")} == {
+def test_candidate_listing_returns_all_registered_specs() -> None:
+    assert {spec.name for spec in all_candidates()} == {
         "regex_v1",
         "kiwi_morphology_v1",
         "kiwi_nouns_v1",
@@ -83,7 +80,6 @@ def test_lookup_returns_immutable_spec() -> None:
     assert spec.family == "kiwi"
     assert spec.version == 1
     assert spec.runtime_supported is False
-    assert spec.benchmark_supported is True
 
 
 def test_create_returns_fresh_regex_instances() -> None:
@@ -129,53 +125,6 @@ def test_kiwi_registry_candidates_preserve_mixed_language_signal(
         "자연어",
         "처리",
     )
-
-
-
-def test_legacy_normalization_mapping() -> None:
-    assert resolve_legacy_tokenizer(use_kiwi_tokenizer=False) == "regex_v1"
-
-    assert (
-        resolve_legacy_tokenizer(
-            use_kiwi_tokenizer=True, kiwi_lexical_candidate_mode="nouns"
-        )
-        == "kiwi_nouns_v1"
-    )
-
-    assert (
-        resolve_legacy_tokenizer(
-            use_kiwi_tokenizer=True, kiwi_lexical_candidate_mode="morphology"
-        )
-        == "kiwi_morphology_v1"
-    )
-    assert resolve_legacy_tokenizer(use_kiwi_tokenizer=True) == "kiwi_morphology_v1"
-
-
-def test_benchmark_alias_mapping() -> None:
-    assert (
-        resolve_legacy_tokenizer(benchmark_alias="bm25s_kiwi") == "kiwi_morphology_v1"
-    )
-    assert (
-        resolve_legacy_tokenizer(benchmark_alias="bm25s_kiwi_full")
-        == "kiwi_morphology_v1"
-    )
-    assert (
-        resolve_legacy_tokenizer(benchmark_alias="bm25s_kiwi_morphology")
-        == "kiwi_morphology_v1"
-    )
-    assert (
-        resolve_legacy_tokenizer(benchmark_alias="bm25s_kiwi_nouns") == "kiwi_nouns_v1"
-    )
-    assert (
-        resolve_legacy_tokenizer(benchmark_alias="bm25s_hf_wordpiece")
-        == "hf_wordpiece_v1"
-    )
-    assert (
-        resolve_legacy_tokenizer(benchmark_alias="bm25s_mecab_full")
-        == "mecab_morphology_v1"
-    )
-
-
 def test_engine_labels_are_not_tokenizer_identities() -> None:
     for label in ENGINE_LABELS:
         assert label not in CANONICAL_NAMES

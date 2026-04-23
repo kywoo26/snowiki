@@ -125,18 +125,9 @@ def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
         calls.append({"records": records, "pages": pages})
         return snapshot
 
-    def fail_run_baseline_comparison(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError(
-            "runtime lexical assembly must not promote benchmark baseline comparison"
-        )
-
     mocker.patch(
         "snowiki.mcp.server.RetrievalService.from_records_and_pages",
         side_effect=fake_from_records_and_pages,
-    )
-    mocker.patch(
-        "snowiki.bench.baselines.run_baseline_comparison",
-        side_effect=fail_run_baseline_comparison,
     )
 
     facade = SnowikiReadOnlyFacade(

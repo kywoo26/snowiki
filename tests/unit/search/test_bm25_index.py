@@ -28,7 +28,6 @@ def fake_bm25_backend(
         "index": [],
         "retrieve": [],
         "registry": [],
-        "resolve": [],
         "save": [],
         "load": [],
     }
@@ -94,26 +93,8 @@ def fake_bm25_backend(
         SimpleNamespace(BM25=FakeBM25, tokenize=fake_tokenize),
     )
     monkeypatch.setattr(
-        "snowiki.search.bm25_index.resolve_legacy_tokenizer",
-        lambda **kwargs: (
-            calls["resolve"].append(kwargs)
-            or (
-                "hf_wordpiece_v1"
-                if kwargs.get("benchmark_alias") == "bm25s_hf_wordpiece"
-                else "mecab_morphology_v1"
-                if kwargs.get("benchmark_alias") == "bm25s_mecab_full"
-                else "kiwi_nouns_v1"
-                if kwargs.get("kiwi_lexical_candidate_mode") == "nouns"
-                or kwargs.get("benchmark_alias") == "bm25s_kiwi_nouns"
-                else "regex_v1"
-                if kwargs.get("use_kiwi_tokenizer") is False
-                else "kiwi_morphology_v1"
-            )
-        ),
-    )
-    monkeypatch.setattr(
         "snowiki.search.bm25_index.get",
-        lambda name: SimpleNamespace(name=name, benchmark_supported=True),
+        lambda name: SimpleNamespace(name=name),
     )
     monkeypatch.setattr(
         "snowiki.search.bm25_index.create",
@@ -281,16 +262,6 @@ class TestBM25SearchIndex:
         second_index_call = cast(dict[str, Any], fake_bm25_backend["index"][1])
         first_retrieve_call = cast(dict[str, Any], fake_bm25_backend["retrieve"][0])
 
-        assert fake_bm25_backend["resolve"][:2] == [
-            {
-                "use_kiwi_tokenizer": True,
-                "kiwi_lexical_candidate_mode": "morphology",
-            },
-            {
-                "use_kiwi_tokenizer": True,
-                "kiwi_lexical_candidate_mode": "nouns",
-            },
-        ]
         assert first_index_call["corpus_tokens"][0] == ["자연어", "처리", "재미있"]
         assert second_index_call["corpus_tokens"][0] == ["자연어"]
         assert first_retrieve_call["query_tokens"] == [["재미있"]]
@@ -348,7 +319,6 @@ class TestBM25SearchIndex:
         assert index.tokenizer_name == "kiwi_nouns_v1"
         assert index.use_kiwi_tokenizer is True
         assert index.kiwi_lexical_candidate_mode == "nouns"
-        assert fake_bm25_backend["resolve"] == []
 
     def test_load_accepts_legacy_metadata_without_canonical_tokenizer_name(
         self,

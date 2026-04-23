@@ -1,0 +1,35 @@
+dataset_id: trec_dl_2020_passage
+name: TREC DL 2020 Passage
+language: en
+purpose_tags:
+  - passage-retrieval
+  - judged-eval
+  - en
+corpus_path: benchmarks/datasets/trec_dl_2020_passage/corpus.parquet
+queries_path: benchmarks/datasets/trec_dl_2020_passage/queries.parquet
+judgments_path: benchmarks/datasets/trec_dl_2020_passage/judgments.parquet
+field_mappings:
+  corpus_id_keys:
+    - docid
+    - _id
+  corpus_text_keys:
+    - text
+    - content
+    - contents
+  query_id_keys:
+    - qid
+    - _id
+  query_text_keys:
+    - query
+    - text
+  judgment_query_id_keys:
+    - qid
+  judgment_doc_id_keys:
+    - docid
+  judgment_relevance_keys:
+    - relevance
+    - score
+supported_levels:
+  - quick
+  - standard
+  - full

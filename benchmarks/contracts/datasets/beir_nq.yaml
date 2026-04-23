@@ -1,0 +1,31 @@
+dataset_id: beir_nq
+name: BEIR Natural Questions
+language: en
+purpose_tags:
+  - passage-retrieval
+  - question-answering
+  - en
+corpus_path: benchmarks/datasets/beir_nq/corpus.parquet
+queries_path: benchmarks/datasets/beir_nq/queries.parquet
+judgments_path: benchmarks/datasets/beir_nq/judgments.tsv
+field_mappings:
+  corpus_id_keys:
+    - _id
+  corpus_text_keys:
+    - text
+    - content
+    - contents
+  query_id_keys:
+    - _id
+  query_text_keys:
+    - text
+  judgment_query_id_keys:
+    - query-id
+  judgment_doc_id_keys:
+    - corpus-id
+  judgment_relevance_keys:
+    - score
+supported_levels:
+  - quick
+  - standard
+  - full

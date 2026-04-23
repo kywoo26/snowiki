@@ -8,43 +8,44 @@ This directory governs benchmark assets, canonical corpora, and quality reports.
 
 The governed benchmark asset surface lives in `benchmarks/`. Runtime benchmark implementation code under `src/snowiki/bench/` remains governed by the root contract for `src/snowiki/` and should use this file only for asset and report policy, thresholds, and benchmark specific workflow boundaries.
 
-## Benchmark Authority Tiers
+## Module Boundaries
 
-Benchmarks are classified into two authority tiers.
+The benchmark runtime in `src/snowiki/bench/` is organized into seven flat modules. When modifying benchmark code, respect these boundaries:
 
-- **`official_suite`**: The fixed 6 dataset ko/en benchmark suite. Governs release quality claims.
-- **`regression_harness`**: Fast, deterministic internal checks visible during development. Governs candidate screening only.
+### `specs.py` — Dataclasses
+- Owns `EvaluationMatrix`, `DatasetManifest`, and related data structures.
+- Must not import from any other bench module.
+- Changes here affect all downstream modules and must be accompanied by test updates.
 
-A pass in the `regression_harness` is necessary but not sufficient for release quality claims.
+### `datasets.py` — YAML Contract Loading
+- Owns evaluation matrix loading, asset resolution, and dataset manifest handling.
+- May import from `specs.py` only.
+- Public dataset payloads stay out of git; all fetch results go through the HF cache.
 
-## Assets & Provenance
+### `targets.py` — Target Registry
+- Owns the target registry with built-in retrieval target specs.
+- May import from `specs.py` and `datasets.py`.
+- Maps a dataset or runtime target to an adapter.
 
-- `benchmarks/queries.json` and `benchmarks/judgments.json` are the internal regression harness quality dataset, a 90 query set.
-- They are not the official suite. They are visible during development and tuned against, so they support candidate screening only.
-- The 90 query set must never be treated as the main truth source for release quality claims. Regression harness results are necessary but not sufficient for any claim beyond candidate screening.
-- Benchmark asset updates are allowed only when they are part of an explicitly bounded benchmark program with canonical docs and tests updated in the same PR.
-- Benchmark reports in `reports/` are transient artifacts and should not be committed unless specifically requested for evidence.
+### `metrics.py` — Metric Compute Functions
+- Owns metric computation functions (Recall@k, MRR, nDCG@k, latency percentiles).
+- May import from `specs.py` only.
+- Does not load datasets or execute targets; pure compute only.
 
-## Execution & Isolation
+### `runner.py` — Matrix Execution
+- Owns evaluation matrix execution, cell evaluation, and qrel loading.
+- May import from `specs.py`, `datasets.py`, `targets.py`, and `metrics.py`.
+- The main orchestration entrypoint that drives a benchmark run.
 
-- Always run benchmarks via `uv run snowiki benchmark`.
-- Default execution uses an isolated local root under the benchmark output directory, seeded with Phase 1 fixtures.
-- Avoid using `--root` in automated verification to prevent mutation of the user's real vault.
+### `report.py` — Lean JSON Rendering
+- Owns lean JSON report rendering and summary output.
+- May import from `specs.py` and `runner.py`.
+- Does not compute metrics; formats and writes results.
 
-## Threshold Sensitivity
-
-- Retrieval Gate: Recall@k >= 0.72, MRR >= 0.70, nDCG@k >= 0.67.
-- Performance Gate: P50 <= 5950ms, P95 <= 6300ms.
-- Any regression below these official suite thresholds requires architectural justification or optimization.
-
-## Tier Aware Latency Sampling
-
-Latency sampling defaults keep the internal regression harness exhaustive while preserving comparable official suite reports.
-
-- `regression_harness`: exhaustive, all queries.
-- `official_suite`: layer declared volume, quick or standard.
-
-The exact policy is recorded in every report under `protocol.sampling_policy`. Official suite reports cap per query detail to 20 entries in JSON reports.
+### `__init__.py` — Public API Exports
+- Re-exports the public benchmark API surface.
+- May import from all other modules.
+- Keep the export surface minimal and stable.
 
 ## Workflow
 

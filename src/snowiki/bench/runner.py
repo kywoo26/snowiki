@@ -1,0 +1,429 @@
+from __future__ import annotations
+
+import csv
+import json
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from typing import TypeGuard, cast
+
+from snowiki.config import resolve_repo_asset_path
+
+from .datasets import load_dataset_manifest, resolve_dataset_assets
+from .metrics import DEFAULT_METRIC_REGISTRY
+from .specs import (
+    BenchmarkRunResult,
+    CellResult,
+    DatasetManifest,
+    EvaluationMatrix,
+    MetricResult,
+    QueryResult,
+)
+from .targets import DEFAULT_TARGET_REGISTRY, get_target
+
+type MatrixSelection = Mapping[str, Sequence[str]] | None
+
+EXIT_CODE_SUCCESS = 0
+EXIT_CODE_PARTIAL_FAILURE = 1
+EXIT_CODE_INVALID_INPUT = 2
+
+
+def run_cell(
+    matrix: EvaluationMatrix,
+    dataset_id: str,
+    level_id: str,
+    target_id: str,
+    metric_ids: Sequence[str] | None = None,
+) -> CellResult:
+    """Run one matrix cell and compute all registered metrics."""
+
+    if dataset_id not in matrix.datasets:
+        return _failure_result(
+            dataset_id=dataset_id,
+            level_id=level_id,
+            target_id=target_id,
+            message=f"Unknown dataset in matrix: {dataset_id}",
+        )
+    if level_id not in matrix.levels:
+        return _failure_result(
+            dataset_id=dataset_id,
+            level_id=level_id,
+            target_id=target_id,
+            message=f"Unknown level in matrix: {level_id}",
+        )
+    level = matrix.levels[level_id]
+    try:
+        manifest = load_dataset_manifest(_dataset_manifest_path(dataset_id))
+    except (FileNotFoundError, ValueError) as exc:
+        return _failure_result(
+            dataset_id=dataset_id,
+            level_id=level_id,
+            target_id=target_id,
+            message=f"Failed to load dataset manifest for {dataset_id}: {exc}",
+        )
+    if level_id not in manifest.supported_levels:
+        return _failure_result(
+            dataset_id=dataset_id,
+            level_id=level_id,
+            target_id=target_id,
+            message=f"Dataset {dataset_id} does not support benchmark level {level_id}",
+        )
+    try:
+        target = get_target(target_id)
+    except KeyError as exc:
+        return _failure_result(
+            dataset_id=dataset_id,
+            level_id=level_id,
+            target_id=target_id,
+            message=str(exc),
+        )
+    try:
+        execution = target.run(manifest=manifest, level=level)
+        query_results = _coerce_query_results(execution.get("results", ()))
+        qrels = _resolve_qrels(manifest=manifest, execution=execution)
+        selected_metric_ids = (
+            tuple(metric_ids)
+            if metric_ids is not None
+            else DEFAULT_METRIC_REGISTRY.list_metrics()
+        )
+        metrics = tuple(
+            DEFAULT_METRIC_REGISTRY.compute(metric_id, query_results, qrels)
+            for metric_id in selected_metric_ids
+        )
+    except Exception as exc:
+        return _failure_result(
+            dataset_id=dataset_id,
+            level_id=level_id,
+            target_id=target_id,
+            message=f"Cell execution failed: {exc}",
+        )
+    return CellResult(
+        dataset_id=dataset_id,
+        level_id=level_id,
+        target_id=target_id,
+        metrics=metrics,
+        status="success",
+        details={
+            "per_query": _build_per_query_evidence(query_results, qrels, metrics),
+        },
+    )
+
+
+def run_matrix(
+    matrix: EvaluationMatrix,
+    selection: MatrixSelection = None,
+) -> BenchmarkRunResult:
+    """Run the selected matrix cells through the lean runner skeleton."""
+
+    result, _ = run_matrix_with_exit_code(matrix=matrix, selection=selection)
+    return result
+
+
+def run_matrix_with_exit_code(
+    matrix: EvaluationMatrix,
+    selection: MatrixSelection = None,
+    *,
+    fail_fast: bool = False,
+) -> tuple[BenchmarkRunResult, int]:
+    """Run the selected matrix cells and return the result plus exit code."""
+
+    validation_error, normalized_selection = _validate_selection(matrix, selection)
+    if validation_error is not None:
+        return (
+            BenchmarkRunResult(
+                matrix_id=matrix.matrix_id,
+                failures=(validation_error,),
+                details={"selection": normalized_selection},
+            ),
+            EXIT_CODE_INVALID_INPUT,
+        )
+
+    cells: list[CellResult] = []
+    failures: list[str] = []
+    for dataset_id in normalized_selection["dataset_ids"]:
+        for level_id in normalized_selection["level_ids"]:
+            for target_id in normalized_selection["target_ids"]:
+                cell = run_cell(
+                    matrix=matrix,
+                    dataset_id=dataset_id,
+                    level_id=level_id,
+                    target_id=target_id,
+                    metric_ids=normalized_selection["metric_ids"],
+                )
+                cells.append(cell)
+                if cell.error_message is None:
+                    continue
+                failures.append(cell.error_message)
+                if fail_fast:
+                    return (
+                        BenchmarkRunResult(
+                            matrix_id=matrix.matrix_id,
+                            cells=tuple(cells),
+                            failures=tuple(failures),
+                            details={"selection": normalized_selection},
+                        ),
+                        EXIT_CODE_PARTIAL_FAILURE,
+                    )
+
+    exit_code = EXIT_CODE_SUCCESS if not failures else EXIT_CODE_PARTIAL_FAILURE
+    return (
+        BenchmarkRunResult(
+            matrix_id=matrix.matrix_id,
+            cells=tuple(cells),
+            failures=tuple(failures),
+            details={"selection": normalized_selection},
+        ),
+        exit_code,
+    )
+
+
+def _failure_result(
+    *,
+    dataset_id: str,
+    level_id: str,
+    target_id: str,
+    message: str,
+) -> CellResult:
+    return CellResult(
+        dataset_id=dataset_id,
+        level_id=level_id,
+        target_id=target_id,
+        status="failed",
+        error_message=message,
+    )
+
+
+def _validate_selection(
+    matrix: EvaluationMatrix,
+    selection: MatrixSelection,
+) -> tuple[str | None, dict[str, list[str]]]:
+    normalized_selection = {
+        "dataset_ids": list(selection.get("dataset_ids", matrix.datasets))
+        if selection
+        else list(matrix.datasets),
+        "level_ids": list(selection.get("level_ids", tuple(matrix.levels)))
+        if selection
+        else list(matrix.levels),
+        "target_ids": list(selection.get("target_ids", ())) if selection else [],
+        "metric_ids": list(selection.get("metric_ids", ())) if selection else [],
+    }
+    if not matrix.datasets:
+        return "Benchmark matrix must define at least one dataset.", normalized_selection
+    if not matrix.levels:
+        return "Benchmark matrix must define at least one level.", normalized_selection
+    if not normalized_selection["target_ids"]:
+        return "No benchmark targets selected.", normalized_selection
+
+    invalid_dataset_ids = [
+        dataset_id
+        for dataset_id in normalized_selection["dataset_ids"]
+        if dataset_id not in matrix.datasets
+    ]
+    if invalid_dataset_ids:
+        return (
+            f"Unknown dataset selection: {', '.join(sorted(set(invalid_dataset_ids)))}",
+            normalized_selection,
+        )
+
+    invalid_level_ids = [
+        level_id
+        for level_id in normalized_selection["level_ids"]
+        if level_id not in matrix.levels
+    ]
+    if invalid_level_ids:
+        return (
+            f"Unknown level selection: {', '.join(sorted(set(invalid_level_ids)))}",
+            normalized_selection,
+        )
+
+    known_target_ids = {
+        spec.target_id for spec in DEFAULT_TARGET_REGISTRY.list_targets()
+    }
+    invalid_target_ids = [
+        target_id
+        for target_id in normalized_selection["target_ids"]
+        if target_id not in known_target_ids
+    ]
+    if invalid_target_ids:
+        return (
+            f"Unknown target selection: {', '.join(sorted(set(invalid_target_ids)))}",
+            normalized_selection,
+        )
+
+    if not normalized_selection["metric_ids"]:
+        normalized_selection["metric_ids"] = list(DEFAULT_METRIC_REGISTRY.list_metrics())
+
+    known_metric_ids = set(DEFAULT_METRIC_REGISTRY.list_metrics())
+    invalid_metric_ids = [
+        metric_id
+        for metric_id in normalized_selection["metric_ids"]
+        if metric_id not in known_metric_ids
+    ]
+    if invalid_metric_ids:
+        return (
+            f"Unknown metric selection: {', '.join(sorted(set(invalid_metric_ids)))}",
+            normalized_selection,
+        )
+
+    return None, normalized_selection
+
+
+def _dataset_manifest_path(dataset_id: str) -> Path:
+    return resolve_repo_asset_path(
+        Path("benchmarks/contracts/datasets") / f"{dataset_id}.yaml"
+    )
+
+
+def _coerce_query_results(raw_results: object) -> tuple[QueryResult, ...]:
+    if not isinstance(raw_results, Sequence) or isinstance(raw_results, str | bytes):
+        raise TypeError("Benchmark target results must be a sequence.")
+    query_results: list[QueryResult] = []
+    for item in raw_results:
+        if isinstance(item, QueryResult):
+            query_results.append(item)
+            continue
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise TypeError(
+                "Benchmark target result items must be QueryResult values or (query_id, ranked_doc_ids) tuples."
+            )
+        query_id, ranked_doc_ids = item
+        if not isinstance(query_id, str):
+            raise TypeError("Benchmark target result query IDs must be strings.")
+        if not isinstance(ranked_doc_ids, Sequence) or isinstance(
+            ranked_doc_ids, str | bytes
+        ):
+            raise TypeError(
+                "Benchmark target ranked results must be sequences of doc IDs."
+            )
+        query_results.append(
+            QueryResult(
+                query_id=query_id,
+                ranked_doc_ids=tuple(str(doc_id) for doc_id in ranked_doc_ids),
+            )
+        )
+    return tuple(query_results)
+
+
+def _resolve_qrels(
+    *,
+    manifest: DatasetManifest,
+    execution: Mapping[str, object],
+) -> dict[str, set[str]]:
+    raw_qrels = execution.get("qrels")
+    if raw_qrels is not None:
+        return _coerce_qrels(raw_qrels)
+    judgments_path = resolve_dataset_assets(manifest)["judgments"]
+    if not judgments_path.is_file():
+        raise FileNotFoundError(f"Missing judgments file: {judgments_path}")
+    if judgments_path.suffix == ".json":
+        return _load_json_qrels(judgments_path, manifest.field_mappings)
+    return _load_delimited_qrels(judgments_path, manifest.field_mappings)
+
+
+def _coerce_qrels(raw_qrels: object) -> dict[str, set[str]]:
+    if not isinstance(raw_qrels, Mapping):
+        raise TypeError(
+            "Benchmark qrels must be a mapping of query IDs to relevant doc IDs."
+        )
+    normalized: dict[str, set[str]] = {}
+    for query_id, relevant_doc_ids in raw_qrels.items():
+        if not isinstance(query_id, str):
+            raise TypeError("Benchmark qrels query IDs must be strings.")
+        if not _is_doc_id_collection(relevant_doc_ids) or isinstance(
+            relevant_doc_ids,
+            str | bytes,
+        ):
+            raise TypeError("Benchmark qrels values must be collections of doc IDs.")
+        normalized[query_id] = {str(doc_id) for doc_id in relevant_doc_ids}
+    return normalized
+
+
+def _load_json_qrels(
+    judgments_path: Path,
+    field_mappings: Mapping[str, tuple[str, ...]],
+) -> dict[str, set[str]]:
+    payload = json.loads(judgments_path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        return _coerce_qrels(payload)
+    if not isinstance(payload, list):
+        raise ValueError(f"Expected qrels JSON list or mapping in {judgments_path}")
+    return _rows_to_qrels(payload, field_mappings, judgments_path)
+
+
+def _load_delimited_qrels(
+    judgments_path: Path,
+    field_mappings: Mapping[str, tuple[str, ...]],
+) -> dict[str, set[str]]:
+    delimiter = "\t" if judgments_path.suffix == ".tsv" else ","
+    with judgments_path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter=delimiter))
+    return _rows_to_qrels(rows, field_mappings, judgments_path)
+
+
+def _rows_to_qrels(
+    rows: Sequence[Mapping[str, object]],
+    field_mappings: Mapping[str, tuple[str, ...]],
+    source_path: Path,
+) -> dict[str, set[str]]:
+    query_id_keys = field_mappings.get("judgment_query_id_keys", ())
+    doc_id_keys = field_mappings.get("judgment_doc_id_keys", ())
+    relevance_keys = field_mappings.get("judgment_relevance_keys", ())
+    qrels: dict[str, set[str]] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            raise ValueError(f"Expected qrels row mappings in {source_path}")
+        query_id = _first_value(row, query_id_keys)
+        doc_id = _first_value(row, doc_id_keys)
+        relevance = _first_value(row, relevance_keys)
+        if query_id is None or doc_id is None:
+            raise ValueError(f"Missing qrels field mapping in {source_path}")
+        if relevance is not None and _coerce_float(relevance) <= 0:
+            continue
+        qrels.setdefault(str(query_id), set()).add(str(doc_id))
+    return qrels
+
+
+def _first_value(row: Mapping[str, object], keys: Sequence[str]) -> object | None:
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _build_per_query_evidence(
+    query_results: Sequence[QueryResult],
+    qrels: Mapping[str, set[str]],
+    metrics: Sequence[MetricResult],
+) -> dict[str, dict[str, object]]:
+    metric_lookup: dict[str, Mapping[str, object]] = {}
+    for metric in metrics:
+        per_query = metric.details.get("per_query")
+        if isinstance(per_query, Mapping):
+            metric_lookup[metric.metric_id] = cast(Mapping[str, object], per_query)
+    query_ids = {result.query_id for result in query_results} | set(qrels)
+    evidence: dict[str, dict[str, object]] = {}
+    query_results_by_id = {result.query_id: result for result in query_results}
+    for query_id in sorted(query_ids):
+        query_result = query_results_by_id.get(query_id)
+        evidence[query_id] = {
+            "ranked_doc_ids": list(query_result.ranked_doc_ids) if query_result else [],
+            "relevant_doc_ids": sorted(qrels.get(query_id, set())),
+            "latency_ms": query_result.latency_ms if query_result else None,
+            "metrics": {
+                metric_id: per_query_scores.get(query_id)
+                for metric_id, per_query_scores in metric_lookup.items()
+            },
+        }
+    return evidence
+
+
+def _coerce_float(value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float | str):
+        raise TypeError("Benchmark relevance values must be numeric.")
+    return float(value)
+
+
+def _is_doc_id_collection(
+    value: object,
+) -> TypeGuard[Sequence[object] | set[object] | frozenset[object]]:
+    return isinstance(value, Sequence | set | frozenset)
