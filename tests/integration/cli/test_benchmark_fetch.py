@@ -109,8 +109,9 @@ def _patch_fake_benchmark_fetch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
         revision: str,
         cache_dir: str,
         trust_remote_code: bool = False,
+        streaming: bool = False,
     ) -> list[dict[str, object]]:
-        del repo_id, config, revision, cache_dir
+        del repo_id, config, revision, cache_dir, trust_remote_code, streaming
         return rows_by_split[split]
 
     monkeypatch.setattr("snowiki.benchmark_fetch.load_dataset", _fake_load_dataset)
@@ -128,6 +129,7 @@ def test_benchmark_fetch_help_shows_option_surface() -> None:
     for option in (
         "--matrix FILE",
         "--dataset TEXT",
+        "--level TEXT",
         "--force / --no-force",
         "--dry-run / --no-dry-run",
     ):
@@ -173,10 +175,10 @@ def test_benchmark_fetch_materializes_temp_dataset_without_network(
 
     assert result.exit_code == 0
     assert (
-        f"dataset={dataset_id} action=materialized reason=missing_sidecar "
+        f"dataset={dataset_id} level=quick action=materialized reason=missing_sidecar "
         "corpus=2 queries=2 judgments=2"
     ) in result.output
-    materialized_root = repo_root / "benchmarks" / "materialized" / dataset_id
+    materialized_root = repo_root / "benchmarks" / "materialized" / dataset_id / "quick"
     assert (materialized_root / "corpus.parquet").is_file()
     assert (materialized_root / "queries.parquet").is_file()
     assert (materialized_root / "judgments.tsv").is_file()
@@ -210,4 +212,4 @@ def test_benchmark_fetch_matrix_controls_default_dataset_selection(
     result = _invoke_benchmark_fetch("--matrix", "benchmarks/contracts/custom_matrix.yaml")
 
     assert result.exit_code == 0
-    assert f"dataset={dataset_id} action=materialized reason=missing_sidecar" in result.output
+    assert f"dataset={dataset_id} level=quick action=materialized reason=missing_sidecar" in result.output

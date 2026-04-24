@@ -20,16 +20,16 @@ def _render_result(result: dict[str, object]) -> str:
     if result.get("dry_run"):
         planned_paths = cast(dict[str, Path], result.get("planned_paths", {}))
         return (
-            f"dataset={dataset_id} plan={action} reason={reason} "
+            f"dataset={dataset_id} level={result['level_id']} plan={action} reason={reason} "
             f"corpus_path={planned_paths.get('corpus')} "
             f"queries_path={planned_paths.get('queries')} "
             f"judgments_path={planned_paths.get('judgments')}"
         )
     if action == "skip":
-        return f"dataset={dataset_id} action=skip reason={reason}"
+        return f"dataset={dataset_id} level={result['level_id']} action=skip reason={reason}"
     row_counts = cast(dict[str, int], result.get("row_counts", {}))
     return (
-        f"dataset={dataset_id} action=materialized reason={reason} "
+        f"dataset={dataset_id} level={result['level_id']} action=materialized reason={reason} "
         f"corpus={row_counts.get('corpus', 0)} queries={row_counts.get('queries', 0)} "
         f"judgments={row_counts.get('judgments', 0)}"
     )
@@ -50,6 +50,12 @@ def _render_result(result: dict[str, object]) -> str:
     help="Dataset ID to materialize. Repeat to select multiple datasets.",
 )
 @click.option(
+    "--level",
+    "level_ids",
+    multiple=True,
+    help="Level ID to materialize. Repeat to select multiple levels.",
+)
+@click.option(
     "--force/--no-force",
     default=False,
     show_default=True,
@@ -64,6 +70,7 @@ def _render_result(result: dict[str, object]) -> str:
 def command(
     matrix: Path,
     dataset_ids: tuple[str, ...],
+    level_ids: tuple[str, ...],
     force: bool,
     dry_run: bool,
 ) -> None:
@@ -80,6 +87,7 @@ def command(
     except ValueError as exc:
         raise click.BadParameter(str(exc), param_hint="--matrix") from exc
     selected_ids = list(dataset_ids) if dataset_ids else list(selected_matrix.datasets)
+    selected_level_ids = list(level_ids) if level_ids else list(selected_matrix.levels)
 
     invalid_dataset_ids = [
         dataset_id
@@ -93,9 +101,23 @@ def command(
         )
         raise click.exceptions.Exit(2)
 
+    invalid_level_ids = [
+        level_id
+        for level_id in selected_level_ids
+        if level_id not in selected_matrix.levels
+    ]
+    if invalid_level_ids:
+        click.echo(
+            f"Unknown level selection: {', '.join(sorted(set(invalid_level_ids)))}",
+            err=True,
+        )
+        raise click.exceptions.Exit(2)
+    selected_levels = [selected_matrix.levels[level_id] for level_id in selected_level_ids]
+
     try:
         results = materialize_selected_datasets(
             selected_ids,
+            levels=selected_levels,
             force=force,
             dry_run=dry_run,
         )
