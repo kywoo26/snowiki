@@ -21,11 +21,13 @@ These are the six fixed dataset IDs used by bench:
 
 ## Levels
 
-| Level ID | Query count |
-| :--- | :--- |
-| `quick` | 150 |
-| `standard` | 500 |
-| `full` | min all, 1000 |
+| Level ID | Query count | Corpus scope |
+| :--- | :--- | :--- |
+| `quick` | 150 | Up to 50,000 docs |
+| `standard` | 500 | Up to 200,000 docs |
+| `full` | min all, 1000 | All docs |
+
+Quick and standard levels may sample the corpus for large datasets. Sampling always keeps all judged documents first, then fills any remaining budget with a deterministic random sample so metrics stay valid while index build time stays practical.
 
 ## Core contracts
 

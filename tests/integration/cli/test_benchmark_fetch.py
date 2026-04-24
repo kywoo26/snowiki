@@ -108,6 +108,7 @@ def _patch_fake_benchmark_fetch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
         split: str,
         revision: str,
         cache_dir: str,
+        trust_remote_code: bool = False,
     ) -> list[dict[str, object]]:
         del repo_id, config, revision, cache_dir
         return rows_by_split[split]

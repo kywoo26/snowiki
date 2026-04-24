@@ -28,6 +28,7 @@ def test_materialize_dataset_writes_normalized_outputs_and_metadata(
         split: str,
         revision: str,
         cache_dir: str,
+        trust_remote_code: bool = False,
     ) -> Sequence[Mapping[str, object]]:
         calls.append((repo_id, config, split, revision, cache_dir))
         fixtures = {
@@ -102,6 +103,52 @@ def test_materialize_dataset_writes_normalized_outputs_and_metadata(
     assert set(timestamps) == {"started_at", "completed_at"}
 
 
+def test_materialize_dataset_passes_trust_remote_code_when_requested(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_manifest(tmp_path, dataset_id="beir_scifact", trust_remote_code=True)
+    calls: list[bool] = []
+
+    def fake_load_dataset(
+        repo_id: str,
+        config: str,
+        *,
+        split: str,
+        revision: str,
+        cache_dir: str,
+        trust_remote_code: bool = False,
+    ) -> Sequence[Mapping[str, object]]:
+        del repo_id, config, revision, cache_dir
+        calls.append(trust_remote_code)
+        rows_by_split: dict[str, Sequence[Mapping[str, object]]] = {
+            "corpus": [{"_id": "d1", "text": "doc one"}],
+            "queries": [{"_id": "q1", "text": "query one"}],
+            "test": [{"query-id": "q1", "corpus-id": "d1", "score": 1}],
+        }
+        return rows_by_split[split]
+
+    monkeypatch.setattr(benchmark_fetch, "resolve_repo_asset_path", _resolver(tmp_path))
+    monkeypatch.setattr(benchmark_fetch, "resolve_dataset_assets", _asset_resolver(tmp_path))
+    monkeypatch.setattr(benchmark_fetch, "load_dataset", fake_load_dataset)
+
+    result = benchmark_fetch.materialize_dataset("beir_scifact")
+
+    assert result["action"] == "materialize"
+    assert calls == [True, True, True]
+    sidecar = cast(
+        dict[str, object],
+        json.loads(
+            (
+                tmp_path
+                / "benchmarks/materialized/beir_scifact/materialization.json"
+            ).read_text(encoding="utf-8")
+        ),
+    )
+    source_locators = cast(dict[str, dict[str, object]], sidecar["source_locators"])
+    assert source_locators["corpus"]["trust_remote_code"] is True
+
+
 def test_materialize_dataset_skips_when_sidecar_matches(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -116,6 +163,7 @@ def test_materialize_dataset_skips_when_sidecar_matches(
         split: str,
         revision: str,
         cache_dir: str,
+        trust_remote_code: bool = False,
     ) -> Sequence[Mapping[str, object]]:
         nonlocal load_calls
         load_calls += 1
@@ -162,6 +210,7 @@ def test_materialize_dataset_re_materializes_when_source_locators_change(
         split: str,
         revision: str,
         cache_dir: str,
+        trust_remote_code: bool = False,
     ) -> Sequence[Mapping[str, object]]:
         del cache_dir
         calls.append((repo_id, config, split, revision))
@@ -231,6 +280,7 @@ def test_materialize_dataset_re_materializes_when_field_mappings_change(
         split: str,
         revision: str,
         cache_dir: str,
+        trust_remote_code: bool = False,
     ) -> Sequence[Mapping[str, object]]:
         del cache_dir
         calls.append((repo_id, config, split, revision))
@@ -324,6 +374,7 @@ def _write_manifest(
     corpus_revision: str = "corpus-sha",
     queries_revision: str = "queries-sha",
     judgments_revision: str = "judgments-sha",
+    trust_remote_code: bool = False,
 ) -> None:
     manifest_path = tmp_path / "benchmarks/contracts/datasets" / f"{dataset_id}.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -344,16 +395,19 @@ def _write_manifest(
                 "    config: corpus",
                 "    split: corpus",
                 f"    revision: {corpus_revision}",
+                *( ["    trust_remote_code: true"] if trust_remote_code else [] ),
                 "  queries:",
                 "    repo_id: example/scifact",
                 "    config: queries",
                 "    split: queries",
                 f"    revision: {queries_revision}",
+                *( ["    trust_remote_code: true"] if trust_remote_code else [] ),
                 "  judgments:",
                 "    repo_id: example/scifact-qrels",
                 "    config: default",
                 "    split: test",
                 f"    revision: {judgments_revision}",
+                *( ["    trust_remote_code: true"] if trust_remote_code else [] ),
                 "field_mappings:",
                 "  corpus_id_keys:",
                 "    - _id",

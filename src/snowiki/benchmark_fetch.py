@@ -5,9 +5,10 @@ import io
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from datasets import Dataset, load_dataset
+from huggingface_hub import HfFileSystem
 
 from snowiki.bench.datasets import (
     load_dataset_manifest,
@@ -135,6 +136,32 @@ def _dataset_manifest_path(dataset_id: str) -> Path:
 
 
 def _load_asset_rows(locator: DatasetSourceLocator) -> DatasetRows:
+    cache_dir = resolve_repo_asset_path(HF_CACHE_DIR).as_posix()
+    if locator.data_files:
+        if locator.loader is None:
+            raise ValueError(f"Expected loader for file-based source {locator.repo_id!r}")
+        return cast(
+            DatasetRows,
+            load_dataset(
+                locator.loader,
+                data_files=_resolve_data_files(locator.data_files),
+                split="train",
+                cache_dir=cache_dir,
+                **cast(dict[str, Any], locator.load_kwargs),
+            ),
+        )
+    if locator.trust_remote_code:
+        return cast(
+            DatasetRows,
+            load_dataset(
+                locator.repo_id,
+                locator.config,
+                split=locator.split,
+                revision=locator.revision,
+                cache_dir=cache_dir,
+                trust_remote_code=True,
+            ),
+        )
     return cast(
         DatasetRows,
         load_dataset(
@@ -142,16 +169,32 @@ def _load_asset_rows(locator: DatasetSourceLocator) -> DatasetRows:
             locator.config,
             split=locator.split,
             revision=locator.revision,
-            cache_dir=resolve_repo_asset_path(HF_CACHE_DIR).as_posix(),
+            cache_dir=cache_dir,
         ),
     )
+
+
+def _resolve_data_files(data_files: Sequence[str]) -> list[str]:
+    resolved_files: list[str] = []
+    fs = HfFileSystem()
+    for data_file in data_files:
+        if _looks_like_hf_glob(data_file):
+            repo_paths = fs.glob(data_file)
+            resolved_files.extend(f"hf://{repo_path}" for repo_path in repo_paths)
+        else:
+            resolved_files.append(data_file)
+    return resolved_files
+
+
+def _looks_like_hf_glob(data_file: str) -> bool:
+    return data_file.startswith("datasets/") and any(ch in data_file for ch in "*?[")
 
 
 def _determine_action(
     *,
     sidecar_path: Path,
     output_paths: Mapping[str, Path],
-    source_locators: Mapping[str, Mapping[str, str]],
+    source_locators: Mapping[str, Mapping[str, object]],
     field_mappings: Mapping[str, Sequence[str]],
     force: bool,
 ) -> tuple[str, str]:
@@ -180,13 +223,17 @@ def _read_materialization_sidecar(path: Path) -> dict[str, object]:
 
 def _serialize_source_locators(
     locators: Mapping[str, DatasetSourceLocator],
-) -> dict[str, dict[str, str]]:
+) -> dict[str, dict[str, object]]:
     return {
         asset_name: {
             "repo_id": locator.repo_id,
             "config": locator.config,
             "split": locator.split,
             "revision": locator.revision,
+            **({"loader": locator.loader} if locator.loader is not None else {}),
+            **({"data_files": list(locator.data_files)} if locator.data_files else {}),
+            **({"load_kwargs": locator.load_kwargs} if locator.load_kwargs else {}),
+            **({"trust_remote_code": True} if locator.trust_remote_code else {}),
         }
         for asset_name, locator in locators.items()
     }

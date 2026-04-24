@@ -9,8 +9,11 @@ datasets:
 levels:
   quick:
     query_cap: 150
+    corpus_cap: 50000
   standard:
     query_cap: 500
+    corpus_cap: 200000
   full:
     query_cap: 1000
+    corpus_cap: null
     note: Full means min(all, 1000).

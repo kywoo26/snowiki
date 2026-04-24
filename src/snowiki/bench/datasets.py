@@ -19,6 +19,7 @@ def load_matrix(path: str | Path) -> EvaluationMatrix:
         level_id: LevelConfig(
             level_id=level_id,
             query_cap=_require_int(level_payload, "query_cap", source_path),
+            corpus_cap=_optional_int(level_payload, "corpus_cap", source_path),
             note=_optional_str(level_payload, "note", source_path),
         )
         for level_id, level_payload in _iter_named_mappings(levels_payload, source_path)
@@ -260,6 +261,14 @@ def _load_dataset_source_locator(
         config=_require_str(locator_payload, "config", source_path),
         split=_require_str(locator_payload, "split", source_path),
         revision=_require_pinned_revision(locator_payload, "revision", source_path),
+        loader=_optional_str(locator_payload, "loader", source_path),
+        data_files=tuple(_optional_str_list(locator_payload, "data_files", source_path)),
+        load_kwargs=_optional_mapping(locator_payload, "load_kwargs", source_path),
+        trust_remote_code=_optional_bool(
+            locator_payload,
+            "trust_remote_code",
+            source_path,
+        ),
     )
 
 
@@ -291,6 +300,40 @@ def _optional_str(payload: dict[str, Any], key: str, source_path: Path) -> str |
         return None
     if not isinstance(value, str):
         raise ValueError(f"Expected optional string for {key!r} in {source_path}")
+    return value
+
+
+def _optional_str_list(payload: dict[str, Any], key: str, source_path: Path) -> list[str]:
+    value = payload.get(key)
+    if value is None:
+        return []
+    return _require_sequence_of_str(value, key, source_path)
+
+
+def _optional_mapping(payload: dict[str, Any], key: str, source_path: Path) -> dict[str, object]:
+    value = payload.get(key)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected mapping for {key!r} in {source_path}")
+    return {str(item_key): item_value for item_key, item_value in value.items()}
+
+
+def _optional_bool(payload: dict[str, Any], key: str, source_path: Path) -> bool:
+    value = payload.get(key)
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise ValueError(f"Expected optional bool for {key!r} in {source_path}")
+    return value
+
+
+def _optional_int(payload: dict[str, Any], key: str, source_path: Path) -> int | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"Expected optional int for {key!r} in {source_path}")
     return value
 
 

@@ -11,6 +11,7 @@ class LevelConfig:
 
     level_id: str
     query_cap: int
+    corpus_cap: int | None = None
     note: str | None = None
 
 
@@ -47,6 +48,10 @@ class DatasetSourceLocator:
     config: str
     split: str
     revision: str
+    loader: str | None = None
+    data_files: tuple[str, ...] = ()
+    load_kwargs: dict[str, object] = field(default_factory=dict)
+    trust_remote_code: bool = False
 
 
 @dataclass(frozen=True)

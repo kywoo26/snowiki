@@ -195,6 +195,127 @@ def test_builtin_targets_are_executable(tmp_path: Path) -> None:
         assert all((result.latency_ms or 0.0) >= 0.0 for result in results)
 
 
+def test_corpus_sampling_keeps_all_judged_docs_before_random_fill(
+    tmp_path: Path,
+) -> None:
+    import snowiki.benchmark_targets as benchmark_targets
+
+    manifest = _materialized_fixture_manifest(tmp_path)
+    _write_parquet(
+        Path(manifest.corpus_path),
+        rows=[
+            {"docid": "doc-a", "text": "alpha"},
+            {"docid": "doc-b", "text": "beta"},
+            {"docid": "doc-c", "text": "gamma"},
+            {"docid": "doc-d", "text": "delta"},
+            {"docid": "doc-e", "text": "epsilon"},
+        ],
+        columns=("docid", "text"),
+    )
+    _ = Path(manifest.judgments_path).write_text(
+        "qid\tdocid\trelevance\nq1\tdoc-c\t1\nq2\tdoc-e\t1\n",
+        encoding="utf-8",
+    )
+
+    sampled_rows = benchmark_targets._load_materialized_corpus_rows(
+        manifest,
+        corpus_cap=4,
+    )
+
+    sampled_doc_ids = tuple(doc_id for doc_id, _ in sampled_rows)
+    assert sampled_doc_ids[:2] == ("doc-c", "doc-e")
+    assert len(sampled_doc_ids) == 4
+    assert set(sampled_doc_ids[2:]).issubset({"doc-a", "doc-b", "doc-d"})
+
+
+def test_corpus_sampling_treats_cap_as_minimum_for_judged_docs(tmp_path: Path) -> None:
+    import snowiki.benchmark_targets as benchmark_targets
+
+    manifest = _materialized_fixture_manifest(tmp_path)
+    _write_parquet(
+        Path(manifest.corpus_path),
+        rows=[
+            {"docid": "doc-a", "text": "alpha"},
+            {"docid": "doc-b", "text": "beta"},
+            {"docid": "doc-c", "text": "gamma"},
+        ],
+        columns=("docid", "text"),
+    )
+    _ = Path(manifest.judgments_path).write_text(
+        "qid\tdocid\trelevance\nq1\tdoc-a\t1\nq2\tdoc-c\t1\n",
+        encoding="utf-8",
+    )
+
+    sampled_rows = benchmark_targets._load_materialized_corpus_rows(
+        manifest,
+        corpus_cap=1,
+    )
+
+    assert tuple(doc_id for doc_id, _ in sampled_rows) == ("doc-a", "doc-c")
+
+
+def test_corpus_sampling_preserves_order_when_corpus_fits_cap(tmp_path: Path) -> None:
+    import snowiki.benchmark_targets as benchmark_targets
+
+    manifest = _materialized_fixture_manifest(tmp_path)
+    _write_parquet(
+        Path(manifest.corpus_path),
+        rows=[
+            {"docid": "doc-a", "text": "alpha"},
+            {"docid": "doc-b", "text": "beta"},
+            {"docid": "doc-c", "text": "gamma"},
+        ],
+        columns=("docid", "text"),
+    )
+    _ = Path(manifest.judgments_path).write_text(
+        "qid\tdocid\trelevance\nq1\tdoc-c\t1\n",
+        encoding="utf-8",
+    )
+
+    sampled_rows = benchmark_targets._load_materialized_corpus_rows(
+        manifest,
+        corpus_cap=10,
+    )
+
+    assert tuple(doc_id for doc_id, _ in sampled_rows) == ("doc-a", "doc-b", "doc-c")
+
+
+def test_bm25_target_uses_level_corpus_cap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _materialized_fixture_manifest(tmp_path)
+    received_corpus_cap: list[int | None] = []
+
+    def _load_rows(
+        manifest: DatasetManifest,
+        *,
+        corpus_cap: int | None = None,
+    ) -> tuple[tuple[str, str], ...]:
+        del manifest
+        received_corpus_cap.append(corpus_cap)
+        return (("doc-a", "alpha"),)
+
+    class _FakeIndex:
+        def __init__(self, documents: Sequence[object], tokenizer_name: str) -> None:
+            del documents, tokenizer_name
+
+        def search(self, query: str, limit: int = 10) -> list[object]:
+            del query, limit
+            return []
+
+    monkeypatch.setattr("snowiki.benchmark_targets._load_materialized_corpus_rows", _load_rows)
+    monkeypatch.setattr("snowiki.benchmark_targets.BM25SearchIndex", _FakeIndex)
+
+    _ = DEFAULT_TARGET_REGISTRY.get_target("bm25_regex_v1").run(
+        manifest=manifest,
+        level=LevelConfig(level_id="quick", query_cap=1, corpus_cap=50),
+        queries=(BenchmarkQuery(query_id="q1", query_text="alpha"),),
+    )
+
+    assert received_corpus_cap == [50]
+
+
 def _materialized_fixture_manifest(tmp_path: Path) -> DatasetManifest:
     materialized_dir = tmp_path / "materialized"
     return DatasetManifest(

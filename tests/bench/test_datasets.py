@@ -63,6 +63,9 @@ def test_load_matrix_reads_official_contract() -> None:
     )
     assert tuple(matrix.levels) == ("quick", "standard", "full")
     assert matrix.levels["quick"].query_cap == 150
+    assert matrix.levels["quick"].corpus_cap == 50000
+    assert matrix.levels["standard"].corpus_cap == 200000
+    assert matrix.levels["full"].corpus_cap is None
     assert matrix.levels["full"].note == "Full means min(all, 1000)."
 
 
