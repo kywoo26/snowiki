@@ -5,9 +5,25 @@ purpose_tags:
   - passage-retrieval
   - judged-eval
   - en
-corpus_path: benchmarks/datasets/trec_dl_2020_passage/corpus.parquet
-queries_path: benchmarks/datasets/trec_dl_2020_passage/queries.parquet
-judgments_path: benchmarks/datasets/trec_dl_2020_passage/judgments.parquet
+corpus_path: benchmarks/materialized/trec_dl_2020_passage/corpus.parquet
+queries_path: benchmarks/materialized/trec_dl_2020_passage/queries.parquet
+judgments_path: benchmarks/materialized/trec_dl_2020_passage/judgments.tsv
+source:
+  corpus:
+    repo_id: whybe-choi/trec-dl-2020
+    config: corpus
+    split: corpus
+    revision: b37064dea006afb1651a76beaa2fa245d0a1d22b
+  queries:
+    repo_id: whybe-choi/trec-dl-2020
+    config: queries
+    split: queries
+    revision: b37064dea006afb1651a76beaa2fa245d0a1d22b
+  judgments:
+    repo_id: whybe-choi/trec-dl-2020
+    config: default
+    split: test
+    revision: b37064dea006afb1651a76beaa2fa245d0a1d22b
 field_mappings:
   corpus_id_keys:
     - docid

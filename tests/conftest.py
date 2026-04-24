@@ -118,6 +118,7 @@ def pytest_collection_modifyitems(
             or path.endswith("/tests/bench/test_runner.py")
             or path.endswith("/tests/bench/test_datasets.py")
             or path.endswith("/tests/bench/test_report.py")
+            or path.endswith("/tests/bench/test_benchmark_fetch.py")
         ):
             continue
         if "/tests/bench/" in path or "/tests/integration/bench/" in path:

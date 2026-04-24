@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import math
+import random
+from pathlib import Path
 
 import pytest
+from datasets import Dataset
 
 from snowiki.bench.metrics import (
     BUILTIN_METRICS,
@@ -11,6 +14,7 @@ from snowiki.bench.metrics import (
 )
 from snowiki.bench.runner import run_cell
 from snowiki.bench.specs import (
+    BenchmarkQuery,
     DatasetManifest,
     EvaluationMatrix,
     LevelConfig,
@@ -154,16 +158,32 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
         name="BEIR Natural Questions",
         language="en",
         purpose_tags=("passage-retrieval",),
-        corpus_path="benchmarks/datasets/beir_nq/corpus.parquet",
-        queries_path="benchmarks/datasets/beir_nq/queries.parquet",
-        judgments_path="benchmarks/datasets/beir_nq/judgments.tsv",
-        field_mappings={},
+        corpus_path="benchmarks/materialized/beir_nq/corpus.parquet",
+        queries_path="benchmarks/materialized/beir_nq/queries.parquet",
+        judgments_path="benchmarks/materialized/beir_nq/judgments.tsv",
+        field_mappings={
+            "query_id_keys": ("_id",),
+            "query_text_keys": ("text",),
+            "judgment_query_id_keys": ("query-id",),
+            "judgment_doc_id_keys": ("corpus-id",),
+            "judgment_relevance_keys": ("score",),
+        },
         supported_levels=("quick",),
     )
     matrix = EvaluationMatrix(
         matrix_id="test_matrix",
         datasets=("beir_nq",),
         levels={"quick": LevelConfig(level_id="quick", query_cap=2)},
+    )
+    query_text_by_id = {
+        "q1": "query one",
+        "q2": "query two",
+    }
+    expected_query_ids = ["q1", "q2"]
+    random.Random(1729).shuffle(expected_query_ids)
+    expected_queries = tuple(
+        BenchmarkQuery(query_id=query_id, query_text=query_text_by_id[query_id])
+        for query_id in expected_query_ids
     )
 
     class _Adapter:
@@ -172,9 +192,11 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
             *,
             manifest: DatasetManifest,
             level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
         ) -> dict[str, object]:
             assert manifest.dataset_id == "beir_nq"
             assert level.level_id == "quick"
+            assert queries == expected_queries
             return {
                 "results": (
                     QueryResult(
@@ -185,17 +207,28 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
                         ranked_doc_ids=("x1", "x2", "x3"),
                         latency_ms=20.0,
                     ),
-                ),
-                "qrels": {
-                    "q1": {"d1"},
-                    "q2": {"x3"},
-                },
+                )
             }
 
     monkeypatch.setattr(
         "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
     )
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest: (
+            BenchmarkQuery(query_id="q1", query_text="query one"),
+            BenchmarkQuery(query_id="q2", query_text="query two"),
+            BenchmarkQuery(query_id="q3", query_text="query three"),
+        ),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest: {
+            "q1": {"d1"},
+            "q2": {"x3"},
+        },
+    )
 
     result = run_cell(
         matrix=matrix, dataset_id="beir_nq", level_id="quick", target_id="test_target"
@@ -204,6 +237,9 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
     assert result.status == "success"
     assert result.error_message is None
     assert tuple(metric.metric_id for metric in result.metrics) == BUILTIN_METRICS
+    assert result.details["eligible_query_count"] == 2
+    assert result.details["effective_query_count"] == 2
+    assert result.details["sampling_seed"] == 1729
     assert result.details["per_query"] == {
         "q1": {
             "ranked_doc_ids": ["d1", "d9"],
@@ -230,3 +266,135 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
             },
         },
     }
+
+
+def test_graded_qrels_binary_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    manifest = DatasetManifest(
+        dataset_id="beir_nq",
+        name="BEIR Natural Questions",
+        language="en",
+        purpose_tags=("passage-retrieval",),
+        corpus_path=(tmp_path / "corpus.parquet").as_posix(),
+        queries_path=(tmp_path / "queries.parquet").as_posix(),
+        judgments_path=(tmp_path / "judgments.tsv").as_posix(),
+        field_mappings={
+            "query_id_keys": ("qid",),
+            "query_text_keys": ("query",),
+            "judgment_query_id_keys": ("qid",),
+            "judgment_doc_id_keys": ("docid",),
+            "judgment_relevance_keys": ("relevance",),
+        },
+        supported_levels=("quick",),
+    )
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=10)},
+    )
+    _write_parquet(
+        Path(manifest.queries_path),
+        {
+            "qid": ["q1", "q2"],
+            "query": ["binary positive relevance", "ignored non-positive relevance"],
+        },
+    )
+    _ = Path(manifest.judgments_path).write_text(
+        "\n".join(
+            (
+                "qid\tdocid\trelevance",
+                "q1\td-positive-2\t2",
+                "q1\td-positive-1\t1",
+                "q1\td-zero\t0",
+                "q1\td-negative\t-1",
+                "q2\td-zero-only\t0",
+                "q2\td-negative-only\t-2",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    selected_query_ids: list[str] = []
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            assert manifest.dataset_id == "beir_nq"
+            assert level.level_id == "quick"
+            selected_query_ids.extend(query.query_id for query in queries)
+            return {
+                "results": (
+                    QueryResult(
+                        query_id="q1",
+                        ranked_doc_ids=(
+                            "d-zero",
+                            "d-positive-2",
+                            "d-positive-1",
+                            "d-negative",
+                        ),
+                        latency_ms=5.0,
+                    ),
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner.resolve_dataset_assets",
+        lambda manifest: {
+            "corpus": tmp_path / "corpus.parquet",
+            "queries": tmp_path / "queries.parquet",
+            "judgments": tmp_path / "judgments.tsv",
+        },
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="test_target",
+    )
+
+    expected_ndcg = ((1.0 / math.log2(3)) + (1.0 / math.log2(4))) / (
+        1.0 + (1.0 / math.log2(3))
+    )
+    metric_by_id = {metric.metric_id: metric for metric in result.metrics}
+
+    assert result.status == "success"
+    assert selected_query_ids == ["q1"]
+    assert result.details["eligible_query_count"] == 1
+    assert result.details["effective_query_count"] == 1
+    assert result.details["per_query"] == {
+        "q1": {
+            "ranked_doc_ids": ["d-zero", "d-positive-2", "d-positive-1", "d-negative"],
+            "relevant_doc_ids": ["d-positive-1", "d-positive-2"],
+            "latency_ms": 5.0,
+            "metrics": {
+                "recall_at_100": 1.0,
+                "mrr_at_10": 0.5,
+                "ndcg_at_10": pytest.approx(expected_ndcg),
+                "latency_p50_ms": 5.0,
+                "latency_p95_ms": 5.0,
+            },
+        }
+    }
+    assert metric_by_id["recall_at_100"].value == 1.0
+    assert metric_by_id["mrr_at_10"].value == 0.5
+    assert metric_by_id["ndcg_at_10"].value == pytest.approx(expected_ndcg)
+    assert metric_by_id["latency_p50_ms"].value == 5.0
+    assert metric_by_id["latency_p95_ms"].value == 5.0
+
+
+def _write_parquet(path: Path, data: dict[str, list[str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    dataset = Dataset.from_dict(data)
+    _ = dataset.to_parquet(path.as_posix())

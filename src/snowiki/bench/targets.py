@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from snowiki.benchmark_targets import (
+    BM25_HF_WORDPIECE_TARGET_ADAPTER,
+    BM25_KIWI_MORPHOLOGY_TARGET_ADAPTER,
+    BM25_KIWI_NOUNS_TARGET_ADAPTER,
+    BM25_MECAB_MORPHOLOGY_TARGET_ADAPTER,
+    BM25_REGEX_TARGET_ADAPTER,
+    LEXICAL_REGEX_TARGET_ADAPTER,
+)
 
 from .specs import (
     BenchmarkTargetSpec,
-    DatasetManifest,
-    LevelConfig,
     RetrievalTargetAdapter,
 )
 
@@ -45,28 +50,6 @@ OFFICIAL_DATASET_IDS: tuple[str, ...] = (
     "ms_marco_passage",
     "trec_dl_2020_passage",
 )
-
-
-class _BuiltinTargetAdapter:
-    """Placeholder adapter used to reserve built-in target identities."""
-
-    _target_id: str
-
-    def __init__(self, target_id: str) -> None:
-        self._target_id = target_id
-
-    def run(
-        self,
-        *,
-        manifest: DatasetManifest,
-        level: LevelConfig,
-    ) -> Mapping[str, object]:
-        del manifest, level
-        raise NotImplementedError(
-            f"Benchmark target {self._target_id} is registered but not executable yet."
-        )
-
-
 LEXICAL_REGEX_V1 = BenchmarkTargetSpec(
     target_id="lexical_regex_v1",
     description="Lexical retrieval target using the runtime regex tokenizer.",
@@ -108,12 +91,30 @@ BUILTIN_TARGETS: tuple[BenchmarkTargetSpec, ...] = (
     BM25_HF_WORDPIECE_V1,
 )
 DEFAULT_TARGET_REGISTRY = TargetRegistry()
-
-for _spec in BUILTIN_TARGETS:
-    DEFAULT_TARGET_REGISTRY.register_target(
-        _spec,
-        _BuiltinTargetAdapter(_spec.target_id),
-    )
+DEFAULT_TARGET_REGISTRY.register_target(
+    LEXICAL_REGEX_V1,
+    LEXICAL_REGEX_TARGET_ADAPTER,
+)
+DEFAULT_TARGET_REGISTRY.register_target(
+    BM25_REGEX_V1,
+    BM25_REGEX_TARGET_ADAPTER,
+)
+DEFAULT_TARGET_REGISTRY.register_target(
+    BM25_KIWI_MORPHOLOGY_V1,
+    BM25_KIWI_MORPHOLOGY_TARGET_ADAPTER,
+)
+DEFAULT_TARGET_REGISTRY.register_target(
+    BM25_KIWI_NOUNS_V1,
+    BM25_KIWI_NOUNS_TARGET_ADAPTER,
+)
+DEFAULT_TARGET_REGISTRY.register_target(
+    BM25_MECAB_MORPHOLOGY_V1,
+    BM25_MECAB_MORPHOLOGY_TARGET_ADAPTER,
+)
+DEFAULT_TARGET_REGISTRY.register_target(
+    BM25_HF_WORDPIECE_V1,
+    BM25_HF_WORDPIECE_TARGET_ADAPTER,
+)
 
 
 def register_target(spec: BenchmarkTargetSpec, adapter: RetrievalTargetAdapter) -> None:
