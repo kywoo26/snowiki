@@ -35,6 +35,7 @@ def test_materialize_dataset_writes_normalized_outputs_and_metadata(
             ("example/scifact", "corpus", "corpus"): [
                 {"_id": "d1", "text": "doc one"},
                 {"_id": "d2", "content": "doc two"},
+                {"_id": "d3", "text": "", "title": "doc three title"},
             ],
             ("example/scifact", "queries", "queries"): [
                 {"_id": "q1", "text": "what is scifact?"},
@@ -72,7 +73,10 @@ def test_materialize_dataset_writes_normalized_outputs_and_metadata(
     )
 
     assert corpus.column_names == ["docid", "text"]
-    assert corpus[:2] == {"docid": ["d1", "d2"], "text": ["doc one", "doc two"]}
+    assert corpus[:3] == {
+        "docid": ["d1", "d2", "d3"],
+        "text": ["doc one", "doc two", "doc three title"],
+    }
     assert queries.column_names == ["qid", "query"]
     assert queries[:1] == {"qid": ["q1"], "query": ["what is scifact?"]}
     assert (materialized_dir / "judgments.tsv").read_text(encoding="utf-8") == (
@@ -99,7 +103,7 @@ def test_materialize_dataset_writes_normalized_outputs_and_metadata(
         "queries": "queries-sha",
         "judgments": "judgments-sha",
     }
-    assert row_counts == {"corpus": 2, "queries": 1, "judgments": 1}
+    assert row_counts == {"corpus": 3, "queries": 1, "judgments": 1}
     assert set(timestamps) == {"started_at", "completed_at"}
 
 
@@ -413,6 +417,7 @@ def _write_manifest(
                 "    - _id",
                 "  corpus_text_keys:",
                 "    - text",
+                "    - title",
                 "    - content",
                 "  query_id_keys:",
                 "    - _id",
