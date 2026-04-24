@@ -8,6 +8,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BENCH_ROOT = REPO_ROOT / "src" / "snowiki" / "bench"
 EXPECTED_FILES: tuple[str, ...] = (
     "__init__.py",
+    "cache.py",
     "datasets.py",
     "metrics.py",
     "report.py",

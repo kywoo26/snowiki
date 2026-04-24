@@ -93,6 +93,7 @@ def run_cell(
         )
         selected_query_ids = {query.query_id for query in selected_queries}
         execution = target.run(manifest=manifest, level=level, queries=selected_queries)
+        cache_metadata = _coerce_cache_metadata(execution.get("cache"))
         query_results = tuple(
             result
             for result in _coerce_query_results(execution.get("results", ()))
@@ -121,18 +122,24 @@ def run_cell(
             target_id=target_id,
             message=f"Cell execution failed: {exc}",
         )
+    details: dict[str, object] = {
+        "eligible_query_count": eligible_query_count,
+        "effective_query_count": len(selected_queries),
+        "per_query": _build_per_query_evidence(query_results, qrels, metrics),
+        "sampling_seed": QUERY_SAMPLING_SEED,
+    }
+    if level.corpus_cap is not None:
+        details["run_classification"] = "smoke"
+        details["public_baseline_comparable"] = False
+    if cache_metadata is not None:
+        details["cache"] = cache_metadata
     return CellResult(
         dataset_id=dataset_id,
         level_id=level_id,
         target_id=target_id,
         metrics=metrics,
         status="success",
-        details={
-            "eligible_query_count": eligible_query_count,
-            "effective_query_count": len(selected_queries),
-            "per_query": _build_per_query_evidence(query_results, qrels, metrics),
-            "sampling_seed": QUERY_SAMPLING_SEED,
-        },
+        details=details,
     )
 
 
@@ -378,6 +385,19 @@ def _coerce_query_results(raw_results: object) -> tuple[QueryResult, ...]:
             )
         )
     return tuple(query_results)
+
+
+def _coerce_cache_metadata(raw_cache: object) -> dict[str, object] | None:
+    if raw_cache is None:
+        return None
+    if not isinstance(raw_cache, Mapping):
+        raise TypeError("Benchmark target cache metadata must be a mapping.")
+    metadata: dict[str, object] = {}
+    for key, value in raw_cache.items():
+        if not isinstance(key, str):
+            raise TypeError("Benchmark target cache metadata keys must be strings.")
+        metadata[key] = value
+    return metadata
 
 
 def _load_qrels(manifest: DatasetManifest) -> dict[str, set[str]]:

@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import json
 import random
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 import pytest
 from datasets import Dataset
 
+from snowiki.bench.cache import (
+    BM25_CACHE_SCHEMA_VERSION,
+    build_bm25_cache_identity,
+    load_or_rebuild_bm25_cache,
+)
+from snowiki.bench.report import render_json
 from snowiki.bench.runner import (
     EXIT_CODE_INVALID_INPUT,
     EXIT_CODE_PARTIAL_FAILURE,
@@ -17,12 +25,135 @@ from snowiki.bench.runner import (
 )
 from snowiki.bench.specs import (
     BenchmarkQuery,
+    BenchmarkRunResult,
     CellResult,
     DatasetManifest,
     EvaluationMatrix,
     LevelConfig,
     QueryResult,
 )
+from snowiki.storage.zones import StoragePaths
+
+
+def test_bm25_cache_rebuilds_on_missing_manifest_and_hits_on_repeat(
+    tmp_path: Path,
+) -> None:
+    storage_paths = StoragePaths(tmp_path / "runtime")
+    identity = _cache_identity()
+    builds: list[str] = []
+
+    first = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=identity,
+        build_artifact=lambda: _built_artifact(builds, b"fresh-index"),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+    second = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=identity,
+        build_artifact=lambda: _built_artifact(builds, b"unexpected-rebuild"),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+
+    assert first.value == b"fresh-index"
+    assert first.metadata["cache_hit"] is False
+    assert first.metadata["cache_status"] == "rebuilt"
+    assert first.metadata["cache_miss_reason"] == "missing_manifest"
+    assert first.metadata["cache_rebuilt"] is True
+    assert first.metadata["cache_schema_version"] == BM25_CACHE_SCHEMA_VERSION
+    assert cast(float, first.metadata["index_build_seconds"]) >= 0.0
+    assert Path(cast(str, first.metadata["cache_manifest_path"])).is_file()
+    assert second.value == b"fresh-index"
+    assert second.metadata["cache_hit"] is True
+    assert second.metadata["cache_status"] == "hit"
+    assert second.metadata["cache_miss_reason"] is None
+    assert second.metadata["cache_rebuilt"] is False
+    assert builds == ["built"]
+
+
+@pytest.mark.parametrize(
+    ("manifest_payload", "remove_artifact", "expected_reason"),
+    [
+        ({"schema_version": 999, "identity_hash": "different"}, False, "manifest_mismatch"),
+        ("{not valid json", False, "malformed_manifest"),
+        (None, True, "missing_artifact"),
+    ],
+)
+def test_bm25_cache_rebuilds_manifest_and_artifact_failure_modes(
+    tmp_path: Path,
+    manifest_payload: object,
+    remove_artifact: bool,
+    expected_reason: str,
+) -> None:
+    storage_paths = StoragePaths(tmp_path / "runtime")
+    identity = _cache_identity()
+    seeded = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=identity,
+        build_artifact=lambda: (b"seed", b"seed"),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+    manifest_path = Path(cast(str, seeded.metadata["cache_manifest_path"]))
+    artifact_path = manifest_path.with_name("index.bm25cache")
+    if isinstance(manifest_payload, str):
+        _ = manifest_path.write_text(manifest_payload, encoding="utf-8")
+    elif manifest_payload is not None:
+        _ = manifest_path.write_text(
+            json.dumps(manifest_payload),
+            encoding="utf-8",
+        )
+    if remove_artifact:
+        artifact_path.unlink()
+        _ = artifact_path.with_name(f".{artifact_path.name}.orphan.tmp").write_bytes(
+            b"partial"
+        )
+
+    result = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=identity,
+        build_artifact=lambda: (b"rebuilt", b"rebuilt"),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+
+    assert result.value == b"rebuilt"
+    assert result.metadata["cache_hit"] is False
+    assert result.metadata["cache_status"] == "rebuilt"
+    assert result.metadata["cache_miss_reason"] == expected_reason
+    assert result.metadata["cache_rebuilt"] is True
+
+
+def test_bm25_cache_rebuilds_when_cached_artifact_load_is_corrupt(
+    tmp_path: Path,
+) -> None:
+    storage_paths = StoragePaths(tmp_path / "runtime")
+    identity = _cache_identity()
+    _ = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=identity,
+        build_artifact=lambda: (b"seed", b"seed"),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+
+    load_attempts = {"count": 0}
+
+    def _load(path: Path) -> bytes:
+        load_attempts["count"] += 1
+        if load_attempts["count"] == 1:
+            raise ValueError("cannot load cached index")
+        return path.read_bytes()
+
+    result = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=identity,
+        build_artifact=lambda: (b"rebuilt", b"rebuilt"),
+        load_artifact=_load,
+    )
+
+    assert result.value == b"rebuilt"
+    assert result.metadata["cache_hit"] is False
+    assert result.metadata["cache_status"] == "rebuilt"
+    assert result.metadata["cache_miss_reason"] == "corrupt_load"
+    assert result.metadata["cache_rebuilt"] is True
 
 
 def _matrix() -> EvaluationMatrix:
@@ -63,6 +194,25 @@ def _manifest() -> DatasetManifest:
         },
         supported_levels=("quick",),
     )
+
+
+def _cache_identity() -> dict[str, object]:
+    return build_bm25_cache_identity(
+        target_name="bm25_regex_v1",
+        corpus_identity="fixture/corpus.parquet",
+        corpus_hash="hash",
+        corpus_cap=10,
+        documents=(("doc-a", "alpha"),),
+        tokenizer_name="regex_v1",
+        tokenizer_config={"family": "regex"},
+        tokenizer_version=1,
+        bm25_params={"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5},
+    )
+
+
+def _built_artifact(builds: list[str], content: bytes) -> tuple[bytes, bytes]:
+    builds.append("built")
+    return content, content
 
 
 def _failed_cell(
@@ -536,6 +686,184 @@ def test_cell_details_include_sampling_metadata(
         assert isinstance(evidence["ranked_doc_ids"], list)
         assert isinstance(evidence["relevant_doc_ids"], list)
         assert isinstance(evidence["metrics"], dict)
+
+
+def test_capped_run_cell_reports_smoke_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=1, corpus_cap=50)},
+    )
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            del manifest, level
+            return {
+                "results": tuple(
+                    QueryResult(query_id=query.query_id, ranked_doc_ids=("doc",))
+                    for query in queries
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest: (BenchmarkQuery(query_id="q1", query_text="one"),),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest: {"q1": {"doc"}},
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="test_target",
+    )
+    rendered = render_json(BenchmarkRunResult(matrix_id="test_matrix", cells=(result,)))
+    cells = cast(list[object], rendered["cells"])
+    rendered_cell = cast(dict[str, object], cells[0])
+
+    assert result.status == "success"
+    assert result.details["run_classification"] == "smoke"
+    assert result.details["public_baseline_comparable"] is False
+    assert rendered_cell["run_classification"] == "smoke"
+    assert rendered_cell["public_baseline_comparable"] is False
+
+
+def test_run_cell_preserves_target_cache_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=1)},
+    )
+    cache_metadata = {
+        "cache_hit": True,
+        "cache_status": "hit",
+        "cache_miss_reason": None,
+        "cache_rebuilt": False,
+        "cache_manifest_path": "/tmp/runtime/index/bench/bm25/manifest.json",
+        "cache_schema_version": BM25_CACHE_SCHEMA_VERSION,
+        "index_build_seconds": 0.0,
+    }
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            del manifest, level
+            return {
+                "results": tuple(
+                    QueryResult(query_id=query.query_id, ranked_doc_ids=("doc",))
+                    for query in queries
+                ),
+                "cache": cache_metadata,
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest: (BenchmarkQuery(query_id="q1", query_text="one"),),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest: {"q1": {"doc"}},
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="bm25_regex_v1",
+    )
+
+    assert result.status == "success"
+    assert result.details["cache"] == cache_metadata
+    rendered = render_json(
+        BenchmarkRunResult(matrix_id="test_matrix", cells=(result,))
+    )
+    cells = cast(list[object], rendered["cells"])
+    cell = cast(dict[str, object], cells[0])
+    assert cell["cache"] == cache_metadata
+
+
+def test_run_cell_omits_cache_metadata_when_adapter_does_not_report_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=1)},
+    )
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            del manifest, level
+            return {
+                "results": tuple(
+                    QueryResult(query_id=query.query_id, ranked_doc_ids=("doc",))
+                    for query in queries
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest: (BenchmarkQuery(query_id="q1", query_text="one"),),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest: {"q1": {"doc"}},
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="lexical_regex_v1",
+    )
+
+    assert result.status == "success"
+    assert "cache" not in result.details
+    rendered = render_json(
+        BenchmarkRunResult(matrix_id="test_matrix", cells=(result,))
+    )
+    cells = cast(list[object], rendered["cells"])
+    cell = cast(dict[str, object], cells[0])
+    assert "cache" not in cell
 
 
 def test_run_cell_fails_when_target_omits_selected_query_results(

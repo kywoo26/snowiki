@@ -256,6 +256,64 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
         assert metrics_by_query["ndcg_at_10"] == 1.0
 
 
+def test_benchmark_bm25_reports_cache_metadata_and_hits_on_repeat(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "benchmark-repo"
+    runtime_root = tmp_path / "runtime"
+    dataset_id = "tiny_bm25_cache"
+    monkeypatch.setenv("SNOWIKI_ROOT", runtime_root.as_posix())
+    _write_benchmark_fixture_repo(repo_root, dataset_ids=(dataset_id,))
+    _patch_temp_benchmark_repo(monkeypatch, repo_root)
+    _patch_fake_benchmark_fetch_loader(monkeypatch)
+    materialize = _invoke_benchmark_fetch("--dataset", dataset_id)
+
+    assert materialize.exit_code == 0, materialize.output
+
+    first_output_path = tmp_path / "benchmark-first.json"
+    second_output_path = tmp_path / "benchmark-second.json"
+    benchmark_args = (
+        "--matrix",
+        str(_matrix_path(repo_root)),
+        "--dataset",
+        dataset_id,
+        "--level",
+        "quick",
+        "--target",
+        "bm25_regex_v1",
+    )
+
+    first = _invoke_benchmark(*benchmark_args, "--output", str(first_output_path))
+    second = _invoke_benchmark(*benchmark_args, "--output", str(second_output_path))
+
+    assert first.exit_code == 0, first.output
+    assert second.exit_code == 0, second.output
+    assert "matrix=official_six cells=1 failures=0" in first.output
+    assert "matrix=official_six cells=1 failures=0" in second.output
+    first_cell = _read_json(first_output_path)["cells"][0]
+    second_cell = _read_json(second_output_path)["cells"][0]
+    assert isinstance(first_cell, dict)
+    assert isinstance(second_cell, dict)
+
+    first_cache = first_cell["cache"]
+    second_cache = second_cell["cache"]
+    assert isinstance(first_cache, dict)
+    assert isinstance(second_cache, dict)
+    assert first_cache["cache_hit"] is False
+    assert first_cache["cache_status"] == "rebuilt"
+    assert first_cache["cache_miss_reason"] == "missing_manifest"
+    assert first_cache["cache_rebuilt"] is True
+    assert isinstance(first_cache["index_build_seconds"], float)
+    assert first_cache["index_build_seconds"] >= 0.0
+    assert Path(cast(str, first_cache["cache_manifest_path"])).is_file()
+    assert second_cache["cache_hit"] is True
+    assert second_cache["cache_status"] == "hit"
+    assert second_cache["cache_miss_reason"] is None
+    assert second_cache["cache_rebuilt"] is False
+    assert second_cache["index_build_seconds"] == 0.0
+
+
 def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

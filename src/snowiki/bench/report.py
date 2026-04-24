@@ -59,6 +59,15 @@ def _render_cell(cell: CellResult) -> dict[str, object]:
         payload["per_query"] = dict(
             cast(dict[str, object], cell.details.get("per_query", {}))
         )
+        run_classification = cell.details.get("run_classification")
+        if isinstance(run_classification, str):
+            payload["run_classification"] = run_classification
+        public_baseline_comparable = cell.details.get("public_baseline_comparable")
+        if isinstance(public_baseline_comparable, bool):
+            payload["public_baseline_comparable"] = public_baseline_comparable
+        cache_metadata = cell.details.get("cache")
+        if isinstance(cache_metadata, dict):
+            payload["cache"] = dict(cast(dict[str, object], cache_metadata))
     if cell.status == "failed" and cell.error_message is not None:
         payload["error"] = cell.error_message
     return payload
