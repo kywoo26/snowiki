@@ -8,16 +8,14 @@ Bench measures retrieval quality and runtime behavior for local runs. It is a th
 
 ## Official datasets
 
-These are the six fixed dataset IDs used by bench:
+These are the four fixed dataset IDs used by bench:
 
 | Dataset ID | Language |
 | :--- | :--- |
-| `ms_marco_passage` | en |
-| `trec_dl_2020_passage` | en |
-| `miracl_ko` | ko |
-| `miracl_en` | en |
 | `beir_nq` | en |
 | `beir_scifact` | en |
+| `trec_dl_2020_passage` | en |
+| `miracl_ko` | ko |
 
 ## Levels
 
@@ -46,7 +44,7 @@ Run bench with the shipped CLI:
 uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --output report.json
 
 # Run a single dataset at quick level
-uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --output report.json --dataset ms_marco_passage --level quick
+uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --output report.json --dataset beir_scifact --level quick
 ```
 
 The `snowiki benchmark` command is the supported surface for local evaluation runs.
@@ -62,28 +60,24 @@ For CI smoke runs, `bm25_regex_v1` is the only target executed on pull requests 
 
 ## Manual lexical comparison recipe
 
-Use this manual recipe when comparing the six built-in lexical and BM25 targets across the official six datasets:
+Use this manual recipe when comparing the six built-in lexical and BM25 targets across the official core datasets:
 
 ```bash
-# 1. Materialize the official six datasets once.
+# 1. Materialize the official core datasets once.
 uv run snowiki benchmark-fetch \
-  --dataset ms_marco_passage \
-  --dataset trec_dl_2020_passage \
-  --dataset miracl_ko \
-  --dataset miracl_en \
   --dataset beir_nq \
-  --dataset beir_scifact
+  --dataset beir_scifact \
+  --dataset trec_dl_2020_passage \
+  --dataset miracl_ko
 
-# 2. Run the official six-by-six lexical baseline comparison manually.
+# 2. Run the official core-by-six lexical baseline comparison manually.
 uv run snowiki benchmark \
   --matrix benchmarks/contracts/official_matrix.yaml \
   --level standard \
-  --dataset ms_marco_passage \
-  --dataset trec_dl_2020_passage \
-  --dataset miracl_ko \
-  --dataset miracl_en \
   --dataset beir_nq \
   --dataset beir_scifact \
+  --dataset trec_dl_2020_passage \
+  --dataset miracl_ko \
   --target lexical_regex_v1 \
   --target bm25_regex_v1 \
   --target bm25_kiwi_morphology_v1 \
