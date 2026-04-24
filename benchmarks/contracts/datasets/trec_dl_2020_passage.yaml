@@ -39,8 +39,10 @@ field_mappings:
     - query
     - text
   judgment_query_id_keys:
+    - query-id
     - qid
   judgment_doc_id_keys:
+    - corpus-id
     - docid
   judgment_relevance_keys:
     - relevance

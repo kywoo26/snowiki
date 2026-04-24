@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import cast
@@ -7,6 +8,13 @@ from typing import cast
 import pytest
 from datasets import Dataset
 
+from snowiki.bench.cache import (
+    BM25_CACHE_SCHEMA_VERSION,
+    BM25_INDEX_FORMAT_VERSION,
+    bm25_cache_paths,
+    build_bm25_cache_identity,
+    load_or_rebuild_bm25_cache,
+)
 from snowiki.bench.specs import (
     BenchmarkQuery,
     BenchmarkTargetSpec,
@@ -19,6 +27,7 @@ from snowiki.bench.targets import (
     DEFAULT_TARGET_REGISTRY,
     TargetRegistry,
 )
+from snowiki.storage.zones import StoragePaths
 
 
 class _Adapter:
@@ -31,6 +40,153 @@ class _Adapter:
     ) -> Mapping[str, object]:
         del manifest, level, queries
         return {}
+
+
+def test_bm25_cache_identity_covers_ordered_corpus_tokenizer_and_versions() -> None:
+    identity = build_bm25_cache_identity(
+        target_name="bm25_regex_v1",
+        corpus_identity="fixture_dataset/corpus.parquet",
+        corpus_hash="corpus-sha256",
+        corpus_cap=50,
+        documents=(("doc-b", "Beta text"), ("doc-a", "Alpha text")),
+        tokenizer_name="regex_v1",
+        tokenizer_config={"family": "regex", "lowercase": True},
+        tokenizer_version=1,
+        bm25_params={"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5},
+    )
+    corpus = cast(Mapping[str, object], identity["corpus"])
+    documents = cast(Mapping[str, object], identity["documents"])
+    tokenizer = cast(Mapping[str, object], identity["tokenizer"])
+    bm25 = cast(Mapping[str, object], identity["bm25"])
+
+    assert identity["target_name"] == "bm25_regex_v1"
+    assert corpus["identity"] == "fixture_dataset/corpus.parquet"
+    assert corpus["hash"] == "corpus-sha256"
+    assert corpus["cap"] == 50
+    assert documents["ordered_doc_ids"] == ["doc-b", "doc-a"]
+    assert len(cast(str, documents["content_hash"])) == 64
+    assert tokenizer["name"] == "regex_v1"
+    assert tokenizer["config"] == {"family": "regex", "lowercase": True}
+    assert tokenizer["version"] == 1
+    assert bm25["params"] == {
+        "b": 0.75,
+        "delta": 0.5,
+        "k1": 1.5,
+        "method": "lucene",
+    }
+    assert identity["cache_schema_version"] == BM25_CACHE_SCHEMA_VERSION
+    assert identity["index_format_version"] == BM25_INDEX_FORMAT_VERSION
+    assert isinstance(bm25["package_version"], str)
+    assert len(cast(str, identity["identity_hash"])) == 64
+
+    reordered_identity = build_bm25_cache_identity(
+        target_name="bm25_regex_v1",
+        corpus_identity="fixture_dataset/corpus.parquet",
+        corpus_hash="corpus-sha256",
+        corpus_cap=50,
+        documents=(("doc-a", "Alpha text"), ("doc-b", "Beta text")),
+        tokenizer_name="regex_v1",
+        tokenizer_config={"family": "regex", "lowercase": True},
+        tokenizer_version=1,
+        bm25_params={"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5},
+    )
+    tokenizer_changed_identity = build_bm25_cache_identity(
+        target_name="bm25_regex_v1",
+        corpus_identity="fixture_dataset/corpus.parquet",
+        corpus_hash="corpus-sha256",
+        corpus_cap=50,
+        documents=(("doc-b", "Beta text"), ("doc-a", "Alpha text")),
+        tokenizer_name="regex_v1",
+        tokenizer_config={"family": "regex", "lowercase": True},
+        tokenizer_version=2,
+        bm25_params={"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5},
+    )
+
+    assert reordered_identity["identity_hash"] != identity["identity_hash"]
+    assert tokenizer_changed_identity["identity_hash"] != identity["identity_hash"]
+
+
+@pytest.mark.parametrize(
+    "changed_field",
+    ["corpus_cap", "document_content", "tokenizer_name", "tokenizer_config", "bm25_params"],
+)
+def test_bm25_cache_rebuilds_when_identity_dimensions_change(
+    tmp_path: Path,
+    changed_field: str,
+) -> None:
+    storage_paths = StoragePaths(tmp_path / "runtime")
+    seeded_identity = _cache_identity_variant()
+    changed_identity = _cache_identity_variant(changed_field)
+    builds: list[str] = []
+
+    seeded = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=seeded_identity,
+        build_artifact=lambda: _built_cache_artifact(builds, b"seed"),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+    changed = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=changed_identity,
+        build_artifact=lambda: _built_cache_artifact(builds, changed_field.encode()),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+
+    assert seeded.metadata["cache_status"] == "rebuilt"
+    assert changed.value == changed_field.encode()
+    assert changed.metadata["cache_hit"] is False
+    assert changed.metadata["cache_status"] == "rebuilt"
+    assert changed.metadata["cache_miss_reason"] == "missing_manifest"
+    assert changed.metadata["cache_rebuilt"] is True
+    assert builds == ["built", "built"]
+
+
+def _cache_identity_variant(changed_field: str | None = None) -> dict[str, object]:
+    corpus_cap = 75 if changed_field == "corpus_cap" else 50
+    documents = (
+        (("doc-a", "Alpha text changed"),)
+        if changed_field == "document_content"
+        else (("doc-a", "Alpha text"),)
+    )
+    tokenizer_name = (
+        "kiwi_morphology_v1" if changed_field == "tokenizer_name" else "regex_v1"
+    )
+    tokenizer_config = (
+        {"family": "regex", "lowercase": False}
+        if changed_field == "tokenizer_config"
+        else {"family": "regex", "lowercase": True}
+    )
+    bm25_params = (
+        {"method": "lucene", "k1": 1.2, "b": 0.75, "delta": 0.5}
+        if changed_field == "bm25_params"
+        else {"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5}
+    )
+    return build_bm25_cache_identity(
+        target_name="bm25_regex_v1",
+        corpus_identity="fixture_dataset/corpus.parquet",
+        corpus_hash="corpus-sha256",
+        corpus_cap=corpus_cap,
+        documents=documents,
+        tokenizer_name=tokenizer_name,
+        tokenizer_config=tokenizer_config,
+        tokenizer_version=1,
+        bm25_params=bm25_params,
+    )
+
+
+def test_bm25_cache_paths_use_snowiki_runtime_index_zone(tmp_path: Path) -> None:
+    paths = StoragePaths(tmp_path / "runtime")
+
+    cache_paths = bm25_cache_paths(
+        storage_paths=paths,
+        target_name="bm25 regex/v1",
+        identity_hash="abc123",
+    )
+
+    assert cache_paths.root == paths.index / "bench" / "bm25" / "bm25-regex-v1" / "abc123"
+    assert cache_paths.manifest_path == cache_paths.root / "manifest.json"
+    assert cache_paths.artifact_path == cache_paths.root / "index.bm25cache"
+    assert not cache_paths.root.as_posix().startswith("benchmarks/")
 
 
 def test_builtin_targets_are_discoverable() -> None:
@@ -101,7 +257,11 @@ def test_lexical_regex_target_executes_on_tiny_fixture(tmp_path: Path) -> None:
     assert (results[0].latency_ms or 0.0) >= 0.0
 
 
-def test_bm25_regex_target_executes_on_tiny_fixture(tmp_path: Path) -> None:
+def test_bm25_regex_target_executes_on_tiny_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
     manifest = _materialized_fixture_manifest(tmp_path)
     _write_parquet(
         Path(manifest.corpus_path),
@@ -129,15 +289,176 @@ def test_bm25_regex_target_executes_on_tiny_fixture(tmp_path: Path) -> None:
     )
 
     results = tuple(cast(QueryResult, result) for result in execution["results"])
+    cache = cast(Mapping[str, object], execution["cache"])
 
     assert len(results) == 1
     assert results[0].query_id == "q1"
     assert results[0].ranked_doc_ids[:2] == ("doc-b", "doc-c")
     assert results[0].latency_ms is not None
     assert (results[0].latency_ms or 0.0) >= 0.0
+    assert cache["cache_hit"] is False
+    assert cache["cache_status"] == "rebuilt"
+    assert cache["cache_miss_reason"] == "missing_manifest"
+    assert cache["cache_rebuilt"] is True
+    assert cache["cache_schema_version"] == BM25_CACHE_SCHEMA_VERSION
+    assert cast(float, cache["index_build_seconds"]) >= 0.0
+    assert Path(cast(str, cache["cache_manifest_path"])).is_file()
 
 
-def test_builtin_targets_are_executable(tmp_path: Path) -> None:
+def test_bm25_target_hits_persistent_cache_and_skips_rebuild(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
+    manifest = _materialized_fixture_manifest(tmp_path)
+    _write_cache_fixture_files(manifest)
+    builds: list[float] = []
+    loads: list[Path] = []
+
+    class _FakeHit:
+        def __init__(self, document: object) -> None:
+            self.document = document
+
+    class _FakeIndex:
+        def __init__(self, documents: Sequence[object], tokenizer_name: str) -> None:
+            assert tokenizer_name == "regex_v1"
+            builds.append(time.perf_counter())
+            self.documents = list(documents)
+
+        def to_cache_bytes(self) -> bytes:
+            return b"fake-bm25-index"
+
+        @classmethod
+        def load_cache_artifact(
+            cls,
+            path: Path,
+            documents: Sequence[object],
+            *,
+            expected_tokenizer_name: str | None = None,
+        ) -> object:
+            assert expected_tokenizer_name == "regex_v1"
+            assert path.read_bytes() == b"fake-bm25-index"
+            loads.append(path)
+            instance = cls.__new__(cls)
+            instance.documents = list(documents)
+            return instance
+
+        def search(self, query: str, limit: int = 10) -> list[_FakeHit]:
+            del query, limit
+            return [_FakeHit(self.documents[0])]
+
+    monkeypatch.setattr(
+        "snowiki.benchmark_targets._load_materialized_corpus_rows",
+        lambda manifest, *, corpus_cap=None: (("doc-a", "alpha cache hit"),),
+    )
+    monkeypatch.setattr("snowiki.benchmark_targets.BM25SearchIndex", _FakeIndex)
+
+    target = DEFAULT_TARGET_REGISTRY.get_target("bm25_regex_v1")
+    query = BenchmarkQuery(query_id="q1", query_text="alpha")
+    start_first = time.perf_counter()
+    first = target.run(
+        manifest=manifest,
+        level=LevelConfig(level_id="quick", query_cap=1, corpus_cap=10),
+        queries=(query,),
+    )
+    first_seconds = time.perf_counter() - start_first
+    start_second = time.perf_counter()
+    second = target.run(
+        manifest=manifest,
+        level=LevelConfig(level_id="quick", query_cap=1, corpus_cap=10),
+        queries=(query,),
+    )
+    second_seconds = time.perf_counter() - start_second
+
+    first_cache = cast(Mapping[str, object], first["cache"])
+    second_cache = cast(Mapping[str, object], second["cache"])
+
+    assert first_cache["cache_hit"] is False
+    assert first_cache["cache_status"] == "rebuilt"
+    assert first_cache["cache_miss_reason"] == "missing_manifest"
+    assert first_cache["cache_rebuilt"] is True
+    assert cast(float, first_cache["index_build_seconds"]) >= 0.0
+    assert second_cache["cache_hit"] is True
+    assert second_cache["cache_status"] == "hit"
+    assert second_cache["cache_miss_reason"] is None
+    assert second_cache["cache_rebuilt"] is False
+    assert second_cache["index_build_seconds"] == 0.0
+    assert builds == [builds[0]]
+    assert len(loads) == 1
+    # Timing comparison is intentionally loose; CI runners can be very fast.
+    # The behavioural assertions above (single build, single load, cache_hit=True)
+    # are the real correctness check.
+    assert second_seconds <= first_seconds
+
+
+def test_bm25_target_rebuilds_and_reports_corrupt_cached_load(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
+    manifest = _materialized_fixture_manifest(tmp_path)
+    _write_cache_fixture_files(manifest)
+    builds: list[str] = []
+    load_attempts: list[Path] = []
+
+    class _FakeIndex:
+        def __init__(self, documents: Sequence[object], tokenizer_name: str) -> None:
+            del tokenizer_name
+            builds.append("built")
+            self.documents = list(documents)
+
+        def to_cache_bytes(self) -> bytes:
+            return b"fake-bm25-index"
+
+        @classmethod
+        def load_cache_artifact(
+            cls,
+            path: Path,
+            documents: Sequence[object],
+            *,
+            expected_tokenizer_name: str | None = None,
+        ) -> object:
+            del documents, expected_tokenizer_name
+            load_attempts.append(path)
+            raise ValueError("cached index is corrupt")
+
+        def search(self, query: str, limit: int = 10) -> list[object]:
+            del query, limit
+            return []
+
+    monkeypatch.setattr(
+        "snowiki.benchmark_targets._load_materialized_corpus_rows",
+        lambda manifest, *, corpus_cap=None: (("doc-a", "alpha cache corrupt"),),
+    )
+    monkeypatch.setattr("snowiki.benchmark_targets.BM25SearchIndex", _FakeIndex)
+    target = DEFAULT_TARGET_REGISTRY.get_target("bm25_regex_v1")
+    query = BenchmarkQuery(query_id="q1", query_text="alpha")
+    _ = target.run(
+        manifest=manifest,
+        level=LevelConfig(level_id="quick", query_cap=1),
+        queries=(query,),
+    )
+
+    second = target.run(
+        manifest=manifest,
+        level=LevelConfig(level_id="quick", query_cap=1),
+        queries=(query,),
+    )
+
+    cache = cast(Mapping[str, object], second["cache"])
+    assert cache["cache_hit"] is False
+    assert cache["cache_status"] == "rebuilt"
+    assert cache["cache_miss_reason"] == "corrupt_load"
+    assert cache["cache_rebuilt"] is True
+    assert builds == ["built", "built"]
+    assert len(load_attempts) == 1
+
+
+def test_builtin_targets_are_executable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
     corpus_path = tmp_path / "corpus.parquet"
     queries_path = tmp_path / "queries.parquet"
     judgments_path = tmp_path / "judgments.tsv"
@@ -193,6 +514,12 @@ def test_builtin_targets_are_executable(tmp_path: Path) -> None:
         assert "doc104" in results[1].ranked_doc_ids
         assert all(result.latency_ms is not None for result in results)
         assert all((result.latency_ms or 0.0) >= 0.0 for result in results)
+        if spec.target_id == "lexical_regex_v1":
+            assert "cache" not in execution
+        else:
+            cache = cast(Mapping[str, object], execution["cache"])
+            assert cache["cache_schema_version"] == BM25_CACHE_SCHEMA_VERSION
+            assert "index_build_seconds" in cache
 
 
 def test_corpus_sampling_keeps_all_judged_docs_before_random_fill(
@@ -284,7 +611,9 @@ def test_bm25_target_uses_level_corpus_cap(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
     manifest = _materialized_fixture_manifest(tmp_path)
+    _write_cache_fixture_files(manifest)
     received_corpus_cap: list[int | None] = []
 
     def _load_rows(
@@ -299,6 +628,9 @@ def test_bm25_target_uses_level_corpus_cap(
     class _FakeIndex:
         def __init__(self, documents: Sequence[object], tokenizer_name: str) -> None:
             del documents, tokenizer_name
+
+        def to_cache_bytes(self) -> bytes:
+            return b"fake-bm25-index"
 
         def search(self, query: str, limit: int = 10) -> list[object]:
             del query, limit
@@ -316,6 +648,11 @@ def test_bm25_target_uses_level_corpus_cap(
     assert received_corpus_cap == [50]
 
 
+def _built_cache_artifact(builds: list[str], content: bytes) -> tuple[bytes, bytes]:
+    builds.append("built")
+    return content, content
+
+
 def _materialized_fixture_manifest(tmp_path: Path) -> DatasetManifest:
     materialized_dir = tmp_path / "materialized"
     return DatasetManifest(
@@ -328,6 +665,16 @@ def _materialized_fixture_manifest(tmp_path: Path) -> DatasetManifest:
         judgments_path=(materialized_dir / "judgments.tsv").as_posix(),
         field_mappings={},
         supported_levels=("quick",),
+    )
+
+
+def _write_cache_fixture_files(manifest: DatasetManifest) -> None:
+    corpus_path = Path(manifest.corpus_path)
+    corpus_path.parent.mkdir(parents=True, exist_ok=True)
+    corpus_path.write_bytes(b"cache fixture corpus")
+    _ = Path(manifest.judgments_path).write_text(
+        "qid\tdocid\trelevance\nq1\tdoc-a\t1\n",
+        encoding="utf-8",
     )
 
 

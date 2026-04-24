@@ -337,6 +337,32 @@ def test_stdio_bridge_without_injected_project_data_stays_read_only_but_empty() 
     }
 
 
+def test_mcp_search_preserves_empty_zero_term_and_no_match_output_shape() -> None:
+    facade = SnowikiReadOnlyFacade(
+        session_records=(
+            {
+                "id": "session-runtime",
+                "path": "normalized/session-runtime.json",
+                "title": "Runtime lexical session",
+                "content": "searchable runtime content",
+            },
+        ),
+        compiled_pages=(),
+    )
+
+    assert facade.search("", limit=2) == {"hits": [], "limit": 2, "query": ""}
+    assert facade.search("!!! ...", limit=2) == {
+        "hits": [],
+        "limit": 2,
+        "query": "!!! ...",
+    }
+    assert facade.search("missing", limit=2) == {
+        "hits": [],
+        "limit": 2,
+        "query": "missing",
+    }
+
+
 def test_mcp_recall_auto_prefers_known_item_and_reports_cli_strategy(
     monkeypatch: Any,
 ) -> None:

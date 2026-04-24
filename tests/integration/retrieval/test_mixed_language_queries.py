@@ -65,6 +65,10 @@ def test_known_item_lookup_supports_mixed_language_queries(
             "compiled/wiki/search/mixed-language-overview.md",
         ),
         (
+            "MIXED-language retrieval!!! 한국어; English?",
+            "compiled/wiki/search/mixed-language-overview.md",
+        ),
+        (
             "benchmark coverage, query inventory, evaluation planning",
             "compiled/wiki/benchmarks/overview.md",
         ),

@@ -3,10 +3,16 @@ from __future__ import annotations
 import math
 import random
 from pathlib import Path
+from typing import cast
 
 import pytest
 from datasets import Dataset
 
+from snowiki.bench.cache import (
+    BM25_CACHE_SCHEMA_VERSION,
+    build_bm25_cache_identity,
+    load_or_rebuild_bm25_cache,
+)
 from snowiki.bench.metrics import (
     BUILTIN_METRICS,
     DEFAULT_METRIC_REGISTRY,
@@ -21,11 +27,62 @@ from snowiki.bench.specs import (
     MetricResult,
     QueryResult,
 )
+from snowiki.storage.zones import StoragePaths
+
+
+def test_bm25_cache_reports_disabled_or_unwritable_and_cleans_temp_files(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage_paths = StoragePaths(tmp_path / "runtime")
+    identity = _cache_identity()
+
+    def _raise_replace(source: object, destination: object) -> None:
+        del source, destination
+        raise PermissionError("cache directory is unwritable")
+
+    monkeypatch.setattr("snowiki.storage.zones.os.replace", _raise_replace)
+
+    result = load_or_rebuild_bm25_cache(
+        storage_paths=storage_paths,
+        identity=identity,
+        build_artifact=lambda: (b"uncached", b"uncached"),
+        load_artifact=lambda path: path.read_bytes(),
+    )
+
+    assert result.value == b"uncached"
+    assert result.metadata == {
+        "cache_hit": False,
+        "cache_status": "disabled_or_unwritable",
+        "cache_miss_reason": "unwritable_cache_directory",
+        "cache_rebuilt": True,
+        "cache_manifest_path": cast(str, result.metadata["cache_manifest_path"]),
+        "cache_schema_version": BM25_CACHE_SCHEMA_VERSION,
+        "index_build_seconds": cast(float, result.metadata["index_build_seconds"]),
+    }
+    assert cast(float, result.metadata["index_build_seconds"]) >= 0.0
+    manifest_path = Path(cast(str, result.metadata["cache_manifest_path"]))
+    assert not manifest_path.exists()
+    assert list(manifest_path.parent.glob("*.tmp")) == []
 
 
 def _stub_metric(results: object, qrels: object) -> MetricResult:
     del results, qrels
     return MetricResult(metric_id="stub_metric", value=1.0)
+
+
+def _cache_identity() -> dict[str, object]:
+    return build_bm25_cache_identity(
+        target_name="bm25_regex_v1",
+        corpus_identity="fixture/corpus.parquet",
+        corpus_hash="hash",
+        corpus_cap=10,
+        documents=(("doc-a", "alpha"),),
+        tokenizer_name="regex_v1",
+        tokenizer_config={"family": "regex"},
+        tokenizer_version=1,
+        bm25_params={"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5},
+    )
 
 
 def test_builtin_metric_registry_lists_all_five_metrics() -> None:
