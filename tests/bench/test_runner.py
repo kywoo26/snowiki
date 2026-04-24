@@ -162,7 +162,7 @@ def _matrix() -> EvaluationMatrix:
         datasets=("dataset_a", "dataset_b"),
         levels={
             "quick": LevelConfig(level_id="quick", query_cap=10),
-            "full": LevelConfig(level_id="full", query_cap=100),
+            "standard": LevelConfig(level_id="standard", query_cap=100),
         },
     )
 
@@ -305,7 +305,7 @@ def test_matrix_with_multiple_cells(monkeypatch: pytest.MonkeyPatch) -> None:
         _matrix(),
         selection={
             "dataset_ids": ("dataset_a", "dataset_b"),
-            "level_ids": ("quick", "full"),
+            "level_ids": ("quick", "standard"),
             "target_ids": ("bm25_regex_v1",),
         },
     )
@@ -314,9 +314,9 @@ def test_matrix_with_multiple_cells(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(result.cells) == 4
     assert calls == [
         ("dataset_a", "quick", "bm25_regex_v1"),
-        ("dataset_a", "full", "bm25_regex_v1"),
+        ("dataset_a", "standard", "bm25_regex_v1"),
         ("dataset_b", "quick", "bm25_regex_v1"),
-        ("dataset_b", "full", "bm25_regex_v1"),
+        ("dataset_b", "standard", "bm25_regex_v1"),
     ]
 
 
@@ -497,7 +497,7 @@ def test_run_cell_applies_query_cap_to_judged_query_intersection(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (
+        lambda manifest, **kwargs: (
             BenchmarkQuery(query_id="q2", query_text="two"),
             BenchmarkQuery(query_id="q4", query_text="four"),
             BenchmarkQuery(query_id="q1", query_text="one"),
@@ -506,7 +506,7 @@ def test_run_cell_applies_query_cap_to_judged_query_intersection(
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "q1": {"d1"},
             "q3": {"d3"},
             "q4": {"d4"},
@@ -578,7 +578,7 @@ def test_run_cell_uses_deterministic_sampling(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "q1": {"d1"},
             "q3": {"d3"},
             "q4": {"d4"},
@@ -587,8 +587,11 @@ def test_run_cell_uses_deterministic_sampling(
 
     load_count = {"value": 0}
 
-    def _load_queries(manifest: DatasetManifest) -> tuple[BenchmarkQuery, ...]:
-        del manifest
+    def _load_queries(
+        manifest: DatasetManifest,
+        **kwargs: object,
+    ) -> tuple[BenchmarkQuery, ...]:
+        del manifest, kwargs
         batch = query_batches[load_count["value"]]
         load_count["value"] += 1
         return batch
@@ -652,7 +655,7 @@ def test_cell_details_include_sampling_metadata(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (
+        lambda manifest, **kwargs: (
             BenchmarkQuery(query_id="q1", query_text="one"),
             BenchmarkQuery(query_id="q2", query_text="two"),
             BenchmarkQuery(query_id="q3", query_text="three"),
@@ -660,7 +663,7 @@ def test_cell_details_include_sampling_metadata(
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "q1": {"doc-q1"},
             "q2": {"doc-q2"},
             "q3": {"doc-q3"},
@@ -720,11 +723,11 @@ def test_capped_run_cell_reports_smoke_metadata(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (BenchmarkQuery(query_id="q1", query_text="one"),),
+        lambda manifest, **kwargs: (BenchmarkQuery(query_id="q1", query_text="one"),),
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {"q1": {"doc"}},
+        lambda manifest, **kwargs: {"q1": {"doc"}},
     )
 
     result = run_cell(
@@ -786,11 +789,11 @@ def test_run_cell_preserves_target_cache_metadata(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (BenchmarkQuery(query_id="q1", query_text="one"),),
+        lambda manifest, **kwargs: (BenchmarkQuery(query_id="q1", query_text="one"),),
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {"q1": {"doc"}},
+        lambda manifest, **kwargs: {"q1": {"doc"}},
     )
 
     result = run_cell(
@@ -842,11 +845,11 @@ def test_run_cell_omits_cache_metadata_when_adapter_does_not_report_it(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (BenchmarkQuery(query_id="q1", query_text="one"),),
+        lambda manifest, **kwargs: (BenchmarkQuery(query_id="q1", query_text="one"),),
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {"q1": {"doc"}},
+        lambda manifest, **kwargs: {"q1": {"doc"}},
     )
 
     result = run_cell(
@@ -897,14 +900,14 @@ def test_run_cell_fails_when_target_omits_selected_query_results(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (
+        lambda manifest, **kwargs: (
             BenchmarkQuery(query_id="q1", query_text="one"),
             BenchmarkQuery(query_id="q2", query_text="two"),
         ),
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "q1": {"d1"},
             "q2": {"d2"},
         },
@@ -962,7 +965,7 @@ def test_run_cell_filters_to_queries_with_positive_qrels(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (
+        lambda manifest, **kwargs: (
             BenchmarkQuery(query_id="q2", query_text="two"),
             BenchmarkQuery(query_id="q1", query_text="one"),
             BenchmarkQuery(query_id="q3", query_text="three"),
@@ -970,7 +973,7 @@ def test_run_cell_filters_to_queries_with_positive_qrels(
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "q1": {"d1"},
             "q3": {"d3"},
         },
@@ -1023,7 +1026,7 @@ def test_run_cell_fails_for_missing_materialized_dataset(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner.resolve_dataset_assets",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "corpus": tmp_path / "corpus.parquet",
             "queries": tmp_path / "queries.parquet",
             "judgments": tmp_path / "judgments.tsv",
@@ -1041,7 +1044,7 @@ def test_run_cell_fails_for_missing_materialized_dataset(
     assert result.error_message == (
         "Cell execution failed: Missing queries file: "
         f"{tmp_path / 'queries.parquet'} "
-        "(run snowiki benchmark-fetch --dataset beir_nq)"
+        "(run snowiki benchmark-fetch --dataset beir_nq --level quick)"
     )
     assert adapter_called is False
 
@@ -1100,7 +1103,7 @@ def test_run_cell_accepts_normalized_materialized_query_and_qrels_fields(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner.resolve_dataset_assets",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "corpus": corpus_path,
             "queries": queries_path,
             "judgments": judgments_path,

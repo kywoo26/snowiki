@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -7,6 +8,8 @@ from typing import Any, cast
 from snowiki.config import resolve_repo_asset_path
 
 from .specs import DatasetManifest, DatasetSourceLocator, EvaluationMatrix, LevelConfig
+
+_SAFE_LEVEL_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 def load_matrix(path: str | Path) -> EvaluationMatrix:
@@ -56,13 +59,17 @@ def load_dataset_manifest(path: str | Path) -> DatasetManifest:
     )
 
 
-def resolve_dataset_assets(manifest: DatasetManifest) -> dict[str, Path]:
+def resolve_dataset_assets(
+    manifest: DatasetManifest,
+    *,
+    level_id: str | None = None,
+) -> dict[str, Path]:
     """Resolve repo-owned dataset asset paths from a manifest."""
 
     return {
-        "corpus": _resolve_manifest_path(manifest.corpus_path),
-        "queries": _resolve_manifest_path(manifest.queries_path),
-        "judgments": _resolve_manifest_path(manifest.judgments_path),
+        "corpus": _resolve_level_path(manifest.corpus_path, level_id),
+        "queries": _resolve_level_path(manifest.queries_path, level_id),
+        "judgments": _resolve_level_path(manifest.judgments_path, level_id),
     }
 
 
@@ -71,9 +78,20 @@ def missing_materialized_asset_message(
     *,
     asset_name: str,
     path: Path,
+    level_id: str | None = None,
 ) -> str:
-    guidance = f"run snowiki benchmark-fetch --dataset {manifest.dataset_id}"
+    level_hint = f" --level {level_id}" if level_id is not None else ""
+    guidance = f"run snowiki benchmark-fetch --dataset {manifest.dataset_id}{level_hint}"
     return f"Missing {asset_name} file: {path} ({guidance})"
+
+
+def _resolve_level_path(raw_path: str, level_id: str | None) -> Path:
+    path = _resolve_manifest_path(raw_path)
+    if level_id is None:
+        return path
+    if _SAFE_LEVEL_ID_RE.fullmatch(level_id) is None:
+        raise ValueError(f"Unsafe benchmark level ID: {level_id!r}")
+    return path.parent / level_id / path.name
 
 
 def _resolve_manifest_path(raw_path: str) -> Path:

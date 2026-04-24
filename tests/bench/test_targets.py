@@ -231,7 +231,7 @@ def test_duplicate_registration_raises_value_error() -> None:
 def test_lexical_regex_target_executes_on_tiny_fixture(tmp_path: Path) -> None:
     manifest = _materialized_fixture_manifest(tmp_path)
     _write_parquet(
-        Path(manifest.corpus_path),
+        _level_asset_path(manifest.corpus_path),
         rows=[
             {"docid": "doc-a", "text": "alpha topic"},
             {"docid": "doc-b", "text": "needle alpha phrase"},
@@ -244,7 +244,7 @@ def test_lexical_regex_target_executes_on_tiny_fixture(tmp_path: Path) -> None:
         rows=[{"qid": "q1", "query": "needle alpha"}],
         columns=("qid", "query"),
     )
-    _ = Path(manifest.judgments_path).write_text(
+    _ = _level_asset_path(manifest.judgments_path).write_text(
         "qid\tdocid\trelevance\nq1\tdoc-b\t1\n",
         encoding="utf-8",
     )
@@ -272,7 +272,7 @@ def test_bm25_regex_target_executes_on_tiny_fixture(
     monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
     manifest = _materialized_fixture_manifest(tmp_path)
     _write_parquet(
-        Path(manifest.corpus_path),
+        _level_asset_path(manifest.corpus_path),
         rows=[
             {"docid": "doc-a", "text": "alpha topic"},
             {"docid": "doc-b", "text": "needle alpha phrase"},
@@ -285,7 +285,7 @@ def test_bm25_regex_target_executes_on_tiny_fixture(
         rows=[{"qid": "q1", "query": "needle alpha"}],
         columns=("qid", "query"),
     )
-    _ = Path(manifest.judgments_path).write_text(
+    _ = _level_asset_path(manifest.judgments_path).write_text(
         "qid\tdocid\trelevance\nq1\tdoc-b\t1\n",
         encoding="utf-8",
     )
@@ -357,7 +357,7 @@ def test_bm25_target_hits_persistent_cache_and_skips_rebuild(
 
     monkeypatch.setattr(
         "snowiki.benchmark_targets._load_materialized_corpus_rows",
-        lambda manifest, *, corpus_cap=None: (("doc-a", "alpha cache hit"),),
+        lambda manifest, *, level: (("doc-a", "alpha cache hit"),),
     )
     monkeypatch.setattr("snowiki.benchmark_targets.BM25SearchIndex", _FakeIndex)
 
@@ -436,7 +436,7 @@ def test_bm25_target_rebuilds_and_reports_corrupt_cached_load(
 
     monkeypatch.setattr(
         "snowiki.benchmark_targets._load_materialized_corpus_rows",
-        lambda manifest, *, corpus_cap=None: (("doc-a", "alpha cache corrupt"),),
+        lambda manifest, *, level: (("doc-a", "alpha cache corrupt"),),
     )
     monkeypatch.setattr("snowiki.benchmark_targets.BM25SearchIndex", _FakeIndex)
     target = DEFAULT_TARGET_REGISTRY.get_target("bm25_regex_v1")
@@ -472,7 +472,7 @@ def test_builtin_targets_are_executable(
     judgments_path = tmp_path / "judgments.tsv"
 
     _write_parquet(
-        corpus_path,
+        _level_asset_path(corpus_path.as_posix()),
         rows=[
             {"docid": f"doc{i}", "text": f"common token document {i}"}
             for i in range(104)
@@ -537,7 +537,7 @@ def test_corpus_sampling_keeps_all_judged_docs_before_random_fill(
 
     manifest = _materialized_fixture_manifest(tmp_path)
     _write_parquet(
-        Path(manifest.corpus_path),
+        _level_asset_path(manifest.corpus_path),
         rows=[
             {"docid": "doc-a", "text": "alpha"},
             {"docid": "doc-b", "text": "beta"},
@@ -547,14 +547,14 @@ def test_corpus_sampling_keeps_all_judged_docs_before_random_fill(
         ],
         columns=("docid", "text"),
     )
-    _ = Path(manifest.judgments_path).write_text(
+    _ = _level_asset_path(manifest.judgments_path).write_text(
         "qid\tdocid\trelevance\nq1\tdoc-c\t1\nq2\tdoc-e\t1\n",
         encoding="utf-8",
     )
 
     sampled_rows = benchmark_targets._load_materialized_corpus_rows(
         manifest,
-        corpus_cap=4,
+        level=LevelConfig(level_id="quick", query_cap=1, corpus_cap=4),
     )
 
     sampled_doc_ids = tuple(doc_id for doc_id, _ in sampled_rows)
@@ -568,7 +568,7 @@ def test_corpus_sampling_treats_cap_as_minimum_for_judged_docs(tmp_path: Path) -
 
     manifest = _materialized_fixture_manifest(tmp_path)
     _write_parquet(
-        Path(manifest.corpus_path),
+        _level_asset_path(manifest.corpus_path),
         rows=[
             {"docid": "doc-a", "text": "alpha"},
             {"docid": "doc-b", "text": "beta"},
@@ -576,14 +576,14 @@ def test_corpus_sampling_treats_cap_as_minimum_for_judged_docs(tmp_path: Path) -
         ],
         columns=("docid", "text"),
     )
-    _ = Path(manifest.judgments_path).write_text(
+    _ = _level_asset_path(manifest.judgments_path).write_text(
         "qid\tdocid\trelevance\nq1\tdoc-a\t1\nq2\tdoc-c\t1\n",
         encoding="utf-8",
     )
 
     sampled_rows = benchmark_targets._load_materialized_corpus_rows(
         manifest,
-        corpus_cap=1,
+        level=LevelConfig(level_id="quick", query_cap=1, corpus_cap=1),
     )
 
     assert tuple(doc_id for doc_id, _ in sampled_rows) == ("doc-a", "doc-c")
@@ -594,7 +594,7 @@ def test_corpus_sampling_preserves_order_when_corpus_fits_cap(tmp_path: Path) ->
 
     manifest = _materialized_fixture_manifest(tmp_path)
     _write_parquet(
-        Path(manifest.corpus_path),
+        _level_asset_path(manifest.corpus_path),
         rows=[
             {"docid": "doc-a", "text": "alpha"},
             {"docid": "doc-b", "text": "beta"},
@@ -602,14 +602,14 @@ def test_corpus_sampling_preserves_order_when_corpus_fits_cap(tmp_path: Path) ->
         ],
         columns=("docid", "text"),
     )
-    _ = Path(manifest.judgments_path).write_text(
+    _ = _level_asset_path(manifest.judgments_path).write_text(
         "qid\tdocid\trelevance\nq1\tdoc-c\t1\n",
         encoding="utf-8",
     )
 
     sampled_rows = benchmark_targets._load_materialized_corpus_rows(
         manifest,
-        corpus_cap=10,
+        level=LevelConfig(level_id="quick", query_cap=1, corpus_cap=10),
     )
 
     assert tuple(doc_id for doc_id, _ in sampled_rows) == ("doc-a", "doc-b", "doc-c")
@@ -622,15 +622,15 @@ def test_bm25_target_uses_level_corpus_cap(
     monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
     manifest = _materialized_fixture_manifest(tmp_path)
     _write_cache_fixture_files(manifest)
-    received_corpus_cap: list[int | None] = []
+    received_levels: list[LevelConfig] = []
 
     def _load_rows(
         manifest: DatasetManifest,
         *,
-        corpus_cap: int | None = None,
+        level: LevelConfig,
     ) -> tuple[tuple[str, str], ...]:
         del manifest
-        received_corpus_cap.append(corpus_cap)
+        received_levels.append(level)
         return (("doc-a", "alpha"),)
 
     class _FakeIndex:
@@ -653,7 +653,7 @@ def test_bm25_target_uses_level_corpus_cap(
         queries=(BenchmarkQuery(query_id="q1", query_text="alpha"),),
     )
 
-    assert received_corpus_cap == [50]
+    assert [level.corpus_cap for level in received_levels] == [50]
 
 
 def _built_cache_artifact(builds: list[str], content: bytes) -> tuple[bytes, bytes]:
@@ -676,11 +676,16 @@ def _materialized_fixture_manifest(tmp_path: Path) -> DatasetManifest:
     )
 
 
+def _level_asset_path(raw_path: str, level_id: str = "quick") -> Path:
+    path = Path(raw_path)
+    return path.parent / level_id / path.name
+
+
 def _write_cache_fixture_files(manifest: DatasetManifest) -> None:
-    corpus_path = Path(manifest.corpus_path)
+    corpus_path = _level_asset_path(manifest.corpus_path)
     corpus_path.parent.mkdir(parents=True, exist_ok=True)
     corpus_path.write_bytes(b"cache fixture corpus")
-    _ = Path(manifest.judgments_path).write_text(
+    _ = _level_asset_path(manifest.judgments_path).write_text(
         "qid\tdocid\trelevance\nq1\tdoc-a\t1\n",
         encoding="utf-8",
     )

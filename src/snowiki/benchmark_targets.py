@@ -52,7 +52,7 @@ class _LexicalRegexTargetAdapter:
             )
             for doc_id, text in _load_materialized_corpus_rows(
                 manifest,
-                corpus_cap=level.corpus_cap,
+                level=level,
             )
         )
         index = InvertedIndex(documents, tokenizer=create(default().name))
@@ -81,7 +81,7 @@ class _BM25TargetAdapter:
     ) -> Mapping[str, object]:
         corpus_rows = _load_materialized_corpus_rows(
             manifest,
-            corpus_cap=level.corpus_cap,
+            level=level,
         )
         documents = tuple(
             BM25SearchDocument(
@@ -128,7 +128,7 @@ class _BM25TargetAdapter:
         corpus_rows: tuple[tuple[str, str], ...],
     ) -> dict[str, object]:
         tokenizer_spec = get_tokenizer_spec(self._tokenizer_name)
-        corpus_path = resolve_dataset_assets(manifest)["corpus"]
+        corpus_path = resolve_dataset_assets(manifest, level_id=level.level_id)["corpus"]
         return build_bm25_cache_identity(
             target_name=self._target_name,
             corpus_identity=corpus_path.as_posix(),
@@ -148,15 +148,16 @@ class _BM25TargetAdapter:
 def _load_materialized_corpus_rows(
     manifest: DatasetManifest,
     *,
-    corpus_cap: int | None = None,
+    level: LevelConfig,
 ) -> tuple[tuple[str, str], ...]:
-    corpus_path = resolve_dataset_assets(manifest)["corpus"]
+    corpus_path = resolve_dataset_assets(manifest, level_id=level.level_id)["corpus"]
     if not corpus_path.is_file():
         raise FileNotFoundError(
             missing_materialized_asset_message(
                 manifest,
                 asset_name="corpus",
                 path=corpus_path,
+                level_id=level.level_id,
             )
         )
 
@@ -166,13 +167,14 @@ def _load_materialized_corpus_rows(
         Iterable[object],
         load_dataset("parquet", data_files=str(corpus_path), split="train"),
     )
-    if corpus_cap is None:
+    if level.corpus_cap is None:
         rows: list[tuple[str, str]] = []
         for row in dataset:
             rows.append(_coerce_corpus_row(row, corpus_path=corpus_path))
         return tuple(rows)
 
-    judged_doc_ids = _load_judged_doc_ids(manifest)
+    corpus_cap = level.corpus_cap
+    judged_doc_ids = _load_judged_doc_ids(manifest, level_id=level.level_id)
     fill_size = max(corpus_cap, len(judged_doc_ids)) - len(judged_doc_ids)
     buffered_rows: list[tuple[str, str]] = []
     judged_rows: dict[str, tuple[str, str]] = {}
@@ -228,14 +230,15 @@ def _coerce_corpus_row(row: object, *, corpus_path: Path) -> tuple[str, str]:
     )
 
 
-def _load_judged_doc_ids(manifest: DatasetManifest) -> set[str]:
-    judgments_path = resolve_dataset_assets(manifest)["judgments"]
+def _load_judged_doc_ids(manifest: DatasetManifest, *, level_id: str | None = None) -> set[str]:
+    judgments_path = resolve_dataset_assets(manifest, level_id=level_id)["judgments"]
     if not judgments_path.is_file():
         raise FileNotFoundError(
             missing_materialized_asset_message(
                 manifest,
                 asset_name="judgments",
                 path=judgments_path,
+                level_id=level_id,
             )
         )
 
