@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import random
 import time
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import cast
 
+from snowiki.bench.cache import (
+    build_bm25_cache_identity,
+    load_or_rebuild_bm25_cache,
+)
 from snowiki.bench.datasets import (
     missing_materialized_asset_message,
     resolve_dataset_assets,
@@ -16,9 +21,12 @@ from snowiki.bench.specs import (
     LevelConfig,
     QueryResult,
 )
+from snowiki.config import get_snowiki_root
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchIndex
 from snowiki.search.indexer import InvertedIndex, SearchDocument
 from snowiki.search.registry import create, default
+from snowiki.search.registry import get as get_tokenizer_spec
+from snowiki.storage.zones import StoragePaths
 
 BENCHMARK_RETRIEVAL_LIMIT = 100
 CORPUS_SAMPLING_SEED = 2718
@@ -57,9 +65,11 @@ class _LexicalRegexTargetAdapter:
 class _BM25TargetAdapter:
     """Benchmark target adapter for BM25 retrieval with a canonical tokenizer."""
 
+    _target_name: str
     _tokenizer_name: str
 
-    def __init__(self, tokenizer_name: str) -> None:
+    def __init__(self, target_name: str, tokenizer_name: str) -> None:
+        self._target_name = target_name
         self._tokenizer_name = tokenizer_name
 
     def run(
@@ -69,6 +79,10 @@ class _BM25TargetAdapter:
         level: LevelConfig,
         queries: tuple[BenchmarkQuery, ...],
     ) -> Mapping[str, object]:
+        corpus_rows = _load_materialized_corpus_rows(
+            manifest,
+            corpus_cap=level.corpus_cap,
+        )
         documents = tuple(
             BM25SearchDocument(
                 id=doc_id,
@@ -77,14 +91,58 @@ class _BM25TargetAdapter:
                 kind="benchmark_doc",
                 content=text,
             )
-            for doc_id, text in _load_materialized_corpus_rows(
-                manifest,
-                corpus_cap=level.corpus_cap,
-            )
+            for doc_id, text in corpus_rows
         )
-        index = BM25SearchIndex(documents, tokenizer_name=self._tokenizer_name)
+        identity = self._cache_identity(
+            manifest=manifest,
+            level=level,
+            corpus_rows=corpus_rows,
+        )
+
+        def _build_artifact() -> tuple[BM25SearchIndex, bytes]:
+            index = BM25SearchIndex(documents, tokenizer_name=self._tokenizer_name)
+            return index, index.to_cache_bytes()
+
+        def _load_artifact(path: Path) -> BM25SearchIndex:
+            return BM25SearchIndex.load_cache_artifact(
+                path,
+                documents,
+                expected_tokenizer_name=self._tokenizer_name,
+            )
+
+        cache_result = load_or_rebuild_bm25_cache(
+            storage_paths=StoragePaths(get_snowiki_root()),
+            identity=identity,
+            build_artifact=_build_artifact,
+            load_artifact=_load_artifact,
+        )
+        index = cache_result.value
         results = tuple(_run_bm25_query(index=index, query=query) for query in queries)
-        return {"results": results}
+        return {"results": results, "cache": cache_result.metadata}
+
+    def _cache_identity(
+        self,
+        *,
+        manifest: DatasetManifest,
+        level: LevelConfig,
+        corpus_rows: tuple[tuple[str, str], ...],
+    ) -> dict[str, object]:
+        tokenizer_spec = get_tokenizer_spec(self._tokenizer_name)
+        corpus_path = resolve_dataset_assets(manifest)["corpus"]
+        return build_bm25_cache_identity(
+            target_name=self._target_name,
+            corpus_identity=corpus_path.as_posix(),
+            corpus_hash=_sha256_file(corpus_path),
+            corpus_cap=level.corpus_cap,
+            documents=corpus_rows,
+            tokenizer_name=tokenizer_spec.name,
+            tokenizer_config={
+                "family": tokenizer_spec.family,
+                "runtime_supported": tokenizer_spec.runtime_supported,
+            },
+            tokenizer_version=tokenizer_spec.version,
+            bm25_params={"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5},
+        )
 
 
 def _load_materialized_corpus_rows(
@@ -208,6 +266,14 @@ def _require_corpus_field(
     return str(value)
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _run_lexical_query(
     *,
     index: InvertedIndex,
@@ -239,8 +305,20 @@ def _run_bm25_query(
 
 
 LEXICAL_REGEX_TARGET_ADAPTER = _LexicalRegexTargetAdapter()
-BM25_REGEX_TARGET_ADAPTER = _BM25TargetAdapter("regex_v1")
-BM25_KIWI_MORPHOLOGY_TARGET_ADAPTER = _BM25TargetAdapter("kiwi_morphology_v1")
-BM25_KIWI_NOUNS_TARGET_ADAPTER = _BM25TargetAdapter("kiwi_nouns_v1")
-BM25_MECAB_MORPHOLOGY_TARGET_ADAPTER = _BM25TargetAdapter("mecab_morphology_v1")
-BM25_HF_WORDPIECE_TARGET_ADAPTER = _BM25TargetAdapter("hf_wordpiece_v1")
+BM25_REGEX_TARGET_ADAPTER = _BM25TargetAdapter("bm25_regex_v1", "regex_v1")
+BM25_KIWI_MORPHOLOGY_TARGET_ADAPTER = _BM25TargetAdapter(
+    "bm25_kiwi_morphology_v1",
+    "kiwi_morphology_v1",
+)
+BM25_KIWI_NOUNS_TARGET_ADAPTER = _BM25TargetAdapter(
+    "bm25_kiwi_nouns_v1",
+    "kiwi_nouns_v1",
+)
+BM25_MECAB_MORPHOLOGY_TARGET_ADAPTER = _BM25TargetAdapter(
+    "bm25_mecab_morphology_v1",
+    "mecab_morphology_v1",
+)
+BM25_HF_WORDPIECE_TARGET_ADAPTER = _BM25TargetAdapter(
+    "bm25_hf_wordpiece_v1",
+    "hf_wordpiece_v1",
+)
