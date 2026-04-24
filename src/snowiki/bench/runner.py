@@ -84,8 +84,8 @@ def run_cell(
             message=str(exc),
         )
     try:
-        all_queries = _load_materialized_queries(manifest)
-        all_qrels = _load_qrels(manifest)
+        all_queries = _load_materialized_queries(manifest, level_id=level_id)
+        all_qrels = _load_qrels(manifest, level_id=level_id)
         selected_queries, qrels, eligible_query_count = _select_queries_for_level(
             queries=all_queries,
             qrels=all_qrels,
@@ -308,14 +308,19 @@ def _dataset_manifest_path(dataset_id: str) -> Path:
     )
 
 
-def _load_materialized_queries(manifest: DatasetManifest) -> tuple[BenchmarkQuery, ...]:
-    queries_path = resolve_dataset_assets(manifest)["queries"]
+def _load_materialized_queries(
+    manifest: DatasetManifest,
+    *,
+    level_id: str | None = None,
+) -> tuple[BenchmarkQuery, ...]:
+    queries_path = resolve_dataset_assets(manifest, level_id=level_id)["queries"]
     if not queries_path.is_file():
         raise FileNotFoundError(
             missing_materialized_asset_message(
                 manifest,
                 asset_name="queries",
                 path=queries_path,
+                level_id=level_id,
             )
         )
     from datasets import load_dataset
@@ -400,14 +405,19 @@ def _coerce_cache_metadata(raw_cache: object) -> dict[str, object] | None:
     return metadata
 
 
-def _load_qrels(manifest: DatasetManifest) -> dict[str, set[str]]:
-    judgments_path = resolve_dataset_assets(manifest)["judgments"]
+def _load_qrels(
+    manifest: DatasetManifest,
+    *,
+    level_id: str | None = None,
+) -> dict[str, set[str]]:
+    judgments_path = resolve_dataset_assets(manifest, level_id=level_id)["judgments"]
     if not judgments_path.is_file():
         raise FileNotFoundError(
             missing_materialized_asset_message(
                 manifest,
                 asset_name="judgments",
                 path=judgments_path,
+                level_id=level_id,
             )
         )
     if judgments_path.suffix == ".json":

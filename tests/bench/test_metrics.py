@@ -273,7 +273,7 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner._load_materialized_queries",
-        lambda manifest: (
+        lambda manifest, **kwargs: (
             BenchmarkQuery(query_id="q1", query_text="query one"),
             BenchmarkQuery(query_id="q2", query_text="query two"),
             BenchmarkQuery(query_id="q3", query_text="query three"),
@@ -281,7 +281,7 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "q1": {"d1"},
             "q2": {"x3"},
         },
@@ -407,7 +407,7 @@ def test_graded_qrels_binary_contract(
     monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
     monkeypatch.setattr(
         "snowiki.bench.runner.resolve_dataset_assets",
-        lambda manifest: {
+        lambda manifest, **kwargs: {
             "corpus": tmp_path / "corpus.parquet",
             "queries": tmp_path / "queries.parquet",
             "judgments": tmp_path / "judgments.tsv",

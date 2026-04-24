@@ -35,7 +35,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Materialize CI benchmark datasets
-        run: uv run snowiki benchmark-fetch --dataset beir_nq --dataset beir_scifact --dataset trec_dl_2020_passage --dataset miracl_ko
+        run: uv run snowiki benchmark-fetch --dataset beir_nq --dataset beir_scifact --dataset trec_dl_2020_passage --dataset miracl_ko --level standard
 
       - name: Run standard benchmark smoke target
         run: |

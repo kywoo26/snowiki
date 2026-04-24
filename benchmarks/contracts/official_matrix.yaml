@@ -11,7 +11,3 @@ levels:
   standard:
     query_cap: 500
     corpus_cap: 200000
-  full:
-    query_cap: 1000
-    corpus_cap: null
-    note: Full means min(all, 1000).

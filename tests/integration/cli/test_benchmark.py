@@ -122,8 +122,9 @@ def _patch_fake_benchmark_fetch_loader(monkeypatch: pytest.MonkeyPatch) -> None:
         split: str,
         revision: str,
         cache_dir: str,
+        streaming: bool = False,
     ) -> list[dict[str, object]]:
-        del repo_id, config, revision, cache_dir
+        del repo_id, config, revision, cache_dir, streaming
         return rows_by_split[split]
 
     monkeypatch.setattr("snowiki.benchmark_fetch.load_dataset", _fake_load_dataset)
@@ -181,7 +182,7 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
 
     assert materialize.exit_code == 0, materialize.output
     assert (
-        f"dataset={dataset_id} action=materialized reason=missing_sidecar "
+        f"dataset={dataset_id} level=quick action=materialized reason=missing_sidecar "
         "corpus=2 queries=2 judgments=2"
     ) in materialize.output
 
@@ -358,8 +359,8 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
             "per_query": {},
             "error": (
                 "Cell execution failed: Missing queries file: "
-                f"{repo_root / 'benchmarks' / 'materialized' / dataset_id / 'queries.parquet'} "
-                f"(run snowiki benchmark-fetch --dataset {dataset_id})"
+                f"{repo_root / 'benchmarks' / 'materialized' / dataset_id / 'quick' / 'queries.parquet'} "
+                f"(run snowiki benchmark-fetch --dataset {dataset_id} --level quick)"
             ),
         }
     ]

@@ -69,21 +69,34 @@ jobs:
         run: uv sync --group dev
 
       - name: Materialize benchmark datasets
+        env:
+          BENCHMARK_MATRIX: ${{ inputs.matrix }}
+          BENCHMARK_DATASET: ${{ inputs.dataset }}
+          BENCHMARK_LEVEL: ${{ inputs.level }}
         run: |
-          args="--matrix '${{ inputs.matrix }}'"
-          [ -n '${{ inputs.dataset }}' ] && args="$args --dataset '${{ inputs.dataset }}'"
-          uv run snowiki benchmark-fetch $args
+          args=(--matrix "$BENCHMARK_MATRIX")
+          [ -n "$BENCHMARK_DATASET" ] && args+=(--dataset "$BENCHMARK_DATASET")
+          [ -n "$BENCHMARK_LEVEL" ] && args+=(--level "$BENCHMARK_LEVEL")
+          uv run snowiki benchmark-fetch "${args[@]}"
 
       - name: Run benchmark
+        env:
+          BENCHMARK_MATRIX: ${{ inputs.matrix }}
+          BENCHMARK_OUTPUT: ${{ inputs.output }}
+          BENCHMARK_DATASET: ${{ inputs.dataset }}
+          BENCHMARK_LEVEL: ${{ inputs.level }}
+          BENCHMARK_TARGET: ${{ inputs.target }}
+          BENCHMARK_METRIC: ${{ inputs.metric }}
+          BENCHMARK_FAIL_FAST: ${{ inputs.fail_fast }}
         run: |
-          mkdir -p "$(dirname '${{ inputs.output }}')"
-          args="--matrix '${{ inputs.matrix }}' --output '${{ inputs.output }}'"
-          [ -n '${{ inputs.dataset }}' ] && args="$args --dataset '${{ inputs.dataset }}'"
-          [ -n '${{ inputs.level }}' ] && args="$args --level '${{ inputs.level }}'"
-          [ -n '${{ inputs.target }}' ] && args="$args --target '${{ inputs.target }}'"
-          [ -n '${{ inputs.metric }}' ] && args="$args --metric '${{ inputs.metric }}'"
-          [ '${{ inputs.fail_fast }}' = 'true' ] && args="$args --fail-fast"
-          uv run snowiki benchmark $args
+          mkdir -p "$(dirname "$BENCHMARK_OUTPUT")"
+          args=(--matrix "$BENCHMARK_MATRIX" --output "$BENCHMARK_OUTPUT")
+          [ -n "$BENCHMARK_DATASET" ] && args+=(--dataset "$BENCHMARK_DATASET")
+          [ -n "$BENCHMARK_LEVEL" ] && args+=(--level "$BENCHMARK_LEVEL")
+          [ -n "$BENCHMARK_TARGET" ] && args+=(--target "$BENCHMARK_TARGET")
+          [ -n "$BENCHMARK_METRIC" ] && args+=(--metric "$BENCHMARK_METRIC")
+          [ "$BENCHMARK_FAIL_FAST" = 'true' ] && args+=(--fail-fast)
+          uv run snowiki benchmark "${args[@]}"
 
       - name: Upload benchmark report artifact
         uses: actions/upload-artifact@v4
@@ -93,16 +106,24 @@ jobs:
           if-no-files-found: error
 
       - name: Append workflow summary
+        env:
+          BENCHMARK_MATRIX: ${{ inputs.matrix }}
+          BENCHMARK_OUTPUT: ${{ inputs.output }}
+          BENCHMARK_DATASET: ${{ inputs.dataset }}
+          BENCHMARK_LEVEL: ${{ inputs.level }}
+          BENCHMARK_TARGET: ${{ inputs.target }}
+          BENCHMARK_METRIC: ${{ inputs.metric }}
+          BENCHMARK_FAIL_FAST: ${{ inputs.fail_fast }}
         run: |
           {
             echo "## Manual benchmark run"
             echo ""
-            echo "- Matrix: \`${{ inputs.matrix }}\`"
-            echo "- Output: \`${{ inputs.output }}\`"
-            [ -n '${{ inputs.dataset }}' ] && echo "- Dataset filter: \`${{ inputs.dataset }}\`"
-            [ -n '${{ inputs.level }}' ] && echo "- Level filter: \`${{ inputs.level }}\`"
-            [ -n '${{ inputs.target }}' ] && echo "- Target filter: \`${{ inputs.target }}\`"
-            [ -n '${{ inputs.metric }}' ] && echo "- Metric filter: \`${{ inputs.metric }}\`"
-            [ '${{ inputs.fail_fast }}' = 'true' ] && echo "- Fail fast: enabled"
+            echo "- Matrix: \`$BENCHMARK_MATRIX\`"
+            echo "- Output: \`$BENCHMARK_OUTPUT\`"
+            [ -n "$BENCHMARK_DATASET" ] && echo "- Dataset filter: \`$BENCHMARK_DATASET\`"
+            [ -n "$BENCHMARK_LEVEL" ] && echo "- Level filter: \`$BENCHMARK_LEVEL\`"
+            [ -n "$BENCHMARK_TARGET" ] && echo "- Target filter: \`$BENCHMARK_TARGET\`"
+            [ -n "$BENCHMARK_METRIC" ] && echo "- Metric filter: \`$BENCHMARK_METRIC\`"
+            [ "$BENCHMARK_FAIL_FAST" = 'true' ] && echo "- Fail fast: enabled"
             echo "- Report artifact: \`benchmark-report\`"
           } >> "$GITHUB_STEP_SUMMARY"
