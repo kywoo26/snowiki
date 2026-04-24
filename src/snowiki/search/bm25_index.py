@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import io
 import json
+import tempfile
+import zipfile
 from dataclasses import dataclass
-from pathlib import Path
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any, cast
 
 import bm25s
@@ -62,6 +66,7 @@ class BM25SearchIndex:
     )
     DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE: KiwiLexicalCandidateMode = "morphology"
     _METADATA_SUFFIX = ".snowiki_meta.json"
+    _INDEX_FORMAT_VERSION = "bm25s-v1"
     _SHOW_PROGRESS = False
     _LEAVE_PROGRESS = False
     _TOKENIZER_NAMES: frozenset[str] = frozenset(
@@ -113,7 +118,9 @@ class BM25SearchIndex:
         self.kiwi_lexical_candidate_mode = legacy_flags[1]
 
         self.tokenizer: SearchTokenizer | None = (
-            create(resolved_tokenizer_name) if self.use_kiwi_tokenizer else None
+            create(resolved_tokenizer_name)
+            if self.use_kiwi_tokenizer or resolved_tokenizer_name == "regex_v1"
+            else None
         )
         self.corpus_tokens: list[list[str]] = []
         self.bm25: Any
@@ -132,7 +139,16 @@ class BM25SearchIndex:
             "tokenizer_name": self.tokenizer_name,
             "use_kiwi_tokenizer": self.use_kiwi_tokenizer,
             "kiwi_lexical_candidate_mode": self.kiwi_lexical_candidate_mode,
+            "bm25s_version": self._bm25s_version(),
+            "index_format_version": self._INDEX_FORMAT_VERSION,
         }
+
+    @staticmethod
+    def _bm25s_version() -> str:
+        try:
+            return version("bm25s")
+        except PackageNotFoundError:
+            return "unknown"
 
     @classmethod
     def _resolve_tokenizer_name(
@@ -283,6 +299,60 @@ class BM25SearchIndex:
             encoding="utf-8",
         )
 
+    def to_cache_bytes(self) -> bytes:
+        """Serialize the BM25 index directory and Snowiki metadata as one artifact."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            index_path = temp_root / "index"
+            self.save(index_path.as_posix())
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(
+                buffer,
+                mode="w",
+                compression=zipfile.ZIP_DEFLATED,
+            ) as archive:
+                for path in sorted(temp_root.rglob("*")):
+                    if path.is_file():
+                        archive.write(path, path.relative_to(temp_root).as_posix())
+            return buffer.getvalue()
+
+    @classmethod
+    def load_cache_artifact(
+        cls,
+        path: Path,
+        documents: Iterable[BM25SearchDocument],
+        *,
+        expected_tokenizer_name: str | None = None,
+    ) -> BM25SearchIndex:
+        """Load a single-file benchmark cache artifact produced by to_cache_bytes."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            with zipfile.ZipFile(path) as archive:
+                cls._extract_cache_archive(archive=archive, destination=temp_root)
+            return cls.load(
+                (temp_root / "index").as_posix(),
+                documents,
+                expected_tokenizer_name=expected_tokenizer_name,
+            )
+
+    @staticmethod
+    def _extract_cache_archive(
+        *,
+        archive: zipfile.ZipFile,
+        destination: Path,
+    ) -> None:
+        for member in archive.infolist():
+            member_path = PurePosixPath(member.filename)
+            if member_path.is_absolute() or ".." in member_path.parts:
+                raise ValueError(f"Unsafe BM25 cache artifact member: {member.filename}")
+            if member.is_dir():
+                continue
+            target_path = destination / member_path
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.write_bytes(archive.read(member))
+
     @classmethod
     def load(
         cls,
@@ -319,7 +389,9 @@ class BM25SearchIndex:
             cls._legacy_tokenizer_flags(instance.tokenizer_name)
         )
         instance.tokenizer = (
-            create(instance.tokenizer_name) if instance.use_kiwi_tokenizer else None
+            create(instance.tokenizer_name)
+            if instance.use_kiwi_tokenizer or instance.tokenizer_name == "regex_v1"
+            else None
         )
         instance.corpus_tokens = []
         instance.bm25 = bm25s.BM25.load(path, load_corpus=True)

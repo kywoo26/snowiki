@@ -445,16 +445,18 @@ class TestBM25SearchIndex:
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
-                title="Test",
-                content="Test content.",
+                title="Python Test",
+                content="Python content.",
             ),
         ]
 
-        index = BM25SearchIndex(docs, method=method, use_kiwi_tokenizer=False)
+        index = BM25SearchIndex(docs, method=method, tokenizer_name="regex_v1")
         assert index.method == method
-        results = index.search("test")
+        results = index.search("Python")
         assert isinstance(results, list)
-        assert fake_bm25_backend["registry"] == []
+        assert any(
+            call.get("create") == "regex_v1" for call in fake_bm25_backend["registry"]
+        )
 
     def test_search_with_limit(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
@@ -465,21 +467,27 @@ class TestBM25SearchIndex:
                 path=f"test/doc{i}.md",
                 kind="summary",
                 title=f"Document {i}",
-                content=f"Content about topic {i}.",
+                content=f"Content about Python {i}.",
             )
             for i in range(10)
         ]
-        index = BM25SearchIndex(docs, use_kiwi_tokenizer=False)
-        results = index.search("topic", limit=5)
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
+        results = index.search("Python", limit=5)
         assert len(results) <= 5
         assert fake_bm25_backend["retrieve"][0]["k"] == 5
 
     def test_bm25s_calls_disable_progress_output(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        tokenize_calls: list[dict[str, object]] = []
         index_calls: list[dict[str, object]] = []
         retrieve_calls: list[dict[str, object]] = []
+
+        class FakeRegexTokenizer:
+            def tokenize(self, text: str) -> tuple[str, ...]:
+                return ("python",)
+
+            def normalize(self, text: str) -> str:
+                return text.lower()
 
         class FakeBM25:
             def __init__(self, **kwargs) -> None:
@@ -495,13 +503,13 @@ class TestBM25SearchIndex:
                     SimpleNamespace(flatten=lambda: [1.0]),
                 )
 
-        def fake_tokenize(texts, **kwargs):
-            tokenize_calls.append({"texts": texts, **kwargs})
-            return [["python"]]
-
         monkeypatch.setattr(
             "snowiki.search.bm25_index.bm25s",
-            SimpleNamespace(BM25=FakeBM25, tokenize=fake_tokenize),
+            SimpleNamespace(BM25=FakeBM25),
+        )
+        monkeypatch.setattr(
+            "snowiki.search.bm25_index.create",
+            lambda name: FakeRegexTokenizer(),
         )
 
         docs = [
@@ -514,28 +522,10 @@ class TestBM25SearchIndex:
             )
         ]
 
-        index = BM25SearchIndex(docs, use_kiwi_tokenizer=False)
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
         results = index.search("Python")
 
         assert len(results) == 1
-        assert tokenize_calls == [
-            {
-                "texts": [
-                    "Python Programming\nPython is a great language for programming.\n"
-                ],
-                "stopwords": "en",
-                "return_ids": False,
-                "show_progress": False,
-                "leave": False,
-            },
-            {
-                "texts": "Python",
-                "stopwords": "en",
-                "return_ids": False,
-                "show_progress": False,
-                "leave": False,
-            },
-        ]
         assert index_calls == [
             {
                 "corpus_tokens": [["python"]],
@@ -587,3 +577,128 @@ class TestBM25SearchIndex:
 
         assert index.tokenizer_name == "mecab_morphology_v1"
         assert index.use_kiwi_tokenizer is True
+
+    def test_regex_v1_uses_snowiki_tokenizer_not_bm25s_tokenize(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        bm25s_tokenize_calls: list[dict[str, object]] = []
+
+        def capturing_tokenize(texts: str | list[str], **kwargs: object) -> list[list[str]]:
+            bm25s_tokenize_calls.append({"texts": texts, **kwargs})
+            return [["dummy"]]
+
+        class FakeBM25:
+            def __init__(self, **kwargs: object) -> None:
+                del kwargs
+
+            def index(self, corpus_tokens: list[list[str]], **kwargs: object) -> None:
+                del corpus_tokens, kwargs
+
+            def retrieve(
+                self, query_tokens: list[list[str]], **kwargs: object
+            ) -> tuple[SimpleNamespace, SimpleNamespace]:
+                del query_tokens, kwargs
+                return (
+                    SimpleNamespace(flatten=lambda: []),
+                    SimpleNamespace(flatten=lambda: []),
+                )
+
+        monkeypatch.setattr(
+            "snowiki.search.bm25_index.bm25s",
+            SimpleNamespace(BM25=FakeBM25, tokenize=capturing_tokenize),
+        )
+
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="The quick brown fox",
+                content="is jumping over the lazy dog",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
+        _ = index.search("the fox")
+
+        assert bm25s_tokenize_calls == []
+        assert index.tokenizer is not None
+        assert index.tokenizer_name == "regex_v1"
+
+    def test_regex_v1_preserves_english_stopwords(self) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="The cat and the dog",
+                content="",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
+
+        assert "the" in index.corpus_tokens[0]
+        assert "and" in index.corpus_tokens[0]
+
+    def test_regex_v1_query_tokenization_matches_index(self) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="The quick brown fox",
+                content="is jumping over the lazy dog",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
+        results = index.search("the fox")
+
+        assert len(results) == 1
+        assert "the" in results[0].matched_terms
+        assert "fox" in results[0].matched_terms
+
+    def test_regex_v1_query_tokenization_matches_index_for_punctuation_case_and_unicode(
+        self,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="docs/README.md",
+                kind="summary",
+                title="README.md: Snowiki 자연어-처리",
+                content="Mixed CASE tokens, API_v2, and 한글 punctuation!",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
+        results = index.search("readme MD snowiki 자연어 처리 api V2")
+
+        assert len(results) == 1
+        normalized_query_terms = {
+            "readme",
+            "md",
+            "snowiki",
+            "api",
+            "v2",
+            "자연어",
+            "자연",
+            "연어",
+            "처리",
+        }
+        assert normalized_query_terms.issubset(set(results[0].matched_terms))
+        assert normalized_query_terms.issubset(set(index.corpus_tokens[0]))
+        assert results[0].matched_terms == (
+            "readme md snowiki 자연어 처리 api v2",
+            "readme",
+            "md",
+            "snowiki",
+            "자연어",
+            "자연",
+            "연어",
+            "처리",
+            "api",
+            "v2",
+        )

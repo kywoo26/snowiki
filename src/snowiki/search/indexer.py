@@ -84,6 +84,8 @@ class InvertedIndex:
         self.documents: dict[str, SearchDocument] = {}
         self._postings: dict[str, dict[str, float]] = defaultdict(dict)
         self._field_tokens: dict[str, dict[str, tuple[str, ...]]] = {}
+        self._normalized_haystacks: dict[str, tuple[str, ...]] = {}
+        self._normalized_paths: dict[str, str] = {}
         self._tokenizer: SearchTokenizer
         self._tokenizer = tokenizer or create_tokenizer(default().name)
         for document in documents:
@@ -98,6 +100,10 @@ class InvertedIndex:
         return len(self.documents)
 
     def add_document(self, document: SearchDocument) -> None:
+        if document.id in self.documents:
+            for postings in self._postings.values():
+                postings.pop(document.id, None)
+
         self.documents[document.id] = document
         field_tokens = {
             "title": self._tokenizer.tokenize(document.title),
@@ -107,6 +113,18 @@ class InvertedIndex:
             "aliases": self._tokenizer.tokenize(" ".join(document.aliases)),
         }
         self._field_tokens[document.id] = field_tokens
+        normalized_path = self._tokenizer.normalize(document.path)
+        self._normalized_paths[document.id] = normalized_path
+        self._normalized_haystacks[document.id] = tuple(
+            normalized
+            for normalized in (
+                self._tokenizer.normalize(document.title),
+                normalized_path,
+                self._tokenizer.normalize(document.summary),
+                self._tokenizer.normalize(document.content),
+            )
+            if normalized
+        )
 
         for field_name, tokens in field_tokens.items():
             counts = Counter(tokens)
@@ -163,20 +181,13 @@ class InvertedIndex:
             coverage = len(matched_terms) / len(query_tokens)
             score += coverage * 4.0
 
-            haystacks = (
-                document.title,
-                document.path,
-                document.summary,
-                document.content,
-            )
             if any(
-                normalized_query in self._tokenizer.normalize(haystack)
-                for haystack in haystacks
-                if haystack
+                normalized_query in haystack
+                for haystack in self._normalized_haystacks[document_id]
             ):
                 score += 3.0
 
-            normalized_path = self._tokenizer.normalize(document.path)
+            normalized_path = self._normalized_paths[document_id]
             if exact_path_bias and any(
                 token in normalized_path for token in query_tokens
             ):
