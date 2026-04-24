@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from snowiki.bench.datasets import load_dataset_manifest, load_matrix
+from snowiki.bench.datasets import (
+    load_dataset_manifest,
+    load_matrix,
+    resolve_dataset_assets,
+)
 
 
 def test_load_dataset_manifest_reads_source_aware_beir_contract() -> None:
@@ -17,7 +21,7 @@ def test_load_dataset_manifest_reads_source_aware_beir_contract() -> None:
     assert manifest.corpus_path == "benchmarks/materialized/beir_scifact/corpus.parquet"
     assert manifest.queries_path == "benchmarks/materialized/beir_scifact/queries.parquet"
     assert manifest.judgments_path == "benchmarks/materialized/beir_scifact/judgments.tsv"
-    assert manifest.supported_levels == ("quick", "standard", "full")
+    assert manifest.supported_levels == ("quick", "standard")
     assert manifest.field_mappings["corpus_id_keys"] == ("_id",)
     assert manifest.source["corpus"].repo_id == "BeIR/scifact"
     assert manifest.source["corpus"].config == "corpus"
@@ -59,12 +63,17 @@ def test_load_matrix_reads_official_contract() -> None:
         "trec_dl_2020_passage",
         "miracl_ko",
     )
-    assert tuple(matrix.levels) == ("quick", "standard", "full")
+    assert tuple(matrix.levels) == ("quick", "standard")
     assert matrix.levels["quick"].query_cap == 150
     assert matrix.levels["quick"].corpus_cap == 50000
     assert matrix.levels["standard"].corpus_cap == 200000
-    assert matrix.levels["full"].corpus_cap is None
-    assert matrix.levels["full"].note == "Full means min(all, 1000)."
+
+
+def test_resolve_dataset_assets_rejects_unsafe_level_id() -> None:
+    manifest = load_dataset_manifest("benchmarks/contracts/datasets/beir_scifact.yaml")
+
+    with pytest.raises(ValueError, match="Unsafe benchmark level ID"):
+        resolve_dataset_assets(manifest, level_id="../escape")
 
 
 def test_load_dataset_manifest_raises_for_missing_file(tmp_path: Path) -> None:
