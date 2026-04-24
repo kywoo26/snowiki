@@ -198,10 +198,18 @@ def test_builtin_targets_are_discoverable() -> None:
         "bm25_mecab_morphology_v1",
         "bm25_hf_wordpiece_v1",
     }
+    expected_datasets = (
+        "beir_nq",
+        "beir_scifact",
+        "trec_dl_2020_passage",
+        "miracl_ko",
+    )
 
     assert len(BUILTIN_TARGETS) == 6
     assert {spec.target_id for spec in BUILTIN_TARGETS} == expected_ids
     assert {spec.target_id for spec in DEFAULT_TARGET_REGISTRY.list_targets()} == expected_ids
+    for spec in BUILTIN_TARGETS:
+        assert spec.supported_datasets == expected_datasets
 
 
 def test_unknown_target_raises_clear_key_error() -> None:

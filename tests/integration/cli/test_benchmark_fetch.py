@@ -18,7 +18,7 @@ def _write_benchmark_fixture_repo(repo_root: Path, *, dataset_id: str) -> None:
     _ = (contracts_dir / "official_matrix.yaml").write_text(
         dedent(
             f"""\
-            matrix_id: official_six
+            matrix_id: official_core
             datasets:
               - {dataset_id}
             levels:
