@@ -33,7 +33,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Materialize SciFact benchmark dataset
-        run: uv run snowiki benchmark-fetch --dataset beir_scifact
+        run: uv run snowiki benchmark-fetch --dataset beir_scifact --level quick
 
       - name: Run quick benchmark smoke target
         run: |
