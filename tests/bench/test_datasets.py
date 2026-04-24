@@ -52,14 +52,12 @@ def test_load_dataset_manifest_reads_source_aware_miracl_contract() -> None:
 def test_load_matrix_reads_official_contract() -> None:
     matrix = load_matrix("benchmarks/contracts/official_matrix.yaml")
 
-    assert matrix.matrix_id == "official_six"
+    assert matrix.matrix_id == "official_core"
     assert matrix.datasets == (
-        "ms_marco_passage",
-        "trec_dl_2020_passage",
-        "miracl_ko",
-        "miracl_en",
         "beir_nq",
         "beir_scifact",
+        "trec_dl_2020_passage",
+        "miracl_ko",
     )
     assert tuple(matrix.levels) == ("quick", "standard", "full")
     assert matrix.levels["quick"].query_cap == 150

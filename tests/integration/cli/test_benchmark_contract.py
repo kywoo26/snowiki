@@ -65,7 +65,7 @@ def test_benchmark_json_output_uses_lean_schema(tmp_path: Path) -> None:
 
     result = _invoke_benchmark(
         "--dataset",
-        "ms_marco_passage",
+        "trec_dl_2020_passage",
         "--level",
         "quick",
         "--target",
@@ -98,16 +98,16 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
 ) -> None:
     output_path = tmp_path / "success.json"
     selection = {
-        "dataset_ids": ["ms_marco_passage"],
+        "dataset_ids": ["beir_nq"],
         "level_ids": ["quick"],
         "target_ids": ["lexical_regex_v1"],
         "metric_ids": ["recall_at_100"],
     }
     success_result = BenchmarkRunResult(
-        matrix_id="official_six",
+        matrix_id="official_core",
         cells=(
             CellResult(
-                dataset_id="ms_marco_passage",
+                dataset_id="beir_nq",
                 level_id="quick",
                 target_id="lexical_regex_v1",
                 status="success",
@@ -123,7 +123,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
         )
         success = _invoke_benchmark(
             "--dataset",
-            "ms_marco_passage",
+            "beir_nq",
             "--level",
             "quick",
             "--target",
@@ -135,7 +135,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
 
     partial_failure = _invoke_benchmark(
         "--dataset",
-        "ms_marco_passage",
+        "trec_dl_2020_passage",
         "--level",
         "quick",
         "--target",

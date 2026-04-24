@@ -35,15 +35,16 @@ jobs:
         run: uv sync --group dev
 
       - name: Materialize CI benchmark datasets
-        run: uv run snowiki benchmark-fetch --dataset beir_scifact --dataset beir_nq --dataset miracl_en
+        run: uv run snowiki benchmark-fetch --dataset beir_nq --dataset beir_scifact --dataset trec_dl_2020_passage --dataset miracl_ko
 
       - name: Run standard benchmark smoke target
         run: |
           mkdir -p reports
           uv run snowiki benchmark \
-            --dataset beir_scifact \
             --dataset beir_nq \
-            --dataset miracl_en \
+            --dataset beir_scifact \
+            --dataset trec_dl_2020_passage \
+            --dataset miracl_ko \
             --level standard \
             --target bm25_regex_v1 \
             --output reports/benchmark-main.json

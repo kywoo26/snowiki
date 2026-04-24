@@ -1,11 +1,9 @@
-matrix_id: official_six
+matrix_id: official_core
 datasets:
-  - ms_marco_passage
-  - trec_dl_2020_passage
-  - miracl_ko
-  - miracl_en
   - beir_nq
   - beir_scifact
+  - trec_dl_2020_passage
+  - miracl_ko
 levels:
   quick:
     query_cap: 150

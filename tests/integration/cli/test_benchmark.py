@@ -27,7 +27,7 @@ def _write_benchmark_fixture_repo(repo_root: Path, *, dataset_ids: tuple[str, ..
     manifests_dir.mkdir(parents=True, exist_ok=True)
     datasets_block = "".join(f"  - {dataset_id}\n" for dataset_id in dataset_ids)
     matrix_text = (
-        "matrix_id: official_six\n"
+        "matrix_id: official_core\n"
         + "datasets:\n"
         + datasets_block
         + "levels:\n"
@@ -199,10 +199,10 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
     )
 
     assert result.exit_code == 0, result.output
-    assert "matrix=official_six cells=1 failures=0" in result.output
+    assert "matrix=official_core cells=1 failures=0" in result.output
 
     payload = _read_json(output_path)
-    assert payload["matrix_id"] == "official_six"
+    assert payload["matrix_id"] == "official_core"
     assert payload["selection"] == {
         "dataset_ids": [dataset_id],
         "level_ids": ["quick"],
@@ -289,8 +289,8 @@ def test_benchmark_bm25_reports_cache_metadata_and_hits_on_repeat(
 
     assert first.exit_code == 0, first.output
     assert second.exit_code == 0, second.output
-    assert "matrix=official_six cells=1 failures=0" in first.output
-    assert "matrix=official_six cells=1 failures=0" in second.output
+    assert "matrix=official_core cells=1 failures=0" in first.output
+    assert "matrix=official_core cells=1 failures=0" in second.output
     first_cell = _read_json(first_output_path)["cells"][0]
     second_cell = _read_json(second_output_path)["cells"][0]
     assert isinstance(first_cell, dict)
@@ -339,7 +339,7 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
     )
 
     assert result.exit_code == 1, result.output
-    assert "matrix=official_six cells=1 failures=1" in result.output
+    assert "matrix=official_core cells=1 failures=1" in result.output
 
     payload = _read_json(output_path)
     assert payload["summary"] == {
@@ -455,7 +455,7 @@ def test_benchmark_fail_fast_stops_after_first_failure(
     )
 
     assert result.exit_code == 1, result.output
-    assert "matrix=official_six cells=1 failures=1" in result.output
+    assert "matrix=official_core cells=1 failures=1" in result.output
     payload = _read_json(output_path)
     assert payload["summary"] == {
         "total_cells": 1,

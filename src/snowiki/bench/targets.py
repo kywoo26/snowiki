@@ -45,10 +45,8 @@ class TargetRegistry:
 OFFICIAL_DATASET_IDS: tuple[str, ...] = (
     "beir_nq",
     "beir_scifact",
-    "miracl_en",
-    "miracl_ko",
-    "ms_marco_passage",
     "trec_dl_2020_passage",
+    "miracl_ko",
 )
 LEXICAL_REGEX_V1 = BenchmarkTargetSpec(
     target_id="lexical_regex_v1",
