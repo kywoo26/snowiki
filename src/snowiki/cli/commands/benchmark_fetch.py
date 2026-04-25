@@ -35,7 +35,7 @@ def _render_result(result: dict[str, object]) -> str:
     )
 
 
-@click.command("benchmark-fetch")
+@click.command("benchmark-fetch", short_help="Materialize pinned benchmark datasets.")
 @click.option(
     "--matrix",
     type=click.Path(dir_okay=False, path_type=Path),
@@ -95,11 +95,10 @@ def command(
         if dataset_id not in selected_matrix.datasets
     ]
     if invalid_dataset_ids:
-        click.echo(
+        raise click.BadParameter(
             f"Unknown dataset selection: {', '.join(sorted(set(invalid_dataset_ids)))}",
-            err=True,
+            param_hint="--dataset",
         )
-        raise click.exceptions.Exit(2)
 
     invalid_level_ids = [
         level_id
@@ -107,11 +106,10 @@ def command(
         if level_id not in selected_matrix.levels
     ]
     if invalid_level_ids:
-        click.echo(
+        raise click.BadParameter(
             f"Unknown level selection: {', '.join(sorted(set(invalid_level_ids)))}",
-            err=True,
+            param_hint="--level",
         )
-        raise click.exceptions.Exit(2)
     selected_levels = [selected_matrix.levels[level_id] for level_id in selected_level_ids]
 
     try:
