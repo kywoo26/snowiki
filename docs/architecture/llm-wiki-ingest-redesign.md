@@ -198,7 +198,7 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 
 Dedicated executable plans:
 
-- `docs/architecture/autonomous-writeback-phase3-plan.md` — Phase 3 plan for CLI-only queue lifecycle, apply/show/reject, retention, and low-risk auto-apply policy.
+- `docs/architecture/wiki-contract-phase4-plan.md` — active Phase 4 plan for source freshness, generated navigation artifacts, and explicit source prune.
 
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
@@ -307,7 +307,7 @@ Phase 2 follow-up refactor work:
 
 ### Phase 3: CLI Autonomous Writeback Queue Hardening
 
-Status: **implemented in the Phase 3 branch; pending final verification and PR review**. See `docs/architecture/autonomous-writeback-phase3-plan.md`.
+Status: **complete and merged in PR #105**. The completed executable plan has been removed; durable outcomes are recorded here and in `docs/architecture/refactoring-operating-principles.md`.
 
 Deliverables:
 
@@ -325,6 +325,8 @@ Concrete follow-up work:
 
 ### Phase 4: Wiki Contract and Stale Source Reporting
 
+Status: **active implementation phase for `feat/phase4-wiki-contract`**. Active executable plan: `docs/architecture/wiki-contract-phase4-plan.md`.
+
 Deliverables:
 
 - Document the source/provenance/normalized/compiled/search layers.
@@ -332,35 +334,39 @@ Deliverables:
 - Define frontmatter conventions for Snowiki-managed pages.
 - Add status/lint checks for stale compiled artifacts and missing source paths.
 - Define the operator-facing stale source report format.
+- Add an explicit dry-run-first `snowiki prune sources` cleanup path for removed source identities.
 
 Concrete follow-up work:
 
 - Add a status/lint source manifest reader that compares normalized Markdown document records against original `source_path` and `content_hash`.
-- Define a stable JSON shape for stale reports, including `relative_path`, `source_path`, `record_id`, `content_hash`, `state`, and `recommended_action`.
-- Decide whether `documents_stale` remains an ingest-only aggregate or becomes shared output from `status`/`lint`.
+- Define a stable JSON shape for source freshness reports, including `state`, `severity`, `recommended_action`, `relative_path`, `source_path`, `record_id`, `stored_content_hash`, and `current_content_hash`.
+- Use `current`, `modified`, `missing`, and `untracked` as the source freshness states; content hash is the authoritative truth and mtime/size are cache hints only.
+- Keep `status` as the summary surface, `lint` as the detailed diagnostic surface, and `ingest` as an operation-local aggregate surface.
+- Generate `compiled/index.md` as navigation/catalog, `compiled/log.md` as parseable operation summary, and `compiled/overview.md` as living synthesis/dashboard.
 - Document Snowiki-generated page frontmatter separately from user-authored source frontmatter.
+- Implement source cleanup as explicit prune: dry-run by default, destructive delete only with `--delete --yes`, and no implicit deletion during ingest or rebuild.
 - Update README and skill-facing docs only after the shipped CLI behavior is the runtime truth.
 
-### Phase 5: Explicit Prune and Cleanup
+### Phase 5: Agent Workflow and Higher-Level Gardening
 
 Deliverables:
 
-- Add an explicit `--prune` flag or `snowiki prune` command for removed source files.
-- Require clear JSON reporting before destructive cleanup.
-- Remove or archive normalized Markdown records only when their source identity is explicitly pruned.
-- Evaluate nashsu-style cascade cleanup for generated pages:
-  - remove pruned identities from generated page `sources[]`,
-  - delete single-source summary pages when safe,
-  - update index/navigation artifacts,
-  - clean dead wikilinks structurally rather than by substring matching.
+- Teach agent/skill workflows to read source freshness reports before ingesting, pruning, or filing durable answers.
+- Add higher-level gardening workflows over the Phase 4 primitives.
+- Evaluate nashsu-style cascade cleanup beyond single-source safe cleanup:
+  - structural removal of pruned identities from multi-source generated page `sources[]`,
+  - dead wikilink cleanup,
+  - source move/rename assistance,
+  - reviewable cleanup proposals rather than direct deletion.
+- Decide whether cleanup candidates should be proposed through fileback-like review queues instead of direct prune execution.
+- Keep sync/edit/merge as separate user-facing workflows over stable primitives, not implicit mutations hidden inside lint/status.
 
 Concrete follow-up work:
 
-- Add a dry-run-first prune flow with JSON output before any destructive operation.
-- Require explicit source identity selection for pruning; do not infer destructive cleanup from a missing live file alone.
-- Preserve an audit trail for pruned normalized records, either by archive path or tombstone record.
-- Add tests for multi-source generated pages before enabling cascade cleanup.
-- Keep cascade cleanup separate from Phase 1 rebuild so deterministic ingest remains non-destructive.
+- Keep cascade cleanup separate from deterministic ingest/rebuild so source mutation and compiled cleanup remain explicit.
+- Define whether source move/rename should be represented as reingest+prune or as a future rename-aware workflow.
+- Keep `sync`, `edit`, `merge`, and graph-oriented workflows outside Phase 4 unless runtime commands explicitly ship them.
+- Preserve Phase 4's report-first and dry-run-first guarantees when adding higher-level agent workflows.
 
 ### Phase 6: Agent and Skill Workflow
 
@@ -377,6 +383,12 @@ Deliverables:
 - Keep mutation CLI-mediated and reviewable.
 - Replace direct Claude/OpenCode export ingest workflows with session-to-Markdown conversion workflows.
 - Keep direct Claude/OpenCode export ingest out of the primary runtime; if needed later, implement it as explicit compatibility tooling outside `snowiki ingest PATH`.
+- Promote the common user journeys over the low-level primitives:
+  - file this source,
+  - review source freshness,
+  - reingest modified sources,
+  - propose/prune missing sources,
+  - summarize and ingest a session as Markdown.
 
 Example workflow:
 
@@ -399,6 +411,9 @@ Deliverables:
 - Add stale-source and orphan-page lint rules.
 - Add optional semantic/vector retrieval only after lexical behavior is stable.
 - Add MCP write support only after CLI write contracts are stable.
+- Add a true append-only event journal only after generated `log.md` summaries prove insufficient.
+- Add persistent freshness/prune policy config only after defaults and CLI flags stabilize.
+- Keep projection backfill/migration and normalized storage write-contract redesign as separate explicit specs.
 
 ### Long-Term Engine Portability
 
@@ -418,9 +433,11 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 
 - What explicit migration/backfill command, if any, should convert pre-projection normalized records?
 - Which future compiler projection changes should intentionally improve summary page structure rather than preserve current output?
-- What exact JSON schema should stale/missing source reports use across `ingest`, `status`, and `lint`?
+- What explicit event journal, if any, should replace generated `log.md` summaries after Phase 4?
 - Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?
 - What is the minimum frontmatter schema for user-authored documents versus Snowiki-generated pages?
+- Should source move/rename be represented as reingest+prune, or does it need a first-class rename-aware workflow?
+- Should reviewable cleanup proposals reuse fileback queue semantics, or should prune remain direct and explicit only?
 
 ## Implementation Checklist
 
