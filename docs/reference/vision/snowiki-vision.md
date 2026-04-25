@@ -7,7 +7,7 @@ Snowiki is a **provenance-aware, compiled knowledge engine**.
 Its purpose is not to answer questions by re-deriving everything from raw sources on every query, and not merely to store notes in a searchable bucket. Instead, Snowiki incrementally compiles raw material into a persistent, inspectable, interlinked knowledge artifact that can be queried, linted, recalled, and improved over time.
 
 In practical terms, Snowiki sits between:
-- raw source/session storage,
+- external source roots and raw provenance snapshots,
 - retrieval/search infrastructure,
 - and a maintained wiki-like knowledge artifact.
 
@@ -122,10 +122,11 @@ Those may be adjacent systems or useful comparisons, but they are not the center
 ## Current strategic direction
 
 At the current stage, Snowiki should prioritize:
-1. a canonical retrieval/corpus contract
-2. lexical-first retrieval quality and performance
-3. stronger evidence and benchmark discipline
-4. clearer agent-facing runtime contracts
+1. a clear source/raw/normalized/compiled taxonomy
+2. a canonical retrieval/corpus contract
+3. lexical-first retrieval quality and performance
+4. stronger evidence and benchmark discipline
+5. clearer agent-facing runtime contracts
 
 It should explicitly defer, for now:
 - default semantic/vector retrieval

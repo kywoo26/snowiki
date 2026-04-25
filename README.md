@@ -35,7 +35,7 @@ If you are working from a development checkout instead of a tool install, run th
 
 ## Current shipped CLI surface
 
-The current runtime exposes these top-level commands:
+The current runtime exposes these top-level commands. For the detailed role taxonomy, see `docs/architecture/cli-command-taxonomy.md`.
 
 ### Primary Current Commands
 - `snowiki ingest`
@@ -46,7 +46,7 @@ The current runtime exposes these top-level commands:
 - `snowiki prune`
 - `snowiki fileback`
 
-### Advanced Passthrough
+### Support / Advanced / Evaluation
 - `snowiki export`
 - `snowiki benchmark`
 - `snowiki benchmark-fetch`
@@ -67,6 +67,8 @@ The `wiki` skill should currently mirror this shipped surface for everyday use:
 
 Do not treat daemon internals, qmd lineage, or older vault-layout docs as a separate product contract.
 
+`export` is a support/debug surface for backup, migration, inspection, fixtures, and external integration. It is not a primary everyday `/wiki` flow.
+
 ## Machine-usable surfaces today
 
 - CLI JSON output via `snowiki ... --output json`
@@ -85,5 +87,7 @@ Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup 
 ## Related
 
 - `docs/architecture/skill-and-agent-interface-contract.md` — canonical agent/runtime contract
+- `docs/architecture/source-vault-compiled-taxonomy.md` — source, raw, normalized, compiled, and vault layer taxonomy
+- `docs/architecture/cli-command-taxonomy.md` — command classes and primary/support surface boundaries
 - `docs/reference/claude-code-wiki-quickstart.md` — step-by-step Claude Code `wiki` skill adoption guide
 - [qmd](https://github.com/tobi/qmd) — lineage/reference material, not the current Snowiki runtime

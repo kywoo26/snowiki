@@ -244,124 +244,83 @@ Treat these as prompts for a refactor plan:
 - string rendering grows conditionals for structured output,
 - compatibility bridges remain after tests can use the new contract.
 
-## Markdown-First Refactor Waves
+## Refactor Decision Checklist
 
-Refactor waves after Markdown-first ingest should stay behavior-preserving and bounded.
-Each wave should leave a clearer seam for the next one instead of expanding into
-unrelated cleanup.
+Use this checklist before changing structure or moving code:
 
-### Phase 1: Markdown ingest boundary
+1. **Name the seam.** Identify the boundary being clarified, such as CLI adapter, Markdown ingest, storage provenance, compiler projection, fileback queue, retrieval workspace, or benchmark adapter.
+2. **Prove behavior preservation.** State which CLI JSON output, storage artifact, compiled page, or test contract must remain unchanged.
+3. **Choose the narrowest layer.** Move logic only to the layer that owns its meaning; do not centralize unrelated helpers for convenience.
+4. **Pair tests with the seam.** Extracted pure logic needs unit tests; CLI wiring and runtime paths need integration tests.
+5. **Keep generated artifacts generated.** Do not turn compiled Markdown, index state, queues, or benchmark reports into hand-edited source truth.
+6. **Record durable rules.** If the refactor changes a lasting architecture decision, update the relevant architecture contract in the same PR.
 
-Status: **done in PR #100**.
+## Current Refactor Boundaries
 
-What this wave established:
+These boundaries are current architecture guidance, not historical phase plans.
 
-- `src/snowiki/cli/commands/ingest.py` stays a Click/output/error wrapper.
-- Markdown ingest orchestration lives behind `src/snowiki/markdown/ingest.py`.
-- Title/summary derivation, normalized Markdown payload construction, source
-  privacy gating, rebuild wrapping, and query-cache clearing have seam-level
-  unit coverage.
-- The new module is intentionally an application seam, not a pure Markdown parser
-  module. If ingest grows beyond Markdown-specific orchestration, migrate it to a
-  dedicated application package such as `snowiki.ingest.markdown`.
+### Ingest and Markdown
 
-### Phase 2: Compiler projection boundary
+- `src/snowiki/cli/commands/ingest.py` should stay a Click/output/error wrapper.
+- Markdown ingest orchestration belongs behind `src/snowiki/markdown/ingest.py` or a future dedicated application package if ingest grows beyond Markdown-specific orchestration.
+- Source discovery, frontmatter handling, title/summary derivation, privacy gating, and projection construction should stay in Markdown/domain modules rather than CLI callbacks.
+- Non-Markdown conversion belongs before Markdown ingest; Snowiki-owned DTOs should feed title resolution, projection sections, links, wikilinks, and source gardening.
 
-Status: **done in PR #101**. The compiler now consumes required `payload["projection"]` fields instead of source-specific fallback chains.
+### Compiler and projection
 
-What this wave established:
+- `src/snowiki/compiler/projection.py` owns the source-agnostic compiler projection contract.
+- Compiler generators should consume projection helpers for title, summary, sections, source identity, and taxonomy buckets.
+- Missing projection is a lint/status diagnostic for old records, not an invitation to reintroduce hidden fallback chains.
+- Projection backfill, if needed, should be an explicit operator workflow with tests and docs.
 
-- `src/snowiki/compiler/projection.py` owns the source-agnostic compiler projection contract and strict extraction helpers.
-- Markdown ingest writes projection during normalization.
-- Compiler generators consume projection helpers for title, summary, sections, source identity, and taxonomy buckets.
-- Active compiler fallback paths for loose legacy fields and `payload["compiler"]` were removed.
-- Missing projection is a lint/status diagnostic for old records, not a rebuild/query compatibility bridge.
+### Storage and provenance
 
-Follow-up refactor target:
+- Storage modules own artifact layout, atomic writes, provenance attachment, and stable read/write contracts.
+- `content_hash` is the authoritative freshness signal; mtime and size are cache hints.
+- Ingest and rebuild must not silently delete normalized, raw, compiled, or index artifacts.
+- Source roots and raw provenance snapshots are evidence layers; compiled pages are derived wiki memory.
 
-1. **Clean strict projection seams after merge**
-- Keep active writers on the projection factory instead of repeated hand-built dictionaries.
-- Split reviewed writeback/fileback logic by schema, proposal, evidence, rendering, payload, and apply orchestration.
-- Keep `snowiki.fileback` as a narrow facade rather than widening public access to internal helpers.
-- Add seam-level unit tests when a refactor extracts pure/schema functions from an integration-only flow.
-- The completed Phase 2 executable plan has been removed; durable outcomes are recorded in this document.
+### Status, lint, prune, and gardening
 
-Do not follow Phase 2 by changing frontmatter libraries, storage layout, or search
-indexing inside projection/fileback cleanup PRs. Those remain separate waves unless
-the touched seam proves they are required.
-
-### Phase 3: CLI autonomous writeback queue hardening
-
-Status: **complete and merged in PR #105**. Durable outcomes are recorded in this document; the completed executable plan has been removed.
-
-Refactor targets for this wave:
-
-- Keep queue lifecycle state transitions in the fileback queue seam, not in Click callbacks.
-- Keep queue apply delegated to the existing reviewed apply/rebuild path.
-- Keep runtime low-risk policy classification separate from agent-provided labels.
-- Keep retention/pruning dry-run-first and scoped to queue control-plane artifacts.
-- Do not expand this wave into MCP writes, broad edit/merge/sync, storage-layout redesign, or projection migration.
-
-### Phase 4: wiki contract, source freshness, and prune
-
-Status: **shipped in PR #106**. Durable outcomes live in this document and the shipped CLI behavior.
-
-Refactor targets for this wave:
-
-- Keep Markdown source freshness classification and prune planning in `snowiki.markdown.source_state`, not Click callbacks.
-- Treat `content_hash` as the authoritative freshness signal; use mtime/size only as cache hints.
+- Keep Markdown source freshness classification and prune planning in domain modules such as `snowiki.markdown.source_state`, not Click callbacks.
 - Keep `status` as a summary surface and `lint` as an actionable diagnostic surface.
-- Generate `index.md`, `log.md`, and `overview.md` deterministically from runtime state rather than through brittle string insertion.
-- Keep prune dry-run-first and require explicit `--delete --yes --all-candidates` for destructive cleanup.
-- Do not silently delete normalized, raw, or compiled artifacts during ingest or rebuild.
-- Do not expand this wave into MCP writes, semantic/vector search, broad sync/edit/merge workflows, or full event sourcing.
-
-### Phase 5: agent-readable gardening proposals
-
-Status: **foundation slice shipped in PR #107**. Durable outcomes live in this document and the shipped lint/prune/fileback behavior.
-
-Refactor targets for this wave:
-
-- Keep gardening proposal generation in domain modules, not Click callbacks or skill prose.
-- Derive any runtime surface from explicit agent use cases; do not add CLI commands or options just because a proposal engine exists.
-- Use `lint --output json` for first actionable gardening diagnostics, keep `status` as summary, and keep `prune sources` as a narrow deletion workflow unless a future UX decision changes that boundary.
-- Favor stable machine-readable contracts and deterministic IDs over expanding human-facing argument surfaces.
-- Preserve Phase 4 report-first and dry-run-first guarantees.
+- Keep `prune sources` narrow, dry-run-first, and destructive only through explicit `--delete --yes --all-candidates` style confirmation.
 - Model source rename, dead-wikilink, and cascade cleanup as reviewable proposals before any apply path mutates files.
-- Reuse fileback queue concepts where helpful, but avoid coupling source gardening to question-answer writeback internals.
-- Keep broad sync/edit/merge/graph workflows out of scope unless they directly support a reviewed gardening proposal.
-- Do not hand-edit generated compiled Markdown as source of truth; rebuild remains the compiled artifact boundary.
 
-### Phase 6: agent and skill workflow
+### Fileback and queues
 
-Status: **planning wave**. Active plan: `docs/architecture/wiki-contract-phase6-plan.md`.
+- Keep fileback preview output as proposal state until an approved CLI apply path succeeds.
+- Queue lifecycle state transitions belong in fileback queue seams, not Click callbacks.
+- Runtime low-risk classification must remain separate from agent-provided labels.
+- Keep retention and queue pruning scoped to control-plane artifacts.
 
-Refactor targets for this wave:
+### CLI commands and agent workflows
 
-- Keep Claude/OpenCode/OMO workflow guidance above the runtime layer; skills orchestrate the CLI, they do not redefine it.
-- Prefer natural-language workflow contracts over new CLI commands for agent ergonomics.
-- Keep session-to-Markdown filing as a skill/workflow transformation before `snowiki ingest`, not a hidden primary ingest compatibility bridge.
-- Keep mutation CLI-mediated and reviewable through shipped paths such as `fileback` and explicit prune.
-- Keep standalone sync/edit/merge/graph commands deferred unless a later runtime spec accepts them.
+- CLI command modules translate arguments, call domain/application functions, and format output.
+- Skills orchestrate the installed CLI; they must not redefine runtime behavior.
+- Natural-language `/wiki` lifecycle intents are skill arguments over current CLI truth, not shipped `snowiki` subcommands.
+- Mutation remains CLI-mediated and reviewable through shipped paths such as `fileback` and explicit prune.
+- Standalone sync/edit/merge/graph commands remain deferred unless a later runtime spec accepts them.
 
-### Later waves
+### Retrieval and evaluation
+
+- Retrieval surfaces should preserve parity across CLI query/recall, daemon warm retrieval, MCP read-only retrieval, and benchmark runs.
+- Semantic/vector/rerank work should stay behind explicit extension seams until benchmark evidence justifies promotion.
+- Benchmark commands inform retrieval quality gates, but benchmark behavior is not the shipped wiki memory contract.
+
+## Refactor Backlog
+
+Keep future cleanup scoped to one durable concern at a time:
 
 1. **Clarify normalized storage write contracts**
    - Separate latest-only document storage from legacy date-bucketed record storage, or extract shared record-writing mechanics.
-
 2. **Narrow test helper layers**
    - Use parser/storage/compiler seams directly in unit tests.
    - Reserve CLI helpers for integration tests.
-
 3. **Specify explicit projection backfill/migration**
    - Old projection-less normalized records should not regain rebuild/query compatibility through hidden fallback.
    - If needed, add an explicit operator command with tests and docs for projection backfill.
+4. **Keep command adapters thin**
+   - If `src/snowiki/cli/commands/` grows, split by command role and primary consumer as described in `docs/architecture/cli-command-taxonomy.md`.
 
-4. **Keep Markdown responsibilities explicit**
-   - Non-Markdown conversion belongs to MarkItDown before Markdown ingest.
-   - Frontmatter envelope handling belongs to `python-frontmatter`; YAML payload semantics come from PyYAML.
-   - Snowiki remains responsible for deterministic coercion, safe promotion, and reserved-field policy.
-   - Markdown body parsing belongs to `markdown-it-py`, but only Snowiki-owned DTOs may feed title resolution, projection sections, links, wikilinks, and later source gardening.
-   - HTML rendering libraries such as Python-Markdown belong behind renderer interfaces only, not the ingest loader contract.
-
-Each refactor PR should update this document or the relevant architecture ledger when it changes a durable principle.
+Each refactor PR should update this document or the relevant architecture contract when it changes a durable principle.

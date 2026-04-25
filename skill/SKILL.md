@@ -32,7 +32,7 @@ Use these shipped commands as atomic building blocks:
 - `snowiki prune`
 - `snowiki fileback`
 
-Advanced passthrough commands exist for `export`, `benchmark`, `benchmark-fetch`, `daemon`, and read-only `mcp`. `snowiki rebuild` is shipped support, not a primary wiki skill primitive.
+Support and advanced commands also exist: `export` is for backup/migration/inspection, `benchmark` and `benchmark-fetch` are development/evaluation surfaces, `daemon` is runtime optimization, and `mcp` is a read-only transport bridge. `snowiki rebuild` is shipped support, not a primary wiki skill primitive.
 
 ## Common `/wiki` Arguments
 
