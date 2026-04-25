@@ -10,6 +10,7 @@ To maintain a single source of truth, Snowiki distinguishes between normative (a
 - **This Document**: The single normative owner of the interface contract and vocabulary.
 - **`snowiki` CLI**: The authoritative runtime contract. The behavior of the installed CLI defines the current system capabilities.
 - **CLI JSON Output**: The machine-readable contract for tool integration (`--output json`).
+- **`docs/architecture/source-vault-compiled-taxonomy.md`**: The canonical layer taxonomy for source roots, raw provenance, normalized records, compiled pages, indexes, and queues.
 
 ### 1.2 Informative Surfaces (The Mirrors)
 - **`README.md`**: High-level overview and quick start. Mirrors runtime truth for human consumption.
@@ -20,11 +21,11 @@ To maintain a single source of truth, Snowiki distinguishes between normative (a
 
 ## 2. Artifact Classes
 
-Snowiki defines three distinct classes of artifacts that agents interact with.
+Snowiki defines four distinct classes of artifacts that agents interact with.
 
 ### 2.1 Command
 An atomic unit of execution provided by the `snowiki` CLI. Commands are the primary mechanism for mutation and retrieval.
-- **Examples**: `ingest`, `rebuild`, `query`, `recall`, `lint`, `status`, `export`, `fileback`, `benchmark`, `daemon`, `mcp`.
+- **Examples**: `ingest`, `rebuild`, `query`, `recall`, `lint`, `status`, `prune`, `export`, `fileback`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`.
 - **Contract**: Commands must provide deterministic behavior and, where applicable, machine-readable JSON output.
 
 ### 2.2 Skill
