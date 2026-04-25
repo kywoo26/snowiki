@@ -22,7 +22,6 @@ from .models import (
     FilebackTarget,
     RawRefDict,
     coerce_raw_ref,
-    require_dict,
     require_exact_int_field,
     require_mapping,
     require_string_field,
@@ -232,8 +231,8 @@ def coerce_fileback_proposal(value: Mapping[str, object]) -> FilebackProposal:
         "target": coerce_target(require_mapping(value, "target")),
         "draft": coerce_draft(require_mapping(value, "draft")),
         "evidence": coerce_evidence(require_mapping(value, "evidence")),
-        "derivation": require_dict(value, "derivation"),
-        "apply_plan": require_dict(value, "apply_plan"),
+        "derivation": require_mapping(value, "derivation"),
+        "apply_plan": require_mapping(value, "apply_plan"),
     }
 
 
