@@ -67,3 +67,48 @@ def test_discover_markdown_sources_skips_explicit_symlink(tmp_path: Path) -> Non
     link.symlink_to(target)
 
     assert discover_markdown_sources(link) == []
+
+
+def test_discover_markdown_sources_rejects_missing_path(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="path does not exist"):
+        _ = discover_markdown_sources(tmp_path / "missing.md")
+
+
+def test_discover_markdown_sources_rejects_non_markdown_file(tmp_path: Path) -> None:
+    note = tmp_path / "note.txt"
+    _ = note.write_text("not markdown", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="expected a Markdown file"):
+        _ = discover_markdown_sources(note)
+
+
+def test_discover_markdown_sources_skips_symlinked_directories(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    target = tmp_path / "target"
+    docs.mkdir()
+    target.mkdir()
+    _ = (target / "linked.md").write_text("# Linked", encoding="utf-8")
+    (docs / "linked-dir").symlink_to(target, target_is_directory=True)
+
+    assert discover_markdown_sources(docs) == []
+
+
+def test_discover_markdown_sources_rejects_non_directory_source_root(
+    tmp_path: Path,
+) -> None:
+    note = tmp_path / "note.md"
+    root_file = tmp_path / "root.txt"
+    _ = note.write_text("# Note", encoding="utf-8")
+    _ = root_file.write_text("not a root", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="source_root must be a directory"):
+        _ = discover_markdown_sources(note, source_root=root_file)
+
+
+def test_discover_markdown_sources_empty_directory_returns_empty_list(
+    tmp_path: Path,
+) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+
+    assert discover_markdown_sources(docs) == []
