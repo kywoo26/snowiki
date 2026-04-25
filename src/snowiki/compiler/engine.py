@@ -9,6 +9,7 @@ from snowiki.storage.provenance import ProvenanceTracker
 from snowiki.storage.zones import StoragePaths, atomic_write_bytes, relative_to_root
 
 from .generators.concept import generate_concept_pages
+from .generators.navigation import generate_index_page, generate_log_page
 from .generators.overview import generate_overview_page
 from .generators.question import generate_question_pages
 from .generators.session import generate_session_pages
@@ -80,6 +81,8 @@ class CompilerEngine:
         pages.extend(generate_concept_pages(resolved_records))
         pages.extend(generate_question_pages(resolved_records))
         pages.extend(generate_session_pages(resolved_records))
+        pages.append(generate_log_page(resolved_records))
+        pages.append(generate_index_page(resolved_records, pages))
         pages.append(generate_overview_page(resolved_records, pages))
         return apply_backlinks(pages)
 

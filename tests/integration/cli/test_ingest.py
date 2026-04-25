@@ -131,6 +131,37 @@ def test_ingest_markdown_reports_unchanged_on_second_run(tmp_path: Path) -> None
     assert payload["result"]["documents_unchanged"] == 1
 
 
+def test_ingest_reports_operation_local_stale_documents(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    note = docs / "note.md"
+    extra = docs / "extra.md"
+    stale = docs / "stale.md"
+    _ = note.write_text("# Note", encoding="utf-8")
+    _ = stale.write_text("# Stale", encoding="utf-8")
+    runner = CliRunner()
+
+    first = runner.invoke(
+        app,
+        ["ingest", str(docs), "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path / "snowiki")},
+    )
+    assert first.exit_code == 0, first.output
+    _ = stale.write_text("# Stale\n\nChanged.", encoding="utf-8")
+    _ = extra.write_text("# Extra", encoding="utf-8")
+
+    second = runner.invoke(
+        app,
+        ["ingest", str(note), "--source-root", str(docs), "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path / "snowiki")},
+    )
+
+    assert second.exit_code == 0, second.output
+    payload = json.loads(second.output)
+    assert payload["result"]["documents_seen"] == 1
+    assert payload["result"]["documents_stale"] == 1
+
+
 def test_ingest_reports_missing_file_with_non_zero_exit_code() -> None:
     runner = CliRunner()
     result = runner.invoke(

@@ -55,6 +55,8 @@ def test_markdown_document_rebuild_projects_body_and_source_identity(
     summary_paths = [path for path in paths if path.startswith("compiled/summaries/")]
 
     assert len(summary_paths) == 1
+    assert "compiled/index.md" in paths
+    assert "compiled/log.md" in paths
     rendered = (tmp_path / summary_paths[0]).read_text(encoding="utf-8")
     assert "Markdown body." in rendered
     assert 'summary: "A short guide."' in rendered

@@ -11,6 +11,7 @@ from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.compiler.taxonomy import PageType
 from snowiki.config import get_snowiki_root
 from snowiki.lint import run_lint
+from snowiki.markdown.source_state import collect_markdown_source_state
 from snowiki.search.workspace import (
     content_freshness_identity,
     normalize_stored_tokenizer_name,
@@ -147,6 +148,15 @@ def _freshness_status(
     }
 
 
+def _source_freshness_status(root: Path) -> dict[str, Any]:
+    report = collect_markdown_source_state(root)
+    return {
+        "total": report["total"],
+        "counts": report["counts"],
+        "stale_count": report["stale_count"],
+    }
+
+
 def run_status(root: Path) -> dict[str, Any]:
     manifest = _load_manifest(root / "index" / "manifest.json")
     page_counts, latest_compiled_update = _page_type_counts(root / "compiled")
@@ -164,6 +174,7 @@ def run_status(root: Path) -> dict[str, Any]:
         "sources": {
             "total": sum(source_counts.values()),
             "by_type": source_counts,
+            "freshness": _source_freshness_status(root),
         },
         "lint": {
             "summary": lint_result["summary"],
@@ -176,7 +187,6 @@ def run_status(root: Path) -> dict[str, Any]:
             latest_compiled_update=latest_compiled_update,
         ),
         "manifest": _manifest_stats(manifest),
-        "candidate_matrix": [],
     }
 
 
@@ -191,9 +201,9 @@ def _render_status_human(payload: dict[str, Any]) -> str:
     sources = result["sources"]
     lint = result["lint"]
     freshness = result["freshness"]
+    source_freshness = sources["freshness"]
     manifest = result["manifest"]
     summary = lint["summary"]
-    candidate_matrix = result.get("candidate_matrix", [])
 
     current_tokenizer = freshness["current_content_identity"].get("tokenizer", {})
     tokenizer_name = current_tokenizer.get("name", "n/a")
@@ -203,6 +213,13 @@ def _render_status_human(payload: dict[str, Any]) -> str:
         f"tokenizer={tokenizer_name}",
         f"latest normalized={freshness['latest_normalized_recorded_at'] or 'n/a'}",
         f"latest compiled={freshness['latest_compiled_update'] or 'n/a'}",
+    ]
+    source_freshness_bits = [
+        f"stale={source_freshness['stale_count']}",
+        *[
+            f"{state}={count}"
+            for state, count in source_freshness["counts"].items()
+        ],
     ]
     manifest_bits = [
         f"tokenizer={manifest['tokenizer_name'] or 'n/a'}",
@@ -223,16 +240,9 @@ def _render_status_human(payload: dict[str, Any]) -> str:
             f"{summary['error']} errors, {summary['warning']} warnings, {summary['info']} info"
         ),
         f"Freshness: {', '.join(freshness_bits)}",
+        f"Source Freshness: {', '.join(source_freshness_bits)}",
         f"Manifest: {', '.join(manifest_bits)}",
     ]
-
-    if candidate_matrix:
-        lines.append("Tokenizer Candidates:")
-        for candidate in candidate_matrix:
-            name = candidate.get("candidate_name", "unknown")
-            role = candidate.get("role", "unknown")
-            status = candidate.get("admission_status", "unknown")
-            lines.append(f"  - {name}: role={role}, status={status}")
 
     return "\n".join(lines)
 

@@ -292,7 +292,7 @@ the touched seam proves they are required.
 
 ### Phase 3: CLI autonomous writeback queue hardening
 
-Status: **implemented in the Phase 3 branch; pending final verification and PR review**. Active ledger: `docs/architecture/autonomous-writeback-phase3-plan.md`.
+Status: **complete and merged in PR #105**. Durable outcomes are recorded in `docs/architecture/llm-wiki-ingest-redesign.md`; the completed executable plan has been removed.
 
 Refactor targets for this wave:
 
@@ -301,6 +301,20 @@ Refactor targets for this wave:
 - Keep runtime low-risk policy classification separate from agent-provided labels.
 - Keep retention/pruning dry-run-first and scoped to queue control-plane artifacts.
 - Do not expand this wave into MCP writes, broad edit/merge/sync, storage-layout redesign, or projection migration.
+
+### Phase 4: wiki contract, source freshness, and prune
+
+Status: **active implementation wave**. Active ledger: `docs/architecture/wiki-contract-phase4-plan.md`.
+
+Refactor targets for this wave:
+
+- Keep Markdown source freshness classification and prune planning in `snowiki.markdown.source_state`, not Click callbacks.
+- Treat `content_hash` as the authoritative freshness signal; use mtime/size only as cache hints.
+- Keep `status` as a summary surface and `lint` as an actionable diagnostic surface.
+- Generate `index.md`, `log.md`, and `overview.md` deterministically from runtime state rather than through brittle string insertion.
+- Keep prune dry-run-first and require explicit `--delete --yes --all-candidates` for destructive cleanup.
+- Do not silently delete normalized, raw, or compiled artifacts during ingest or rebuild.
+- Do not expand this wave into MCP writes, semantic/vector search, broad sync/edit/merge workflows, or full event sourcing.
 
 ### Later waves
 

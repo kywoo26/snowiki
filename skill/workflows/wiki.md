@@ -16,6 +16,7 @@ Current shipped CLI surface:
 - `snowiki recall`
 - `snowiki status`
 - `snowiki lint`
+- `snowiki prune`
 - `snowiki fileback`
 
 ### Advanced Passthrough
@@ -48,6 +49,7 @@ Parse input after `/wiki`:
 | `fileback preview --queue <question>` | Step 5: Fileback Preview | Current |
 | `fileback queue list` | Step 5: Fileback Preview | Current |
 | `fileback apply` | Step 6: Fileback Apply | Current |
+| `prune sources` | Step 12: Source Prune | Current |
 | `sync` | Step 7: Sync | **Deferred** |
 | `edit <page>` | Step 8: Edit | **Deferred** |
 | `merge <p1> <p2>` | Step 9: Merge | **Deferred** |
@@ -235,7 +237,11 @@ Health-check per `CLAUDE.md` rules.
 
 ### 10.1: Structural Checks
 
-Run `snowiki lint` for the authoritative runtime linting.
+Run `snowiki lint` for the authoritative runtime linting. Source freshness findings are runtime-owned:
+
+- `source.modified`: reingest the changed source before relying on compiled state.
+- `source.missing`: inspect with `snowiki prune sources --dry-run` before cleanup.
+- `source.untracked`: ingest the source root if the file should become durable knowledge.
 
 ### 10.2: Semantic Checks (Informative)
 
@@ -262,7 +268,7 @@ For semantic issues, present the contradiction and let user decide.
 
 Quick overview of the entire system.
 
-Run `snowiki status` for the authoritative runtime status.
+Run `snowiki status` for the authoritative runtime status. Treat `sources.freshness` as the summary surface; use `snowiki lint` for detailed paths and recommended actions.
 
 Informative status may include:
 ```
@@ -276,12 +282,35 @@ Health:    0 errors, 2 warnings
 
 ---
 
+## Step 12: Source Prune
+
+Source prune is current but destructive only with explicit confirmation.
+
+Safe flow:
+
+```bash
+snowiki status --output json
+snowiki lint --output json
+snowiki prune sources --dry-run --output json
+```
+
+Only after reviewing candidates, include explicit all-candidate confirmation:
+
+```bash
+snowiki prune sources --delete --yes --all-candidates --output json
+```
+
+Current prune scope is intentionally narrow: missing-source normalized Markdown records and raw snapshots that become unreferenced. It rebuilds generated artifacts after deletion. Do not claim multi-source cascade cleanup, source rename repair, or dead-wikilink gardening as shipped behavior yet.
+
+---
+
 ## Notes
 
 - One source at a time for ingest (quality > speed)
 - Prefer the installed CLI as runtime truth
 - Use daemon-backed reads only when already available
 - `fileback` is current and reviewable; preview before apply
+- `prune sources` is dry-run-first; delete only with `--delete --yes --all-candidates`
 - Do not claim MCP write support
 - Deferred flows stay clearly marked deferred
 - Search strategy: lexical-first retrieval is the current runtime truth

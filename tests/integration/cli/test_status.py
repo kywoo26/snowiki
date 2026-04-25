@@ -152,12 +152,25 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
                     "project": 0,
                     "decision": 0,
                     "session": 0,
+                    "index": 0,
+                    "log": 0,
                     "overview": 1,
                 },
             },
             "sources": {
                 "total": 2,
                 "by_type": {"claude": 1, "opencode": 1},
+                "freshness": {
+                    "total": 0,
+                    "counts": {
+                        "invalid": 0,
+                        "modified": 0,
+                        "missing": 0,
+                        "untracked": 0,
+                        "current": 0,
+                    },
+                    "stale_count": 0,
+                },
             },
             "lint": {
                 "summary": {"error": 0, "warning": 0, "info": 2, "total": 2},
@@ -179,7 +192,6 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
                 "search_documents": 5,
                 "compiled_path_count": 3,
             },
-            "candidate_matrix": [],
         },
     }
 
@@ -217,7 +229,7 @@ def test_status_human_output_renders_dashboard_summary(tmp_path: Path) -> None:
     assert f"Snowiki status for {tmp_path.as_posix()}" in result.output
     assert "Pages: 3 total" in result.output
     assert (
-        "By type: summary: 0, concept: 0, entity: 0, topic: 1, question: 1, project: 0, decision: 0, session: 0, overview: 1"
+        "By type: summary: 0, concept: 0, entity: 0, topic: 1, question: 1, project: 0, decision: 0, session: 0, index: 0, log: 0, overview: 1"
         in result.output
     )
     assert "Sources: 2 total" in result.output
@@ -225,6 +237,10 @@ def test_status_human_output_renders_dashboard_summary(tmp_path: Path) -> None:
     assert "Lint: 0 errors, 0 warnings, 2 info" in result.output
     assert (
         "Freshness: state=current, tokenizer=regex_v1, latest normalized=2026-04-16T08:30:00Z, latest compiled=2026-04-16"
+        in result.output
+    )
+    assert (
+        "Source Freshness: stale=0, invalid=0, modified=0, missing=0, untracked=0, current=0"
         in result.output
     )
     assert (

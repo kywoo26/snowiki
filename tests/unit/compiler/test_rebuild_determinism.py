@@ -81,6 +81,8 @@ def test_rebuild_is_deterministic(tmp_path: Path) -> None:
 
     assert first_paths == second_paths
     assert first_snapshot == second_snapshot
+    assert "compiled/index.md" in first_paths
+    assert "compiled/log.md" in first_paths
     assert "compiled/overview.md" in first_paths
     assert "compiled/concepts/compiler-engine.md" in first_paths
     assert "compiled/entities/snowiki.md" in first_paths
@@ -95,6 +97,13 @@ def test_rebuild_is_deterministic(tmp_path: Path) -> None:
         len([path for path in first_paths if path.startswith("compiled/summaries/")])
         == 2
     )
+    assert "## [2026-04-08] ingest | msg-1" in first_snapshot["compiled/log.md"]
+    assert "Deterministic rebuild pass" in first_snapshot["compiled/log.md"]
+    assert "## Catalog Summary" in first_snapshot["compiled/index.md"]
+    assert "Total compiled pages:" in first_snapshot["compiled/index.md"]
+    assert "Source freshness: run `snowiki status --output json`" in first_snapshot["compiled/index.md"]
+    assert "[[compiled/log]]" in first_snapshot["compiled/overview.md"]
+    assert "Source freshness: run `snowiki status --output json`" in first_snapshot["compiled/overview.md"]
 
 
 def compiled_snapshot(root: Path) -> dict[str, str]:

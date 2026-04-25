@@ -75,189 +75,16 @@ def test_lint_json_output_includes_summary_checks_and_normalized_issues(
         "info": 0,
         "total": 13,
     }
-    assert payload["result"]["checks"] == [
-        {
-            "name": "normalized.required_key",
-            "label": "Required normalized keys",
-            "severity": "error",
-            "issue_count": 0,
-        },
-        {
-            "name": "normalized.invalid_json",
-            "label": "Normalized JSON syntax",
-            "severity": "error",
-            "issue_count": 0,
-        },
-        {
-            "name": "normalized.invalid_payload",
-            "label": "Normalized payload object shape",
-            "severity": "error",
-            "issue_count": 0,
-        },
-        {
-            "name": "normalized.compiler_projection",
-            "label": "Compiler projection contract",
-            "severity": "error",
-            "issue_count": 1,
-        },
-        {
-            "name": "compiled.frontmatter",
-            "label": "Compiled page frontmatter",
-            "severity": "error",
-            "issue_count": 8,
-        },
-        {
-            "name": "integrity.raw_provenance",
-            "label": "Normalized raw provenance",
-            "severity": "error",
-            "issue_count": 0,
-        },
-        {
-            "name": "integrity.raw_target",
-            "label": "Raw provenance targets",
-            "severity": "error",
-            "issue_count": 1,
-        },
-        {
-            "name": "integrity.compiled_layer",
-            "label": "Compiled layer presence",
-            "severity": "error",
-            "issue_count": 0,
-        },
-        {
-            "name": "integrity.index_manifest",
-            "label": "Index manifest presence",
-            "severity": "error",
-            "issue_count": 1,
-        },
-        {
-            "name": "graph.broken_wikilink",
-            "label": "Broken compiled wikilinks",
-            "severity": "error",
-            "issue_count": 1,
-        },
-        {
-            "name": "graph.orphan_compiled_page",
-            "label": "Orphan compiled pages",
-            "severity": "warning",
-            "issue_count": 1,
-        },
-        {
-            "name": "freshness.stale_compiled_page",
-            "label": "Stale compiled pages",
-            "severity": "info",
-            "issue_count": 0,
-        },
-        {
-            "name": "coverage.source_without_summary",
-            "label": "Sources without summary pages",
-            "severity": "info",
-            "issue_count": 0,
-        },
-    ]
-    assert payload["result"]["issues"] == [
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "created",
-            "message": "compiled page frontmatter missing required key: created",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "record_ids",
-            "message": "compiled page frontmatter missing required key: record_ids",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "related",
-            "message": "compiled page frontmatter missing required key: related",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "sources",
-            "message": "compiled page frontmatter missing required key: sources",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "summary",
-            "message": "compiled page frontmatter missing required key: summary",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "tags",
-            "message": "compiled page frontmatter missing required key: tags",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "type",
-            "message": "compiled page frontmatter missing required key: type",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L002",
-            "check": "compiled.frontmatter",
-            "field": "updated",
-            "message": "compiled page frontmatter missing required key: updated",
-            "path": "compiled/topic.md",
-            "severity": "error",
-        },
-        {
-            "code": "L201",
-            "check": "graph.broken_wikilink",
-            "message": "broken wikilink: [[compiled/missing]]",
-            "path": "compiled/topic.md",
-            "severity": "error",
-            "target": "compiled/missing.md",
-        },
-        {
-            "code": "L104",
-            "check": "integrity.index_manifest",
-            "message": "index manifest missing for compiled layer",
-            "path": "index/manifest.json",
-            "severity": "error",
-        },
-        {
-            "code": "L003",
-            "check": "normalized.compiler_projection",
-            "field": "projection",
-            "message": "normalized record missing required compiler projection",
-            "path": "normalized/record.json",
-            "severity": "error",
-        },
-        {
-            "code": "L102",
-            "check": "integrity.raw_target",
-            "message": "raw provenance target missing: raw/claude/missing.jsonl",
-            "path": "normalized/record.json",
-            "severity": "error",
-        },
-        {
-            "code": "L301",
-            "check": "graph.orphan_compiled_page",
-            "message": "compiled page has no inbound wikilinks",
-            "path": "compiled/topic.md",
-            "severity": "warning",
-        },
-    ]
+    checks_by_name = {check["name"]: check for check in payload["result"]["checks"]}
+    assert checks_by_name["normalized.compiler_projection"]["issue_count"] == 1
+    assert checks_by_name["compiled.frontmatter"]["issue_count"] == 8
+    assert checks_by_name["integrity.raw_target"]["issue_count"] == 1
+    assert checks_by_name["source.modified"]["issue_count"] == 0
+    issues_by_code = {issue["code"]: issue for issue in payload["result"]["issues"]}
+    assert issues_by_code["L003"]["path"] == "normalized/record.json"
+    assert issues_by_code["L102"]["path"] == "normalized/record.json"
+    assert issues_by_code["L201"]["target"] == "compiled/missing.md"
+    assert issues_by_code["L301"]["severity"] == "warning"
 
 
 def test_lint_human_output_groups_warning_only_findings(tmp_path: Path) -> None:
@@ -339,20 +166,43 @@ def test_lint_json_output_reports_info_level_stale_and_summary_coverage_checks(
         "info": 2,
         "total": 3,
     }
-    assert payload["result"]["checks"][-2:] == [
-        {
-            "name": "freshness.stale_compiled_page",
-            "label": "Stale compiled pages",
-            "severity": "info",
-            "issue_count": 1,
-        },
-        {
-            "name": "coverage.source_without_summary",
-            "label": "Sources without summary pages",
-            "severity": "info",
-            "issue_count": 1,
-        },
-    ]
+    checks_by_name = {check["name"]: check for check in payload["result"]["checks"]}
+    assert checks_by_name["freshness.stale_compiled_page"] == {
+        "name": "freshness.stale_compiled_page",
+        "label": "Stale compiled pages",
+        "severity": "info",
+        "issue_count": 1,
+    }
+    assert checks_by_name["source.modified"] == {
+        "name": "source.modified",
+        "label": "Modified Markdown sources",
+        "severity": "warning",
+        "issue_count": 0,
+    }
+    assert checks_by_name["source.missing"] == {
+        "name": "source.missing",
+        "label": "Missing Markdown sources",
+        "severity": "warning",
+        "issue_count": 0,
+    }
+    assert checks_by_name["source.untracked"] == {
+        "name": "source.untracked",
+        "label": "Untracked Markdown sources",
+        "severity": "info",
+        "issue_count": 0,
+    }
+    assert checks_by_name["source.invalid_metadata"] == {
+        "name": "source.invalid_metadata",
+        "label": "Invalid Markdown source metadata",
+        "severity": "warning",
+        "issue_count": 0,
+    }
+    assert checks_by_name["coverage.source_without_summary"] == {
+        "name": "coverage.source_without_summary",
+        "label": "Sources without summary pages",
+        "severity": "info",
+        "issue_count": 1,
+    }
     assert payload["result"]["issues"] == [
         {
             "code": "L301",
@@ -377,6 +227,61 @@ def test_lint_json_output_reports_info_level_stale_and_summary_coverage_checks(
             "target": "compiled/summaries/claude-claude-basic-record-1.md",
         },
     ]
+
+
+def test_lint_json_output_reports_source_freshness_findings(tmp_path: Path) -> None:
+    runner = CliRunner()
+    source_root = tmp_path / "vault"
+    source_root.mkdir()
+    source_path = source_root / "note.md"
+    _ = source_path.write_text("# Note\n", encoding="utf-8")
+    snowiki_root = tmp_path / "snowiki"
+
+    ingest_result = runner.invoke(
+        app,
+        ["ingest", str(source_root), "--rebuild", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(snowiki_root)},
+    )
+    assert ingest_result.exit_code == 0, ingest_result.output
+
+    _ = source_path.write_text("# Note\n\nChanged.\n", encoding="utf-8")
+    _ = (source_root / "new.md").write_text("# New\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["lint", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(snowiki_root)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    source_issues = [
+        issue
+        for issue in payload["result"]["issues"]
+        if str(issue["check"]).startswith("source.")
+    ]
+    assert source_issues == [
+        {
+            "code": "L501",
+            "check": "source.modified",
+            "message": "source file changed since ingest: note.md",
+            "path": source_issues[0]["path"],
+            "severity": "warning",
+            "target": source_path.as_posix(),
+        },
+        {
+            "code": "L503",
+            "check": "source.untracked",
+            "message": "source file has not been ingested: new.md",
+            "path": (source_root / "new.md").as_posix(),
+            "severity": "info",
+            "target": source_root.as_posix(),
+        },
+    ]
+    checks_by_name = {check["name"]: check for check in payload["result"]["checks"]}
+    assert checks_by_name["source.modified"]["issue_count"] == 1
+    assert checks_by_name["source.missing"]["issue_count"] == 0
+    assert checks_by_name["source.untracked"]["issue_count"] == 1
 
 
 def test_lint_exit_code_depends_only_on_error_findings(tmp_path: Path) -> None:

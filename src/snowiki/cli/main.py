@@ -10,6 +10,7 @@ from snowiki.cli.commands.fileback import command as fileback_command
 from snowiki.cli.commands.ingest import command as ingest_command
 from snowiki.cli.commands.lint import command as lint_command
 from snowiki.cli.commands.mcp import command as mcp_command
+from snowiki.cli.commands.prune import command as prune_command
 from snowiki.cli.commands.query import command as query_command
 from snowiki.cli.commands.rebuild import command as rebuild_command
 from snowiki.cli.commands.recall import command as recall_command
@@ -28,6 +29,7 @@ app.add_command(status_command)
 app.add_command(lint_command)
 app.add_command(export_command)
 app.add_command(fileback_command)
+app.add_command(prune_command)
 app.add_command(benchmark_command)
 app.add_command(benchmark_fetch_command)
 app.add_command(daemon_command)

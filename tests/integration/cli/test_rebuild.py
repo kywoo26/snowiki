@@ -31,6 +31,8 @@ def test_rebuild_generates_compiled_outputs_and_index_manifest(
     assert rebuild.exit_code == 0, rebuild.output
     payload = json.loads(rebuild.output)
     assert payload["ok"] is True
+    assert (tmp_path / "compiled/index.md").exists()
+    assert (tmp_path / "compiled/log.md").exists()
     assert (tmp_path / "compiled/overview.md").exists()
     assert (tmp_path / "index/manifest.json").exists()
     manifest = json.loads(

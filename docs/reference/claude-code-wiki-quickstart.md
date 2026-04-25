@@ -61,6 +61,19 @@ snowiki status --output json
 snowiki lint --output json
 ```
 
+`status` gives source freshness summary counts. `lint` gives actionable source findings such as `source.modified`, `source.missing`, `source.untracked`, and `source.invalid_metadata`.
+
+### Source prune
+
+Source prune is dry-run-first and handles missing-source normalized Markdown records plus raw snapshots that become unreferenced.
+
+```bash
+snowiki prune sources --dry-run --output json
+snowiki prune sources --delete --yes --all-candidates --output json
+```
+
+Review the dry-run candidates before deletion. Do not treat source prune as source rename repair, dead-wikilink cleanup, or multi-source cascade gardening.
+
 ## 4. Reviewable file-back flow
 
 `fileback` is current shipped behavior. It is CLI-only, reviewable, and derived: preview first, then apply a reviewed proposal.
@@ -159,7 +172,7 @@ Do not document or rely on them as if they already ship.
 
 ## 6. Current `/wiki` mental model
 
-- use `ingest`, `query`, `recall`, `status`, `lint`, and `fileback` today
+- use `ingest`, `query`, `recall`, `status`, `lint`, `prune sources`, and `fileback` today
 - prefer daemon-backed reads only when a daemon is already available
 - use CLI JSON output for automation and reliable machine-readable contracts
 - treat the read-only MCP surface as retrieval-only

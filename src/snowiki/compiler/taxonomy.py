@@ -18,6 +18,8 @@ class PageType(StrEnum):
     PROJECT = "project"
     DECISION = "decision"
     SESSION = "session"
+    INDEX = "index"
+    LOG = "log"
     OVERVIEW = "overview"
 
 
@@ -30,6 +32,8 @@ PAGE_DIRECTORIES: dict[PageType, str | None] = {
     PageType.PROJECT: "projects",
     PageType.DECISION: "decisions",
     PageType.SESSION: "sessions",
+    PageType.INDEX: None,
+    PageType.LOG: None,
     PageType.OVERVIEW: None,
 }
 
@@ -86,6 +90,10 @@ def page_directory(page_type: PageType) -> str | None:
 
 
 def compiled_page_path(page_type: PageType, slug: str) -> str:
+    if page_type is PageType.INDEX:
+        return "compiled/index.md"
+    if page_type is PageType.LOG:
+        return "compiled/log.md"
     if page_type is PageType.OVERVIEW:
         return "compiled/overview.md"
     directory = page_directory(page_type)
