@@ -15,10 +15,24 @@ from snowiki.cli.commands.query import command as query_command
 from snowiki.cli.commands.rebuild import command as rebuild_command
 from snowiki.cli.commands.recall import command as recall_command
 from snowiki.cli.commands.status import command as status_command
+from snowiki.cli.context import ensure_snowiki_context
 
-app = click.Group(
-    name="snowiki", context_settings={"help_option_names": ["-h", "--help"]}
+
+@click.group(
+    name="snowiki",
+    context_settings={
+        "default_map": {},
+        "help_option_names": ["-h", "--help"],
+        "max_content_width": 100,
+    },
+    short_help="Snowiki CLI-first runtime contract.",
 )
+@click.version_option(package_name="snowiki")
+@click.pass_context
+def app(ctx: click.Context) -> None:
+    """Snowiki CLI-first runtime contract."""
+
+    ensure_snowiki_context(ctx)
 
 
 app.add_command(ingest_command)
