@@ -14,7 +14,7 @@ To maintain a single source of truth, Snowiki distinguishes between normative (a
 ### 1.2 Informative Surfaces (The Mirrors)
 - **`README.md`**: High-level overview and quick start. Mirrors runtime truth for human consumption.
 - **`skill/SKILL.md`**: Workflow layer and tool definitions for specific agent platforms (e.g., Claude Code). It is a reference layer, not a runtime contract.
-- **`skill/workflows/*.md`**: Detailed orchestration logic. These are aspirational or reference-only unless explicitly verified against the CLI.
+- **`skill/references/wiki-workflow.md`**: Detailed wiki skill intent mapping. This is informative and must stay verified against the CLI.
 
 > **Governance Rule**: Any change to a normative fact must be updated in the canonical owner first. Mirror surfaces must be updated in the same PR to prevent drift.
 

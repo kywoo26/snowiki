@@ -1,150 +1,73 @@
 from __future__ import annotations
 
 import json
-import socket
 import statistics
 import time
 from collections.abc import Callable
 from pathlib import Path
-from threading import Thread
 from typing import Any
 
 import pytest
 from click.testing import CliRunner
 from tests.helpers.markdown_ingest import ingest_markdown_fixture
-from tests.helpers.skill_modules import load_skill_script_module
 
 from snowiki.cli.main import app
-from snowiki.daemon.fallback import DaemonUnavailableError, daemon_request
-from snowiki.daemon.server import SnowikiDaemon
 
 pytestmark = pytest.mark.perf
-
-QUERY_SCRIPT = load_skill_script_module("query.py", module_prefix="wiki_perf")
-RECALL_SCRIPT = load_skill_script_module("recall.py", module_prefix="wiki_perf")
 
 QUERY_TEXT = "claude-basic"
 RECALL_TARGET = "2026-04-01"
 MEASURED_RUNS = 5
 WARM_LATENCY_CEILING_SECONDS = 0.5
-WARM_BEATS_COLD_FACTOR = 0.95
 STATUS_LINT_LATENCY_CEILING_SECONDS = 0.5
 
 
-def test_query_hot_path_prefers_warm_daemon_reads_over_cold_cli(
+def test_query_hot_path_emits_stable_cli_json_without_workspace_mutation(
     tmp_path: Path,
 ) -> None:
+    runner = CliRunner()
     _ = ingest_markdown_fixture(tmp_path)
+    before = _workspace_snapshot(tmp_path)
 
-    daemon_port = _reserve_port()
-    offline_port = _reserve_port()
-    daemon = SnowikiDaemon(tmp_path, host="127.0.0.1", port=daemon_port)
-    thread = Thread(target=daemon.serve_forever, daemon=True)
-    thread.start()
-
-    try:
-        _ = _wait_for_health(daemon_port)
-        warmup = QUERY_SCRIPT.run_query(
-            QUERY_TEXT,
-            root=tmp_path,
-            host="127.0.0.1",
-            port=daemon_port,
+    payloads, median_latency = _measure_latency(
+        lambda: _invoke_json(
+            runner,
+            tmp_path,
+            ["query", QUERY_TEXT, "--output", "json"],
         )
-        assert warmup["backend"] == "daemon"
-        assert warmup["command"] == "query"
-        assert warmup["result"]["query"] == QUERY_TEXT
-        assert warmup["result"]["mode"] == "lexical"
-        assert warmup["result"]["hits"]
+    )
 
-        cold_payloads, cold_median = _measure_latency(
-            lambda: QUERY_SCRIPT.run_query(
-                QUERY_TEXT,
-                root=tmp_path,
-                host="127.0.0.1",
-                port=offline_port,
-            )
-        )
-        warm_payloads, warm_median = _measure_latency(
-            lambda: QUERY_SCRIPT.run_query(
-                QUERY_TEXT,
-                root=tmp_path,
-                host="127.0.0.1",
-                port=daemon_port,
-            )
-        )
-
-        assert all(payload["backend"] == "cli" for payload in cold_payloads)
-        assert all(payload["backend"] == "daemon" for payload in warm_payloads)
-        assert all(
-            payload["result"]["query"] == QUERY_TEXT for payload in cold_payloads
-        )
-        assert all(
-            payload["result"]["query"] == QUERY_TEXT for payload in warm_payloads
-        )
-        assert all(payload["result"]["mode"] == "lexical" for payload in warm_payloads)
-        assert warm_median < cold_median * WARM_BEATS_COLD_FACTOR
-        assert warm_median < WARM_LATENCY_CEILING_SECONDS
-    finally:
-        _stop_daemon(daemon_port)
-        thread.join(timeout=5.0)
+    assert _workspace_snapshot(tmp_path) == before
+    assert median_latency < WARM_LATENCY_CEILING_SECONDS
+    assert all(payload["command"] == "query" for payload in payloads)
+    assert all(payload["ok"] is True for payload in payloads)
+    assert all(payload["result"]["query"] == QUERY_TEXT for payload in payloads)
+    assert all(payload["result"]["mode"] == "lexical" for payload in payloads)
+    assert all(payload["result"]["hits"] for payload in payloads)
 
 
-def test_recall_hot_path_prefers_warm_daemon_reads_over_cold_cli(
+def test_recall_hot_path_emits_stable_cli_json_without_workspace_mutation(
     tmp_path: Path,
 ) -> None:
+    runner = CliRunner()
     _ = ingest_markdown_fixture(tmp_path)
+    before = _workspace_snapshot(tmp_path)
 
-    daemon_port = _reserve_port()
-    offline_port = _reserve_port()
-    daemon = SnowikiDaemon(tmp_path, host="127.0.0.1", port=daemon_port)
-    thread = Thread(target=daemon.serve_forever, daemon=True)
-    thread.start()
+    payloads, median_latency = _measure_latency(
+        lambda: _invoke_json(
+            runner,
+            tmp_path,
+            ["recall", RECALL_TARGET, "--output", "json"],
+        )
+    )
 
-    try:
-        _ = _wait_for_health(daemon_port)
-        warmup = RECALL_SCRIPT.run_recall(
-            RECALL_TARGET,
-            root=tmp_path,
-            host="127.0.0.1",
-            port=daemon_port,
-        )
-        assert warmup["backend"] == "daemon"
-        assert warmup["command"] == "recall"
-        assert warmup["result"]["target"] == RECALL_TARGET
-        assert warmup["result"]["strategy"] == "date"
-        assert warmup["result"]["hits"]
-
-        cold_payloads, cold_median = _measure_latency(
-            lambda: RECALL_SCRIPT.run_recall(
-                RECALL_TARGET,
-                root=tmp_path,
-                host="127.0.0.1",
-                port=offline_port,
-            )
-        )
-        warm_payloads, warm_median = _measure_latency(
-            lambda: RECALL_SCRIPT.run_recall(
-                RECALL_TARGET,
-                root=tmp_path,
-                host="127.0.0.1",
-                port=daemon_port,
-            )
-        )
-
-        assert all(payload["backend"] == "cli" for payload in cold_payloads)
-        assert all(payload["backend"] == "daemon" for payload in warm_payloads)
-        assert all(
-            payload["result"]["target"] == RECALL_TARGET for payload in cold_payloads
-        )
-        assert all(
-            payload["result"]["target"] == RECALL_TARGET for payload in warm_payloads
-        )
-        assert all(payload["result"]["strategy"] == "date" for payload in warm_payloads)
-        assert warm_median < cold_median * WARM_BEATS_COLD_FACTOR
-        assert warm_median < WARM_LATENCY_CEILING_SECONDS
-    finally:
-        _stop_daemon(daemon_port)
-        thread.join(timeout=5.0)
+    assert _workspace_snapshot(tmp_path) == before
+    assert median_latency < WARM_LATENCY_CEILING_SECONDS
+    assert all(payload["command"] == "recall" for payload in payloads)
+    assert all(payload["ok"] is True for payload in payloads)
+    assert all(payload["result"]["target"] == RECALL_TARGET for payload in payloads)
+    assert all(payload["result"]["strategy"] == "date" for payload in payloads)
+    assert all(payload["result"]["hits"] for payload in payloads)
 
 
 def test_status_hot_path_emits_stable_json_without_workspace_mutation(
@@ -354,33 +277,3 @@ def _frontmatter_page(*, title: str, body: str = "# Page\n") -> str:
         ]
     )
 
-
-def _reserve_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
-
-
-def _wait_for_health(port: int) -> dict[str, Any]:
-    deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        try:
-            health = daemon_request(f"http://127.0.0.1:{port}", "/health", timeout=1.0)
-        except DaemonUnavailableError:
-            time.sleep(0.05)
-            continue
-        if health.get("ok") is True:
-            return health
-    raise AssertionError("daemon health endpoint did not become ready")
-
-
-def _stop_daemon(port: int) -> None:
-    try:
-        _ = daemon_request(
-            f"http://127.0.0.1:{port}",
-            "/stop",
-            method="POST",
-            timeout=1.0,
-        )
-    except DaemonUnavailableError:
-        return

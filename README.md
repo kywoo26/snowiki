@@ -2,11 +2,11 @@
 
 A personal wiki that compounds knowledge like a snowball.
 
-Snowiki’s current shipped runtime is **CLI-first**. The installed `snowiki` command is the authoritative runtime contract; the Claude Code `/wiki` skill is a workflow layer that should mirror the CLI rather than redefine it.
+Snowiki’s current shipped runtime is **CLI-first**. The installed `snowiki` command is the authoritative runtime contract; the Claude Code `wiki` skill is a workflow layer that should mirror the CLI rather than redefine it.
 
 ## Quick Start
 
-This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md` and the [Wiki Route Contract](docs/roadmap/step3_wiki-skill-design/01-wiki-route-contract.md).
+This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md` and the packaged wiki skill at `skill/SKILL.md`.
 
 ```bash
 # 1. Install Snowiki from a checkout
@@ -29,7 +29,7 @@ snowiki prune sources --dry-run --output json
 
 Markdown files and directories are the primary ingest surface. Claude/OpenCode session exports should be converted into Markdown notes by an agent or skill workflow, then ingested with `snowiki ingest <note-or-directory>`.
 
-For the Claude Code `/wiki` workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/queue/apply` flow.
+For the Claude Code `wiki` skill workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/queue/apply` flow.
 
 If you are working from a development checkout instead of a tool install, run the same commands as `uv run snowiki ...`.
 
@@ -37,7 +37,7 @@ If you are working from a development checkout instead of a tool install, run th
 
 The current runtime exposes these top-level commands:
 
-### Primary Current Routes
+### Primary Current Commands
 - `snowiki ingest`
 - `snowiki query`
 - `snowiki recall`
@@ -49,22 +49,23 @@ The current runtime exposes these top-level commands:
 ### Advanced Passthrough
 - `snowiki export`
 - `snowiki benchmark`
+- `snowiki benchmark-fetch`
 - `snowiki daemon`
 - `snowiki mcp`
 
 ### Shipped CLI Support
-- `snowiki rebuild` (not a primary `/wiki` route)
+- `snowiki rebuild` (support command, not a primary everyday wiki skill intent)
 
-## Claude Code `/wiki` status
+## Claude Code `wiki` skill status
 
-The `/wiki` skill should currently mirror this shipped surface for everyday use:
+The `wiki` skill should currently mirror this shipped surface for everyday use:
 
 - current: `ingest`, `query`, `recall`, `status`, `lint`, `prune sources --dry-run`, `prune sources --delete --yes --all-candidates`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
-- optimization, not separate runtime truth: daemon-backed warm reads for query/recall when a daemon is already reachable
-- Phase 5 planning: reviewable gardening proposals over source freshness (`rename`, dead wikilinks, cascade cleanup)
-- deferred unless directly tied to gardening review/apply: `sync`, standalone `edit`, standalone `merge`, graph-oriented workflows
+- optimization, not skill logic: `snowiki daemon` remains a runtime CLI feature, but the `wiki` skill should call documented `snowiki ... --output json` commands rather than implementing daemon fallback itself
+- agent workflows: Claude Code exposes one `/wiki` skill command; phase arguments such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` expand to current CLI sequences rather than new runtime commands
+- deferred unless explicitly accepted by runtime spec: standalone `sync`, standalone `edit`, standalone `merge`, graph-oriented workflows
 
-Do not treat daemon-backed reads, qmd lineage, or older vault-layout docs as a separate product contract.
+Do not treat daemon internals, qmd lineage, or older vault-layout docs as a separate product contract.
 
 ## Machine-usable surfaces today
 
@@ -75,14 +76,14 @@ Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup 
 
 ## Design Principles
 
-1. **CLI truth first** — docs and skills mirror the installed runtime instead of inventing a parallel `/wiki` backend
+1. **CLI truth first** — docs and skills mirror the installed runtime instead of inventing a parallel wiki backend
 2. **Compilation, not ad-hoc mutation** — durable knowledge flows through Snowiki storage and rebuild paths
 3. **Reviewable writes** — `fileback apply` requires a reviewed proposal from `fileback preview`
 4. **Search-strategic** — lexical-first retrieval is shipped now; hybrid/semantic work remains deferred
-5. **Performance where it matters** — warm daemon reads are an optimization for repeated read paths, not a requirement for correctness
+5. **Performance where it matters** — runtime optimizations belong behind shipped `snowiki` commands, not in the skill package
 
 ## Related
 
 - `docs/architecture/skill-and-agent-interface-contract.md` — canonical agent/runtime contract
-- `docs/reference/claude-code-wiki-quickstart.md` — step-by-step Claude Code `/wiki` adoption guide
+- `docs/reference/claude-code-wiki-quickstart.md` — step-by-step Claude Code `wiki` skill adoption guide
 - [qmd](https://github.com/tobi/qmd) — lineage/reference material, not the current Snowiki runtime

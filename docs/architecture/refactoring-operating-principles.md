@@ -318,7 +318,7 @@ Refactor targets for this wave:
 
 ### Phase 5: agent-readable gardening proposals
 
-Status: **planning wave**. Active plan: `docs/architecture/wiki-contract-phase5-plan.md`.
+Status: **foundation slice shipped in PR #107**. Durable outcomes live in `docs/architecture/llm-wiki-ingest-redesign.md`.
 
 Refactor targets for this wave:
 
@@ -331,6 +331,18 @@ Refactor targets for this wave:
 - Reuse fileback queue concepts where helpful, but avoid coupling source gardening to question-answer writeback internals.
 - Keep broad sync/edit/merge/graph workflows out of scope unless they directly support a reviewed gardening proposal.
 - Do not hand-edit generated compiled Markdown as source of truth; rebuild remains the compiled artifact boundary.
+
+### Phase 6: agent and skill workflow
+
+Status: **planning wave**. Active plan: `docs/architecture/wiki-contract-phase6-plan.md`.
+
+Refactor targets for this wave:
+
+- Keep Claude/OpenCode/OMO workflow guidance above the runtime layer; skills orchestrate the CLI, they do not redefine it.
+- Prefer natural-language workflow contracts over new CLI commands for agent ergonomics.
+- Keep session-to-Markdown filing as a skill/workflow transformation before `snowiki ingest`, not a hidden primary ingest compatibility bridge.
+- Keep mutation CLI-mediated and reviewable through shipped paths such as `fileback` and explicit prune.
+- Keep standalone sync/edit/merge/graph commands deferred unless a later runtime spec accepts them.
 
 ### Later waves
 

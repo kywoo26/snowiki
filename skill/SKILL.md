@@ -1,23 +1,29 @@
 ---
 name: wiki
-description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, dry-run-first source prune, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/standalone edit/standalone merge/graph workflows deferred unless a future gardening proposal flow explicitly ships them."
-argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|prune sources|fileback preview QUESTION|fileback preview --queue QUESTION|fileback queue list|fileback apply|export|benchmark PRESET|daemon|mcp]
-allowed-tools: Bash(python3:*), Read, Write, Edit, Glob, Grep, WebFetch
+description: "Snowiki CLI-first wiki workflow. Use when the user asks to ingest notes, query or recall wiki knowledge, check wiki status/lint, prune missing sources safely, file a durable answer, or invoke /wiki with start/progress/finish/health-style arguments."
+when_to_use: "Use for phrases like /wiki ingest, /wiki query, /wiki recall, /wiki start, /wiki progress, /wiki finish, /wiki health, add this to the wiki, what do I know about, what did we work on, file this session, save this answer, wiki status, wiki lint, and prune missing sources. Do not use for general coding tasks unless the user asks to consult or update Snowiki."
+argument-hint: "[ingest SOURCE|query QUESTION|recall TARGET|status|lint|prune sources|fileback preview QUESTION|fileback apply|start TOPIC|progress|finish|health]"
 ---
 
-# Snowiki — CLI-First Wiki Workflow Skill
+# Snowiki Wiki Skill
 
-A persistent wiki that compounds knowledge like a snowball.
+Snowiki is a CLI-first, agent-operated wiki. The installed `snowiki` command and its JSON output are runtime truth; this skill only teaches Claude when to use that runtime.
 
-The authoritative runtime contract is the installed `snowiki` CLI.
+Claude Code exposes this skill as one command named `/wiki`. Treat text after `/wiki` as arguments that describe the user's wiki intent; do not invent hyphenated sibling commands.
 
-This skill is an informative reference layer for orchestrating the shipped CLI. It projects the canonical artifact model (Commands, Skills, Memory) defined in `docs/architecture/skill-and-agent-interface-contract.md`. For the authoritative mapping of skill routes to runtime commands, see the [Wiki Route Contract](../docs/roadmap/step3_wiki-skill-design/01-wiki-route-contract.md).
+## Start Here
 
-## Current shipped commands
+1. Confirm the runtime when needed: `snowiki --help`.
+2. In a development checkout, use `uv run snowiki ...`.
+3. Prefer `snowiki ... --output json` when supported.
+4. Read `references/wiki-workflow.md` only when lifecycle intent mapping, write-safety details, or deferred workflow boundaries are needed.
 
-Atomic units of execution provided by the `snowiki` CLI:
+This skill ships no scripts by default. Use Claude's normal file/tools for Markdown reading or note drafting, and use the installed `snowiki` CLI for runtime behavior.
 
-### Primary Current Routes
+## Current CLI Primitives
+
+Use these shipped commands as atomic building blocks:
+
 - `snowiki ingest`
 - `snowiki query`
 - `snowiki recall`
@@ -26,94 +32,40 @@ Atomic units of execution provided by the `snowiki` CLI:
 - `snowiki prune`
 - `snowiki fileback`
 
-### Advanced Passthrough
-- `snowiki export`
-- `snowiki benchmark`
-- `snowiki benchmark-fetch`
-- `snowiki daemon`
-- `snowiki mcp`
+Advanced passthrough commands exist for `export`, `benchmark`, `benchmark-fetch`, `daemon`, and read-only `mcp`. `snowiki rebuild` is shipped support, not a primary wiki skill primitive.
 
-### Shipped CLI Support
-- `snowiki rebuild` (not a primary `/wiki` route)
+## Common `/wiki` Arguments
 
-## Skill role
+Claude Code loads this as one skill named `wiki`; it does not define independent slash commands. Treat text after `/wiki` as an argument that describes the user's intent.
 
-This skill is orchestration and reference text around the shipped CLI. It must not silently redefine runtime capabilities.
+- `start`, `ingest`, `query`, `recall`, `progress`, `finish`, and `health` are common argument patterns.
+- For exact intent-to-CLI mapping, read `references/wiki-workflow.md`.
 
-Use it when the user asks for:
+Let Claude choose the exact CLI sequence from the user's goal and current state, while respecting the boundaries below.
 
-- wiki ingest
-- wiki query
-- wiki recall
-- wiki status
-- wiki lint
-- reviewable file-back of a useful answer
-- what do I know about X
-- what did we work on yesterday / last week
+## Critical Boundaries
 
-## Current Runtime Truth
+- Do not redefine runtime capabilities or invent `snowiki` subcommands.
+- Do not ingest raw Claude/OpenCode session exports as the primary workflow; summarize durable knowledge into Markdown first.
+- Do not edit compiled wiki artifacts directly.
+- Do not add or rely on skill scripts for Snowiki runtime behavior.
+- File tools may be used for user-authored Markdown notes or reviewed source material when the user intent requires it; durable Snowiki storage changes still go through the CLI.
+- Use `fileback preview` before any durable answer write; apply only through reviewed fileback paths.
+- Use `prune sources --dry-run` before destructive source cleanup; deletion requires explicit delete confirmation flags.
+- Do not implement daemon fallback, payload normalization, or command behavior in this skill; call the shipped CLI instead.
+- If `snowiki` is unavailable or returns an error, report that failure rather than emulating runtime behavior.
+- Do not claim MCP write/delete support.
 
-Use the installed `snowiki` command as the primary interface.
+## Deferred Workflow Ideas
 
-Machine-usable interfaces today:
-- CLI with `--output json` where supported
-- read-only MCP via `snowiki mcp`
+These are not current runtime commands unless a future runtime explicitly ships them:
 
-Read optimization:
-- daemon-backed reads for `query` and `recall` are preferred only when a daemon is already reachable
-- CLI fallback remains canonical and supported
-
-Write posture:
-- `fileback` is current shipped behavior
-- `fileback preview` is non-mutating and reviewable
-- `fileback preview --queue` persists a pending proposal under the active Snowiki root without applying it
-- `fileback preview --queue --auto-apply-low-risk` may apply only when runtime policy proves the proposal low-risk
-- `fileback queue list`, `queue show`, `queue apply`, `queue reject`, and `queue prune` manage CLI queue lifecycle state
-- `fileback apply` requires a reviewed proposal file
-- `prune sources --dry-run` previews missing-source cleanup candidates; destructive cleanup requires `prune sources --delete --yes --all-candidates`
-- MCP write support is not shipped
-
-## Current Commands vs Deferred Workflow Ideas
-
-### Current shipped commands
-
-#### `ingest`
-Ingest a supported source into Snowiki storage.
-
-#### `query`
-Search compiled knowledge through the current lexical retrieval runtime.
-
-#### `recall`
-Recall against current stored knowledge/session-derived material through the shipped Snowiki runtime.
-
-#### `status`, `lint`, `prune`, `export`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`
-These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
-
-Use `status` and `lint` before source gardening. `status` gives source freshness summary counts, while `lint --output json` gives actionable `source.modified`, `source.missing`, `source.untracked`, and `source.rename_candidate` findings. Use `prune sources --dry-run` before any destructive source cleanup, and inspect rename candidates before pruning missing-source records.
-
-#### `fileback`
-Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback preview --queue` to persist a non-blocking pending proposal, `snowiki fileback queue list/show/apply/reject/prune` to manage queue lifecycle state, `snowiki fileback preview --queue --auto-apply-low-risk` only for runtime-proven low-risk proposals, and `snowiki fileback apply` to persist a reviewed proposal file through the canonical CLI path.
-
-### Deferred / broader workflow ideas
-
-The following remain workflow or roadmap concepts rather than guaranteed shipped commands in the current runtime:
-- sync
+- standalone sync
 - standalone edit
 - standalone merge
-- graph-oriented recall workflows
-- qmd-backed hybrid/vector routing as a default runtime path
+- graph-oriented recall or visualization
+- semantic, hybrid, vector, or rerank retrieval as the default runtime path
 
-Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. Phase 5 planning may introduce narrow edit/merge semantics only as part of reviewed source-gardening proposals over Phase 4 freshness and prune primitives.
+## Reference
 
-## Search Strategy
-
-Current shipped runtime posture:
-- lexical-first retrieval
-- deterministic benchmarked backend
-- semantic/hybrid/rerank remain deferred architecture work
-
-qmd remains lineage/reference material, not the current canonical runtime search engine.
-
-## Workflow
-
-See `workflows/wiki.md` for the current workflow interpretation of the shipped CLI plus clearly marked deferred ideas.
+For detailed intent mapping, read `references/wiki-workflow.md`.

@@ -1,8 +1,8 @@
-# Claude Code `/wiki` Quickstart
+# Claude Code `wiki` Skill Quickstart
 
-This guide is the shortest truthful path to using Snowiki’s current parity-plus `/wiki` workflow. For the authoritative mapping of skill routes to runtime commands, see the [Wiki Route Contract](../roadmap/step3_wiki-skill-design/01-wiki-route-contract.md).
+This guide is the shortest truthful path to using Snowiki’s current Claude Code `wiki` skill workflow. For the authoritative mapping of skill intents to runtime commands, see `skill/SKILL.md`, `skill/references/wiki-workflow.md`, and `docs/architecture/skill-and-agent-interface-contract.md`.
 
-The runtime truth is still the installed `snowiki` CLI. The Claude Code `/wiki` skill should mirror these commands and behaviors rather than invent a separate backend.
+The runtime truth is still the installed `snowiki` CLI. The Claude Code `wiki` skill should mirror these commands and behaviors rather than invent a separate backend.
 
 ## 1. Install from a checkout
 
@@ -11,7 +11,7 @@ uv tool install --from . snowiki
 snowiki --help
 ```
 
-If you also want the Claude Code `/wiki` skill installed locally, place this repo's packaged skill at `~/.claude/skills/wiki/` so Claude Code can load `skill/SKILL.md` from that install path.
+If you also want the Claude Code `wiki` skill installed locally, place this repo's packaged skill at `~/.claude/skills/wiki/` so Claude Code can load `skill/SKILL.md` from that install path.
 
 If you are iterating from the repository checkout instead of a tool install, use `uv run snowiki ...` in the same examples below.
 
@@ -24,9 +24,30 @@ snowiki daemon start
 snowiki daemon status
 ```
 
-If the daemon is already reachable, the `/wiki` read path can prefer warm daemon-backed reads. If not, Snowiki falls back to the canonical CLI read path.
+The `wiki` skill should still call shipped CLI commands such as `snowiki query --output json` and `snowiki recall --output json`. Daemon behavior is a runtime concern behind Snowiki commands, not logic for the skill package to reimplement.
 
 ## 3. First useful commands
+
+Lifecycle intents such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` are arguments to the single `wiki` skill command, not independent slash commands or shipped `snowiki` subcommands. They should expand to the current CLI commands below: status/recall/query for start, status/lint for progress and health, and session-to-Markdown plus ingest/fileback for finish.
+
+Example argument expansions:
+
+```text
+/wiki start current project
+  -> snowiki status --output json
+  -> snowiki recall "current project" --output json
+  -> optional snowiki query "current project decisions" --output json
+
+/wiki finish
+  -> write a Markdown session note
+  -> snowiki ingest <note> --rebuild --output json
+  -> optional snowiki fileback preview --queue ... --output json
+
+/wiki health
+  -> snowiki status --output json
+  -> snowiki lint --output json
+  -> optional snowiki prune sources --dry-run --output json
+```
 
 ### Ingest
 
@@ -36,6 +57,8 @@ snowiki ingest /path/to/docs/ --rebuild --output json
 ```
 
 Markdown files and directories are the primary ingest surface. Convert Claude/OpenCode session exports into Markdown notes before ingesting them.
+
+After ingest, inspect JSON output for stale or rebuild-required state, then run `snowiki status --output json` or `snowiki lint --output json` before claiming the wiki is healthy.
 
 ### Query
 
@@ -168,13 +191,15 @@ These remain deferred workflow ideas, not shipped runtime behavior:
 - standalone `merge`
 - graph-oriented workflows
 
-Phase 5 planning may use narrow edit/merge semantics only when they are part of reviewed source-gardening proposals such as rename assistance, dead-wikilink cleanup, or cascade cleanup. Do not treat those broader workflows as shipped runtime commands until the CLI exposes them.
+Claude/OpenCode/OMO workflows operate over the shipped CLI truth. Do not treat standalone `sync`, `edit`, `merge`, or graph workflows as shipped runtime commands until the CLI exposes them.
 
 Do not document or rely on them as if they already ship.
 
-## 6. Current `/wiki` mental model
+## 6. Current `wiki` skill mental model
 
 - use `ingest`, `query`, `recall`, `status`, `lint`, `prune sources`, and `fileback` today
-- prefer daemon-backed reads only when a daemon is already available
+- treat lifecycle intents as arguments to the single `/wiki` skill command, not shipped `snowiki` subcommands or separate commands defined inside the skill
+- observe first, hypothesize before asking, and propose concrete writes before executing reviewable write flows
+- keep daemon behavior behind shipped Snowiki runtime commands rather than skill-side fallback logic
 - use CLI JSON output for automation and reliable machine-readable contracts
 - treat the read-only MCP surface as retrieval-only
