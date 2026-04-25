@@ -61,7 +61,7 @@ snowiki status --output json
 snowiki lint --output json
 ```
 
-`status` gives source freshness summary counts. `lint` gives actionable source findings such as `source.modified`, `source.missing`, `source.untracked`, and `source.invalid_metadata`.
+`status` gives source freshness summary counts. `lint --output json` gives actionable source findings such as `source.modified`, `source.missing`, `source.untracked`, `source.invalid_metadata`, and agent-readable `source.rename_candidate` diagnostics when a missing source has an exact-hash untracked rename candidate.
 
 ### Source prune
 
