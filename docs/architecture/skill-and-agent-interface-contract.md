@@ -35,7 +35,7 @@ A higher-level orchestration layer that bundles multiple commands and logic into
 ### 2.3 Memory
 The persistent state of the Snowiki system, including raw sources, normalized records, compiled wiki pages, index snapshots, and session history.
 - **Examples**: `raw/`, `normalized/`, `compiled/`, `index/`, session records.
-- **Contract**: Memory is the ground truth for retrieval once data has entered Snowiki's accepted storage pipeline. Agents interact with memory primarily through CLI commands or read-only MCP surfaces.
+- **Contract**: Memory is the accepted runtime state for retrieval once data has entered Snowiki's storage pipeline. Source roots and raw provenance remain evidence; compiled pages are derived wiki memory. Agents interact with memory primarily through CLI commands or read-only MCP surfaces.
 
 ### 2.4 Control-Plane Queue
 A durable runtime artifact for pending mutation intent that has not entered accepted memory.
@@ -57,8 +57,8 @@ Snowiki owns the intent; the runtime and host harness remain the final enforcers
 The scope of data accessible to an agent at a given time.
 
 Snowiki visibility is declared per artifact zone:
-- **Raw Visibility**: Access to the `sources/` zone (immutable raw documents).
-- **Compiled Visibility**: Access to the `wiki/` zone (LLM-compiled knowledge).
+- **Source Visibility**: Access to external `source_root`/`source_path` material or Snowiki-managed `raw/` provenance snapshots.
+- **Compiled Visibility**: Access to `compiled/` pages (generated wiki memory).
 - **Session Visibility**: Access to the `sessions/` zone (active or frozen session logs).
 
 Each zone uses the same minimum visibility states:
@@ -68,6 +68,8 @@ Each zone uses the same minimum visibility states:
 - **Propose-Mutate**: The agent may prepare or request a mutation through an approved runtime path, but the mutation is not effective until host/runtime approval is satisfied.
 
 Snowiki declares these states so skills and agents can reason about access consistently. Hosts may collapse states into a stricter subset, but must not invent broader effective access than the runtime actually provides.
+
+The current shipped runtime does not require a root-internal `sources/` authoring directory. Durable source material may live in external project docs, Obsidian vaults, session-note directories, or other filesystem roots recorded as source provenance. See `docs/architecture/source-vault-compiled-taxonomy.md` for the normative layer taxonomy.
 
 ### 3.3 Approval
 A gate on whether a requested mutation may become effective.
