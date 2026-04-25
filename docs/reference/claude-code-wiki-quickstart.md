@@ -164,9 +164,11 @@ This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the ge
 These remain deferred workflow ideas, not shipped runtime behavior:
 
 - `sync`
-- `edit`
-- `merge`
+- standalone `edit`
+- standalone `merge`
 - graph-oriented workflows
+
+Phase 5 planning may use narrow edit/merge semantics only when they are part of reviewed source-gardening proposals such as rename assistance, dead-wikilink cleanup, or cascade cleanup. Do not treat those broader workflows as shipped runtime commands until the CLI exposes them.
 
 Do not document or rely on them as if they already ship.
 

@@ -304,7 +304,7 @@ Refactor targets for this wave:
 
 ### Phase 4: wiki contract, source freshness, and prune
 
-Status: **active implementation wave**. Active ledger: `docs/architecture/wiki-contract-phase4-plan.md`.
+Status: **shipped in PR #106**. Durable outcomes live in `docs/architecture/llm-wiki-ingest-redesign.md`.
 
 Refactor targets for this wave:
 
@@ -315,6 +315,19 @@ Refactor targets for this wave:
 - Keep prune dry-run-first and require explicit `--delete --yes --all-candidates` for destructive cleanup.
 - Do not silently delete normalized, raw, or compiled artifacts during ingest or rebuild.
 - Do not expand this wave into MCP writes, semantic/vector search, broad sync/edit/merge workflows, or full event sourcing.
+
+### Phase 5: reviewable gardening proposals
+
+Status: **planning wave**. Active plan: `docs/architecture/wiki-contract-phase5-plan.md`.
+
+Refactor targets for this wave:
+
+- Keep gardening proposal generation in domain modules, not Click callbacks or skill prose.
+- Preserve Phase 4 report-first and dry-run-first guarantees.
+- Model source rename, dead-wikilink, and cascade cleanup as reviewable proposals before any apply path mutates files.
+- Reuse fileback queue concepts where helpful, but avoid coupling source gardening to question-answer writeback internals.
+- Keep broad sync/edit/merge/graph workflows out of scope unless they directly support a reviewed gardening proposal.
+- Do not hand-edit generated compiled Markdown as source of truth; rebuild remains the compiled artifact boundary.
 
 ### Later waves
 

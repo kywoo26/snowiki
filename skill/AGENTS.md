@@ -20,8 +20,8 @@ This directory governs the distributable skill package and its associated workfl
 
 ## Deferred Workflow Policy
 
-- `sync`, `edit`, `merge`, and graph-oriented flows are deferred reference workflows.
+- `sync`, standalone `edit`, standalone `merge`, and graph-oriented flows are deferred reference workflows.
+- Narrow edit/merge semantics may appear only as part of reviewed Phase 5 source-gardening proposal flows.
 - If implemented, `sync` operations must preserve `## My Notes` and specific frontmatter fields (`comments`, `related`, `status`, `tags`, `rating`).
 - Exported sessions live in `Claude-Sessions/` within the vault.
-
 
