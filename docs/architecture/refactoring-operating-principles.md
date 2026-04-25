@@ -244,28 +244,54 @@ Treat these as prompts for a refactor plan:
 - string rendering grows conditionals for structured output,
 - compatibility bridges remain after tests can use the new contract.
 
-## Post-Phase-1 Refactor Targets
+## Markdown-First Refactor Waves
 
-The first refactor wave after Markdown-first ingest should be behavior-preserving and bounded.
+Refactor waves after Markdown-first ingest should stay behavior-preserving and bounded.
+Each wave should leave a clearer seam for the next one instead of expanding into
+unrelated cleanup.
 
-Recommended order:
+### Phase 1: Markdown ingest boundary
 
-1. **Extract Markdown ingest application seam**
-   - Move title/summary derivation and payload construction out of `src/snowiki/cli/commands/ingest.py`.
-   - Candidate owner: `src/snowiki/markdown/` or a new ingest application module.
+Status: **done in PR #100**.
 
-2. **Make compiler summary projection less source-type-specific**
-   - Reduce repeated `source_type == "markdown"` checks in `src/snowiki/compiler/generators/summary.py`.
-   - Prefer a normalized field contract or contributor strategy over inline branching.
+What this wave established:
 
-3. **Clarify normalized storage write contracts**
+- `src/snowiki/cli/commands/ingest.py` stays a Click/output/error wrapper.
+- Markdown ingest orchestration lives behind `src/snowiki/markdown/ingest.py`.
+- Title/summary derivation, normalized Markdown payload construction, source
+  privacy gating, rebuild wrapping, and query-cache clearing have seam-level
+  unit coverage.
+- The new module is intentionally an application seam, not a pure Markdown parser
+  module. If ingest grows beyond Markdown-specific orchestration, migrate it to a
+  dedicated application package such as `snowiki.ingest.markdown`.
+
+### Phase 2: Compiler projection boundary
+
+Next target:
+
+1. **Make compiler summary projection less source-type-specific**
+   - Reduce repeated `source_type == "markdown"` checks in
+     `src/snowiki/compiler/generators/summary.py`.
+   - Prefer a normalized field contract, projection helper, or contributor
+     strategy over inline branching.
+   - Keep compiled Markdown output byte-for-byte compatible unless the PR
+     explicitly documents a contract change.
+   - Add unit coverage at the compiler seam before changing projection behavior.
+
+Do not start Phase 2 by changing frontmatter libraries, storage layout, or search
+indexing. Those are separate waves unless compiler projection proves they are
+required.
+
+### Later waves
+
+1. **Clarify normalized storage write contracts**
    - Separate latest-only document storage from legacy date-bucketed record storage, or extract shared record-writing mechanics.
 
-4. **Narrow test helper layers**
+2. **Narrow test helper layers**
    - Use parser/storage/compiler seams directly in unit tests.
    - Reserve CLI helpers for integration tests.
 
-5. **Document deferred parser/library decision**
+3. **Document deferred parser/library decision**
    - Keep the current deterministic frontmatter parser while simple.
    - Revisit `PyYAML`/`ruamel.yaml` only when unsupported frontmatter features become real requirements.
 
