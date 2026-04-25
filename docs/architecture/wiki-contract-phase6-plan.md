@@ -19,8 +19,8 @@ The phase should make it obvious how an agent uses Snowiki during real work with
 
 ### In Scope
 
-- Claude Code `/wiki` and OpenCode/OMO-style workflow guidance over current CLI primitives.
-- Natural-language routing for common journeys:
+- Claude Code `wiki` skill and OpenCode/OMO-style workflow guidance over current CLI primitives.
+- Natural-language intent mapping for common journeys:
   - ingest this file or directory;
   - summarize this session or conversation into a Markdown note and ingest it;
   - rebuild and verify the wiki;
@@ -59,23 +59,23 @@ The reference research pass for Phase 6 should specifically compare:
 - Claude Code skill packaging and progressive disclosure;
 - OpenCode/OMO workflow invocation patterns;
 - Karpathy-derived LLM wiki implementations' README/SKILL/AGENTS guidance;
-- local `llm-wiki-references` examples for how agents route `ingest`, `query`, `lint`, `file/absorb`, and `cleanup` workflows.
+- local `llm-wiki-references` examples for how agents map `ingest`, `query`, `lint`, `file/absorb`, and `cleanup` workflows to tool/CLI calls.
 
 Reference implications for this plan:
 
 - Keep the shipped workflow vocabulary close to Karpathy's small loop, then let agents do synthesis and filing work above it.
-- Borrow `agent-wiki`'s session lifecycle vocabulary (`start`, `ingest`, `progress`, `finish`, `health`) as skill routes, not runtime commands.
+- Borrow `agent-wiki`'s session lifecycle vocabulary (`start`, `ingest`, `progress`, `finish`, `health`) as `wiki` skill intents, not runtime commands.
 - Treat Farzapedia-style `absorb`, `cleanup`, `breakdown`, and `reorganize` as useful workflow names, not new commands, unless a later CLI spec accepts them.
-- Preserve the existing skill split: `SKILL.md` for discovery and runtime truth, `skill/workflows/wiki.md` for progressive workflow detail.
+- Preserve the skill split: `SKILL.md` for discovery and runtime truth, `skill/references/wiki-workflow.md` for on-demand workflow detail.
 - Prefer status/lint before mutation-like work so agents see stale, missing, untracked, and rename-candidate source facts before pruning or filing.
 - Use reviewable fileback and queue flows for durable writes; never teach agents to edit compiled wiki artifacts directly.
 - Teach agent behavior, not only commands: observe first, hypothesize before asking, propose concrete writes before executing, ask a small number of targeted questions, and continue softly if Snowiki is unavailable.
 
 ## Agent Workflow Contracts
 
-Phase 6 documents five canonical journeys. Each journey must name the CLI route an agent consumes and whether the result is read-only, proposal-only, or applied state.
+Phase 6 documents five canonical journeys. Each journey must name the CLI command an agent consumes and whether the result is read-only, proposal-only, or applied state.
 
-| Journey | CLI contract | Skill route | State posture |
+| Journey | CLI contract | Skill intent | State posture |
 | --- | --- | --- | --- |
 | Ingest file or directory | `snowiki ingest <path> --output json` | Step 2 | Applies through runtime storage |
 | File session as knowledge | Markdown note -> `snowiki ingest <note> --rebuild --output json` | Step 2 | Applies after agent-created note is ingested |
@@ -83,19 +83,19 @@ Phase 6 documents five canonical journeys. Each journey must name the CLI route 
 | File durable answer | `fileback preview` -> queue/apply | Steps 5-6 | Proposal first, applied only through CLI |
 | Review freshness | `status` -> `lint` -> `prune sources --dry-run` | Steps 10-12 | Read-only until explicit prune delete |
 
-### Session Lifecycle Skill Routes
+### Session Lifecycle Skill Intents
 
-Phase 6 may name lifecycle routes for agent ergonomics. These are skill/workflow names only; they must expand to shipped CLI primitives.
+Phase 6 may name lifecycle intents for agent ergonomics. Claude Code loads one skill named `wiki`, so these are arguments to `/wiki`; they must expand to shipped CLI primitives and must not imply independent hyphenated slash commands.
 
-| Skill route | Expansion over current CLI truth | Purpose |
+| Skill intent | Expansion over current CLI truth | Purpose |
 | --- | --- | --- |
-| `/wiki-start` | `status --output json` + relevant `recall`/`query` | Brief current context, detect stale sources, propose a plan |
-| `/wiki-ingest` | `ingest <path> --output json` + optional `rebuild` + `status` | Make source material durable |
-| `/wiki-progress` | `status --output json` + `lint --output json` | Mid-session checkpoint and scope-drift check |
-| `/wiki-finish` | session Markdown note + `ingest <note> --rebuild --output json` + optional `fileback preview --queue` | Capture durable outcomes before context is lost |
-| `/wiki-health` | `lint --output json` + targeted human-readable review | Deeper maintenance/audit without new mutation commands |
+| `/wiki start ...` | `status --output json` + relevant `recall`/`query` | Brief current context, detect stale sources, propose a plan |
+| `/wiki ingest <path>` | `ingest <path> --output json` + optional `rebuild` + `status` | Make source material durable |
+| `/wiki progress` | `status --output json` + `lint --output json` | Mid-session checkpoint and scope-drift check |
+| `/wiki finish` | session Markdown note + `ingest <note> --rebuild --output json` + optional `fileback preview --queue` | Capture durable outcomes before context is lost |
+| `/wiki health` | `lint --output json` + targeted human-readable review | Deeper maintenance/audit without new mutation commands |
 
-Agents may expose these as natural-language triggers or slash-command wrappers, but docs must explain the underlying CLI sequence so the route cannot drift from runtime truth.
+Agents may expose these as natural-language triggers or host-level wrappers outside the skill package, but docs must explain the underlying CLI sequence so the intent cannot drift from runtime truth.
 
 ### 1. Ingest a file or directory
 
@@ -128,7 +128,7 @@ The note should preserve human reviewability: durable decisions, facts, evidence
 Agent flow:
 
 1. Prefer `snowiki query <question> --output json` for current knowledge questions.
-2. Prefer `snowiki recall <target> --output json` for temporal/topic recall routes already shipped by the CLI.
+2. Prefer `snowiki recall <target> --output json` for temporal/topic recall already shipped by the CLI.
 3. Use daemon-backed reads only as an optimization when a daemon is already reachable.
 4. Synthesize an answer from returned compiled knowledge and cite relevant paths when useful.
 5. If the answer should become durable, use fileback preview/queue rather than writing compiled files directly.
@@ -161,7 +161,7 @@ This journey is the Phase 6 replacement for broad “garden” wording: agents r
 ## Skill Packaging Plan
 
 - Keep `skill/SKILL.md` short and discoverable; avoid embedding long runbooks there.
-- Keep detailed routing in `skill/workflows/wiki.md` so Claude Code, OpenCode/OMO, and similar agents can load only the depth they need.
+- Keep detailed intent mapping in `skill/references/wiki-workflow.md` so Claude Code, OpenCode/OMO, and similar agents can load only the depth they need.
 - Keep `skill/AGENTS.md` as package governance for deferred workflows and preservation rules.
 - Keep any future `CLAUDE.md` or concise agent entrypoint minimal: point to the installed CLI, `skill/SKILL.md`, and the canonical architecture contract instead of duplicating long workflow text.
 - Document install/validation around the installed `snowiki` binary; if a checkout is used, examples should say `uv run snowiki ...`.
@@ -175,7 +175,7 @@ Agent-facing workflow docs should encode behavior rules learned from local refer
 - Observe before asking; inspect status, lint, recall, or relevant files when available.
 - Hypothesize before asking; prefer “I think X because Y; confirm?” over broad discovery questions.
 - Propose concrete writes before executing them, especially for session filing and fileback flows.
-- Ask only a small set of targeted questions during lifecycle routes; trivial ingest/query should not trigger interviews.
+- Ask only a small set of targeted questions during lifecycle intents; trivial ingest/query should not trigger interviews.
 - Use progressive disclosure for retrieval: start from status/index-like summaries, then compiled answers, then evidence/source paths, then raw source files only when needed.
 - Continue softly when optional optimizations are unavailable: daemon/MCP absence must not block canonical CLI use.
 
@@ -186,7 +186,7 @@ These examples define expected skill/workflow behavior. They are not new `snowik
 ### UC1: Start work with wiki context
 
 ```text
-User: /wiki-start phase 6 문서 작업 이어가자
+User: /wiki start phase 6 문서 작업 이어가자
 Agent:
   1. Runs `snowiki status --output json`.
   2. Runs `snowiki recall "phase 6" --output json`.
@@ -226,7 +226,7 @@ This is the safe replacement for broad maintenance verbs: the agent composes cur
 
 - Runtime distribution remains the Python CLI: install with `uv tool install --from . snowiki` from a checkout or an equivalent package distribution, then inspect `snowiki --help`.
 - Development checkout examples should use `uv run snowiki ...` so docs and verification stay repo-local.
-- Claude Code skill distribution is the `skill/` package copied or symlinked to `~/.claude/skills/wiki/`, where `SKILL.md` is the discovery entrypoint and `workflows/wiki.md` is the detailed route guide.
+- Claude Code skill distribution is the `skill/` package copied or symlinked to `~/.claude/skills/wiki/`, where `SKILL.md` is the discovery entrypoint and `references/wiki-workflow.md` is the detailed intent guide.
 - OpenCode/OMO integration uses the same workflow text through project instructions or agent skill packaging; it should call the installed `snowiki` CLI and parse JSON output rather than embedding runtime logic.
 - `snowiki mcp` may be used as a read-only retrieval surface. MCP write/delete support is not part of Phase 6 distribution.
 
@@ -243,7 +243,7 @@ This is the safe replacement for broad maintenance verbs: the agent composes cur
 - Phase 6 plan exists and replaces Phase 5 as the active executable plan.
 - Phase 5 shipped outcomes and remaining carry-forward items are recorded in the durable architecture ledger.
 - Skill docs explain Claude/OpenCode/OMO usage as workflows over CLI truth, not alternate runtime behavior.
-- Lifecycle routes such as `/wiki-start`, `/wiki-progress`, `/wiki-finish`, and `/wiki-health` are documented only as skill/workflow routes, not shipped `snowiki` subcommands.
+- Lifecycle intents such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` are documented only as arguments to the single `wiki` skill command, not shipped `snowiki` subcommands or independent slash commands.
 - Session-to-Markdown filing is specified without reintroducing direct session-export ingest into `snowiki ingest PATH`.
 - README and quickstart stay aligned with the shipped CLI surface and deferred workflow policy.
 - Standalone `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows remain clearly deferred unless a later runtime spec accepts them.

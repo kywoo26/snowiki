@@ -402,7 +402,7 @@ Deliverables:
   - query the wiki,
   - file a durable answer back into Markdown,
   - lint/status before continuing work.
-- Define lifecycle skill routes (`/wiki-start`, `/wiki-ingest`, `/wiki-progress`, `/wiki-finish`, `/wiki-health`) as orchestration names over existing CLI JSON contracts, not new runtime commands.
+- Define lifecycle skill intents (`/wiki start`, `/wiki ingest`, `/wiki progress`, `/wiki finish`, `/wiki health`) as arguments to the single `wiki` skill command over existing CLI JSON contracts, not new runtime commands or independent slash commands.
 - Document agent behavior rules: observe first, hypothesize before asking, propose writes before execution, validate after ingest, and use progressive disclosure when retrieving deeper evidence.
 - Keep mutation CLI-mediated and reviewable.
 - Replace direct Claude/OpenCode export ingest workflows with session-to-Markdown conversion workflows.
