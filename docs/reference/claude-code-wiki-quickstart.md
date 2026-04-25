@@ -24,7 +24,7 @@ snowiki daemon start
 snowiki daemon status
 ```
 
-If the daemon is already reachable, the `wiki` skill read path can prefer warm daemon-backed reads. If not, Snowiki falls back to the canonical CLI read path.
+The `wiki` skill should still call shipped CLI commands such as `snowiki query --output json` and `snowiki recall --output json`. Daemon behavior is a runtime concern behind Snowiki commands, not logic for the skill package to reimplement.
 
 ## 3. First useful commands
 
@@ -200,6 +200,6 @@ Do not document or rely on them as if they already ship.
 - use `ingest`, `query`, `recall`, `status`, `lint`, `prune sources`, and `fileback` today
 - treat lifecycle intents as arguments to the single `/wiki` skill command, not shipped `snowiki` subcommands or separate commands defined inside the skill
 - observe first, hypothesize before asking, and propose concrete writes before executing reviewable write flows
-- prefer daemon-backed reads only when a daemon is already available
+- keep daemon behavior behind shipped Snowiki runtime commands rather than skill-side fallback logic
 - use CLI JSON output for automation and reliable machine-readable contracts
 - treat the read-only MCP surface as retrieval-only

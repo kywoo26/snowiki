@@ -60,11 +60,11 @@ The current runtime exposes these top-level commands:
 The `wiki` skill should currently mirror this shipped surface for everyday use:
 
 - current: `ingest`, `query`, `recall`, `status`, `lint`, `prune sources --dry-run`, `prune sources --delete --yes --all-candidates`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
-- optimization, not separate runtime truth: daemon-backed warm reads for query/recall when a daemon is already reachable
+- optimization, not skill logic: `snowiki daemon` remains a runtime CLI feature, but the `wiki` skill should call documented `snowiki ... --output json` commands rather than implementing daemon fallback itself
 - agent workflows: Claude Code exposes one `/wiki` skill command; phase arguments such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` expand to current CLI sequences rather than new runtime commands
 - deferred unless explicitly accepted by runtime spec: standalone `sync`, standalone `edit`, standalone `merge`, graph-oriented workflows
 
-Do not treat daemon-backed reads, qmd lineage, or older vault-layout docs as a separate product contract.
+Do not treat daemon internals, qmd lineage, or older vault-layout docs as a separate product contract.
 
 ## Machine-usable surfaces today
 
@@ -79,7 +79,7 @@ Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup 
 2. **Compilation, not ad-hoc mutation** — durable knowledge flows through Snowiki storage and rebuild paths
 3. **Reviewable writes** — `fileback apply` requires a reviewed proposal from `fileback preview`
 4. **Search-strategic** — lexical-first retrieval is shipped now; hybrid/semantic work remains deferred
-5. **Performance where it matters** — warm daemon reads are an optimization for repeated read paths, not a requirement for correctness
+5. **Performance where it matters** — runtime optimizations belong behind shipped `snowiki` commands, not in the skill package
 
 ## Related
 

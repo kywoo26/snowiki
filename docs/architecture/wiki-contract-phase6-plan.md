@@ -129,7 +129,7 @@ Agent flow:
 
 1. Prefer `snowiki query <question> --output json` for current knowledge questions.
 2. Prefer `snowiki recall <target> --output json` for temporal/topic recall already shipped by the CLI.
-3. Use daemon-backed reads only as an optimization when a daemon is already reachable.
+3. Use shipped CLI JSON output as the skill contract; daemon optimizations must stay behind runtime-owned commands rather than skill-side fallback logic.
 4. Synthesize an answer from returned compiled knowledge and cite relevant paths when useful.
 5. If the answer should become durable, use fileback preview/queue rather than writing compiled files directly.
 
@@ -163,6 +163,7 @@ This journey is the Phase 6 replacement for broad “garden” wording: agents r
 - Keep `skill/SKILL.md` short and discoverable; avoid embedding long runbooks there.
 - Keep detailed intent mapping in `skill/references/wiki-workflow.md` so Claude Code, OpenCode/OMO, and similar agents can load only the depth they need.
 - Keep `skill/AGENTS.md` as package governance for deferred workflows and preservation rules.
+- Keep `skill/scripts/` empty unless a future skill-specific helper is justified by Claude Skills guidance; do not place Snowiki runtime behavior, CLI wrappers, daemon fallback, or Markdown note drafting there.
 - Keep any future `CLAUDE.md` or concise agent entrypoint minimal: point to the installed CLI, `skill/SKILL.md`, and the canonical architecture contract instead of duplicating long workflow text.
 - Document install/validation around the installed `snowiki` binary; if a checkout is used, examples should say `uv run snowiki ...`.
 - Future dynamic command discovery may be added only if it reflects installed CLI help/status without changing behavior.
