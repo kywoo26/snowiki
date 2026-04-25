@@ -5,9 +5,12 @@ from .proposal import (
     build_fileback_proposal,
     resolve_preview_root,
 )
+from .queue import list_queued_fileback_proposals, queue_fileback_proposal
 
 __all__ = [
     "apply_fileback_proposal",
     "build_fileback_proposal",
+    "list_queued_fileback_proposals",
+    "queue_fileback_proposal",
     "resolve_preview_root",
 ]
