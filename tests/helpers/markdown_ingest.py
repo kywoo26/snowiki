@@ -4,7 +4,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
-from snowiki.cli.commands.ingest import run_ingest
+from snowiki.markdown.ingest import run_markdown_ingest
 
 DEFAULT_RECORDED_AT = datetime(2026, 4, 1, 12, 0, tzinfo=UTC)
 
@@ -44,5 +44,5 @@ def ingest_markdown_fixture(
         body=body,
         recorded_at=recorded_at,
     )
-    _ = run_ingest(source_path, root=root)
+    _ = run_markdown_ingest(source_path, root=root)
     return source_path
