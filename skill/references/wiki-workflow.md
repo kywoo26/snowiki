@@ -46,7 +46,7 @@ For Claude/OpenCode sessions:
 
 - Use `snowiki query` for knowledge questions.
 - Use `snowiki recall` for temporal or topic recall supported by the runtime.
-- Daemon reads are an optimization only.
+- Call shipped CLI JSON commands; daemon behavior is runtime-owned and must not be reimplemented in the skill package.
 - If recall is used for work continuation, end with `**One Thing: [specific, concrete action]**`.
 - If an answer should become durable, use fileback instead of direct page edits.
 

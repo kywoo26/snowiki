@@ -10,13 +10,15 @@ This directory governs the distributable skill package and its associated workfl
 
 - `VAULT_DIR`: Root of the Obsidian vault (detected via git or cwd).
 - `TZ`: Timezone for temporal queries and sync timestamps.
-- Footprint: `~/.claude/skills/wiki/` for scripts and `~/.claude/projects/` for session logs.
+- Footprint: `~/.claude/skills/wiki/` for skill instructions/supporting files and `~/.claude/projects/` for session logs.
 
 ## Workflow & Logic
 
 - `skill/SKILL.md` defines the tool surface and core architecture.
 - `skill/references/wiki-workflow.md` contains on-demand intent-mapping details for current and deferred modes.
 - The skill should call the installed `snowiki` CLI rather than maintaining shadow runtime logic in bundled scripts.
+- Do not add scripts for work Claude can already do with normal tools, such as reading Markdown, writing reviewed session notes, or invoking `snowiki ... --output json`.
+- Add scripts only when the skill needs a capability that is both skill-specific and not Snowiki runtime behavior, such as deterministic asset generation or validation that would be brittle as prose instructions.
 - Lifecycle intent names are `/wiki` arguments, not `snowiki` subcommands or independent slash commands. Keep `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` mapped to current CLI sequences in `skill/references/wiki-workflow.md`.
 - Session filing must convert durable Claude/OpenCode knowledge into Markdown before ingest; do not teach raw session-export ingest as the shipped workflow.
 

@@ -17,7 +17,8 @@ Claude Code exposes this skill as one command named `/wiki`. Treat text after `/
 2. In a development checkout, use `uv run snowiki ...`.
 3. Prefer `snowiki ... --output json` when supported.
 4. Read `references/wiki-workflow.md` only when lifecycle intent mapping, write-safety details, or deferred workflow boundaries are needed.
-5. Read examples only when the user asks for output shape guidance or you need a template.
+
+This skill ships no scripts by default. Use Claude's normal file/tools for Markdown reading or note drafting, and use the installed `snowiki` CLI for runtime behavior.
 
 ## Current CLI Primitives
 
@@ -33,14 +34,12 @@ Use these shipped commands as atomic building blocks:
 
 Advanced passthrough commands exist for `export`, `benchmark`, `benchmark-fetch`, `daemon`, and read-only `mcp`. `snowiki rebuild` is shipped support, not a primary wiki skill primitive.
 
-## Lifecycle Intents Are Skill Workflows
+## Common `/wiki` Arguments
 
-Claude Code loads this as one skill named `wiki`; it does not define independent slash commands. Treat these as phase arguments or natural-language intents within the `/wiki` skill:
+Claude Code loads this as one skill named `wiki`; it does not define independent slash commands. Treat text after `/wiki` as an argument that describes the user's intent.
 
-- `/wiki start ...`: status plus relevant recall/query, then one next action.
-- `/wiki progress`: status plus lint to detect drift or stale sources.
-- `/wiki finish`: summarize durable session knowledge into Markdown, ingest it, verify retrieval, optionally queue fileback.
-- `/wiki health`: lint plus targeted review without silent semantic fixes.
+- `start`, `ingest`, `query`, `recall`, `progress`, `finish`, and `health` are common argument patterns.
+- For exact intent-to-CLI mapping, read `references/wiki-workflow.md`.
 
 Let Claude choose the exact CLI sequence from the user's goal and current state, while respecting the boundaries below.
 
@@ -49,10 +48,12 @@ Let Claude choose the exact CLI sequence from the user's goal and current state,
 - Do not redefine runtime capabilities or invent `snowiki` subcommands.
 - Do not ingest raw Claude/OpenCode session exports as the primary workflow; summarize durable knowledge into Markdown first.
 - Do not edit compiled wiki artifacts directly.
+- Do not add or rely on skill scripts for Snowiki runtime behavior.
 - File tools may be used for user-authored Markdown notes or reviewed source material when the user intent requires it; durable Snowiki storage changes still go through the CLI.
 - Use `fileback preview` before any durable answer write; apply only through reviewed fileback paths.
 - Use `prune sources --dry-run` before destructive source cleanup; deletion requires explicit delete confirmation flags.
-- Treat daemon-backed reads as optimization only; CLI fallback is canonical.
+- Do not implement daemon fallback, payload normalization, or command behavior in this skill; call the shipped CLI instead.
+- If `snowiki` is unavailable or returns an error, report that failure rather than emulating runtime behavior.
 - Do not claim MCP write/delete support.
 
 ## Deferred Workflow Ideas
@@ -67,10 +68,4 @@ These are not current runtime commands unless a future runtime explicitly ships 
 
 ## Reference
 
-For detailed intent mapping and examples, read `references/wiki-workflow.md`.
-
-Example shapes are available on demand:
-
-- `examples/session-note.md` for session-to-Markdown filing.
-- `examples/fileback-preview.md` for reviewable answer filing.
-- `examples/recall-response.md` for recall answers with One Thing.
+For detailed intent mapping, read `references/wiki-workflow.md`.
