@@ -28,6 +28,27 @@ If the daemon is already reachable, the `/wiki` read path can prefer warm daemon
 
 ## 3. First useful commands
 
+Lifecycle names such as `/wiki-start`, `/wiki-progress`, `/wiki-finish`, and `/wiki-health` are agent workflow routes, not shipped `snowiki` subcommands. They should expand to the current CLI commands below: status/recall/query for start, status/lint for progress and health, and session-to-Markdown plus ingest/fileback for finish.
+
+Example route expansions:
+
+```text
+/wiki-start phase 6
+  -> snowiki status --output json
+  -> snowiki recall "phase 6" --output json
+  -> optional snowiki query "Phase 6 agent workflows" --output json
+
+/wiki-finish
+  -> write a Markdown session note
+  -> snowiki ingest <note> --rebuild --output json
+  -> optional snowiki fileback preview --queue ... --output json
+
+/wiki-health
+  -> snowiki status --output json
+  -> snowiki lint --output json
+  -> optional snowiki prune sources --dry-run --output json
+```
+
 ### Ingest
 
 ```bash
@@ -36,6 +57,8 @@ snowiki ingest /path/to/docs/ --rebuild --output json
 ```
 
 Markdown files and directories are the primary ingest surface. Convert Claude/OpenCode session exports into Markdown notes before ingesting them.
+
+After ingest, inspect JSON output for stale or rebuild-required state, then run `snowiki status --output json` or `snowiki lint --output json` before claiming the wiki is healthy.
 
 ### Query
 
@@ -168,13 +191,15 @@ These remain deferred workflow ideas, not shipped runtime behavior:
 - standalone `merge`
 - graph-oriented workflows
 
-Phase 5 planning may use narrow edit/merge semantics only when they are part of reviewed source-gardening proposals such as rename assistance, dead-wikilink cleanup, or cascade cleanup. Do not treat those broader workflows as shipped runtime commands until the CLI exposes them.
+Phase 6 planning focuses on Claude/OpenCode/OMO workflows over the shipped CLI truth. Do not treat standalone `sync`, `edit`, `merge`, or graph workflows as shipped runtime commands until the CLI exposes them.
 
 Do not document or rely on them as if they already ship.
 
 ## 6. Current `/wiki` mental model
 
 - use `ingest`, `query`, `recall`, `status`, `lint`, `prune sources`, and `fileback` today
+- treat lifecycle routes as orchestration names over those commands, not shipped `snowiki` subcommands
+- observe first, hypothesize before asking, and propose concrete writes before executing reviewable write flows
 - prefer daemon-backed reads only when a daemon is already available
 - use CLI JSON output for automation and reliable machine-readable contracts
 - treat the read-only MCP surface as retrieval-only
