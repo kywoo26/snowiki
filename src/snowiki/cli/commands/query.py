@@ -5,35 +5,10 @@ from typing import TypedDict, cast
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
 from snowiki.config import get_snowiki_root
-from snowiki.search import SearchHit
-from snowiki.search.queries.topical import topical_recall
-from snowiki.search.workspace import build_retrieval_snapshot
-
-
-class QueryHitPayload(TypedDict):
-    """Serializable query hit payload."""
-
-    id: str
-    path: str
-    title: str
-    kind: str
-    source_type: str
-    score: float
-    matched_terms: list[str]
-    summary: str
-
-
-class QueryResult(TypedDict):
-    """Serializable query command result."""
-
-    query: str
-    mode: str
-    semantic_backend: str | None
-    records_indexed: int
-    pages_indexed: int
-    hits: list[QueryHitPayload]
+from snowiki.search.queries import QueryResult, run_query
 
 
 class QueryCommandPayload(TypedDict):
@@ -42,24 +17,6 @@ class QueryCommandPayload(TypedDict):
     ok: bool
     command: str
     result: QueryResult
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    """Normalize Click output strings to the CLI output mode type."""
-    return "json" if value == "json" else "human"
-
-
-def _hit_to_payload(hit: SearchHit) -> QueryHitPayload:
-    return {
-        "id": hit.document.id,
-        "path": hit.document.path,
-        "title": hit.document.title,
-        "kind": hit.document.kind,
-        "source_type": hit.document.source_type,
-        "score": round(hit.score, 6),
-        "matched_terms": list(hit.matched_terms),
-        "summary": hit.document.summary,
-    }
 
 
 def _render_query_human(payload: object) -> str:
@@ -80,20 +37,6 @@ def _render_query_human(payload: object) -> str:
     return "\n".join(lines)
 
 
-def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
-    """Execute a topical query against normalized and compiled content."""
-    snapshot = build_retrieval_snapshot(root)
-    hits = topical_recall(snapshot.index, query, limit=top_k)
-    return {
-        "query": query,
-        "mode": mode,
-        "semantic_backend": "disabled" if mode == "hybrid" else None,
-        "records_indexed": snapshot.records_indexed,
-        "pages_indexed": snapshot.pages_indexed,
-        "hits": [_hit_to_payload(hit) for hit in hits],
-    }
-
-
 @click.command("query")
 @click.argument("query")
 @click.option(
@@ -104,21 +47,11 @@ def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
     help="Search mode. 'hybrid' is currently a lexical/no-op compatibility surface.",
 )
 @click.option("--top-k", type=click.IntRange(min=1), default=5, show_default=True)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
+@root_option
+@output_option
 def command(query: str, mode: str, top_k: int, root: Path | None, output: str) -> None:
     """Run the query CLI command."""
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         result = run_query(
             root if root else get_snowiki_root(), query, mode=mode, top_k=top_k
