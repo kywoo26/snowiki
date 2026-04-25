@@ -61,14 +61,17 @@ Implicit routing (no explicit mode keyword):
 
 ## Step 2: Ingest
 
-Use `snowiki ingest` with the appropriate source type, then rebuild if needed.
+Use `snowiki ingest` on Markdown files or directories, then rebuild if needed.
 
 Typical current flow:
 
 ```bash
-snowiki ingest /path/to/source --source claude
+snowiki ingest /path/to/source.md --output json
+snowiki ingest /path/to/docs/ --rebuild --output json
 snowiki rebuild
 ```
+
+For Claude/OpenCode sessions, first summarize or export the durable knowledge into a Markdown note, then ingest that note. Do not present direct session-export ingest as the primary shipped workflow.
 
 Do not describe older `sources/` or `wiki/` hand-edited layouts as the shipped contract.
 

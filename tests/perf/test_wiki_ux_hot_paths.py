@@ -11,9 +11,9 @@ from typing import Any
 
 import pytest
 from click.testing import CliRunner
+from tests.helpers.markdown_ingest import ingest_markdown_fixture
 from tests.helpers.skill_modules import load_skill_script_module
 
-from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.main import app
 from snowiki.daemon.fallback import DaemonUnavailableError, daemon_request
 from snowiki.daemon.server import SnowikiDaemon
@@ -32,9 +32,9 @@ STATUS_LINT_LATENCY_CEILING_SECONDS = 0.5
 
 
 def test_query_hot_path_prefers_warm_daemon_reads_over_cold_cli(
-    tmp_path: Path, claude_basic_fixture: Path
+    tmp_path: Path,
 ) -> None:
-    _ = run_ingest(claude_basic_fixture, source="claude", root=tmp_path)
+    _ = ingest_markdown_fixture(tmp_path)
 
     daemon_port = _reserve_port()
     offline_port = _reserve_port()
@@ -90,9 +90,9 @@ def test_query_hot_path_prefers_warm_daemon_reads_over_cold_cli(
 
 
 def test_recall_hot_path_prefers_warm_daemon_reads_over_cold_cli(
-    tmp_path: Path, claude_basic_fixture: Path
+    tmp_path: Path,
 ) -> None:
-    _ = run_ingest(claude_basic_fixture, source="claude", root=tmp_path)
+    _ = ingest_markdown_fixture(tmp_path)
 
     daemon_port = _reserve_port()
     offline_port = _reserve_port()

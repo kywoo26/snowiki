@@ -5,19 +5,20 @@ from pathlib import Path
 from typing import Any
 
 from click.testing import CliRunner
+from tests.helpers.markdown_ingest import write_markdown_source
 
 from snowiki.cli.main import app
 from snowiki.search.workspace import current_runtime_tokenizer_name
 
 
 def test_rebuild_generates_compiled_outputs_and_index_manifest(
-    tmp_path: Path, claude_basic_fixture: Path
+    tmp_path: Path,
 ) -> None:
     runner = CliRunner()
-    fixture = claude_basic_fixture
+    fixture = write_markdown_source(tmp_path)
     ingest = runner.invoke(
         app,
-        ["ingest", str(fixture), "--source", "claude", "--output", "json"],
+        ["ingest", str(fixture), "--output", "json"],
         env={"SNOWIKI_ROOT": str(tmp_path)},
     )
     assert ingest.exit_code == 0, ingest.output

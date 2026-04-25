@@ -7,13 +7,12 @@ from typing import Any, cast
 
 import pytest
 from click.testing import CliRunner
+from tests.helpers.markdown_ingest import ingest_markdown_fixture
 
-from snowiki.cli.commands.ingest import run_ingest
 from snowiki.cli.commands.query import run_query
 from snowiki.cli.commands.rebuild import run_rebuild
 from snowiki.cli.commands.recall import run_recall
 from snowiki.cli.main import app
-from snowiki.config import resolve_repo_asset_path
 from snowiki.search.indexer import SearchDocument, SearchHit
 from snowiki.search.workspace import (
     build_retrieval_snapshot,
@@ -22,13 +21,14 @@ from snowiki.search.workspace import (
 
 
 def test_query_returns_hits_after_cold_start_ingest(
-    tmp_path: Path, claude_basic_fixture: Path
+    tmp_path: Path,
 ) -> None:
     runner = CliRunner()
-    fixture = claude_basic_fixture
+    fixture = tmp_path / "note.md"
+    _ = fixture.write_text("# claude-basic\n\nclaude-basic content.", encoding="utf-8")
     ingest = runner.invoke(
         app,
-        ["ingest", str(fixture), "--source", "claude", "--output", "json"],
+        ["ingest", str(fixture), "--output", "json"],
         env={"SNOWIKI_ROOT": str(tmp_path)},
     )
     assert ingest.exit_code == 0, ingest.output
@@ -162,16 +162,10 @@ def test_recall_json_routes_temporal_queries_and_freezes_payload_shape(
 
 
 def test_recall_json_accepts_iso_date_input_against_runtime_fixture(
-    tmp_path: Path, claude_basic_fixture: Path
+    tmp_path: Path,
 ) -> None:
     runner = CliRunner()
-
-    ingest = runner.invoke(
-        app,
-        ["ingest", str(claude_basic_fixture), "--source", "claude", "--output", "json"],
-        env={"SNOWIKI_ROOT": str(tmp_path)},
-    )
-    assert ingest.exit_code == 0, ingest.output
+    _ = ingest_markdown_fixture(tmp_path)
 
     result = runner.invoke(
         app,
@@ -186,10 +180,7 @@ def test_recall_json_accepts_iso_date_input_against_runtime_fixture(
     assert payload["result"]["target"] == "2026-04-01"
     assert payload["result"]["strategy"] == "date"
     assert payload["result"]["hits"]
-    assert any(
-        "normalized/claude/2026/04/01/" in hit["path"]
-        for hit in payload["result"]["hits"]
-    )
+    assert any("normalized/markdown/documents/" in hit["path"] for hit in payload["result"]["hits"])
 
 
 def test_run_recall_prefers_known_item_before_topic(
@@ -455,14 +446,12 @@ def test_query_hybrid_mode_still_uses_topical_recall_and_reports_disabled_semant
 
 
 def test_query_cache_invalidates_after_ingest(tmp_path: Path) -> None:
-    fixture = resolve_repo_asset_path("fixtures/claude/basic.jsonl")
-    _ = run_ingest(fixture, source="claude", root=tmp_path)
+    _ = ingest_markdown_fixture(tmp_path, name="basic", title="claude-basic")
 
     first_snapshot = build_retrieval_snapshot(tmp_path)
     first_counts = (first_snapshot.records_indexed, first_snapshot.pages_indexed)
 
-    second_fixture = resolve_repo_asset_path("fixtures/claude/with_tools.jsonl")
-    _ = run_ingest(second_fixture, source="claude", root=tmp_path)
+    _ = ingest_markdown_fixture(tmp_path, name="tools", title="with-tools")
 
     second_snapshot = build_retrieval_snapshot(tmp_path)
     second_counts = (second_snapshot.records_indexed, second_snapshot.pages_indexed)
@@ -472,9 +461,9 @@ def test_query_cache_invalidates_after_ingest(tmp_path: Path) -> None:
 
 
 def test_query_cache_invalidates_after_rebuild(
-    tmp_path: Path, claude_basic_fixture: Path
+    tmp_path: Path,
 ) -> None:
-    _ = run_ingest(claude_basic_fixture, source="claude", root=tmp_path)
+    _ = ingest_markdown_fixture(tmp_path)
 
     before = build_retrieval_snapshot(tmp_path)
     before_size = before.index.size

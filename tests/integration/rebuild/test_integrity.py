@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
+from tests.helpers.markdown_ingest import write_markdown_source
 
 from snowiki.cli.main import app
 from snowiki.rebuild.integrity import RebuildFreshnessError, verify_rebuild_integrity
@@ -18,17 +19,15 @@ from snowiki.search.workspace import (
 
 def test_verify_rebuild_integrity_restores_compiled_and_index_layers(
     tmp_path: Path,
-    claude_basic_fixture: Path,
 ) -> None:
     runner = CliRunner()
+    source_path = write_markdown_source(tmp_path)
 
     ingest = runner.invoke(
         app,
         [
             "ingest",
-            str(claude_basic_fixture),
-            "--source",
-            "claude",
+            str(source_path),
             "--output",
             "json",
         ],
