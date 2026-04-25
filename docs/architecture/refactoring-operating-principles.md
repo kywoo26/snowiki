@@ -267,22 +267,28 @@ What this wave established:
 
 ### Phase 2: Compiler projection boundary
 
-Next target:
+Status: **done in PR #101**. The compiler now consumes required `payload["projection"]` fields instead of source-specific fallback chains.
 
-1. **Make compiler summary projection less source-type-specific**
-   - Reduce repeated `source_type == "markdown"` checks in
-     `src/snowiki/compiler/generators/summary.py`.
-   - Prefer a normalized field contract, projection helper, or contributor
-     strategy over inline branching.
-   - Keep compiled Markdown output deterministic. Byte-for-byte compatibility is
-     preferred, but intentional output improvements are allowed when the PR
-     documents and tests the new contract.
-   - Add unit coverage at the compiler seam before changing projection behavior.
-   - Active plan: `docs/architecture/markdown-ingest-phase2-plan.md`.
+What this wave established:
 
-Do not start Phase 2 by changing frontmatter libraries, storage layout, or search
-indexing. Those are separate waves unless compiler projection proves they are
-required.
+- `src/snowiki/compiler/projection.py` owns the source-agnostic compiler projection contract and strict extraction helpers.
+- Markdown ingest writes projection during normalization.
+- Compiler generators consume projection helpers for title, summary, sections, source identity, and taxonomy buckets.
+- Active compiler fallback paths for loose legacy fields and `payload["compiler"]` were removed.
+- Missing projection is a lint/status diagnostic for old records, not a rebuild/query compatibility bridge.
+
+Follow-up refactor target:
+
+1. **Clean strict projection seams after merge**
+   - Keep active writers on the projection factory instead of repeated hand-built dictionaries.
+   - Split reviewed writeback/fileback logic by schema, proposal, evidence, rendering, payload, and apply orchestration.
+   - Keep `snowiki.fileback` as a narrow facade rather than widening public access to internal helpers.
+   - Add seam-level unit tests when a refactor extracts pure/schema functions from an integration-only flow.
+   - Active ledger: `docs/architecture/markdown-ingest-phase2-plan.md#phase-2-follow-up-refactor-ledger`.
+
+Do not follow Phase 2 by changing frontmatter libraries, storage layout, or search
+indexing inside projection/fileback cleanup PRs. Those remain separate waves unless
+the touched seam proves they are required.
 
 ### Later waves
 
@@ -293,7 +299,11 @@ required.
    - Use parser/storage/compiler seams directly in unit tests.
    - Reserve CLI helpers for integration tests.
 
-3. **Document deferred parser/library decision**
+3. **Specify explicit projection backfill/migration**
+   - Old projection-less normalized records should not regain rebuild/query compatibility through hidden fallback.
+   - If needed, add an explicit operator command with tests and docs for projection backfill.
+
+4. **Document deferred parser/library decision**
    - Keep the current deterministic frontmatter parser while simple.
    - Revisit `PyYAML`/`ruamel.yaml` only when unsupported frontmatter features become real requirements.
 

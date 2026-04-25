@@ -2,6 +2,8 @@
 
 This plan turns the post-Phase-1 refactor ledger into an executable Phase 2 scope. It supersedes the completed Phase 1 implementation plan and keeps `docs/architecture/llm-wiki-ingest-redesign.md` synchronized as the canonical architecture ledger.
 
+Status: **implemented in PR #101**. The remaining content is the durable projection contract plus the Phase 2 follow-up refactor ledger.
+
 ## Summary
 
 Phase 2 makes the compiler operate on a stable normalized projection contract instead of branching on source-specific record shapes.
@@ -34,17 +36,17 @@ Snowiki should use these as design pressure, not requirements. Phase 2 should no
 
 ## Current Problem
 
-`src/snowiki/compiler/generators/summary.py` currently has three Markdown-specific branches:
+Before PR #101, `src/snowiki/compiler/generators/summary.py` had three Markdown-specific branches:
 
 1. Override generic `record_summary(record)` for `source_type == "markdown"` and `record_type == "document"`.
 2. Pull tags from `payload["promoted_frontmatter"]["tags"]` into summary page tags.
 3. Add Markdown-only `Source Identity` and `Document` sections.
 
-Related weaker seams:
+Related weaker seams removed by PR #101:
 
-- `src/snowiki/compiler/taxonomy.py::record_title()` and `record_summary()` use fallback chains that re-derive fields the ingest layer already knows.
-- `extract_compiler_bucket()` depends on a loose `payload["compiler"]` convention with no schema owner.
-- `taxonomy_items_for_record()` hardcodes session-era buckets (`concepts`, `entities`, `topics`, `questions`, `projects`, `decisions`).
+- `src/snowiki/compiler/taxonomy.py::record_title()` and `record_summary()` used fallback chains that re-derived fields the ingest layer already knew.
+- `extract_compiler_bucket()` depended on a loose `payload["compiler"]` convention with no schema owner.
+- `taxonomy_items_for_record()` hardcoded session-era buckets (`concepts`, `entities`, `topics`, `questions`, `projects`, `decisions`).
 - `NormalizedStorage` still supports legacy date-bucketed records while Markdown documents use latest-only records. Phase 2 should not expand the legacy write model.
 
 ## In Scope
@@ -125,6 +127,8 @@ These Phase 2 decisions are now part of the implementation contract:
    - Fileback manual-question writes use `projection.taxonomy.questions`, not the loose legacy `compiler.questions` bucket.
 
 ## Implementation Waves
+
+Status: **complete in PR #101** unless explicitly listed in the follow-up ledger below.
 
 ### Wave 1: Projection schema and tests
 
@@ -233,6 +237,31 @@ Keep these out of Phase 2 unless implementation proves they are required:
 - Graph/vector extraction and semantic retrieval.
 - Review queues or approval workflows.
 - Parser dependency changes.
+
+## Phase 2 Follow-up Refactor Ledger
+
+These are not new product features. They are bounded cleanup items created by the strict projection contract merge and should be handled by follow-up refactor PRs before broadening scope:
+
+1. **Fileback application seam**
+   - `fileback` is a reviewed writeback pipeline, not a single helper file.
+   - Keep `snowiki.fileback` as a narrow facade for CLI entrypoints only: `resolve_preview_root`, `build_fileback_proposal`, and `apply_fileback_proposal`.
+   - Keep schema/data contracts in `snowiki.fileback.models`, proposal construction/validation in `proposal`, evidence resolution in `evidence`, raw-note rendering in `render`, normalized projection/write-set construction in `payload`, and mutating persistence/rebuild orchestration in `apply`.
+   - Do not preserve accidental access to internal helpers through the facade; tests should import submodules directly when they are testing seams.
+
+2. **Projection construction ownership**
+   - Active writers should use a single compiler projection factory rather than hand-assembling repeated empty taxonomy dictionaries.
+   - `snowiki.compiler.projection` owns `CompilerProjection`, extraction helpers, and baseline projection construction.
+   - Test fixtures should use shared projection helpers so tests model the strict contract instead of duplicating legacy-shaped dictionaries.
+
+3. **Remaining storage-contract decision**
+   - `NormalizedStorage` still has both latest-only Markdown document storage and date-bucketed record storage.
+   - Do not redesign storage inside the fileback/projection cleanup PR unless the touched code requires it.
+   - Record this as a later normalized storage write-contract wave: separate latest document upserts from append-style records, or name their shared mechanics explicitly.
+
+4. **Migration/backfill decision**
+   - Old projection-less normalized records remain diagnostics/migration inputs only.
+   - Do not add silent compatibility fallback to rebuild/query.
+   - A future explicit command may backfill projection fields, but it needs a separate spec because it changes operator workflows and old data compatibility expectations.
 
 ## Commit Strategy
 

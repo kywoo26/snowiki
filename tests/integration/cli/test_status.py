@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
+from tests.helpers.projection import compiler_projection
 
 from snowiki.cli.main import app
 from snowiki.search.workspace import content_freshness_identity
@@ -50,24 +51,6 @@ def _workspace_snapshot(root: Path) -> dict[str, str]:
     }
 
 
-def _projection(title: str) -> dict[str, object]:
-    return {
-        "title": title,
-        "summary": "",
-        "tags": [],
-        "source_identity": {},
-        "sections": [],
-        "taxonomy": {
-            "concepts": [],
-            "entities": [],
-            "topics": [],
-            "questions": [],
-            "projects": [],
-            "decisions": [],
-        },
-    }
-
-
 def _build_status_workspace(root: Path) -> None:
     _write_text(root / "raw" / "claude" / "source-a.jsonl", "{}\n")
     _write_text(root / "raw" / "opencode" / "source-b.jsonl", "{}\n")
@@ -78,7 +61,7 @@ def _build_status_workspace(root: Path) -> None:
             "source_type": "claude",
             "record_type": "session",
             "recorded_at": "2026-04-15T09:00:00Z",
-            "projection": _projection("Session A"),
+            "projection": compiler_projection("Session A"),
             "provenance": {"raw_refs": [{"path": "raw/claude/source-a.jsonl"}]},
         },
     )
@@ -89,7 +72,7 @@ def _build_status_workspace(root: Path) -> None:
             "source_type": "opencode",
             "record_type": "session",
             "recorded_at": "2026-04-16T08:30:00Z",
-            "projection": _projection("Session B"),
+            "projection": compiler_projection("Session B"),
             "provenance": {"raw_refs": [{"path": "raw/opencode/source-b.jsonl"}]},
         },
     )

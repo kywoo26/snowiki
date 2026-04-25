@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 
 import pytest
+from tests.helpers.projection import compiler_projection
 
 from snowiki.compiler.generators import summary as summary_generator
 from snowiki.compiler.projection import (
@@ -26,18 +27,18 @@ def test_projection_helpers_prefer_projection_fields() -> None:
         payload={
             "title": "Legacy Title",
             "summary": "Legacy summary",
-            "projection": {
-                "title": "Projected Title",
-                "summary": "Projected summary",
-                "tags": ["docs", "wiki"],
-                "source_identity": {
+            "projection": compiler_projection(
+                "Projected Title",
+                "Projected summary",
+                tags=["docs", "wiki"],
+                source_identity={
                     "source_root": "/repo/docs",
                     "relative_path": "guide.md",
                     "content_hash": "abc123",
                 },
-                "sections": [{"title": "Document", "body": "Projected body"}],
-                "taxonomy": {"topics": ["Compiler Boundary"]},
-            },
+                sections=[{"title": "Document", "body": "Projected body"}],
+                topics=["Compiler Boundary"],
+            ),
         },
         raw_refs=[],
     )

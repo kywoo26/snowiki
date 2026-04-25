@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.helpers.projection import compiler_projection
+
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.storage.normalized import NormalizedStorage
 
@@ -16,22 +18,11 @@ def test_compiled_pages_preserve_provenance_backlinks(tmp_path: Path) -> None:
             "session_id": "session-9",
             "title": "Trace raw inputs",
             "summary": "Connected compiled pages back to the raw capture.",
-            "projection": {
-                "title": "Trace raw inputs",
-                "summary": "Connected compiled pages back to the raw capture.",
-                "tags": [],
-                "source_identity": {},
-                "sections": [],
-                "taxonomy": {
-                    "concepts": ["Provenance Links"],
-                    "entities": [],
-                    "topics": [],
-                    "questions": [],
-                    "projects": [],
-                    "decisions": [],
-                },
-            },
-            "concepts": ["Provenance Links"],
+            "projection": compiler_projection(
+                "Trace raw inputs",
+                "Connected compiled pages back to the raw capture.",
+                concepts=["Provenance Links"],
+            ),
         },
         raw_ref={
             "sha256": "feedbeef",
