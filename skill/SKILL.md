@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, dry-run-first source prune, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/edit/merge/graph workflows deferred."
+description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, dry-run-first source prune, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/standalone edit/standalone merge/graph workflows deferred unless a future gardening proposal flow explicitly ships them."
 argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|prune sources|fileback preview QUESTION|fileback preview --queue QUESTION|fileback queue list|fileback apply|export|benchmark PRESET|daemon|mcp]
 allowed-tools: Bash(python3:*), Read, Write, Edit, Glob, Grep, WebFetch
 ---
@@ -89,7 +89,7 @@ Recall against current stored knowledge/session-derived material through the shi
 #### `status`, `lint`, `prune`, `export`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`
 These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
 
-Use `status` and `lint` before source gardening. `status` gives source freshness summary counts, while `lint` gives actionable `source.modified`, `source.missing`, and `source.untracked` findings. Use `prune sources --dry-run` before any destructive source cleanup.
+Use `status` and `lint` before source gardening. `status` gives source freshness summary counts, while `lint --output json` gives actionable `source.modified`, `source.missing`, `source.untracked`, and `source.rename_candidate` findings. Use `prune sources --dry-run` before any destructive source cleanup, and inspect rename candidates before pruning missing-source records.
 
 #### `fileback`
 Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback preview --queue` to persist a non-blocking pending proposal, `snowiki fileback queue list/show/apply/reject/prune` to manage queue lifecycle state, `snowiki fileback preview --queue --auto-apply-low-risk` only for runtime-proven low-risk proposals, and `snowiki fileback apply` to persist a reviewed proposal file through the canonical CLI path.
@@ -98,12 +98,12 @@ Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback
 
 The following remain workflow or roadmap concepts rather than guaranteed shipped commands in the current runtime:
 - sync
-- edit
-- merge
+- standalone edit
+- standalone merge
 - graph-oriented recall workflows
 - qmd-backed hybrid/vector routing as a default runtime path
 
-Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. They are not part of Phase 3 CLI queue hardening.
+Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. Phase 5 planning may introduce narrow edit/merge semantics only as part of reviewed source-gardening proposals over Phase 4 freshness and prune primitives.
 
 ## Search Strategy
 

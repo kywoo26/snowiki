@@ -53,6 +53,8 @@ Parse input after `/wiki`:
 | `sync` | Step 7: Sync | **Deferred** |
 | `edit <page>` | Step 8: Edit | **Deferred** |
 | `merge <p1> <p2>` | Step 9: Merge | **Deferred** |
+
+Standalone sync/edit/merge/graph workflows remain deferred. Phase 5 planning may introduce narrow edit/merge behavior only inside reviewed source-gardening proposals.
 | `lint` | Step 10: Lint | Current |
 | `status` | Step 11: Status | Current |
 
@@ -208,7 +210,7 @@ Exporting Claude Code sessions to Obsidian markdown is a deferred reference work
 
 ## Step 8: Edit (Deferred Workflow)
 
-This is not part of Phase 3 queue hardening and has no scheduled implementation in the current runtime.
+This is not part of the current shipped runtime as a standalone workflow. Phase 5 planning may introduce narrow edit semantics only inside reviewed source-gardening proposals.
 
 Lightweight page modification is a deferred reference workflow. If the runtime later exposes an `edit` command:
 1. Identify target page.
@@ -220,7 +222,7 @@ Lightweight page modification is a deferred reference workflow. If the runtime l
 
 ## Step 9: Merge (Deferred Workflow)
 
-This is not part of Phase 3 queue hardening and has no scheduled implementation in the current runtime.
+This is not part of the current shipped runtime as a standalone workflow. Phase 5 planning may introduce narrow merge semantics only inside reviewed source-gardening proposals.
 
 Consolidating overlapping pages is a deferred reference workflow. If the runtime later exposes a `merge` command:
 1. Identify pages to merge.
@@ -241,6 +243,7 @@ Run `snowiki lint` for the authoritative runtime linting. Source freshness findi
 
 - `source.modified`: reingest the changed source before relying on compiled state.
 - `source.missing`: inspect with `snowiki prune sources --dry-run` before cleanup.
+- `source.rename_candidate`: review the exact-hash missing/untracked evidence before pruning; usually reingest the untracked source first, then review prune candidates again.
 - `source.untracked`: ingest the source root if the file should become durable knowledge.
 
 ### 10.2: Semantic Checks (Informative)

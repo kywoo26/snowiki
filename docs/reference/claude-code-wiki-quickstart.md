@@ -61,7 +61,7 @@ snowiki status --output json
 snowiki lint --output json
 ```
 
-`status` gives source freshness summary counts. `lint` gives actionable source findings such as `source.modified`, `source.missing`, `source.untracked`, and `source.invalid_metadata`.
+`status` gives source freshness summary counts. `lint --output json` gives actionable source findings such as `source.modified`, `source.missing`, `source.untracked`, `source.invalid_metadata`, and agent-readable `source.rename_candidate` diagnostics when a missing source has an exact-hash untracked rename candidate.
 
 ### Source prune
 
@@ -164,9 +164,11 @@ This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the ge
 These remain deferred workflow ideas, not shipped runtime behavior:
 
 - `sync`
-- `edit`
-- `merge`
+- standalone `edit`
+- standalone `merge`
 - graph-oriented workflows
+
+Phase 5 planning may use narrow edit/merge semantics only when they are part of reviewed source-gardening proposals such as rename assistance, dead-wikilink cleanup, or cascade cleanup. Do not treat those broader workflows as shipped runtime commands until the CLI exposes them.
 
 Do not document or rely on them as if they already ship.
 

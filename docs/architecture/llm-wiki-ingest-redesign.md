@@ -198,7 +198,7 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 
 Dedicated executable plans:
 
-- `docs/architecture/wiki-contract-phase4-plan.md` — active Phase 4 plan for source freshness, generated navigation artifacts, and explicit source prune.
+- `docs/architecture/wiki-contract-phase5-plan.md` — active Phase 5 plan for reviewable gardening proposals over Phase 4 source-freshness primitives.
 
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
@@ -325,7 +325,7 @@ Concrete follow-up work:
 
 ### Phase 4: Wiki Contract and Stale Source Reporting
 
-Status: **active implementation phase for `feat/phase4-wiki-contract`**. Source freshness, generated navigation artifacts, and explicit source prune are implemented in the branch and tracked by the active executable plan: `docs/architecture/wiki-contract-phase4-plan.md`.
+Status: **complete and merged in PR #106**. Source freshness, generated navigation artifacts, and explicit source prune shipped in `feat(wiki): add phase 4 source contract (#106)`. The completed executable plan has been removed; durable outcomes and carry-forward items are recorded here and in `docs/architecture/refactoring-operating-principles.md`.
 
 Deliverables:
 
@@ -346,31 +346,42 @@ Implemented in the Phase 4 branch:
 - `snowiki.markdown.source_state` owns source prune planning/deletion; `snowiki prune sources` is dry-run-first and destructive deletion requires `--delete --yes --all-candidates`.
 - Source prune deletes missing-source normalized Markdown records and raw snapshots that become unreferenced, writes `index/source-prune-tombstones.json`, and rebuilds generated artifacts after deletion.
 
-Remaining before PR:
+Phase 4 shipped in PR #106. Its executable plan was replaced by the Phase 5 gardening plan after the carry-forward items below were absorbed into this durable ledger.
 
-- Sync skill-facing docs after runtime verification.
-- Run full default and integration verification.
-
-### Phase 5: Agent Workflow and Higher-Level Gardening
+### Phase 5: Agent-Readable Gardening Proposals
 
 Deliverables:
 
+- Add agent-readable reviewable gardening proposal workflows over the Phase 4 primitives.
 - Teach agent/skill workflows to read source freshness reports before ingesting, pruning, or filing durable answers.
-- Add higher-level gardening workflows over the Phase 4 primitives.
 - Evaluate nashsu-style cascade cleanup beyond single-source safe cleanup:
   - structural removal of pruned identities from multi-source generated page `sources[]`,
   - dead wikilink cleanup,
   - source move/rename assistance,
   - reviewable cleanup proposals rather than direct deletion.
-- Decide whether cleanup candidates should be proposed through fileback-like review queues instead of direct prune execution.
-- Keep sync/edit/merge as separate user-facing workflows over stable primitives, not implicit mutations hidden inside lint/status.
+- Decide whether cleanup candidates should reuse fileback-like review queues or a dedicated gardening queue namespace.
+- Include `edit`/`merge` semantics only where they are directly required by reviewed gardening proposal apply flows.
+- Keep broader `sync`, standalone `edit`, standalone `merge`, and graph workflows as separate user-facing workflows over stable primitives, not implicit mutations hidden inside lint/status.
 
 Concrete follow-up work:
 
 - Keep cascade cleanup separate from deterministic ingest/rebuild so source mutation and compiled cleanup remain explicit.
 - Define whether source move/rename should be represented as reingest+prune or as a future rename-aware workflow.
-- Keep `sync`, `edit`, `merge`, and graph-oriented workflows outside Phase 4 unless runtime commands explicitly ship them.
+- Start with agent use-case analysis and a proposal engine that enriches existing lint diagnostics for path-level actionable guidance; keep status as summary, and keep prune as a narrow deletion workflow unless a future UX decision says otherwise.
+- Prioritize stable JSON contracts, deterministic proposal identifiers, and agent-readable evidence over additional human-facing CLI flags.
+- Keep broader `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows outside Phase 5 unless they directly support source gardening proposal review/apply.
 - Preserve Phase 4's report-first and dry-run-first guarantees when adding higher-level agent workflows.
+
+Active executable plan: `docs/architecture/wiki-contract-phase5-plan.md`.
+
+Post-Phase 5 carry-forward items that must remain synchronized with the active plan:
+
+- standalone `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows belong to later agent workflow phases unless directly required by reviewed gardening proposal apply flows;
+- semantic/vector/hybrid retrieval remains a retrieval roadmap item;
+- MCP write/delete support remains post-CLI write-contract work;
+- a full append-only event journal remains a separate event-log design;
+- persistent freshness/prune/garden policy config remains later config work;
+- projection backfill/migration and normalized storage write-contract redesign remain separate explicit specs.
 
 ### Phase 6: Agent and Skill Workflow
 
@@ -441,7 +452,8 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 - Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?
 - What is the minimum frontmatter schema for user-authored documents versus Snowiki-generated pages?
 - Should source move/rename be represented as reingest+prune, or does it need a first-class rename-aware workflow?
-- Should reviewable cleanup proposals reuse fileback queue semantics, or should prune remain direct and explicit only?
+- Should reviewable gardening proposals reuse fileback queue semantics, or use a dedicated gardening queue namespace?
+- Which `edit` or `merge` behavior is truly required by source gardening, and which belongs to later standalone workflow phases?
 
 ## Implementation Checklist
 

@@ -182,6 +182,12 @@ def test_run_lint_returns_summary_counts_and_check_inventory(tmp_path: Path) -> 
         "severity": "warning",
         "issue_count": 0,
     }
+    assert checks_by_name["source.rename_candidate"] == {
+        "name": "source.rename_candidate",
+        "label": "Markdown source rename candidates",
+        "severity": "info",
+        "issue_count": 0,
+    }
     assert checks_by_name["source.untracked"] == {
         "name": "source.untracked",
         "label": "Untracked Markdown sources",
