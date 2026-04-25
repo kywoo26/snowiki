@@ -193,6 +193,10 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 - When implementation discovers a new seam, test requirement, or compatibility constraint, add it here before or alongside the code change.
 - Do not leave destructive behavior implied. Pruning, source deletion, compiled cleanup, and MCP writes must remain explicit roadmap items until implemented and tested.
 
+Dedicated executable plans:
+
+- `docs/architecture/markdown-ingest-phase2-plan.md` — active Phase 2 compiler projection boundary plan.
+
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
 1. Re-check spec -> plan -> implementation alignment.
@@ -269,7 +273,26 @@ Implementation order:
 6. Add tests before broad documentation/README updates so the new CLI contract is executable.
 7. Update README and skill-facing docs only after runtime behavior matches this contract.
 
-### Phase 2: Wiki Contract
+### Phase 2: Compiler Projection Boundary
+
+Deliverables:
+
+- Define a source-agnostic compiler projection contract for normalized records.
+- Move source-specific summary/title/body/tag/source-identity interpretation out of compiler generators.
+- Populate the projection contract for Markdown document records during ingest.
+- Remove inline Markdown-specific branches from `src/snowiki/compiler/generators/summary.py`.
+- Preserve source/provenance traceability in generated pages.
+- Decide which legacy compiler fallback paths are retained for read compatibility and which are removed.
+
+Concrete follow-up work:
+
+- Add a `projection` contract, or an explicitly named equivalent, to normalized Markdown document payloads.
+- Add compiler helpers that read projection fields first and legacy fallbacks only when intentionally supported.
+- Refactor `generate_summary_pages()` so Markdown document records do not require source-type-specific branches.
+- Keep compiled page output deterministic; document and test any intentional output contract changes.
+- Keep stale source reports, source manifests, storage layout changes, and pruning out of Phase 2 unless the compiler boundary work proves they are required.
+
+### Phase 3: Wiki Contract and Stale Source Reporting
 
 Deliverables:
 
@@ -287,7 +310,7 @@ Concrete follow-up work:
 - Document Snowiki-generated page frontmatter separately from user-authored source frontmatter.
 - Update README and skill-facing docs only after the shipped CLI behavior is the runtime truth.
 
-### Phase 3: Explicit Prune and Cleanup
+### Phase 4: Explicit Prune and Cleanup
 
 Deliverables:
 
@@ -308,7 +331,7 @@ Concrete follow-up work:
 - Add tests for multi-source generated pages before enabling cascade cleanup.
 - Keep cascade cleanup separate from Phase 1 rebuild so deterministic ingest remains non-destructive.
 
-### Phase 4: Agent and Skill Workflow
+### Phase 5: Agent and Skill Workflow
 
 Deliverables:
 
@@ -336,7 +359,7 @@ Agent:
   5. Runs `snowiki query` to verify recall.
 ```
 
-### Phase 5: Search, Lint, and Writeback Extensions
+### Phase 6: Search, Lint, and Writeback Extensions
 
 Deliverables:
 
@@ -362,6 +385,9 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 
 ## Open Questions
 
+- Should the normalized compiler projection key be `projection`, `compiler_projection`, or nested under an existing compatibility key?
+- Which legacy compiler fallback paths are still supported read compatibility, and which should be deleted during Phase 2?
+- Should Phase 2 compiled output remain byte-compatible, or should it intentionally improve summary page structure under a documented contract change?
 - What exact JSON schema should stale/missing source reports use across `ingest`, `status`, and `lint`?
 - Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?
 - What is the minimum frontmatter schema for user-authored documents versus Snowiki-generated pages?
@@ -378,8 +404,6 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 - [x] Add `--rebuild` behavior.
 - [x] Bound generated summary slugs/paths for long document titles.
 - [x] Update tests for Markdown-first ingest.
-- [ ] Update README and skill docs after runtime behavior changes.
+- [x] Update README and skill docs after runtime behavior changes.
 - [x] Run `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest`.
 - [x] Run `uv run pytest -m integration` before opening a PR.
-
-README and skill-facing docs remain unchecked because this branch has not yet committed/PR'd the runtime contract. Update them after final review confirms the Markdown-first CLI surface is ready to publish as user-facing truth.
