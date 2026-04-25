@@ -5,7 +5,8 @@ from typing import Any
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
 from snowiki.config import get_snowiki_root
 from snowiki.markdown.ingest import MarkdownIngestResult, run_markdown_ingest
 
@@ -26,10 +27,6 @@ def _render_ingest_human(payload: dict[str, Any]) -> str:
     if isinstance(rebuild, dict):
         lines.append(f"compiled_paths: {rebuild.get('compiled_count', 0)}")
     return "\n".join(lines)
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    return "json" if value == "json" else "human"
 
 
 def _error_code_for_value_error(message: str) -> str:
@@ -54,18 +51,8 @@ def run_ingest(
     default=None,
     help="Canonical source root for Markdown identity.",
 )
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
+@root_option
+@output_option
 @click.option("--rebuild", is_flag=True, help="Rebuild compiled artifacts after ingest.")
 def command(
     path: Path,
@@ -74,7 +61,7 @@ def command(
     output: str,
     rebuild: bool,
 ) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     root = root if root else get_snowiki_root()
     try:
         result = run_ingest(

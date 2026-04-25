@@ -5,13 +5,10 @@ from typing import cast
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
 from snowiki.config import get_snowiki_root
 from snowiki.lint import LintResult, run_lint
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    return "json" if value == "json" else "human"
 
 
 def _render_lint_human(payload: dict[str, object]) -> str:
@@ -45,20 +42,10 @@ def _render_lint_human(payload: dict[str, object]) -> str:
 
 
 @click.command("lint")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 def command(output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         result = run_lint(root if root else get_snowiki_root())
     except Exception as exc:
