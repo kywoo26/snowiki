@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from typing import cast
-
 from ..paths import (
     session_path_for_id,
     summary_slug_for_record,
+)
+from ..projection import (
+    projected_sections,
+    projected_source_identity,
+    projected_summary,
+    projected_tags,
+    projected_title,
 )
 from ..taxonomy import (
     CompiledPage,
@@ -30,11 +35,8 @@ def generate_summary_pages(records: list[NormalizedRecord]) -> list[CompiledPage
 
     for record in records:
         date = iso_to_date(record.recorded_at)
-        summary_text = record_summary(record)
-        if record.source_type == "markdown" and record.record_type == "document":
-            summary = record.payload.get("summary")
-            summary_text = summary if isinstance(summary, str) else ""
-        title = f"Summary: {record_title(record)}"
+        summary_text = projected_summary(record, record_summary(record))
+        title = f"Summary: {projected_title(record, record_title(record))}"
         page = CompiledPage(
             page_type=PageType.SUMMARY,
             slug=summary_slug_for_record(record),
@@ -54,16 +56,7 @@ def generate_summary_pages(records: list[NormalizedRecord]) -> list[CompiledPage
         merge_string_list(
             page.tags, [record.source_type, record.record_type, "summary"]
         )
-        if record.source_type == "markdown" and record.record_type == "document":
-            promoted = record.payload.get("promoted_frontmatter")
-            if isinstance(promoted, dict):
-                promoted_fields = cast(dict[str, object], promoted)
-                tags = promoted_fields.get("tags")
-                if isinstance(tags, list):
-                    tag_values = cast(list[object], tags)
-                    merge_string_list(
-                        page.tags, [tag for tag in tag_values if isinstance(tag, str)]
-                    )
+        merge_string_list(page.tags, projected_tags(record))
         merge_string_list(page.record_ids, [record.id])
         merge_raw_refs(page.raw_refs, record.raw_refs)
         merge_string_list(
@@ -82,17 +75,15 @@ def generate_summary_pages(records: list[NormalizedRecord]) -> list[CompiledPage
             ),
         )
 
-        if record.source_type == "markdown" and record.record_type == "document":
-            source_identity: list[str] = []
-            for key in ("source_root", "relative_path", "content_hash"):
-                value = record.payload.get(key)
-                if isinstance(value, str) and value:
-                    source_identity.append(f"- {key}: `{value}`")
-            append_section(page, "Source Identity", "\n".join(source_identity))
-
-            text = record.payload.get("text")
-            if isinstance(text, str) and text.strip():
-                append_section(page, "Document", text)
+        source_identity = projected_source_identity(record)
+        source_identity_lines: list[str] = []
+        for key in ("source_root", "relative_path", "content_hash"):
+            value = source_identity.get(key)
+            if value:
+                source_identity_lines.append(f"- {key}: `{value}`")
+        append_section(page, "Source Identity", "\n".join(source_identity_lines))
+        for section in projected_sections(record):
+            append_section(page, section["title"], section["body"])
 
         facts = record.payload.get("facts")
         if isinstance(facts, list) and facts:

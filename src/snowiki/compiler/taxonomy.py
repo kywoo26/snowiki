@@ -172,6 +172,7 @@ def upsert_page(
 
 
 def extract_compiler_bucket(record: NormalizedRecord, key: str) -> Any:
+    """Return a legacy compiler bucket from normalized payload data."""
     compiler = record.payload.get("compiler")
     if isinstance(compiler, dict) and key in compiler:
         return compiler[key]
