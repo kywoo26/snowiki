@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import NotRequired, Protocol, TypedDict
 
 from snowiki.compiler.projection import SourceIdentity, make_compiler_projection
+from snowiki.markdown.source_state import count_stale_markdown_sources
 from snowiki.privacy import PrivacyGate
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.search.workspace import clear_query_search_index_cache
@@ -180,7 +181,9 @@ def run_markdown_ingest(
         "documents_inserted": _count_documents_by_status(documents, "inserted"),
         "documents_updated": _count_documents_by_status(documents, "updated"),
         "documents_unchanged": _count_documents_by_status(documents, "unchanged"),
-        "documents_stale": 0,
+        "documents_stale": count_stale_markdown_sources(
+            root, source_root=source_root_value, include_untracked=False
+        ),
         "rebuild_required": bool(documents),
         "documents": documents,
     }
