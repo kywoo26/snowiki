@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 PROPOSAL_VERSION = 1
 QUEUE_VERSION = 1
@@ -59,6 +59,10 @@ class QueuedFilebackProposal(TypedDict):
     requires_human_review: bool
     reasons: list[str]
     proposal: FilebackProposal
+    previous_status: NotRequired[str]
+    transitioned_at: NotRequired[str]
+    transition_reason: NotRequired[str]
+    result: NotRequired[dict[str, Any]]
 
 
 class QueuedFilebackResult(TypedDict):
@@ -84,6 +88,7 @@ class QueuedFilebackSummary(TypedDict):
     proposal_path: str
     target: FilebackTarget
     summary: str
+    evidence_requested_paths: list[str]
 
 
 class ProposedWriteSet(TypedDict):
@@ -114,13 +119,6 @@ def stringify_mapping(value: object) -> dict[str, object]:
 
 
 def require_mapping(value: Mapping[str, object], field_name: str) -> dict[str, object]:
-    field_value = value.get(field_name)
-    if not isinstance(field_value, Mapping):
-        raise ValueError(f"{field_name} must be an object")
-    return {str(key): item for key, item in field_value.items()}
-
-
-def require_dict(value: Mapping[str, object], field_name: str) -> dict[str, Any]:
     field_value = value.get(field_name)
     if not isinstance(field_value, Mapping):
         raise ValueError(f"{field_name} must be an object")

@@ -260,12 +260,297 @@ def test_fileback_queue_list_reports_pending_proposals(tmp_path: Path) -> None:
             "decision": "queued",
             "impact": "medium",
             "requires_human_review": True,
-            "reasons": ["auto_apply_not_implemented"],
+            "reasons": ["requires_human_review"],
             "proposal_path": preview_payload["result"]["queue"]["proposal_path"],
             "target": proposal["target"],
             "summary": "Listed fileback answer.",
+            "evidence_requested_paths": [evidence_path.as_posix()],
         }
     ]
+
+
+def test_fileback_queue_show_reports_metadata_and_verbose_payload(tmp_path: Path) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+    preview = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What should be shown?",
+            "--answer-markdown",
+            "Show this queued answer.",
+            "--summary",
+            "Shown fileback answer.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--queue",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert preview.exit_code == 0, preview.output
+    preview_payload = json.loads(preview.output)
+    proposal = preview_payload["result"]["proposal"]
+
+    shown = runner.invoke(
+        app,
+        ["fileback", "queue", "show", proposal["proposal_id"], "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert shown.exit_code == 0, shown.output
+    shown_payload = json.loads(shown.output)
+    assert shown_payload["result"]["proposal_id"] == proposal["proposal_id"]
+    assert shown_payload["result"]["status"] == "pending"
+    assert shown_payload["result"]["target"] == proposal["target"]
+    assert shown_payload["result"]["evidence_requested_paths"] == [evidence_path.as_posix()]
+    assert "proposal" not in shown_payload["result"]
+
+    verbose = runner.invoke(
+        app,
+        [
+            "fileback",
+            "queue",
+            "show",
+            proposal["proposal_id"],
+            "--verbose",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert verbose.exit_code == 0, verbose.output
+    verbose_payload = json.loads(verbose.output)
+    assert verbose_payload["result"]["proposal"] == proposal
+
+
+def test_fileback_queue_apply_archives_applied_proposal(tmp_path: Path) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+    preview = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What should queue apply?",
+            "--answer-markdown",
+            "Queue apply should persist this answer.",
+            "--summary",
+            "Queue apply summary.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--queue",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert preview.exit_code == 0, preview.output
+    proposal = json.loads(preview.output)["result"]["proposal"]
+
+    applied = runner.invoke(
+        app,
+        ["fileback", "queue", "apply", proposal["proposal_id"], "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert applied.exit_code == 0, applied.output
+    payload = json.loads(applied.output)
+    result = payload["result"]
+    assert payload["command"] == "fileback queue apply"
+    assert result["status"] == "applied"
+    assert result["previous_status"] == "pending"
+    assert result["result"]["ok"] is True
+    assert not (tmp_path / "queue" / "proposals" / "pending" / f"{proposal['proposal_id']}.json").exists()
+    assert (tmp_path / result["proposal_path"]).exists()
+    assert (tmp_path / proposal["apply_plan"]["raw_note_path"]).exists()
+    assert (tmp_path / proposal["apply_plan"]["normalized_path"]).exists()
+
+
+def test_fileback_queue_reject_and_list_status_filter(tmp_path: Path) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+    preview = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What should be rejected?",
+            "--answer-markdown",
+            "Reject this queued answer.",
+            "--summary",
+            "Rejected fileback answer.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--queue",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert preview.exit_code == 0, preview.output
+    proposal = json.loads(preview.output)["result"]["proposal"]
+
+    rejected = runner.invoke(
+        app,
+        [
+            "fileback",
+            "queue",
+            "reject",
+            proposal["proposal_id"],
+            "--reason",
+            "Needs stronger evidence.",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert rejected.exit_code == 0, rejected.output
+    rejected_payload = json.loads(rejected.output)
+    assert rejected_payload["result"]["status"] == "rejected"
+    assert rejected_payload["result"]["transition_reason"] == "Needs stronger evidence."
+
+    pending = runner.invoke(
+        app,
+        ["fileback", "queue", "list", "--status", "pending", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert pending.exit_code == 0, pending.output
+    assert json.loads(pending.output)["result"]["proposals"] == []
+
+    listed = runner.invoke(
+        app,
+        ["fileback", "queue", "list", "--status", "rejected", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert listed.exit_code == 0, listed.output
+    listed_payload = json.loads(listed.output)
+    assert listed_payload["result"]["proposals"][0]["proposal_id"] == proposal["proposal_id"]
+    assert listed_payload["result"]["proposals"][0]["status"] == "rejected"
+
+
+def test_fileback_queue_prune_is_dry_run_then_delete(tmp_path: Path) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+    proposal_ids: list[str] = []
+    for question in ("What should prune one?", "What should prune two?"):
+        preview = runner.invoke(
+            app,
+            [
+                "fileback",
+                "preview",
+                question,
+                "--answer-markdown",
+                f"Answer for {question}",
+                "--summary",
+                f"Summary for {question}",
+                "--evidence-path",
+                evidence_path.as_posix(),
+                "--queue",
+                "--output",
+                "json",
+            ],
+            env={"SNOWIKI_ROOT": str(tmp_path)},
+        )
+        assert preview.exit_code == 0, preview.output
+        proposal_id = json.loads(preview.output)["result"]["proposal"]["proposal_id"]
+        proposal_ids.append(proposal_id)
+        rejected = runner.invoke(
+            app,
+            [
+                "fileback",
+                "queue",
+                "reject",
+                proposal_id,
+                "--reason",
+                "Prune fixture.",
+                "--output",
+                "json",
+            ],
+            env={"SNOWIKI_ROOT": str(tmp_path)},
+        )
+        assert rejected.exit_code == 0, rejected.output
+
+    dry_run = runner.invoke(
+        app,
+        [
+            "fileback",
+            "queue",
+            "prune",
+            "--status",
+            "rejected",
+            "--keep",
+            "1",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert dry_run.exit_code == 0, dry_run.output
+    dry_payload = json.loads(dry_run.output)
+    assert dry_payload["result"]["dry_run"] is True
+    assert dry_payload["result"]["candidate_count"] == 1
+    assert (tmp_path / dry_payload["result"]["candidates"][0]).exists()
+
+    deleted = runner.invoke(
+        app,
+        [
+            "fileback",
+            "queue",
+            "prune",
+            "--status",
+            "rejected",
+            "--keep",
+            "1",
+            "--delete",
+            "--yes",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert deleted.exit_code == 0, deleted.output
+    deleted_payload = json.loads(deleted.output)
+    assert deleted_payload["result"]["deleted_count"] == 1
+    assert not (tmp_path / deleted_payload["result"]["deleted"][0]).exists()
+    assert len(proposal_ids) == 2
+
+
+def test_fileback_preview_auto_apply_low_risk_applies_immediately(tmp_path: Path) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What should auto apply?",
+            "--answer-markdown",
+            "Auto apply this low-risk answer.",
+            "--summary",
+            "Auto applied fileback answer.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--queue",
+            "--auto-apply-low-risk",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    proposal = payload["result"]["proposal"]
+    queue_result = payload["result"]["queue"]
+    assert queue_result["status"] == "applied"
+    assert queue_result["decision"] == "auto_applied"
+    assert queue_result["requires_human_review"] is False
+    assert not (tmp_path / "queue" / "proposals" / "pending" / f"{proposal['proposal_id']}.json").exists()
+    assert (tmp_path / queue_result["proposal_path"]).exists()
+    assert (tmp_path / proposal["apply_plan"]["raw_note_path"]).exists()
 
 
 def test_fileback_queue_uses_explicit_root_option(tmp_path: Path) -> None:

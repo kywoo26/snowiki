@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 import click
 
@@ -10,37 +11,21 @@ from snowiki.cli.output import OutputMode, emit_error, emit_result
 from snowiki.config import resolve_snowiki_root
 from snowiki.fileback import (
     apply_fileback_proposal,
-    build_fileback_proposal,
+    apply_queued_fileback_proposal,
     list_queued_fileback_proposals,
-    queue_fileback_proposal,
+    prune_queued_fileback_proposals,
+    reject_queued_fileback_proposal,
     resolve_preview_root,
+    show_queued_fileback_proposal,
 )
-from snowiki.fileback.models import FilebackProposal, QueuedFilebackResult
+from snowiki.fileback.queue import build_queue_list_result, run_fileback_preview
+
+QueueCliStatus = Literal["pending", "applied", "rejected", "failed", "all"]
+TerminalQueueCliStatus = Literal["applied", "rejected", "failed", "all"]
 
 
 def _normalize_output_mode(value: str) -> OutputMode:
     return "json" if value == "json" else "human"
-
-
-def _preview_result(
-    *,
-    root: Path,
-    proposal: FilebackProposal,
-    queue_result: QueuedFilebackResult | None = None,
-) -> dict[str, Any]:
-    result: dict[str, Any] = {
-        "root": root.as_posix(),
-        "proposal": proposal,
-        "proposed_write": {
-            "raw_note_body": proposal["apply_plan"]["proposed_raw_note_body"],
-            "normalized_record_payload": proposal["apply_plan"][
-                "proposed_normalized_record_payload"
-            ],
-        },
-    }
-    if queue_result is not None:
-        result["queue"] = queue_result
-    return result
 
 
 def _render_preview_human(payload: dict[str, Any]) -> str:
@@ -82,7 +67,9 @@ def _render_apply_human(payload: dict[str, Any]) -> str:
 def _render_queue_list_human(payload: dict[str, Any]) -> str:
     result = payload["result"]
     proposals = result["proposals"]
-    lines = [f"Pending fileback proposals for {result['root']}: {len(proposals)}"]
+    lines = [
+        f"Fileback proposals for {result['root']} [{result['status']}]: {len(proposals)}"
+    ]
     for proposal in proposals:
         target = proposal["target"]
         lines.append(
@@ -90,6 +77,59 @@ def _render_queue_list_human(payload: dict[str, Any]) -> str:
             f"{target['compiled_path']} ({proposal['proposal_path']})"
         )
     return "\n".join(lines)
+
+
+def _render_queue_show_human(payload: dict[str, Any]) -> str:
+    result = payload["result"]
+    lines = [
+        f"Fileback proposal {result['proposal_id']} [{result['status']}]",
+        f"summary: {result['summary']}",
+        f"target: {result['target']['compiled_path']}",
+        f"queue path: {result['proposal_path']}",
+        f"decision: {result['decision']}",
+        f"requires human review: {result['requires_human_review']}",
+    ]
+    if "transitioned_at" in result:
+        lines.append(f"transitioned: {result['transitioned_at']}")
+        lines.append(f"transition reason: {result['transition_reason']}")
+    return "\n".join(lines)
+
+
+def _render_queue_prune_human(payload: dict[str, Any]) -> str:
+    result = payload["result"]
+    action = "Would delete" if result["dry_run"] else "Deleted"
+    return (
+        f"{action} {result['candidate_count']} fileback queue artifact(s) "
+        f"for {', '.join(result['statuses'])}; retained {result['retained_count']}"
+    )
+
+
+def _parse_duration(value: str | None) -> timedelta | None:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if not normalized:
+        raise click.BadParameter("duration must not be empty")
+    unit = normalized[-1]
+    amount_text = normalized[:-1]
+    if not amount_text.isdigit() or unit not in {"d", "h", "s"}:
+        raise click.BadParameter("duration must use a positive integer plus d, h, or s")
+    amount = int(amount_text)
+    if amount <= 0:
+        raise click.BadParameter("duration must be positive")
+    if unit == "d":
+        return timedelta(days=amount)
+    if unit == "h":
+        return timedelta(hours=amount)
+    return timedelta(seconds=amount)
+
+
+def _queue_cli_status(value: str) -> QueueCliStatus:
+    return cast(QueueCliStatus, value.lower())
+
+
+def _terminal_queue_cli_status(value: str) -> TerminalQueueCliStatus:
+    return cast(TerminalQueueCliStatus, value.lower())
 
 
 @click.group("fileback")
@@ -126,6 +166,11 @@ def command() -> None:
     is_flag=True,
     help="Persist the preview as a pending proposal under the Snowiki root queue.",
 )
+@click.option(
+    "--auto-apply-low-risk",
+    is_flag=True,
+    help="Queue and immediately apply only if runtime low-risk policy passes.",
+)
 def preview_command(
     question: str,
     answer_markdown: str,
@@ -134,19 +179,18 @@ def preview_command(
     output: str,
     root: Path | None,
     queue_proposal: bool,
+    auto_apply_low_risk: bool,
 ) -> None:
     output_mode = _normalize_output_mode(output)
     try:
-        preview_root = resolve_snowiki_root(root) if queue_proposal else resolve_preview_root(root)
-        proposal = build_fileback_proposal(
-            preview_root,
+        result = run_fileback_preview(
+            root,
             question=question,
             answer_markdown=answer_markdown,
             summary=summary,
             evidence_paths=evidence_paths,
-        )
-        queue_result = (
-            queue_fileback_proposal(preview_root, proposal) if queue_proposal else None
+            queue_proposal=queue_proposal,
+            auto_apply_low_risk=auto_apply_low_risk,
         )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_preview_failed")
@@ -154,11 +198,7 @@ def preview_command(
         {
             "ok": True,
             "command": "fileback preview",
-            "result": _preview_result(
-                root=preview_root,
-                proposal=proposal,
-                queue_result=queue_result,
-            ),
+            "result": result,
         },
         output=output_mode,
         human_renderer=_render_preview_human,
@@ -210,6 +250,13 @@ def queue_command() -> None:
 
 @queue_command.command("list")
 @click.option(
+    "--status",
+    type=click.Choice(["pending", "applied", "rejected", "failed", "all"], case_sensitive=False),
+    default="pending",
+    show_default=True,
+    help="Queue state to list.",
+)
+@click.option(
     "--output",
     type=click.Choice(["human", "json"], case_sensitive=False),
     default="human",
@@ -221,23 +268,188 @@ def queue_command() -> None:
     default=None,
     help="Snowiki storage root (defaults to ~/.snowiki)",
 )
-def queue_list_command(output: str, root: Path | None) -> None:
+def queue_list_command(status: str, output: str, root: Path | None) -> None:
     output_mode = _normalize_output_mode(output)
     try:
         queue_root = resolve_snowiki_root(root)
-        proposals = list_queued_fileback_proposals(queue_root)
+        normalized_status = _queue_cli_status(status)
+        proposals = list_queued_fileback_proposals(queue_root, status=normalized_status)
+        result = build_queue_list_result(
+            root=queue_root,
+            status=normalized_status,
+            proposals=proposals,
+        )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_queue_list_failed")
     emit_result(
         {
             "ok": True,
             "command": "fileback queue list",
-            "result": {
-                "root": queue_root.as_posix(),
-                "status": "pending",
-                "proposals": proposals,
-            },
+            "result": result,
         },
         output=output_mode,
         human_renderer=_render_queue_list_human,
+    )
+
+
+@queue_command.command("show")
+@click.argument("proposal_id")
+@click.option("--verbose", is_flag=True, help="Include full proposal and apply payloads.")
+@click.option(
+    "--output",
+    type=click.Choice(["human", "json"], case_sensitive=False),
+    default="human",
+    show_default=True,
+)
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def queue_show_command(
+    proposal_id: str, verbose: bool, output: str, root: Path | None
+) -> None:
+    output_mode = _normalize_output_mode(output)
+    try:
+        queue_root = resolve_snowiki_root(root)
+        result = show_queued_fileback_proposal(queue_root, proposal_id, verbose=verbose)
+    except Exception as exc:
+        emit_error(str(exc), output=output_mode, code="fileback_queue_show_failed")
+    emit_result(
+        {
+            "ok": True,
+            "command": "fileback queue show",
+            "result": result,
+        },
+        output=output_mode,
+        human_renderer=_render_queue_show_human,
+    )
+
+
+@queue_command.command("apply")
+@click.argument("proposal_id")
+@click.option(
+    "--output",
+    type=click.Choice(["human", "json"], case_sensitive=False),
+    default="human",
+    show_default=True,
+)
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def queue_apply_command(proposal_id: str, output: str, root: Path | None) -> None:
+    output_mode = _normalize_output_mode(output)
+    try:
+        queue_root = resolve_snowiki_root(root)
+        result = apply_queued_fileback_proposal(queue_root, proposal_id)
+    except Exception as exc:
+        emit_error(str(exc), output=output_mode, code="fileback_queue_apply_failed")
+    emit_result(
+        {
+            "ok": True,
+            "command": "fileback queue apply",
+            "result": result,
+        },
+        output=output_mode,
+        human_renderer=_render_queue_show_human,
+    )
+
+
+@queue_command.command("reject")
+@click.argument("proposal_id")
+@click.option("--reason", required=True, help="Human-readable rejection reason.")
+@click.option(
+    "--output",
+    type=click.Choice(["human", "json"], case_sensitive=False),
+    default="human",
+    show_default=True,
+)
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def queue_reject_command(
+    proposal_id: str, reason: str, output: str, root: Path | None
+) -> None:
+    output_mode = _normalize_output_mode(output)
+    try:
+        queue_root = resolve_snowiki_root(root)
+        result = reject_queued_fileback_proposal(queue_root, proposal_id, reason=reason)
+    except Exception as exc:
+        emit_error(str(exc), output=output_mode, code="fileback_queue_reject_failed")
+    emit_result(
+        {
+            "ok": True,
+            "command": "fileback queue reject",
+            "result": result,
+        },
+        output=output_mode,
+        human_renderer=_render_queue_show_human,
+    )
+
+
+@queue_command.command("prune")
+@click.option(
+    "--status",
+    type=click.Choice(["applied", "rejected", "failed", "all"], case_sensitive=False),
+    required=True,
+    help="Terminal queue state to prune.",
+)
+@click.option("--keep", type=int, default=None, help="Number of newest terminal artifacts to retain.")
+@click.option("--older-than", default=None, help="Optional age filter such as 30d, 12h, or 60s.")
+@click.option("--dry-run", is_flag=True, help="Preview prune candidates without deleting them.")
+@click.option("--delete", "delete_artifacts", is_flag=True, help="Delete prune candidates.")
+@click.option("--yes", is_flag=True, help="Confirm deletion when --delete is used.")
+@click.option(
+    "--output",
+    type=click.Choice(["human", "json"], case_sensitive=False),
+    default="human",
+    show_default=True,
+)
+@click.option(
+    "--root",
+    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
+    default=None,
+    help="Snowiki storage root (defaults to ~/.snowiki)",
+)
+def queue_prune_command(
+    status: str,
+    keep: int | None,
+    older_than: str | None,
+    dry_run: bool,
+    delete_artifacts: bool,
+    yes: bool,
+    output: str,
+    root: Path | None,
+) -> None:
+    output_mode = _normalize_output_mode(output)
+    try:
+        if dry_run and delete_artifacts:
+            raise ValueError("--dry-run cannot be combined with --delete")
+        if delete_artifacts and not yes:
+            raise ValueError("--delete requires --yes")
+        queue_root = resolve_snowiki_root(root)
+        result = prune_queued_fileback_proposals(
+            queue_root,
+            status=_terminal_queue_cli_status(status),
+            keep=keep,
+            older_than=_parse_duration(older_than),
+            dry_run=not delete_artifacts,
+        )
+    except Exception as exc:
+        emit_error(str(exc), output=output_mode, code="fileback_queue_prune_failed")
+    emit_result(
+        {
+            "ok": True,
+            "command": "fileback queue prune",
+            "result": result,
+        },
+        output=output_mode,
+        human_renderer=_render_queue_prune_human,
     )

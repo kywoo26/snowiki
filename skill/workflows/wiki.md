@@ -164,7 +164,17 @@ Do not treat preview as an applied write.
 
 For autonomous work that should not stop for immediate apply, use `snowiki fileback preview --queue` to persist the proposal under the active Snowiki root as control-plane state. Queued proposals are non-blocking and pending; they are not source truth or compiler input.
 
-Use `snowiki fileback queue list --output json` to inspect pending proposals.
+Use `snowiki fileback queue list --output json` to inspect pending proposals. Use `--status pending|applied|rejected|failed|all` when terminal queue artifacts are relevant.
+
+Use `snowiki fileback queue show <proposal-id> --output json` to inspect queue metadata without exposing full raw/normalized payloads. Add `--verbose` only when full proposal/apply payload details are needed.
+
+Use `snowiki fileback queue apply <proposal-id> --output json` to apply a pending queue entry through the canonical reviewed fileback apply path. Successful applies archive the queue envelope to `queue/proposals/applied/`; runtime failures archive it to `queue/proposals/failed/` with safe error metadata.
+
+Use `snowiki fileback queue reject <proposal-id> --reason "..." --output json` when a human/runtime declines a proposal. Rejected envelopes move to `queue/proposals/rejected/`.
+
+Use `snowiki fileback queue prune --status applied|rejected|failed|all --keep 50 --output json` for dry-run terminal cleanup. Actual deletion requires `--delete --yes`; pending proposals are not pruned by the default retention policy.
+
+Use `snowiki fileback preview --queue --auto-apply-low-risk` only when the runtime should apply a proposal if, and only if, deterministic low-risk policy checks pass. Agent-provided labels are not trusted.
 
 ---
 
@@ -185,6 +195,8 @@ Do not claim direct MCP writes or direct compiled-file editing.
 
 ## Step 7: Sync (Deferred Workflow)
 
+This is not part of Phase 3 queue hardening and has no scheduled implementation in the current runtime.
+
 Exporting Claude Code sessions to Obsidian markdown is a deferred reference workflow. If the runtime later exposes a `sync` command:
 1. Detect `VAULT_DIR` and `TZ`.
 2. Run the sync/export logic.
@@ -193,6 +205,8 @@ Exporting Claude Code sessions to Obsidian markdown is a deferred reference work
 ---
 
 ## Step 8: Edit (Deferred Workflow)
+
+This is not part of Phase 3 queue hardening and has no scheduled implementation in the current runtime.
 
 Lightweight page modification is a deferred reference workflow. If the runtime later exposes an `edit` command:
 1. Identify target page.
@@ -203,6 +217,8 @@ Lightweight page modification is a deferred reference workflow. If the runtime l
 ---
 
 ## Step 9: Merge (Deferred Workflow)
+
+This is not part of Phase 3 queue hardening and has no scheduled implementation in the current runtime.
 
 Consolidating overlapping pages is a deferred reference workflow. If the runtime later exposes a `merge` command:
 1. Identify pages to merge.
