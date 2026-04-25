@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NotRequired, Protocol, TypedDict
 
-from snowiki.compiler.projection import SourceIdentity, make_compiler_projection
+from snowiki.compiler.projection import (
+    ProjectionSection,
+    SourceIdentity,
+    make_compiler_projection,
+)
 from snowiki.markdown.source_state import count_stale_markdown_sources
 from snowiki.privacy import PrivacyGate
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
@@ -51,19 +55,14 @@ class SourcePrivacyGate(Protocol):
 
 def resolve_markdown_title(
     source: MarkdownSource,
-    document_text: str,
-    promoted: dict[str, FrontmatterValue],
+    document: MarkdownDocument,
 ) -> str:
     """Return the effective title for a Markdown source."""
-    title = promoted.get("title")
+    title = document.promoted.get("title")
     if isinstance(title, str) and title.strip():
         return title.strip()
-    for line in document_text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#"):
-            heading = stripped.lstrip("#").strip()
-            if heading:
-                return heading
+    if document.structure.headings:
+        return document.structure.headings[0].text
     return source.path.stem
 
 
@@ -113,7 +112,7 @@ def build_markdown_payload(
     raw_ref: RawRef,
 ) -> dict[str, object]:
     """Build the normalized payload for a parsed Markdown source."""
-    title = resolve_markdown_title(source, document.text, document.promoted)
+    title = resolve_markdown_title(source, document)
     summary = resolve_markdown_summary(document.promoted)
     tags = _promoted_tags(document.promoted)
     source_identity: SourceIdentity = {
@@ -127,7 +126,7 @@ def build_markdown_payload(
         body=document.text,
         tags=tags,
         source_identity=source_identity,
-        sections=[{"title": "Document", "body": document.text}],
+        sections=_projection_sections(document),
     )
     return {
         "title": title,
@@ -210,3 +209,16 @@ def _promoted_tags(promoted: dict[str, FrontmatterValue]) -> list[str]:
     if not isinstance(tags, list):
         return []
     return sorted({tag.strip() for tag in tags if isinstance(tag, str) and tag.strip()})
+
+
+def _projection_sections(document: MarkdownDocument) -> list[ProjectionSection]:
+    sections: list[ProjectionSection] = [
+        {"title": section.title, "body": section.body}
+        for section in document.structure.sections
+        if section.body.strip()
+    ]
+    if sections:
+        return sections
+    if document.text:
+        return [{"title": "Document", "body": document.text}]
+    return []

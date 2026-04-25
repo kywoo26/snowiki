@@ -21,15 +21,9 @@ from snowiki.storage.raw import RawStorage
 
 def test_resolve_markdown_title_prefers_promoted_title(tmp_path: Path) -> None:
     source = _markdown_source(tmp_path, "note.md")
+    document = parse_markdown_document("---\ntitle: Frontmatter Title\n---\n# Heading")
 
-    assert (
-        resolve_markdown_title(
-            source,
-            "# Heading",
-            {"title": " Frontmatter Title "},
-        )
-        == "Frontmatter Title"
-    )
+    assert resolve_markdown_title(source, document) == "Frontmatter Title"
 
 
 def test_resolve_markdown_title_falls_back_to_heading_then_stem(
@@ -37,8 +31,18 @@ def test_resolve_markdown_title_falls_back_to_heading_then_stem(
 ) -> None:
     source = _markdown_source(tmp_path, "guide.md")
 
-    assert resolve_markdown_title(source, "\n## Guide Heading\nBody", {}) == "Guide Heading"
-    assert resolve_markdown_title(source, "Body only", {}) == "guide"
+    assert (
+        resolve_markdown_title(source, parse_markdown_document("\n## Guide Heading\nBody"))
+        == "Guide Heading"
+    )
+    assert resolve_markdown_title(source, parse_markdown_document("Body only")) == "guide"
+
+
+def test_resolve_markdown_title_uses_markdown_body_parser(tmp_path: Path) -> None:
+    source = _markdown_source(tmp_path, "guide.md")
+    document_text = "```python\n# Not a title\n```\n\nSetext Title\n============\n"
+
+    assert resolve_markdown_title(source, parse_markdown_document(document_text)) == "Setext Title"
 
 
 def test_resolve_markdown_summary_prefers_summary_then_description() -> None:
@@ -105,7 +109,7 @@ def test_build_markdown_payload_isolated_from_storage(tmp_path: Path) -> None:
             "relative_path": "guide.md",
             "content_hash": "abc123",
         },
-        sections=[{"title": "Document", "body": "# Guide\n\nBody"}],
+        sections=[{"title": "Guide", "body": "Body"}],
     )
 
 
