@@ -5,9 +5,14 @@ from typing import Any
 
 import click
 
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
-from snowiki.config import get_snowiki_root
+from snowiki.cli.output import emit_error, emit_result
 from snowiki.markdown.ingest import MarkdownIngestResult, run_markdown_ingest
 
 
@@ -43,7 +48,7 @@ def run_ingest(
     return run_markdown_ingest(path, root=root, source_root=source_root, rebuild=rebuild)
 
 
-@click.command("ingest")
+@click.command("ingest", short_help="Ingest Markdown sources.")
 @click.argument("path", type=click.Path(exists=False, path_type=Path))
 @click.option(
     "--source-root",
@@ -54,20 +59,23 @@ def run_ingest(
 @root_option
 @output_option
 @click.option("--rebuild", is_flag=True, help="Rebuild compiled artifacts after ingest.")
+@pass_snowiki_context
 def command(
+    cli_context: SnowikiCliContext,
     path: Path,
     source_root: Path | None,
     root: Path | None,
     output: str,
     rebuild: bool,
 ) -> None:
-    output_mode = normalize_output_mode(output)
-    root = root if root else get_snowiki_root()
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     try:
+        storage_root = initialize_cli_root(cli_context)
         result = run_ingest(
             path,
             source_root=source_root,
-            root=root,
+            root=storage_root,
             rebuild=rebuild,
         )
     except click.ClickException as exc:
