@@ -15,6 +15,7 @@ from .datasets import (
     resolve_dataset_assets,
 )
 from .metrics import DEFAULT_METRIC_REGISTRY
+from .normalization import normalize_query_results
 from .specs import (
     BenchmarkQuery,
     BenchmarkRunResult,
@@ -363,33 +364,7 @@ def _select_queries_for_level(
 
 
 def _coerce_query_results(raw_results: object) -> tuple[QueryResult, ...]:
-    if not isinstance(raw_results, Sequence) or isinstance(raw_results, str | bytes):
-        raise TypeError("Benchmark target results must be a sequence.")
-    query_results: list[QueryResult] = []
-    for item in raw_results:
-        if isinstance(item, QueryResult):
-            query_results.append(item)
-            continue
-        if not isinstance(item, tuple) or len(item) != 2:
-            raise TypeError(
-                "Benchmark target result items must be QueryResult values or (query_id, ranked_doc_ids) tuples."
-            )
-        query_id, ranked_doc_ids = item
-        if not isinstance(query_id, str):
-            raise TypeError("Benchmark target result query IDs must be strings.")
-        if not isinstance(ranked_doc_ids, Sequence) or isinstance(
-            ranked_doc_ids, str | bytes
-        ):
-            raise TypeError(
-                "Benchmark target ranked results must be sequences of doc IDs."
-            )
-        query_results.append(
-            QueryResult(
-                query_id=query_id,
-                ranked_doc_ids=tuple(str(doc_id) for doc_id in ranked_doc_ids),
-            )
-        )
-    return tuple(query_results)
+    return normalize_query_results(raw_results)
 
 
 def _coerce_cache_metadata(raw_cache: object) -> dict[str, object] | None:

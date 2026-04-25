@@ -4,6 +4,7 @@ import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
 
+from .normalization import normalize_query_results
 from .specs import MetricResult, QueryResult
 
 type MetricComputeFn = Callable[[Sequence[object], Mapping[str, Any]], MetricResult]
@@ -175,25 +176,7 @@ def _normalize_qrels(qrels: Mapping[str, Any]) -> dict[str, frozenset[str]]:
 
 
 def _normalize_query_results(results: Sequence[object]) -> tuple[QueryResult, ...]:
-    normalized_results: list[QueryResult] = []
-    for item in results:
-        if isinstance(item, QueryResult):
-            normalized_results.append(item)
-            continue
-        if not isinstance(item, tuple) or len(item) != 2:
-            raise TypeError("Benchmark results must contain QueryResult values or two-item tuples.")
-        query_id, ranked_doc_ids = item
-        if not isinstance(query_id, str):
-            raise TypeError("Benchmark result query IDs must be strings.")
-        if not isinstance(ranked_doc_ids, Sequence) or isinstance(ranked_doc_ids, str | bytes):
-            raise TypeError("Benchmark ranked results must be sequences of doc IDs.")
-        normalized_results.append(
-            QueryResult(
-                query_id=query_id,
-                ranked_doc_ids=tuple(str(doc_id) for doc_id in ranked_doc_ids),
-            )
-        )
-    return tuple(normalized_results)
+    return normalize_query_results(results)
 
 
 def _normalize_latency_results(results: Sequence[object]) -> dict[str, float]:
