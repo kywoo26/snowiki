@@ -385,9 +385,8 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 
 ## Open Questions
 
-- Should the normalized compiler projection key be `projection`, `compiler_projection`, or nested under an existing compatibility key?
-- Which legacy compiler fallback paths are still supported read compatibility, and which should be deleted during Phase 2?
-- Should Phase 2 compiled output remain byte-compatible, or should it intentionally improve summary page structure under a documented contract change?
+- Which remaining legacy compiler fallback paths should be deleted after projection compatibility is proven?
+- Which future compiler projection changes should intentionally improve summary page structure rather than preserve byte-compatible output?
 - What exact JSON schema should stale/missing source reports use across `ingest`, `status`, and `lint`?
 - Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?
 - What is the minimum frontmatter schema for user-authored documents versus Snowiki-generated pages?

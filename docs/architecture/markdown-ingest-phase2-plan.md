@@ -105,18 +105,21 @@ Implementation may use a Python `TypedDict` rather than runtime validation. The 
 - New source types must not add branches to summary generators; they must write the projection contract.
 - Compiled pages must retain provenance through raw refs and source identity.
 
-## Open Design Questions
+## Implementation Decisions
 
-Resolve these before implementation starts:
+These Phase 2 decisions are now part of the implementation contract:
 
-1. Should the projection key be `projection`, `compiler_projection`, or nested under the existing `compiler` key?
-   - Recommendation: `projection`, because `compiler` already has loose legacy meaning.
-2. Should `body` and `sections` both exist?
-   - Recommendation: keep `sections` as compiler-facing and treat `body` as optional source text for search/future use.
-3. Should Markdown tags live only in `projection.tags`, or remain duplicated in `promoted_frontmatter.tags`?
-   - Recommendation: keep source frontmatter preserved as input metadata and copy compiler-facing tags into `projection.tags`.
-4. Should existing normalized Markdown records be migrated?
-   - Recommendation: no migration in Phase 2. Re-ingest writes the new shape; compiler fallback handles existing records until pruning/migration is explicit.
+1. The normalized compiler projection key is `projection`.
+   - Reason: `compiler` already has loose legacy meaning.
+2. Projection keeps both `body` and `sections`.
+   - `sections` is compiler-facing.
+   - `body` preserves source text for search/future consumers.
+3. Markdown tags are duplicated intentionally.
+   - Source frontmatter remains preserved under `promoted_frontmatter`.
+   - Compiler-facing tags are copied into `projection.tags`.
+4. Existing normalized Markdown records are not migrated in Phase 2.
+   - Re-ingest writes the new shape.
+   - Compiler fallback handles existing records until pruning/migration is explicit.
 
 ## Implementation Waves
 
@@ -132,6 +135,7 @@ Deliverables:
 - Define `CompilerProjection`, `ProjectionSection`, and `SourceIdentity` typed contracts.
 - Add helpers for extracting title, summary, tags, sections, source identity, and taxonomy buckets from either projection or legacy fallback.
 - Add unit tests for projection-first extraction and legacy fallback.
+- Keep legacy taxonomy fallback behavior available through projection helpers rather than expanding generator-level branching.
 
 Acceptance criteria:
 
@@ -151,6 +155,7 @@ Deliverables:
 - Extend `build_markdown_payload()` to write the projection contract.
 - Map Markdown title/summary/body/tags/source identity into projection fields.
 - Keep original frontmatter fields preserved separately.
+- Keep CLI ingest output stable; the projection is a normalized payload addition, not a CLI response field.
 
 Acceptance criteria:
 
@@ -170,6 +175,7 @@ Deliverables:
 - Remove inline `source_type == "markdown"` branches from `generate_summary_pages()`.
 - Build title, summary, tags, source identity, and document sections through projection helpers.
 - Keep record/provenance sections deterministic.
+- Use the same projection helpers from concept/question generators where taxonomy/title/summary data is needed.
 
 Acceptance criteria:
 
