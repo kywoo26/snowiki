@@ -198,7 +198,7 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 
 Dedicated executable plans:
 
-- `docs/architecture/wiki-contract-phase5-plan.md` — active Phase 5 plan for reviewable gardening proposals over Phase 4 source-freshness primitives.
+- `docs/architecture/wiki-contract-phase6-plan.md` — active Phase 6 plan for Claude/OpenCode/OMO agent workflows over the shipped CLI contract.
 
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
@@ -350,10 +350,15 @@ Phase 4 shipped in PR #106. Its executable plan was replaced by the Phase 5 gard
 
 ### Phase 5: Agent-Readable Gardening Proposals
 
-Deliverables:
+Status: **foundation slice complete and merged in PR #107**. Exact-hash source rename candidates now appear as agent-readable `source.rename_candidate` lint diagnostics. Broader source gardening remains future proposal work and has been carried into the durable ledger below.
 
-- Add agent-readable reviewable gardening proposal workflows over the Phase 4 primitives.
+Shipped foundation:
+
+- Add exact-hash source rename candidates as agent-readable lint diagnostics over the Phase 4 primitives.
 - Teach agent/skill workflows to read source freshness reports before ingesting, pruning, or filing durable answers.
+
+Carry-forward items:
+
 - Evaluate nashsu-style cascade cleanup beyond single-source safe cleanup:
   - structural removal of pruned identities from multi-source generated page `sources[]`,
   - dead wikilink cleanup,
@@ -369,14 +374,14 @@ Concrete follow-up work:
 - Define whether source move/rename should be represented as reingest+prune or as a future rename-aware workflow.
 - Start with agent use-case analysis and a proposal engine that enriches existing lint diagnostics for path-level actionable guidance; keep status as summary, and keep prune as a narrow deletion workflow unless a future UX decision says otherwise.
 - Prioritize stable JSON contracts, deterministic proposal identifiers, and agent-readable evidence over additional human-facing CLI flags.
-- Keep broader `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows outside Phase 5 unless they directly support source gardening proposal review/apply.
+- Carry broader `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows into Phase 6 as agent workflow-planning concepts while keeping them deferred as runtime commands.
 - Preserve Phase 4's report-first and dry-run-first guarantees when adding higher-level agent workflows.
 
-Active executable plan: `docs/architecture/wiki-contract-phase5-plan.md`.
+The completed executable plan has been removed. Active executable plan: `docs/architecture/wiki-contract-phase6-plan.md`.
 
-Post-Phase 5 carry-forward items that must remain synchronized with the active plan:
+Phase 6 and later carry-forward items that must remain synchronized with the active plan:
 
-- standalone `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows belong to later agent workflow phases unless directly required by reviewed gardening proposal apply flows;
+- standalone `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows are Phase 6 workflow-planning concepts, but remain deferred as runtime commands unless an explicit CLI spec accepts them;
 - semantic/vector/hybrid retrieval remains a retrieval roadmap item;
 - MCP write/delete support remains post-CLI write-contract work;
 - a full append-only event journal remains a separate event-log design;
@@ -384,6 +389,8 @@ Post-Phase 5 carry-forward items that must remain synchronized with the active p
 - projection backfill/migration and normalized storage write-contract redesign remain separate explicit specs.
 
 ### Phase 6: Agent and Skill Workflow
+
+Status: **planning wave**. Active plan: `docs/architecture/wiki-contract-phase6-plan.md`.
 
 Deliverables:
 
@@ -395,6 +402,8 @@ Deliverables:
   - query the wiki,
   - file a durable answer back into Markdown,
   - lint/status before continuing work.
+- Define lifecycle skill routes (`/wiki-start`, `/wiki-ingest`, `/wiki-progress`, `/wiki-finish`, `/wiki-health`) as orchestration names over existing CLI JSON contracts, not new runtime commands.
+- Document agent behavior rules: observe first, hypothesize before asking, propose writes before execution, validate after ingest, and use progressive disclosure when retrieving deeper evidence.
 - Keep mutation CLI-mediated and reviewable.
 - Replace direct Claude/OpenCode export ingest workflows with session-to-Markdown conversion workflows.
 - Keep direct Claude/OpenCode export ingest out of the primary runtime; if needed later, implement it as explicit compatibility tooling outside `snowiki ingest PATH`.
