@@ -9,6 +9,7 @@ from typing import Literal, NotRequired, TypedDict
 
 from snowiki.compiler.paths import summary_path_for_record
 from snowiki.compiler.taxonomy import NormalizedRecord
+from snowiki.markdown.source_state import collect_markdown_source_state
 from snowiki.storage.zones import ensure_utc_datetime
 
 from .integrity import check_layer_integrity
@@ -33,6 +34,27 @@ _FRONTMATTER_FIELD_PATTERN = re.compile(
     r"^(?P<key>[A-Za-z0-9_]+):\s*(?P<value>.*)$", re.MULTILINE
 )
 _STALE_PAGE_MAX_AGE = timedelta(days=30)
+_SOURCE_FRESHNESS_ISSUES: dict[str, tuple[str, str, Severity, str]] = {
+    "modified": (
+        "L501",
+        "source.modified",
+        "warning",
+        "source file changed since ingest",
+    ),
+    "missing": ("L502", "source.missing", "warning", "source file is missing"),
+    "untracked": (
+        "L503",
+        "source.untracked",
+        "info",
+        "source file has not been ingested",
+    ),
+    "invalid": (
+        "L504",
+        "source.invalid_metadata",
+        "warning",
+        "source metadata is invalid",
+    ),
+}
 
 
 class LintIssue(TypedDict):
@@ -171,6 +193,28 @@ def collect_freshness_issues(root: str | Path) -> list[LintIssue]:
                 severity="info",
                 path=path.relative_to(base).as_posix(),
                 message=f"compiled page has not been updated since {updated_at.date().isoformat()}",
+            )
+        )
+    return issues
+
+
+def collect_source_freshness_issues(root: str | Path) -> list[LintIssue]:
+    base = Path(root)
+    issues: list[LintIssue] = []
+    report = collect_markdown_source_state(base)
+    for item in report["items"]:
+        issue_spec = _SOURCE_FRESHNESS_ISSUES.get(item["state"])
+        if issue_spec is None:
+            continue
+        code, check, severity, message = issue_spec
+        issues.append(
+            _make_issue(
+                code=code,
+                check=check,
+                severity=severity,
+                path=item.get("normalized_path", item["source_path"]),
+                message=f"{message}: {item['relative_path']}",
+                target=item["source_path"] if item["state"] != "untracked" else item["source_root"],
             )
         )
     return issues
@@ -338,6 +382,10 @@ def _build_checks(issues: list[LintIssue]) -> list[LintCheck]:
         ("graph.broken_wikilink", "Broken compiled wikilinks", "error"),
         ("graph.orphan_compiled_page", "Orphan compiled pages", "warning"),
         ("freshness.stale_compiled_page", "Stale compiled pages", "info"),
+        ("source.modified", "Modified Markdown sources", "warning"),
+        ("source.missing", "Missing Markdown sources", "warning"),
+        ("source.untracked", "Untracked Markdown sources", "info"),
+        ("source.invalid_metadata", "Invalid Markdown source metadata", "warning"),
         ("coverage.source_without_summary", "Sources without summary pages", "info"),
     ]
     counts = {name: 0 for name, _, _ in order}
@@ -364,6 +412,7 @@ def run_lint(root: str | Path) -> LintResult:
         *collect_structural_issues(base),
         *check_layer_integrity(base)["issues"],
         *collect_freshness_issues(base),
+        *collect_source_freshness_issues(base),
         *collect_summary_coverage_issues(base),
     ]
     sorted_issues = sorted(issues, key=_issue_sort_key)

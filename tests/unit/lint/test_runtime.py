@@ -163,20 +163,43 @@ def test_run_lint_returns_summary_counts_and_check_inventory(tmp_path: Path) -> 
         "severity": "error",
         "issue_count": 1,
     }
-    assert result["checks"][-2:] == [
-        {
-            "name": "freshness.stale_compiled_page",
-            "label": "Stale compiled pages",
-            "severity": "info",
-            "issue_count": 0,
-        },
-        {
-            "name": "coverage.source_without_summary",
-            "label": "Sources without summary pages",
-            "severity": "info",
-            "issue_count": 0,
-        },
-    ]
+    checks_by_name = {check["name"]: check for check in result["checks"]}
+    assert checks_by_name["freshness.stale_compiled_page"] == {
+        "name": "freshness.stale_compiled_page",
+        "label": "Stale compiled pages",
+        "severity": "info",
+        "issue_count": 0,
+    }
+    assert checks_by_name["source.modified"] == {
+        "name": "source.modified",
+        "label": "Modified Markdown sources",
+        "severity": "warning",
+        "issue_count": 0,
+    }
+    assert checks_by_name["source.missing"] == {
+        "name": "source.missing",
+        "label": "Missing Markdown sources",
+        "severity": "warning",
+        "issue_count": 0,
+    }
+    assert checks_by_name["source.untracked"] == {
+        "name": "source.untracked",
+        "label": "Untracked Markdown sources",
+        "severity": "info",
+        "issue_count": 0,
+    }
+    assert checks_by_name["source.invalid_metadata"] == {
+        "name": "source.invalid_metadata",
+        "label": "Invalid Markdown source metadata",
+        "severity": "warning",
+        "issue_count": 0,
+    }
+    assert checks_by_name["coverage.source_without_summary"] == {
+        "name": "coverage.source_without_summary",
+        "label": "Sources without summary pages",
+        "severity": "info",
+        "issue_count": 0,
+    }
 
 
 def test_collect_freshness_issues_reports_stale_compiled_pages(tmp_path: Path) -> None:
