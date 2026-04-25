@@ -10,7 +10,6 @@ from ..taxonomy import (
     merge_raw_refs,
     merge_string_list,
 )
-from ..wikilinks import wikilink
 
 
 def generate_overview_page(
@@ -50,6 +49,8 @@ def generate_overview_page(
         "\n".join(
             [
                 f"- Normalized records: {len(records)}",
+                "- Navigation artifacts: [[compiled/index]], [[compiled/log]]",
+                "- Source freshness: run `snowiki status --output json` for current counts",
                 *[
                     f"- {page_type}: {counter[page_type]}"
                     for page_type in sorted(counter)
@@ -57,15 +58,5 @@ def generate_overview_page(
             ]
         ),
     )
-
-    grouped: dict[str, list[str]] = {}
-    for page in sorted(
-        (page for page in pages if page.page_type is not PageType.OVERVIEW),
-        key=lambda page: (page.page_type.value, page.title.lower()),
-    ):
-        grouped.setdefault(page.page_type.value, []).append(f"- {wikilink(page.path)}")
-
-    for page_type in sorted(grouped):
-        append_section(overview, page_type.title(), "\n".join(grouped[page_type]))
 
     return overview
