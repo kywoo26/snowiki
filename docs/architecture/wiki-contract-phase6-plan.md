@@ -1,6 +1,6 @@
 # Phase 6 Agent Workflow Plan
 
-Status: **planning wave**. This document is the executable Phase 6 plan. Durable outcomes should be folded into `docs/architecture/llm-wiki-ingest-redesign.md`, `docs/architecture/skill-and-agent-interface-contract.md`, and `docs/architecture/refactoring-operating-principles.md` as implementation decisions land.
+Status: **planning wave**. This document is the executable Phase 6 plan. Durable outcomes should be folded into `docs/architecture/skill-and-agent-interface-contract.md` and `docs/architecture/refactoring-operating-principles.md` as implementation decisions land.
 
 ## Goal
 
