@@ -31,9 +31,11 @@ If the daemon is already reachable, the `/wiki` read path can prefer warm daemon
 ### Ingest
 
 ```bash
-snowiki ingest /path/to/claude-export.jsonl --source claude
-snowiki rebuild
+snowiki ingest /path/to/note.md --output json
+snowiki ingest /path/to/docs/ --rebuild --output json
 ```
+
+Markdown files and directories are the primary ingest surface. Convert Claude/OpenCode session exports into Markdown notes before ingesting them.
 
 ### Query
 

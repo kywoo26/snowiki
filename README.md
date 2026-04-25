@@ -16,13 +16,17 @@ uv tool install --from . snowiki
 snowiki --help
 
 # 3. Use the current runtime directly
-snowiki ingest /path/to/claude-export.jsonl --source claude
+snowiki ingest /path/to/README.md --output json
+snowiki ingest /path/to/docs/ --output json
+snowiki ingest /path/to/docs/ --rebuild --output json
 snowiki rebuild
 snowiki query "What do I know about X?" --output json
 snowiki recall yesterday --output json
 snowiki status --output json
 snowiki lint --output json
 ```
+
+Markdown files and directories are the primary ingest surface. Claude/OpenCode session exports should be converted into Markdown notes by an agent or skill workflow, then ingested with `snowiki ingest <note-or-directory>`.
 
 For the Claude Code `/wiki` workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/apply` flow.
 
