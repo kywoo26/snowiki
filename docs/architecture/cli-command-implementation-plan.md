@@ -32,6 +32,7 @@ Do not split `src/snowiki/cli/commands/` into role-based subpackages until these
    - `tests/integration/cli/test_query.py`
    - `tests/integration/cli/test_rebuild.py`
    - `tests/integration/cli/test_daemon.py`
+   - `tests/integration/cli/test_mcp.py`
    - `tests/unit/mcp/test_search.py`
 3. **Monkeypatch string paths are migrated in the same commit as any module move**
    - `snowiki.cli.commands.query.*`
