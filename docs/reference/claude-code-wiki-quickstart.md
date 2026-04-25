@@ -1,6 +1,6 @@
 # Claude Code `wiki` Skill Quickstart
 
-This guide is the shortest truthful path to using Snowiki’s current Claude Code `wiki` skill workflow. For the authoritative mapping of skill intents to runtime commands, see `docs/architecture/wiki-contract-phase6-plan.md` and `docs/architecture/skill-and-agent-interface-contract.md`.
+This guide is the shortest truthful path to using Snowiki’s current Claude Code `wiki` skill workflow. For the authoritative mapping of skill intents to runtime commands, see `skill/SKILL.md`, `skill/references/wiki-workflow.md`, and `docs/architecture/skill-and-agent-interface-contract.md`.
 
 The runtime truth is still the installed `snowiki` CLI. The Claude Code `wiki` skill should mirror these commands and behaviors rather than invent a separate backend.
 

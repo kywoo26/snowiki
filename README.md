@@ -6,7 +6,7 @@ Snowiki’s current shipped runtime is **CLI-first**. The installed `snowiki` co
 
 ## Quick Start
 
-This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md` and the active skill plan at `docs/architecture/wiki-contract-phase6-plan.md`.
+This README is an **informative mirror** of the canonical contract at `docs/architecture/skill-and-agent-interface-contract.md` and the packaged wiki skill at `skill/SKILL.md`.
 
 ```bash
 # 1. Install Snowiki from a checkout
@@ -49,6 +49,7 @@ The current runtime exposes these top-level commands:
 ### Advanced Passthrough
 - `snowiki export`
 - `snowiki benchmark`
+- `snowiki benchmark-fetch`
 - `snowiki daemon`
 - `snowiki mcp`
 
