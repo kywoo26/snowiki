@@ -73,7 +73,7 @@ Parse input after `/wiki`:
 | `edit <page>` | Step 8: Edit | **Deferred** |
 | `merge <p1> <p2>` | Step 9: Merge | **Deferred** |
 
-Standalone sync/edit/merge/graph workflows remain deferred. Phase 6 planning defines how agents orchestrate current CLI truth without claiming those standalone commands ship.
+Standalone sync/edit/merge/graph workflows remain deferred. Agents orchestrate current CLI truth without claiming those standalone commands ship.
 
 Implicit routing (no explicit mode keyword):
 - Temporal words ("yesterday", "last week", "what was I doing") -> Step 4: Recall
@@ -238,7 +238,7 @@ Exporting Claude Code sessions to Obsidian markdown is a deferred reference work
 
 ## Step 8: Edit (Deferred Workflow)
 
-This is not part of the current shipped runtime as a standalone workflow. Phase 6 planning keeps edit-like behavior above the runtime unless a future write contract ships it.
+This is not part of the current shipped runtime as a standalone workflow. Keep edit-like behavior above the runtime unless a future write contract ships it.
 
 Lightweight page modification is a deferred reference workflow. If the runtime later exposes an `edit` command:
 1. Identify target page.
@@ -250,7 +250,7 @@ Lightweight page modification is a deferred reference workflow. If the runtime l
 
 ## Step 9: Merge (Deferred Workflow)
 
-This is not part of the current shipped runtime as a standalone workflow. Phase 6 planning keeps merge-like behavior above the runtime unless a future write contract ships it.
+This is not part of the current shipped runtime as a standalone workflow. Keep merge-like behavior above the runtime unless a future write contract ships it.
 
 Consolidating overlapping pages is a deferred reference workflow. If the runtime later exposes a `merge` command:
 1. Identify pages to merge.

@@ -47,9 +47,17 @@ Use it when the user asks for:
 - wiki recall
 - wiki status
 - wiki lint
+- wiki start / progress / finish / health
 - reviewable file-back of a useful answer
 - what do I know about X
 - what did we work on yesterday / last week
+
+Lifecycle route names such as `/wiki-start`, `/wiki-progress`, `/wiki-finish`, and `/wiki-health` are skill workflows, not `snowiki` subcommands. They expand to the installed CLI: status/recall/query for start, status/lint for progress and health, and session Markdown plus ingest/fileback for finish. See `workflows/wiki.md` for the detailed routing.
+
+Runtime validation:
+- installed runtime: `snowiki --help`
+- development checkout: `uv run snowiki --help`
+- Claude Code skill package location: `~/.claude/skills/wiki/`
 
 ## Current Runtime Truth
 
@@ -80,6 +88,8 @@ Write posture:
 #### `ingest`
 Ingest a supported source into Snowiki storage.
 
+Claude/OpenCode session exports should be summarized into durable Markdown notes before ingest. Do not treat raw session exports as the primary `snowiki ingest PATH` workflow.
+
 #### `query`
 Search compiled knowledge through the current lexical retrieval runtime.
 
@@ -103,7 +113,7 @@ The following remain workflow or roadmap concepts rather than guaranteed shipped
 - graph-oriented recall workflows
 - qmd-backed hybrid/vector routing as a default runtime path
 
-Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. Phase 6 planning defines how Claude/OpenCode/OMO agents orchestrate current CLI truth without claiming those standalone commands ship.
+Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. Claude/OpenCode/OMO agents should orchestrate current CLI truth without claiming those standalone commands ship.
 
 ## Search Strategy
 
