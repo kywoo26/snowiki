@@ -45,6 +45,14 @@ class StoragePaths:
     def quarantine(self) -> Path:
         return self.root / "quarantine"
 
+    @property
+    def queue(self) -> Path:
+        return self.root / "queue"
+
+    @property
+    def queue_proposals(self) -> Path:
+        return self.queue / "proposals"
+
     def zone(self, zone: Zone | str) -> Path:
         zone_value = zone.value if isinstance(zone, Zone) else str(zone)
         return self.root / zone_value
@@ -53,6 +61,7 @@ class StoragePaths:
         for zone in Zone:
             self.zone(zone).mkdir(parents=True, exist_ok=True)
         self.quarantine.mkdir(parents=True, exist_ok=True)
+        self.queue.mkdir(parents=True, exist_ok=True)
 
 
 def sanitize_segment(value: str) -> str:

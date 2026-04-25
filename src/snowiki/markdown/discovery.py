@@ -19,6 +19,7 @@ SKIP_DIRECTORY_NAMES = frozenset(
         "index",
         "node_modules",
         "normalized",
+        "queue",
         "raw",
     }
 )

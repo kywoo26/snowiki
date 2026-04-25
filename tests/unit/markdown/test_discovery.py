@@ -13,14 +13,17 @@ def test_discover_markdown_sources_recurses_and_skips_internal_dirs(
     docs = tmp_path / "docs"
     nested = docs / "nested"
     raw = docs / "raw"
+    queue = docs / "queue"
     hidden = docs / ".sisyphus"
     nested.mkdir(parents=True)
     raw.mkdir()
+    queue.mkdir()
     hidden.mkdir()
     _ = (docs / "README.md").write_text("# Readme", encoding="utf-8")
     _ = (nested / "note.markdown").write_text("# Note", encoding="utf-8")
     _ = (docs / "ignore.txt").write_text("ignore", encoding="utf-8")
     _ = (raw / "internal.md").write_text("# Internal", encoding="utf-8")
+    _ = (queue / "proposal.md").write_text("# Proposal", encoding="utf-8")
     _ = (hidden / "hidden.md").write_text("# Hidden", encoding="utf-8")
 
     sources = discover_markdown_sources(docs)
