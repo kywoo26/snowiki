@@ -17,6 +17,7 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 - Follow `.github/pull_request_template.md` when opening a PR.
 - Use explicit type hints for all function signatures.
 - Follow `.github/commit-message-rules.md` for all commits.
+- Preserve the PR number suffix in squash-merge commit subjects, following `.github/commit-message-rules.md`.
 - Maintain atomic commits by concern.
 - Use `pytest-mock`'s `mocker` fixture or pytest's `monkeypatch` for unit-test patching; avoid new `unittest.mock`-driven test patterns.
 - Use `tmp_path` fixture for all tests that write to the filesystem.

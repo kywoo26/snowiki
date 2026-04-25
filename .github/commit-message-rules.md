@@ -20,6 +20,11 @@ Guidance:
 - use short bullet points in the body when multiple important outcomes need to be called out
 - prefer clarity over ritual
 
+Squash merge subjects:
+- preserve the pull request number suffix in squash-merge commit subjects, for example `feat(fileback): add autonomous proposal queue (#103)`
+- prefer GitHub's default squash subject when it already includes the PR number
+- if using `gh pr merge --squash --subject`, include `(#<PR_NUMBER>)` manually because a custom subject overrides GitHub's generated suffix
+
 Examples:
 - `feat(search): add benchmark-only hf wordpiece tokenizer lane`
 - `refactor(governance): remove blocking PR governance checks`
