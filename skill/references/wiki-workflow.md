@@ -17,7 +17,7 @@ Claude Code loads one skill named `wiki`, invoked directly as `/wiki`. These are
 | Intent | Agent expansion |
 | --- | --- |
 | `/wiki start ...` | Run status, then relevant recall/query, then propose one next action. |
-| `/wiki ingest <path>` | Ingest a Markdown source or directory, rebuild when needed, then validate with status or lint. |
+| `/wiki ingest <path> [goal]` | Resolve the first existing path as source. If it is a durable Markdown source, ingest it; if it is a broad scope plus a goal, inspect relevant evidence, write one derived Markdown note, ingest that note with `--rebuild`, then validate with status/lint/query. Do not bulk-ingest broad directories unless explicitly requested. |
 | `/wiki progress` | Run status and lint to detect drift, stale sources, and pending cleanup risks. |
 | `/wiki finish` | Write a durable Markdown session note, ingest it, verify retrieval, and optionally queue fileback. |
 | `/wiki health` | Run lint plus targeted review; surface issues without silently applying semantic fixes. |

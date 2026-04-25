@@ -47,6 +47,7 @@ Let Claude choose the exact CLI sequence from the user's goal and current state,
 
 - Do not redefine runtime capabilities or invent `snowiki` subcommands.
 - Do not ingest raw Claude/OpenCode session exports as the primary workflow; summarize durable knowledge into Markdown first.
+- For `/wiki ingest <path> [goal]`, treat `<path>` as an evidence scope, not a request to persist every file under it. Persist only durable Markdown knowledge: a user-intended Markdown source or one derived Markdown note created from inspected evidence. Read non-Markdown or operational files only as evidence unless the user explicitly asks to preserve those exact files.
 - Do not edit compiled wiki artifacts directly.
 - Do not add or rely on skill scripts for Snowiki runtime behavior.
 - File tools may be used for user-authored Markdown notes or reviewed source material when the user intent requires it; durable Snowiki storage changes still go through the CLI.
