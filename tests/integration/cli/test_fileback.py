@@ -225,8 +225,9 @@ def test_fileback_apply_persists_derived_record_and_rebuilds_question_output(
         evidence_path.as_posix()
         in normalized_payload["derivation"]["supporting_compiled_paths"]
     )
-    assert (
-        normalized_payload["compiler"]["questions"][0]["title"] == "What did we ship?"
+    assert normalized_payload["projection"]["title"] == "What did we ship?"
+    assert normalized_payload["projection"]["taxonomy"]["questions"][0]["title"] == (
+        "What did we ship?"
     )
 
     compiled_output = (tmp_path / result["compiled_path"]).read_text(encoding="utf-8")
@@ -373,6 +374,46 @@ def test_fileback_apply_rejects_unsupported_version(
     assert payload["ok"] is False
     assert payload["error"]["code"] == "fileback_apply_failed"
     assert "unsupported fileback proposal version" in payload["error"]["message"]
+
+
+def test_fileback_apply_rejects_unsafe_proposal_id(
+    tmp_path: Path,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    reviewed_payload["result"]["proposal"]["proposal_id"] = "../evil"
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="unsafe-proposal-id-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert "proposal_id must match" in payload["error"]["message"]
+
+
+def test_fileback_apply_rejects_replayed_proposal_id(
+    tmp_path: Path,
+) -> None:
+    evidence_path = _build_fileback_workspace(tmp_path)
+    reviewed_payload = _preview_payload(tmp_path, evidence_path)
+    reviewed_payload["result"]["proposal"]["proposal_id"] = (
+        "fileback-proposal-0000000000000000"
+    )
+    proposal_file = _write_payload_file(
+        tmp_path, reviewed_payload, name="replayed-proposal-id-fileback.json"
+    )
+
+    apply = _invoke_apply(tmp_path, proposal_file)
+
+    assert apply.exit_code == 1
+    payload = json.loads(apply.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_apply_failed"
+    assert "proposal id no longer matches" in payload["error"]["message"]
 
 
 def test_fileback_apply_rejects_reviewed_apply_plan_mismatch(
