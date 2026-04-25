@@ -316,13 +316,16 @@ Refactor targets for this wave:
 - Do not silently delete normalized, raw, or compiled artifacts during ingest or rebuild.
 - Do not expand this wave into MCP writes, semantic/vector search, broad sync/edit/merge workflows, or full event sourcing.
 
-### Phase 5: reviewable gardening proposals
+### Phase 5: agent-readable gardening proposals
 
 Status: **planning wave**. Active plan: `docs/architecture/wiki-contract-phase5-plan.md`.
 
 Refactor targets for this wave:
 
 - Keep gardening proposal generation in domain modules, not Click callbacks or skill prose.
+- Derive any runtime surface from explicit agent use cases; do not add CLI commands or options just because a proposal engine exists.
+- Use `lint --output json` for first actionable gardening diagnostics, keep `status` as summary, and keep `prune sources` as a narrow deletion workflow unless a future UX decision changes that boundary.
+- Favor stable machine-readable contracts and deterministic IDs over expanding human-facing argument surfaces.
 - Preserve Phase 4 report-first and dry-run-first guarantees.
 - Model source rename, dead-wikilink, and cascade cleanup as reviewable proposals before any apply path mutates files.
 - Reuse fileback queue concepts where helpful, but avoid coupling source gardening to question-answer writeback internals.

@@ -348,11 +348,11 @@ Implemented in the Phase 4 branch:
 
 Phase 4 shipped in PR #106. Its executable plan was replaced by the Phase 5 gardening plan after the carry-forward items below were absorbed into this durable ledger.
 
-### Phase 5: Reviewable Gardening Proposals
+### Phase 5: Agent-Readable Gardening Proposals
 
 Deliverables:
 
-- Add reviewable gardening proposal workflows over the Phase 4 primitives.
+- Add agent-readable reviewable gardening proposal workflows over the Phase 4 primitives.
 - Teach agent/skill workflows to read source freshness reports before ingesting, pruning, or filing durable answers.
 - Evaluate nashsu-style cascade cleanup beyond single-source safe cleanup:
   - structural removal of pruned identities from multi-source generated page `sources[]`,
@@ -367,6 +367,8 @@ Concrete follow-up work:
 
 - Keep cascade cleanup separate from deterministic ingest/rebuild so source mutation and compiled cleanup remain explicit.
 - Define whether source move/rename should be represented as reingest+prune or as a future rename-aware workflow.
+- Start with agent use-case analysis and a proposal engine that enriches existing lint diagnostics for path-level actionable guidance; keep status as summary, and keep prune as a narrow deletion workflow unless a future UX decision says otherwise.
+- Prioritize stable JSON contracts, deterministic proposal identifiers, and agent-readable evidence over additional human-facing CLI flags.
 - Keep broader `sync`, standalone `edit`, standalone `merge`, and graph-oriented workflows outside Phase 5 unless they directly support source gardening proposal review/apply.
 - Preserve Phase 4's report-first and dry-run-first guarantees when adding higher-level agent workflows.
 
