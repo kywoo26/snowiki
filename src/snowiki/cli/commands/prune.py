@@ -5,9 +5,14 @@ from typing import Any
 
 import click
 
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
-from snowiki.config import get_snowiki_root
+from snowiki.cli.output import emit_error, emit_result
 from snowiki.markdown.source_state import prune_missing_markdown_sources
 
 
@@ -26,12 +31,16 @@ def _render_sources_human(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-@click.group("prune")
+@click.group(
+    "prune",
+    no_args_is_help=True,
+    short_help="Dry-run-first cleanup commands.",
+)
 def command() -> None:
     """Dry-run-first cleanup commands for stale Snowiki artifacts."""
 
 
-@command.command("sources")
+@command.command("sources", short_help="Prune missing Markdown source records.")
 @root_option
 @output_option
 @click.option("--dry-run", is_flag=True, help="Preview source prune candidates.")
@@ -42,7 +51,9 @@ def command() -> None:
     is_flag=True,
     help="Confirm that all reported source prune candidates may be deleted.",
 )
+@pass_snowiki_context
 def sources_command(
+    cli_context: SnowikiCliContext,
     root: Path | None,
     output: str,
     dry_run: bool,
@@ -50,7 +61,8 @@ def sources_command(
     yes: bool,
     all_candidates: bool,
 ) -> None:
-    output_mode = normalize_output_mode(output)
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     if dry_run and delete_artifacts:
         emit_error(
             "--dry-run cannot be combined with --delete",
@@ -71,7 +83,7 @@ def sources_command(
         )
     try:
         result = prune_missing_markdown_sources(
-            root if root is not None else get_snowiki_root(),
+            initialize_cli_root(cli_context),
             dry_run=not delete_artifacts,
         )
     except Exception as exc:

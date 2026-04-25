@@ -70,6 +70,9 @@ def test_prune_sources_delete_requires_yes(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["ok"] is False
     assert payload["error"]["code"] == "prune_confirmation_required"
+    assert not (tmp_path / "raw").exists()
+    assert not (tmp_path / "normalized").exists()
+    assert not (tmp_path / "compiled").exists()
 
 
 def test_prune_sources_delete_requires_all_candidates(tmp_path: Path) -> None:
@@ -85,6 +88,9 @@ def test_prune_sources_delete_requires_all_candidates(tmp_path: Path) -> None:
     payload = json.loads(result.output)
     assert payload["ok"] is False
     assert payload["error"]["code"] == "prune_confirmation_required"
+    assert not (tmp_path / "raw").exists()
+    assert not (tmp_path / "normalized").exists()
+    assert not (tmp_path / "compiled").exists()
 
 
 def test_prune_sources_delete_removes_candidates_and_rebuilds(tmp_path: Path) -> None:
