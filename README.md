@@ -24,6 +24,7 @@ snowiki query "What do I know about X?" --output json
 snowiki recall yesterday --output json
 snowiki status --output json
 snowiki lint --output json
+snowiki prune sources --dry-run --output json
 ```
 
 Markdown files and directories are the primary ingest surface. Claude/OpenCode session exports should be converted into Markdown notes by an agent or skill workflow, then ingested with `snowiki ingest <note-or-directory>`.
@@ -42,6 +43,7 @@ The current runtime exposes these top-level commands:
 - `snowiki recall`
 - `snowiki status`
 - `snowiki lint`
+- `snowiki prune`
 - `snowiki fileback`
 
 ### Advanced Passthrough
@@ -57,7 +59,7 @@ The current runtime exposes these top-level commands:
 
 The `/wiki` skill should currently mirror this shipped surface for everyday use:
 
-- current: `ingest`, `query`, `recall`, `status`, `lint`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
+- current: `ingest`, `query`, `recall`, `status`, `lint`, `prune sources --dry-run`, `prune sources --delete --yes --all-candidates`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
 - optimization, not separate runtime truth: daemon-backed warm reads for query/recall when a daemon is already reachable
 - deferred: `sync`, `edit`, `merge`, graph-oriented workflows
 
@@ -68,7 +70,7 @@ Do not treat daemon-backed reads, qmd lineage, or older vault-layout docs as a s
 - CLI JSON output via `snowiki ... --output json`
 - read-only MCP via `snowiki mcp`
 
-Mutation remains CLI-mediated. MCP write support is not shipped. Autonomous writeback queues are control-plane proposal artifacts until applied through a documented CLI path. The CLI queue lifecycle supports pending/applied/rejected/failed proposal states, dry-run-first terminal pruning, and runtime-owned low-risk auto-apply policy before any broader mutation surface is considered.
+Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup is report-first through `status`/`lint` and dry-run-first through `snowiki prune sources`; destructive source pruning requires `--delete --yes --all-candidates`. Autonomous writeback queues are control-plane proposal artifacts until applied through a documented CLI path. The CLI queue lifecycle supports pending/applied/rejected/failed proposal states, dry-run-first terminal pruning, and runtime-owned low-risk auto-apply policy before any broader mutation surface is considered.
 
 ## Design Principles
 
