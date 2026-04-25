@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal, NotRequired, TypedDict
@@ -187,7 +188,10 @@ def collect_summary_coverage_issues(root: str | Path) -> list[LintIssue]:
             continue
         if record is None:
             continue
-        summary_path = summary_path_for_record(record)
+        try:
+            summary_path = summary_path_for_record(record)
+        except ValueError:
+            continue
         if (base / summary_path).exists():
             continue
         issues.append(
@@ -248,6 +252,19 @@ def collect_structural_issues(root: str | Path) -> list[LintIssue]:
                     path=relative_path,
                     message=f"normalized record missing required key: {key}",
                     field=key,
+                )
+            )
+
+        projection = payload.get("projection")
+        if not isinstance(projection, Mapping):
+            issues.append(
+                _make_issue(
+                    code="L003",
+                    check="normalized.compiler_projection",
+                    severity="error",
+                    path=relative_path,
+                    message="normalized record missing required compiler projection",
+                    field="projection",
                 )
             )
 
@@ -312,6 +329,7 @@ def _build_checks(issues: list[LintIssue]) -> list[LintCheck]:
         ("normalized.required_key", "Required normalized keys", "error"),
         ("normalized.invalid_json", "Normalized JSON syntax", "error"),
         ("normalized.invalid_payload", "Normalized payload object shape", "error"),
+        ("normalized.compiler_projection", "Compiler projection contract", "error"),
         ("compiled.frontmatter", "Compiled page frontmatter", "error"),
         ("integrity.raw_provenance", "Normalized raw provenance", "error"),
         ("integrity.raw_target", "Raw provenance targets", "error"),

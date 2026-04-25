@@ -112,6 +112,14 @@ def test_collect_structural_issues_reports_required_normalized_keys_and_frontmat
             "path": "normalized/record.json",
             "severity": "error",
         },
+        {
+            "code": "L003",
+            "check": "normalized.compiler_projection",
+            "field": "projection",
+            "message": "normalized record missing required compiler projection",
+            "path": "normalized/record.json",
+            "severity": "error",
+        },
     ]
 
 
@@ -121,27 +129,33 @@ def test_run_lint_returns_summary_counts_and_check_inventory(tmp_path: Path) -> 
     result = run_lint(tmp_path)
 
     assert result["root"] == tmp_path.as_posix()
-    assert result["summary"] == {"error": 4, "warning": 0, "info": 0, "total": 4}
-    assert result["error_count"] == 4
+    assert result["summary"] == {"error": 5, "warning": 0, "info": 0, "total": 5}
+    assert result["error_count"] == 5
     assert result["checks"][0] == {
         "name": "normalized.required_key",
         "label": "Required normalized keys",
         "severity": "error",
         "issue_count": 2,
     }
-    assert result["checks"][4] == {
+    assert result["checks"][3] == {
+        "name": "normalized.compiler_projection",
+        "label": "Compiler projection contract",
+        "severity": "error",
+        "issue_count": 1,
+    }
+    assert result["checks"][5] == {
         "name": "integrity.raw_provenance",
         "label": "Normalized raw provenance",
         "severity": "error",
         "issue_count": 1,
     }
-    assert result["checks"][5] == {
+    assert result["checks"][6] == {
         "name": "integrity.raw_target",
         "label": "Raw provenance targets",
         "severity": "error",
         "issue_count": 0,
     }
-    assert result["checks"][6] == {
+    assert result["checks"][7] == {
         "name": "integrity.compiled_layer",
         "label": "Compiled layer presence",
         "severity": "error",
@@ -207,7 +221,21 @@ def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(
             "source_type": "claude",
             "record_type": "session",
             "recorded_at": "2026-04-16T10:00:00Z",
-            "title": "Claude Basic",
+            "projection": {
+                "title": "Claude Basic",
+                "summary": "",
+                "tags": [],
+                "source_identity": {},
+                "sections": [],
+                "taxonomy": {
+                    "concepts": [],
+                    "entities": [],
+                    "topics": [],
+                    "questions": [],
+                    "projects": [],
+                    "decisions": [],
+                },
+            },
             "raw_refs": [{"path": "raw/claude/source.jsonl"}],
         },
     )
@@ -224,3 +252,30 @@ def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(
             "target": "compiled/summaries/claude-claude-basic-record-1.md",
         }
     ]
+
+
+def test_run_lint_reports_missing_compiler_projection(
+    tmp_path: Path,
+) -> None:
+    _write_json(
+        tmp_path / "normalized" / "claude" / "record.json",
+        {
+            "id": "record-1",
+            "source_type": "claude",
+            "record_type": "session",
+            "recorded_at": "2026-04-16T10:00:00Z",
+            "raw_refs": [{"path": "raw/claude/source.jsonl"}],
+        },
+    )
+
+    result = run_lint(tmp_path)
+
+    assert result["error_count"] == 3
+    assert {
+        "code": "L003",
+        "check": "normalized.compiler_projection",
+        "message": "normalized record missing required compiler projection",
+        "path": "normalized/claude/record.json",
+        "severity": "error",
+        "field": "projection",
+    } in result["issues"]

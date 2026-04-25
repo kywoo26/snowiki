@@ -69,10 +69,10 @@ def test_lint_json_output_includes_summary_checks_and_normalized_issues(
     assert payload["ok"] is False
     assert payload["result"]["root"] == tmp_path.as_posix()
     assert payload["result"]["summary"] == {
-        "error": 11,
+        "error": 12,
         "warning": 1,
         "info": 0,
-        "total": 12,
+        "total": 13,
     }
     assert payload["result"]["checks"] == [
         {
@@ -92,6 +92,12 @@ def test_lint_json_output_includes_summary_checks_and_normalized_issues(
             "label": "Normalized payload object shape",
             "severity": "error",
             "issue_count": 0,
+        },
+        {
+            "name": "normalized.compiler_projection",
+            "label": "Compiler projection contract",
+            "severity": "error",
+            "issue_count": 1,
         },
         {
             "name": "compiled.frontmatter",
@@ -229,6 +235,14 @@ def test_lint_json_output_includes_summary_checks_and_normalized_issues(
             "severity": "error",
         },
         {
+            "code": "L003",
+            "check": "normalized.compiler_projection",
+            "field": "projection",
+            "message": "normalized record missing required compiler projection",
+            "path": "normalized/record.json",
+            "severity": "error",
+        },
+        {
             "code": "L102",
             "check": "integrity.raw_target",
             "message": "raw provenance target missing: raw/claude/missing.jsonl",
@@ -282,7 +296,21 @@ def test_lint_json_output_reports_info_level_stale_and_summary_coverage_checks(
             "source_type": "claude",
             "record_type": "session",
             "recorded_at": "2026-04-16T10:00:00Z",
-            "title": "Claude Basic",
+            "projection": {
+                "title": "Claude Basic",
+                "summary": "",
+                "tags": [],
+                "source_identity": {},
+                "sections": [],
+                "taxonomy": {
+                    "concepts": [],
+                    "entities": [],
+                    "topics": [],
+                    "questions": [],
+                    "projects": [],
+                    "decisions": [],
+                },
+            },
             "raw_refs": [{"path": "raw/claude/source.jsonl"}],
             "provenance": {"raw_refs": [{"path": "raw/claude/source.jsonl"}]},
         },
