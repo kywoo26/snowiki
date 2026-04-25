@@ -274,9 +274,11 @@ Next target:
      `src/snowiki/compiler/generators/summary.py`.
    - Prefer a normalized field contract, projection helper, or contributor
      strategy over inline branching.
-   - Keep compiled Markdown output byte-for-byte compatible unless the PR
-     explicitly documents a contract change.
+   - Keep compiled Markdown output deterministic. Byte-for-byte compatibility is
+     preferred, but intentional output improvements are allowed when the PR
+     documents and tests the new contract.
    - Add unit coverage at the compiler seam before changing projection behavior.
+   - Active plan: `docs/architecture/markdown-ingest-phase2-plan.md`.
 
 Do not start Phase 2 by changing frontmatter libraries, storage layout, or search
 indexing. Those are separate waves unless compiler projection proves they are

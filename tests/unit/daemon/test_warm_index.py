@@ -50,6 +50,24 @@ def _content_identity(
     }
 
 
+def _projection(title: str, summary: str) -> dict[str, object]:
+    return {
+        "title": title,
+        "summary": summary,
+        "tags": [],
+        "source_identity": {},
+        "sections": [],
+        "taxonomy": {
+            "concepts": [],
+            "entities": [],
+            "topics": [],
+            "questions": [],
+            "projects": [],
+            "decisions": [],
+        },
+    }
+
+
 def _daemon_cache_key(*, request: Any, content_identity: dict[str, object]) -> str:
     return json.dumps(
         {
@@ -77,6 +95,9 @@ def test_warm_index_manager_keeps_indexes_loaded_and_searchable(tmp_path: Path) 
         payload={
             "metadata": {"title": "Warm Index Session"},
             "summary": "Keeps a warm search index in memory.",
+            "projection": _projection(
+                "Warm Index Session", "Keeps a warm search index in memory."
+            ),
             "concepts": ["Warm Indexes"],
             "topics": ["Daemon Cache"],
         },
@@ -116,6 +137,7 @@ def test_invalidation_clears_cache_and_reloads_generation(tmp_path: Path) -> Non
         payload={
             "metadata": {"title": "First Session"},
             "summary": "Before reload.",
+            "projection": _projection("First Session", "Before reload."),
         },
         raw_ref={
             "sha256": "abc123",
@@ -138,6 +160,7 @@ def test_invalidation_clears_cache_and_reloads_generation(tmp_path: Path) -> Non
         payload={
             "metadata": {"title": "Second Session"},
             "summary": "After reload.",
+            "projection": _projection("Second Session", "After reload."),
         },
         raw_ref={
             "sha256": "def456",
@@ -185,6 +208,7 @@ def test_warm_index_health_surfaces_content_identity_and_stale_state(
         payload={
             "metadata": {"title": "First Session"},
             "summary": "Before stale state.",
+            "projection": _projection("First Session", "Before stale state."),
         },
         raw_ref={
             "sha256": "abc123",
@@ -205,6 +229,7 @@ def test_warm_index_health_surfaces_content_identity_and_stale_state(
         payload={
             "metadata": {"title": "Second Session"},
             "summary": "Introduces stale state.",
+            "projection": _projection("Second Session", "Introduces stale state."),
         },
         raw_ref={
             "sha256": "def456",
@@ -363,6 +388,7 @@ def test_warm_index_manager_reload_restores_freshness_before_serving(
         payload={
             "metadata": {"title": "First Session"},
             "summary": "Before refresh.",
+            "projection": _projection("First Session", "Before refresh."),
         },
         raw_ref={
             "sha256": "abc123",
@@ -383,6 +409,7 @@ def test_warm_index_manager_reload_restores_freshness_before_serving(
         payload={
             "metadata": {"title": "Second Session"},
             "summary": "After refresh.",
+            "projection": _projection("Second Session", "After refresh."),
         },
         raw_ref={
             "sha256": "def456",

@@ -171,13 +171,6 @@ def upsert_page(
     return page
 
 
-def extract_compiler_bucket(record: NormalizedRecord, key: str) -> Any:
-    compiler = record.payload.get("compiler")
-    if isinstance(compiler, dict) and key in compiler:
-        return compiler[key]
-    return record.payload.get(key)
-
-
 def normalize_taxonomy_items(
     value: Any,
     *,
@@ -248,45 +241,6 @@ def normalize_string_values(value: Any) -> list[str]:
     return sorted_unique(item.strip() for item in values if item.strip())
 
 
-def record_title(record: NormalizedRecord) -> str:
-    metadata = record.payload.get("metadata")
-    if isinstance(metadata, dict):
-        for key in ("title", "name", "summary"):
-            value = metadata.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-
-    for key in ("title", "name", "question", "topic", "decision"):
-        value = record.payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-
-    return record.id
-
-
-def record_summary(record: NormalizedRecord) -> str:
-    compiler = record.payload.get("compiler")
-    if isinstance(compiler, dict):
-        for key in ("summary", "description"):
-            value = compiler.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-
-    for key in ("summary", "description", "text"):
-        value = record.payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-
-    metadata = record.payload.get("metadata")
-    if isinstance(metadata, dict):
-        for key in ("title", "summary"):
-            value = metadata.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-
-    return f"Compiled from normalized {record.record_type} record `{record.id}`."
-
-
 def record_session_id(record: NormalizedRecord) -> str | None:
     if record.record_type == "session":
         return record.id
@@ -294,26 +248,3 @@ def record_session_id(record: NormalizedRecord) -> str | None:
     if isinstance(session_id, str) and session_id.strip():
         return session_id.strip()
     return None
-
-
-def taxonomy_items_for_record(record: NormalizedRecord) -> list[TaxonomyItem]:
-    items: list[TaxonomyItem] = []
-    buckets = (
-        ("concepts", PageType.CONCEPT),
-        ("entities", PageType.ENTITY),
-        ("topics", PageType.TOPIC),
-        ("questions", PageType.QUESTION),
-        ("projects", PageType.PROJECT),
-        ("decisions", PageType.DECISION),
-    )
-    for key, page_type in buckets:
-        items.extend(
-            normalize_taxonomy_items(
-                extract_compiler_bucket(record, key),
-                page_type=page_type,
-            )
-        )
-    items.sort(
-        key=lambda item: (item.page_type.value, slugify(item.title), item.title.lower())
-    )
-    return items

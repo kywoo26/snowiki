@@ -162,7 +162,7 @@ Minimum payload fields:
 
 The primary `snowiki ingest PATH` surface should stop accepting Claude/OpenCode exports as core write paths in Phase 1. Session exports should move above Snowiki core: a skill or workflow converts Claude/OpenCode sessions into Markdown notes, then runs `snowiki ingest <note>`.
 
-Existing normalized Claude/OpenCode records should remain readable by `rebuild`, `query`, and compatibility tests where feasible. This is a read/rebuild compatibility goal only. Phase 1 removes adapter-specific session export write paths from `snowiki ingest`, including hidden `--source claude|opencode` compatibility bridges.
+Existing normalized Claude/OpenCode records remain useful for diagnostics and explicit migration/backfill tooling, but Phase 2 makes them invalid rebuild/query inputs until they carry `payload["projection"]`. Phase 1 removes adapter-specific session export write paths from `snowiki ingest`, including hidden `--source claude|opencode` compatibility bridges.
 
 ## Reference Patterns to Adopt
 
@@ -193,13 +193,17 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 - When implementation discovers a new seam, test requirement, or compatibility constraint, add it here before or alongside the code change.
 - Do not leave destructive behavior implied. Pruning, source deletion, compiled cleanup, and MCP writes must remain explicit roadmap items until implemented and tested.
 
+Dedicated executable plans:
+
+- `docs/architecture/markdown-ingest-phase2-plan.md` — active Phase 2 compiler projection boundary plan.
+
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
 1. Re-check spec -> plan -> implementation alignment.
 2. Fix contract mismatches before treating the phase as complete.
 3. Add missing acceptance tests for safety, help surface, compatibility, and error behavior.
 4. Perform bounded maintainability cleanup where it improves the current phase boundary.
-5. Remove compatibility bridges when tests/workflows can be migrated to the new contract without losing read compatibility.
+5. Remove compatibility bridges once tests/workflows have migrated to the new contract, and keep any legacy handling explicit as diagnostics or migration/backfill tooling.
 6. Record any larger refactor or product decision as a deferred item in this ledger.
 7. Re-run required verification after cleanup.
 
@@ -217,7 +221,7 @@ Phase 1 includes:
 - Frontmatter preservation with safe field promotion and reserved field blocking.
 - Summary-only compiled output for Markdown document records.
 - `--rebuild` and JSON freshness reporting.
-- Legacy normalized read/rebuild/query compatibility where feasible.
+- Legacy normalized records remain physically readable for diagnostics, but rebuild/query compiler input now requires `payload["projection"]`.
 
 Phase 1 explicitly does **not** include:
 
@@ -244,7 +248,7 @@ Deliverables:
 - Preserve and safely promote frontmatter.
 - Add `--rebuild` and `rebuild_required` output.
 - Emit summary pages only from Markdown document records.
-- Keep old normalized records readable by rebuild/query where feasible.
+- Keep old normalized records inspectable by lint/status diagnostics; rebuild/query compatibility requires explicit projection backfill or re-ingest.
 - Remove Claude/OpenCode write paths from the primary ingest CLI surface.
 - Report stale/missing source documents in ingest/status output when detectable; do not prune automatically.
 
@@ -255,7 +259,7 @@ Verification:
 - Frontmatter preservation/promotion test.
 - Hash unchanged/update test.
 - Rebuild flag test.
-- Legacy normalized rebuild compatibility test if retained.
+- Missing-projection lint/status diagnostic test and explicit rebuild failure test.
 - Path safety tests for symlinks, hidden/internal directories, and traversal-like paths.
 - Summary slug/path length regression test for long Markdown titles or bodies.
 
@@ -269,7 +273,26 @@ Implementation order:
 6. Add tests before broad documentation/README updates so the new CLI contract is executable.
 7. Update README and skill-facing docs only after runtime behavior matches this contract.
 
-### Phase 2: Wiki Contract
+### Phase 2: Compiler Projection Boundary
+
+Deliverables:
+
+- Define a source-agnostic compiler projection contract for normalized records.
+- Move source-specific summary/title/body/tag/source-identity interpretation out of compiler generators.
+- Populate the projection contract for Markdown document records during ingest.
+- Remove inline Markdown-specific branches from `src/snowiki/compiler/generators/summary.py`.
+- Preserve source/provenance traceability in generated pages.
+- Remove legacy compiler fallback paths from active rebuild behavior; records without `projection` must be re-ingested or explicitly backfilled.
+
+Concrete follow-up work:
+
+- Add a `projection` contract, or an explicitly named equivalent, to normalized Markdown document payloads.
+- Add compiler helpers that require projection fields and fail fast on legacy normalized records without `projection`.
+- Refactor `generate_summary_pages()` so Markdown document records do not require source-type-specific branches.
+- Keep compiled page output deterministic; document and test any intentional output contract changes.
+- Keep stale source reports, source manifests, storage layout changes, and pruning out of Phase 2 unless the compiler boundary work proves they are required.
+
+### Phase 3: Wiki Contract and Stale Source Reporting
 
 Deliverables:
 
@@ -287,7 +310,7 @@ Concrete follow-up work:
 - Document Snowiki-generated page frontmatter separately from user-authored source frontmatter.
 - Update README and skill-facing docs only after the shipped CLI behavior is the runtime truth.
 
-### Phase 3: Explicit Prune and Cleanup
+### Phase 4: Explicit Prune and Cleanup
 
 Deliverables:
 
@@ -308,7 +331,7 @@ Concrete follow-up work:
 - Add tests for multi-source generated pages before enabling cascade cleanup.
 - Keep cascade cleanup separate from Phase 1 rebuild so deterministic ingest remains non-destructive.
 
-### Phase 4: Agent and Skill Workflow
+### Phase 5: Agent and Skill Workflow
 
 Deliverables:
 
@@ -336,7 +359,7 @@ Agent:
   5. Runs `snowiki query` to verify recall.
 ```
 
-### Phase 5: Search, Lint, and Writeback Extensions
+### Phase 6: Search, Lint, and Writeback Extensions
 
 Deliverables:
 
@@ -362,6 +385,8 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 
 ## Open Questions
 
+- What explicit migration/backfill command, if any, should convert pre-projection normalized records?
+- Which future compiler projection changes should intentionally improve summary page structure rather than preserve byte-compatible output?
 - What exact JSON schema should stale/missing source reports use across `ingest`, `status`, and `lint`?
 - Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?
 - What is the minimum frontmatter schema for user-authored documents versus Snowiki-generated pages?
@@ -378,8 +403,6 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 - [x] Add `--rebuild` behavior.
 - [x] Bound generated summary slugs/paths for long document titles.
 - [x] Update tests for Markdown-first ingest.
-- [ ] Update README and skill docs after runtime behavior changes.
+- [x] Update README and skill docs after runtime behavior changes.
 - [x] Run `uv run ruff check src/snowiki tests && uv run ty check && uv run pytest`.
 - [x] Run `uv run pytest -m integration` before opening a PR.
-
-README and skill-facing docs remain unchecked because this branch has not yet committed/PR'd the runtime contract. Update them after final review confirms the Markdown-first CLI surface is ready to publish as user-facing truth.

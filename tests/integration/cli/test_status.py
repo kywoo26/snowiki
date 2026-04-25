@@ -50,6 +50,24 @@ def _workspace_snapshot(root: Path) -> dict[str, str]:
     }
 
 
+def _projection(title: str) -> dict[str, object]:
+    return {
+        "title": title,
+        "summary": "",
+        "tags": [],
+        "source_identity": {},
+        "sections": [],
+        "taxonomy": {
+            "concepts": [],
+            "entities": [],
+            "topics": [],
+            "questions": [],
+            "projects": [],
+            "decisions": [],
+        },
+    }
+
+
 def _build_status_workspace(root: Path) -> None:
     _write_text(root / "raw" / "claude" / "source-a.jsonl", "{}\n")
     _write_text(root / "raw" / "opencode" / "source-b.jsonl", "{}\n")
@@ -60,6 +78,7 @@ def _build_status_workspace(root: Path) -> None:
             "source_type": "claude",
             "record_type": "session",
             "recorded_at": "2026-04-15T09:00:00Z",
+            "projection": _projection("Session A"),
             "provenance": {"raw_refs": [{"path": "raw/claude/source-a.jsonl"}]},
         },
     )
@@ -70,6 +89,7 @@ def _build_status_workspace(root: Path) -> None:
             "source_type": "opencode",
             "record_type": "session",
             "recorded_at": "2026-04-16T08:30:00Z",
+            "projection": _projection("Session B"),
             "provenance": {"raw_refs": [{"path": "raw/opencode/source-b.jsonl"}]},
         },
     )
@@ -179,6 +199,29 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
             "candidate_matrix": [],
         },
     }
+
+
+def test_status_reports_projection_lint_errors_without_failing(
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    _build_status_workspace(tmp_path)
+    normalized_path = tmp_path / "normalized" / "claude" / "2026-04-15" / "session-a.json"
+    normalized_payload = json.loads(normalized_path.read_text(encoding="utf-8"))
+    del normalized_payload["projection"]
+    _write_json(normalized_path, normalized_payload)
+
+    result = runner.invoke(
+        app,
+        ["status", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is True
+    assert payload["result"]["lint"]["error_count"] == 1
+    assert payload["result"]["lint"]["summary"]["error"] == 1
 
 
 def test_status_human_output_renders_dashboard_summary(tmp_path: Path) -> None:

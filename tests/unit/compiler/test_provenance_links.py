@@ -16,6 +16,21 @@ def test_compiled_pages_preserve_provenance_backlinks(tmp_path: Path) -> None:
             "session_id": "session-9",
             "title": "Trace raw inputs",
             "summary": "Connected compiled pages back to the raw capture.",
+            "projection": {
+                "title": "Trace raw inputs",
+                "summary": "Connected compiled pages back to the raw capture.",
+                "tags": [],
+                "source_identity": {},
+                "sections": [],
+                "taxonomy": {
+                    "concepts": ["Provenance Links"],
+                    "entities": [],
+                    "topics": [],
+                    "questions": [],
+                    "projects": [],
+                    "decisions": [],
+                },
+            },
             "concepts": ["Provenance Links"],
         },
         raw_ref={

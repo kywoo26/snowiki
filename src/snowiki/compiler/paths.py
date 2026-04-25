@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 
+from .projection import projected_title
 from .taxonomy import (
     NormalizedRecord,
     PageType,
     compiled_page_path,
-    record_title,
     slugify,
 )
 
@@ -14,7 +14,7 @@ MAX_SUMMARY_SLUG_LENGTH = 120
 
 
 def summary_slug_for_record(record: NormalizedRecord) -> str:
-    base = slugify(f"{record.source_type}-{record_title(record)}-{record.id}")
+    base = slugify(f"{record.source_type}-{projected_title(record)}-{record.id}")
     if len(base) <= MAX_SUMMARY_SLUG_LENGTH:
         return base
     digest = hashlib.sha256(base.encode("utf-8")).hexdigest()[:12]

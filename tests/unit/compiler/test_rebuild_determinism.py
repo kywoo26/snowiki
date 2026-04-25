@@ -16,6 +16,31 @@ def test_rebuild_is_deterministic(tmp_path: Path) -> None:
         payload={
             "metadata": {"title": "Build Compiled Wiki Pipeline"},
             "summary": "Implemented the first compiled wiki pipeline from normalized storage.",
+            "projection": {
+                "title": "Build Compiled Wiki Pipeline",
+                "summary": "Implemented the first compiled wiki pipeline from normalized storage.",
+                "tags": [],
+                "source_identity": {},
+                "sections": [],
+                "taxonomy": {
+                    "concepts": [
+                        {
+                            "title": "Compiler Engine",
+                            "summary": "Coordinates deterministic page rebuilds.",
+                        },
+                    ],
+                    "entities": [
+                        {
+                            "title": "Snowiki",
+                            "summary": "The project that owns the wiki graph.",
+                        },
+                    ],
+                    "topics": ["Deterministic Builds"],
+                    "questions": ["How should provenance backlinks work"],
+                    "projects": ["Wiki Compiler"],
+                    "decisions": ["Use normalized storage as compiler input"],
+                },
+            },
             "concepts": [
                 {
                     "title": "Compiler Engine",
@@ -49,6 +74,21 @@ def test_rebuild_is_deterministic(tmp_path: Path) -> None:
             "session_id": "session-1",
             "title": "Deterministic rebuild pass",
             "summary": "Added stable slugs and cross-links for compiled pages.",
+            "projection": {
+                "title": "Deterministic rebuild pass",
+                "summary": "Added stable slugs and cross-links for compiled pages.",
+                "tags": [],
+                "source_identity": {},
+                "sections": [],
+                "taxonomy": {
+                    "concepts": ["Compiler Engine"],
+                    "entities": ["Snowiki"],
+                    "topics": ["Deterministic Builds"],
+                    "questions": [],
+                    "projects": [],
+                    "decisions": [],
+                },
+            },
             "concepts": ["Compiler Engine"],
             "topics": ["Deterministic Builds"],
             "entities": ["Snowiki"],

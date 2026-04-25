@@ -4,6 +4,7 @@ from ..paths import (  # pyright: ignore[reportMissingImports]
     session_path_for_id,
     summary_path_for_record,
 )
+from ..projection import projected_summary, projected_taxonomy_items, projected_title
 from ..taxonomy import (
     CompiledPage,
     NormalizedRecord,
@@ -14,10 +15,7 @@ from ..taxonomy import (
     merge_raw_refs,
     merge_string_list,
     record_session_id,
-    record_summary,
-    record_title,
     slugify,
-    taxonomy_items_for_record,
     upsert_page,
 )
 
@@ -32,7 +30,7 @@ def generate_question_pages(records: list[NormalizedRecord]) -> list[CompiledPag
         date = iso_to_date(record.recorded_at)
         summary_path = summary_path_for_record(record)
         session_id = record_session_id(record)
-        all_items = taxonomy_items_for_record(record)
+        all_items = projected_taxonomy_items(record)
         related_item_paths = [
             compiled_page_path(item.page_type, slugify(item.title))
             for item in all_items
@@ -76,10 +74,10 @@ def generate_question_pages(records: list[NormalizedRecord]) -> list[CompiledPag
 
             append_section(
                 page,
-                f"Evidence from {record_title(record)}",
+                f"Evidence from {projected_title(record)}",
                 "\n".join(
                     [
-                        record_summary(record),
+                        projected_summary(record),
                         "",
                         f"Related summary: [[{summary_path[:-3]}]]",
                     ]

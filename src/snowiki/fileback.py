@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -28,6 +29,7 @@ from snowiki.storage.zones import (
 PROPOSAL_VERSION = 1
 FILEBACK_SOURCE_TYPE = "manual-question"
 FILEBACK_RECORD_TYPE = "question"
+FILEBACK_PROPOSAL_ID_PATTERN = re.compile(r"^fileback-proposal-[0-9a-f]{16}$")
 
 
 class RawRefDict(TypedDict):
@@ -178,11 +180,20 @@ def apply_fileback_proposal(root: Path, reviewed_payload: object) -> dict[str, A
     _validate_proposal_schema(proposal)
 
     draft = proposal["draft"]
+    requested_paths = proposal["evidence"]["requested_paths"]
+    expected_proposal_id = _build_proposal_id(
+        question=draft["question"],
+        answer_markdown=draft["answer_markdown"],
+        summary=draft["summary"],
+        requested_paths=requested_paths,
+    )
+    if proposal["proposal_id"] != expected_proposal_id:
+        raise ValueError("reviewed proposal id no longer matches its draft and evidence")
+
     target = _build_target(draft["question"])
     if proposal["target"] != target:
         raise ValueError("proposal target no longer matches the reviewed question")
 
-    requested_paths = proposal["evidence"]["requested_paths"]
     evidence = resolve_evidence(resolved_root, requested_paths)
     proposed_write = build_proposed_write_set(
         resolved_root,
@@ -515,6 +526,33 @@ def _build_normalized_record_payload(
         raw_ref,
         *_dedupe_supporting_raw_refs(evidence["supporting_raw_refs"], raw_ref["path"]),
     ]
+    projection = {
+        "title": draft["question"],
+        "summary": draft["summary"],
+        "body": draft["answer_markdown"],
+        "tags": ["manual-question", "fileback"],
+        "source_identity": {
+            "content_hash": raw_ref["sha256"],
+        },
+        "sections": [
+            {"title": "Answer", "body": draft["answer_markdown"]},
+            {"title": "Evidence", "body": "\n".join(supporting_paths)},
+        ],
+        "taxonomy": {
+            "concepts": [],
+            "entities": [],
+            "topics": [],
+            "questions": [
+                {
+                    "title": draft["question"],
+                    "summary": draft["summary"],
+                    "tags": ["manual-question", "fileback"],
+                }
+            ],
+            "projects": [],
+            "decisions": [],
+        },
+    }
     return {
         "id": record_id,
         "record_type": FILEBACK_RECORD_TYPE,
@@ -525,6 +563,7 @@ def _build_normalized_record_payload(
         "summary": draft["summary"],
         "answer_markdown": draft["answer_markdown"],
         "supporting_paths": supporting_paths,
+        "projection": projection,
         "derivation": {
             "kind": "derived",
             "synthesized": True,
@@ -540,16 +579,6 @@ def _build_normalized_record_payload(
             "supporting_normalized_paths": evidence["resolved_paths"]["normalized"],
             "supporting_raw_paths": evidence["resolved_paths"]["raw"],
             "supporting_record_ids": evidence["supporting_record_ids"],
-        },
-        "compiler": {
-            "summary": draft["summary"],
-            "questions": [
-                {
-                    "title": draft["question"],
-                    "summary": draft["summary"],
-                    "tags": ["manual-question", "fileback"],
-                }
-            ],
         },
         "raw_ref": raw_ref,
         "provenance": {
@@ -716,7 +745,11 @@ def _write_manual_raw_note(
     root: Path, *, relative_path: str, content: str, mtime: str
 ) -> None:
     storage_paths = StoragePaths(root)
-    target = storage_paths.root / relative_path
+    target = (storage_paths.root / relative_path).resolve()
+    try:
+        _ = relative_to_root(storage_paths.root.resolve(), target)
+    except ValueError as exc:
+        raise ValueError("manual question raw path must stay inside the Snowiki root") from exc
     atomic_write_bytes(target, content.encode("utf-8"))
     timestamp = ensure_utc_datetime(mtime).timestamp()
     os.utime(target, (timestamp, timestamp))
@@ -763,7 +796,9 @@ def _validate_proposal_schema(proposal: FilebackProposal) -> None:
         raise ValueError(
             f"unsupported fileback proposal version: {proposal.get('proposal_version')}"
         )
-    _require_text(proposal.get("proposal_id", ""), field_name="proposal_id")
+    proposal_id = _require_text(proposal.get("proposal_id", ""), field_name="proposal_id")
+    if FILEBACK_PROPOSAL_ID_PATTERN.fullmatch(proposal_id) is None:
+        raise ValueError("proposal_id must match fileback-proposal-<16 lowercase hex chars>")
     _require_text(proposal.get("created_at", ""), field_name="created_at")
 
     target = proposal["target"]
