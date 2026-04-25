@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from typing import Any, TypedDict
 
 PROPOSAL_VERSION = 1
+QUEUE_VERSION = 1
 FILEBACK_SOURCE_TYPE = "manual-question"
 FILEBACK_RECORD_TYPE = "question"
 FILEBACK_PROPOSAL_ID_PATTERN = re.compile(r"^fileback-proposal-[0-9a-f]{16}$")
@@ -45,6 +46,44 @@ class FilebackProposal(TypedDict):
     evidence: EvidenceResolution
     derivation: dict[str, Any]
     apply_plan: dict[str, Any]
+
+
+class QueuedFilebackProposal(TypedDict):
+    queue_version: int
+    proposal_id: str
+    queued_at: str
+    root: str
+    status: str
+    decision: str
+    impact: str
+    requires_human_review: bool
+    reasons: list[str]
+    proposal: FilebackProposal
+
+
+class QueuedFilebackResult(TypedDict):
+    queue_version: int
+    proposal_id: str
+    queued_at: str
+    status: str
+    decision: str
+    impact: str
+    requires_human_review: bool
+    reasons: list[str]
+    proposal_path: str
+
+
+class QueuedFilebackSummary(TypedDict):
+    proposal_id: str
+    queued_at: str
+    status: str
+    decision: str
+    impact: str
+    requires_human_review: bool
+    reasons: list[str]
+    proposal_path: str
+    target: FilebackTarget
+    summary: str
 
 
 class ProposedWriteSet(TypedDict):

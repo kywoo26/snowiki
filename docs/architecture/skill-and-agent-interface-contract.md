@@ -33,9 +33,14 @@ A higher-level orchestration layer that bundles multiple commands and logic into
 - **Contract**: Skills are consumers of the CLI contract. They may not silently redefine system capabilities or bypass CLI-level validations.
 
 ### 2.3 Memory
-The persistent state of the Snowiki system, including raw sources, compiled wiki pages, and session history.
-- **Examples**: `sources/`, `wiki/`, `sessions/`.
-- **Contract**: Memory is the ground truth for retrieval. Agents interact with memory primarily through CLI commands or read-only MCP surfaces.
+The persistent state of the Snowiki system, including raw sources, normalized records, compiled wiki pages, index snapshots, and session history.
+- **Examples**: `raw/`, `normalized/`, `compiled/`, `index/`, session records.
+- **Contract**: Memory is the ground truth for retrieval once data has entered Snowiki's accepted storage pipeline. Agents interact with memory primarily through CLI commands or read-only MCP surfaces.
+
+### 2.4 Control-Plane Queue
+A durable runtime artifact for pending mutation intent that has not entered accepted memory.
+- **Example**: `$SNOWIKI_ROOT/queue/proposals/pending/<proposal_id>.json`.
+- **Contract**: Queue artifacts are inspectable proposal state, not source truth, compiler input, compiled output, or index content. They must not affect rebuild/query results until an approved CLI apply path succeeds.
 
 ## 3. Vocabulary
 
@@ -73,6 +78,8 @@ Snowiki approval semantics are intentionally minimal:
 - **Denied**: The action must not be applied through the current interface.
 
 Snowiki assumes a human-in-the-loop posture for operations that modify durable knowledge unless the authoritative runtime explicitly defines a narrower or broader allowed path. In the current verified contract, mutation remains CLI-mediated and the MCP surface remains read-only.
+
+For autonomous operation, approval must not be confused with interrupting the agent's primary task. A review-required proposal may be accepted into a control-plane queue as a successful, non-blocking outcome while remaining unapplied. The queue records mutation intent; approval controls whether that intent becomes durable knowledge.
 
 Approval semantics describe contract intent, not a full approval engine. Hosts may implement stricter gates or broader review workflows, but they should map those workflows back to Snowiki's minimum semantics rather than redefine them.
 

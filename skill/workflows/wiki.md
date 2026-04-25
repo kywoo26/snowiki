@@ -45,6 +45,8 @@ Parse input after `/wiki`:
 | `query <question>` | Step 3: Query | Current |
 | `recall <date_or_topic>` | Step 4: Recall | Current |
 | `fileback preview <question>` | Step 5: Fileback Preview | Current |
+| `fileback preview --queue <question>` | Step 5: Fileback Preview | Current |
+| `fileback queue list` | Step 5: Fileback Preview | Current |
 | `fileback apply` | Step 6: Fileback Apply | Current |
 | `sync` | Step 7: Sync | **Deferred** |
 | `edit <page>` | Step 8: Edit | **Deferred** |
@@ -160,6 +162,10 @@ Use `snowiki fileback preview` to produce a non-mutating proposal that includes:
 
 Do not treat preview as an applied write.
 
+For autonomous work that should not stop for immediate apply, use `snowiki fileback preview --queue` to persist the proposal under the active Snowiki root as control-plane state. Queued proposals are non-blocking and pending; they are not source truth or compiler input.
+
+Use `snowiki fileback queue list --output json` to inspect pending proposals.
+
 ---
 
 ## Step 6: Fileback Apply
@@ -171,6 +177,7 @@ Current truth:
 - it is derived and reviewable
 - it writes through the canonical CLI path
 - compiled question pages remain rebuild-generated artifacts
+- pending queue proposals are not applied writes until this apply path or a documented runtime policy succeeds
 
 Do not claim direct MCP writes or direct compiled-file editing.
 

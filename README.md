@@ -28,7 +28,7 @@ snowiki lint --output json
 
 Markdown files and directories are the primary ingest surface. Claude/OpenCode session exports should be converted into Markdown notes by an agent or skill workflow, then ingested with `snowiki ingest <note-or-directory>`.
 
-For the Claude Code `/wiki` workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/apply` flow.
+For the Claude Code `/wiki` workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/queue/apply` flow.
 
 If you are working from a development checkout instead of a tool install, run the same commands as `uv run snowiki ...`.
 
@@ -57,7 +57,7 @@ The current runtime exposes these top-level commands:
 
 The `/wiki` skill should currently mirror this shipped surface for everyday use:
 
-- current: `ingest`, `query`, `recall`, `status`, `lint`, `fileback preview`, `fileback apply`
+- current: `ingest`, `query`, `recall`, `status`, `lint`, `fileback preview`, `fileback preview --queue`, `fileback queue list`, `fileback apply`
 - optimization, not separate runtime truth: daemon-backed warm reads for query/recall when a daemon is already reachable
 - deferred: `sync`, `edit`, `merge`, graph-oriented workflows
 
@@ -68,7 +68,7 @@ Do not treat daemon-backed reads, qmd lineage, or older vault-layout docs as a s
 - CLI JSON output via `snowiki ... --output json`
 - read-only MCP via `snowiki mcp`
 
-Mutation remains CLI-mediated. MCP write support is not shipped.
+Mutation remains CLI-mediated. MCP write support is not shipped. Autonomous writeback queues are control-plane proposal artifacts until applied through a documented CLI path.
 
 ## Design Principles
 

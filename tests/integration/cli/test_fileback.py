@@ -166,6 +166,161 @@ def test_fileback_preview_is_reviewable_and_non_mutating(
     assert proposal["apply_plan"]["rebuild_required"] is True
 
 
+def test_fileback_preview_queue_persists_pending_proposal_without_applying(
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+    before = _workspace_snapshot(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What should be queued?",
+            "--answer-markdown",
+            "Queue this answer for later review.",
+            "--summary",
+            "Queued fileback answer.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--queue",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    proposal = payload["result"]["proposal"]
+    queue_result = payload["result"]["queue"]
+    assert queue_result["decision"] == "queued"
+    assert queue_result["requires_human_review"] is True
+    assert queue_result["proposal_id"] == proposal["proposal_id"]
+    assert queue_result["proposal_path"].startswith("queue/proposals/pending/")
+
+    changed = _workspace_snapshot(tmp_path)
+    expected = dict(before)
+    queue_path = queue_result["proposal_path"]
+    expected[queue_path] = changed[queue_path]
+    assert changed == expected
+
+    queued_payload = json.loads((tmp_path / queue_path).read_text(encoding="utf-8"))
+    assert queued_payload["status"] == "pending"
+    assert queued_payload["proposal"] == proposal
+    assert queued_payload["root"] == tmp_path.resolve().as_posix()
+    assert not (tmp_path / proposal["apply_plan"]["raw_note_path"]).exists()
+    assert not (tmp_path / proposal["apply_plan"]["normalized_path"]).exists()
+
+
+def test_fileback_queue_list_reports_pending_proposals(tmp_path: Path) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+    preview = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What should be listed?",
+            "--answer-markdown",
+            "List this queued answer.",
+            "--summary",
+            "Listed fileback answer.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--queue",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+    assert preview.exit_code == 0, preview.output
+    preview_payload = json.loads(preview.output)
+    proposal = preview_payload["result"]["proposal"]
+
+    listed = runner.invoke(
+        app,
+        ["fileback", "queue", "list", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert listed.exit_code == 0, listed.output
+    payload = json.loads(listed.output)
+    assert payload["ok"] is True
+    assert payload["command"] == "fileback queue list"
+    assert payload["result"]["root"] == tmp_path.resolve().as_posix()
+    assert payload["result"]["status"] == "pending"
+    assert payload["result"]["proposals"] == [
+        {
+            "proposal_id": proposal["proposal_id"],
+            "queued_at": payload["result"]["proposals"][0]["queued_at"],
+            "status": "pending",
+            "decision": "queued",
+            "impact": "medium",
+            "requires_human_review": True,
+            "reasons": ["auto_apply_not_implemented"],
+            "proposal_path": preview_payload["result"]["queue"]["proposal_path"],
+            "target": proposal["target"],
+            "summary": "Listed fileback answer.",
+        }
+    ]
+
+
+def test_fileback_queue_uses_explicit_root_option(tmp_path: Path) -> None:
+    runner = CliRunner()
+    evidence_path = _build_fileback_workspace(tmp_path)
+    other_root = tmp_path / "other-root"
+
+    preview = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What should use explicit root?",
+            "--answer-markdown",
+            "Queue this answer under an explicit root.",
+            "--summary",
+            "Explicit root queued answer.",
+            "--evidence-path",
+            evidence_path.as_posix(),
+            "--queue",
+            "--root",
+            str(tmp_path),
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(other_root)},
+    )
+    assert preview.exit_code == 0, preview.output
+    preview_payload = json.loads(preview.output)
+    queue_path = preview_payload["result"]["queue"]["proposal_path"]
+    assert preview_payload["result"]["root"] == tmp_path.resolve().as_posix()
+    assert (tmp_path / queue_path).exists()
+    assert not (other_root / queue_path).exists()
+
+    listed = runner.invoke(
+        app,
+        ["fileback", "queue", "list", "--root", str(tmp_path), "--output", "json"],
+        env={"SNOWIKI_ROOT": str(other_root)},
+    )
+    assert listed.exit_code == 0, listed.output
+    listed_payload = json.loads(listed.output)
+    assert listed_payload["result"]["root"] == tmp_path.resolve().as_posix()
+    assert listed_payload["result"]["proposals"][0]["proposal_path"] == queue_path
+
+    other_listed = runner.invoke(
+        app,
+        ["fileback", "queue", "list", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(other_root)},
+    )
+    assert other_listed.exit_code == 0, other_listed.output
+    other_payload = json.loads(other_listed.output)
+    assert other_payload["result"]["root"] == other_root.resolve().as_posix()
+    assert other_payload["result"]["proposals"] == []
+
+
 def test_fileback_apply_persists_derived_record_and_rebuilds_question_output(
     tmp_path: Path,
 ) -> None:

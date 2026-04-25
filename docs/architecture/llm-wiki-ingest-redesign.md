@@ -18,6 +18,8 @@ compiled/searchable wiki artifacts
   -> Claude/OpenCode skills and workflows
 ```
 
+Writeback proposals that have not been applied sit outside this pipeline in a runtime control-plane queue. They are mutation intent, not source truth or compiler input.
+
 This keeps Snowiki aligned with Karpathy's LLM Wiki pattern: durable knowledge is compiled into a persistent Markdown wiki instead of being re-derived from raw chunks on every query.
 
 ## Current Snowiki Gap
@@ -106,6 +108,7 @@ Snowiki should keep separate responsibilities:
 2. **Normalized document layer**: deterministic JSON representation suitable for rebuild/search.
 3. **Compiled/wiki layer**: generated or projected Markdown artifacts used by query, MCP, export, and skills.
 4. **Search/index layer**: lexical-first retrieval snapshot; semantic/vector/graph layers remain optional extensions.
+5. **Control-plane queue layer**: pending proposals and other unapplied mutation intent. This layer is under the Snowiki runtime root but outside raw, normalized, compiled, and index truth.
 
 The source document must be treated as authoritative. Compiled pages are derived artifacts and may be rebuilt.
 
@@ -196,6 +199,7 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 Dedicated executable plans:
 
 - `docs/architecture/markdown-ingest-phase2-plan.md` — completed Phase 2 compiler projection boundary plan and active Phase 2 follow-up refactor ledger.
+- `docs/architecture/autonomous-writeback-queue-plan.md` — Phase 2 closing plan for non-blocking autonomous fileback proposal queues.
 
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
