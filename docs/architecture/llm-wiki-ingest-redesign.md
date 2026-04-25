@@ -198,8 +198,7 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 
 Dedicated executable plans:
 
-- `docs/architecture/markdown-ingest-phase2-plan.md` — completed Phase 2 compiler projection boundary plan and active Phase 2 follow-up refactor ledger.
-- `docs/architecture/autonomous-writeback-queue-plan.md` — Phase 2 closing plan for non-blocking autonomous fileback proposal queues.
+- `docs/architecture/autonomous-writeback-phase3-plan.md` — Phase 3 plan for CLI-only queue lifecycle, apply/show/reject, retention, and low-risk auto-apply policy.
 
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
@@ -297,6 +296,7 @@ Completed implementation:
 - Refactored summary/concept/question/session/path generation to consume projection helpers instead of loose payload fallback.
 - Updated Markdown ingest and fileback manual-question writes to emit projection.
 - Kept old records inspectable by lint/status diagnostics without adding rebuild/query compatibility fallback.
+- Completed Phase 2 follow-up refactors centralized projection construction and split fileback by schema, proposal, evidence, rendering, queue, payload, and apply seams.
 
 Phase 2 follow-up refactor work:
 
@@ -305,7 +305,25 @@ Phase 2 follow-up refactor work:
 - Add seam-level unit tests for extracted fileback functions instead of relying only on CLI integration tests.
 - Keep normalized storage write-contract redesign and projection backfill/migration as separate, explicit future specs.
 
-### Phase 3: Wiki Contract and Stale Source Reporting
+### Phase 3: CLI Autonomous Writeback Queue Hardening
+
+Status: **implemented in the Phase 3 branch; pending final verification and PR review**. See `docs/architecture/autonomous-writeback-phase3-plan.md`.
+
+Deliverables:
+
+- Add queue lifecycle transitions for `pending`, `applied`, `rejected`, and `failed` proposal envelopes.
+- Add CLI queue inspection and action commands such as `queue show`, `queue apply`, `queue reject`, and status-filtered `queue list`.
+- Add runtime-owned low-risk auto-apply policy for fileback proposals, with uncertain or high-impact proposals staying queued.
+- Add dry-run-first retention/pruning policy for terminal queue artifacts.
+- Keep all mutation CLI-mediated and keep MCP read-only.
+
+Concrete follow-up work:
+
+- Keep `edit`, `merge`, `sync`, normalized storage redesign, projection backfill, and MCP writes out of this phase.
+- Re-check spec, plan, README, skill docs, and implementation before opening the PR.
+- Defer `queue requeue`, persistent retention config, and any shorter auto-apply alias until after lifecycle usage is validated.
+
+### Phase 4: Wiki Contract and Stale Source Reporting
 
 Deliverables:
 
@@ -323,7 +341,7 @@ Concrete follow-up work:
 - Document Snowiki-generated page frontmatter separately from user-authored source frontmatter.
 - Update README and skill-facing docs only after the shipped CLI behavior is the runtime truth.
 
-### Phase 4: Explicit Prune and Cleanup
+### Phase 5: Explicit Prune and Cleanup
 
 Deliverables:
 
@@ -344,7 +362,7 @@ Concrete follow-up work:
 - Add tests for multi-source generated pages before enabling cascade cleanup.
 - Keep cascade cleanup separate from Phase 1 rebuild so deterministic ingest remains non-destructive.
 
-### Phase 5: Agent and Skill Workflow
+### Phase 6: Agent and Skill Workflow
 
 Deliverables:
 
@@ -372,7 +390,7 @@ Agent:
   5. Runs `snowiki query` to verify recall.
 ```
 
-### Phase 6: Search, Lint, and Writeback Extensions
+### Phase 7: Search, Lint, and Writeback Extensions
 
 Deliverables:
 

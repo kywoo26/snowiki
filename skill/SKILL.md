@@ -66,7 +66,8 @@ Write posture:
 - `fileback` is current shipped behavior
 - `fileback preview` is non-mutating and reviewable
 - `fileback preview --queue` persists a pending proposal under the active Snowiki root without applying it
-- `fileback queue list` inspects pending proposal metadata
+- `fileback preview --queue --auto-apply-low-risk` may apply only when runtime policy proves the proposal low-risk
+- `fileback queue list`, `queue show`, `queue apply`, `queue reject`, and `queue prune` manage CLI queue lifecycle state
 - `fileback apply` requires a reviewed proposal file
 - MCP write support is not shipped
 
@@ -87,7 +88,7 @@ Recall against current stored knowledge/session-derived material through the shi
 These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
 
 #### `fileback`
-Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback preview --queue` to persist a non-blocking pending proposal, `snowiki fileback queue list` to inspect pending proposals, and `snowiki fileback apply` to persist a reviewed proposal through the canonical CLI path.
+Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback preview --queue` to persist a non-blocking pending proposal, `snowiki fileback queue list/show/apply/reject/prune` to manage queue lifecycle state, `snowiki fileback preview --queue --auto-apply-low-risk` only for runtime-proven low-risk proposals, and `snowiki fileback apply` to persist a reviewed proposal file through the canonical CLI path.
 
 ### Deferred / broader workflow ideas
 
@@ -98,7 +99,7 @@ The following remain workflow or roadmap concepts rather than guaranteed shipped
 - graph-oriented recall workflows
 - qmd-backed hybrid/vector routing as a default runtime path
 
-Treat them as future-facing workflow concepts unless the runtime explicitly exposes them.
+Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. They are not part of Phase 3 CLI queue hardening.
 
 ## Search Strategy
 

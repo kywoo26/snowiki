@@ -57,7 +57,7 @@ The current runtime exposes these top-level commands:
 
 The `/wiki` skill should currently mirror this shipped surface for everyday use:
 
-- current: `ingest`, `query`, `recall`, `status`, `lint`, `fileback preview`, `fileback preview --queue`, `fileback queue list`, `fileback apply`
+- current: `ingest`, `query`, `recall`, `status`, `lint`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
 - optimization, not separate runtime truth: daemon-backed warm reads for query/recall when a daemon is already reachable
 - deferred: `sync`, `edit`, `merge`, graph-oriented workflows
 
@@ -68,7 +68,7 @@ Do not treat daemon-backed reads, qmd lineage, or older vault-layout docs as a s
 - CLI JSON output via `snowiki ... --output json`
 - read-only MCP via `snowiki mcp`
 
-Mutation remains CLI-mediated. MCP write support is not shipped. Autonomous writeback queues are control-plane proposal artifacts until applied through a documented CLI path.
+Mutation remains CLI-mediated. MCP write support is not shipped. Autonomous writeback queues are control-plane proposal artifacts until applied through a documented CLI path. The CLI queue lifecycle supports pending/applied/rejected/failed proposal states, dry-run-first terminal pruning, and runtime-owned low-risk auto-apply policy before any broader mutation surface is considered.
 
 ## Design Principles
 

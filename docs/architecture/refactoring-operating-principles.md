@@ -280,15 +280,27 @@ What this wave established:
 Follow-up refactor target:
 
 1. **Clean strict projection seams after merge**
-   - Keep active writers on the projection factory instead of repeated hand-built dictionaries.
-   - Split reviewed writeback/fileback logic by schema, proposal, evidence, rendering, payload, and apply orchestration.
-   - Keep `snowiki.fileback` as a narrow facade rather than widening public access to internal helpers.
-   - Add seam-level unit tests when a refactor extracts pure/schema functions from an integration-only flow.
-   - Active ledger: `docs/architecture/markdown-ingest-phase2-plan.md#phase-2-follow-up-refactor-ledger`.
+- Keep active writers on the projection factory instead of repeated hand-built dictionaries.
+- Split reviewed writeback/fileback logic by schema, proposal, evidence, rendering, payload, and apply orchestration.
+- Keep `snowiki.fileback` as a narrow facade rather than widening public access to internal helpers.
+- Add seam-level unit tests when a refactor extracts pure/schema functions from an integration-only flow.
+- The completed Phase 2 executable plan has been removed; durable outcomes are recorded in `docs/architecture/llm-wiki-ingest-redesign.md` and this document.
 
 Do not follow Phase 2 by changing frontmatter libraries, storage layout, or search
 indexing inside projection/fileback cleanup PRs. Those remain separate waves unless
 the touched seam proves they are required.
+
+### Phase 3: CLI autonomous writeback queue hardening
+
+Status: **implemented in the Phase 3 branch; pending final verification and PR review**. Active ledger: `docs/architecture/autonomous-writeback-phase3-plan.md`.
+
+Refactor targets for this wave:
+
+- Keep queue lifecycle state transitions in the fileback queue seam, not in Click callbacks.
+- Keep queue apply delegated to the existing reviewed apply/rebuild path.
+- Keep runtime low-risk policy classification separate from agent-provided labels.
+- Keep retention/pruning dry-run-first and scoped to queue control-plane artifacts.
+- Do not expand this wave into MCP writes, broad edit/merge/sync, storage-layout redesign, or projection migration.
 
 ### Later waves
 

@@ -136,7 +136,7 @@ Transferable patterns:
 - Raw uploaded documents and wiki pages are distinct layers.
 - Server handles storage/search while Claude handles synthesis and maintenance.
 
-Use for Snowiki: later reference for MCP write support after CLI mutation contracts are stable.
+Use for Snowiki: external reference only. Snowiki does not ship MCP write support, and MCP write/delete is not part of Phase 3 CLI queue hardening.
 
 ### obsidian-llm-wiki-local variants
 
