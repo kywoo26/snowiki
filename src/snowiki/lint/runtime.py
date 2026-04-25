@@ -9,6 +9,7 @@ from typing import Literal, NotRequired, TypedDict
 
 from snowiki.compiler.paths import summary_path_for_record
 from snowiki.compiler.taxonomy import NormalizedRecord
+from snowiki.gardening.sources import collect_source_gardening_proposals
 from snowiki.markdown.source_state import collect_markdown_source_state
 from snowiki.storage.zones import ensure_utc_datetime
 
@@ -65,6 +66,10 @@ class LintIssue(TypedDict):
     message: str
     field: NotRequired[str]
     target: NotRequired[str]
+    proposal_id: NotRequired[str]
+    proposal_type: NotRequired[str]
+    recommended_action: NotRequired[str]
+    evidence: NotRequired[list[object]]
 
 
 class LintCheck(TypedDict):
@@ -217,6 +222,42 @@ def collect_source_freshness_issues(root: str | Path) -> list[LintIssue]:
                 target=item["source_path"] if item["state"] != "untracked" else item["source_root"],
             )
         )
+    return issues
+
+
+def collect_source_gardening_issues(root: str | Path) -> list[LintIssue]:
+    """Return agent-readable source gardening proposal diagnostics."""
+    issues: list[LintIssue] = []
+    report = collect_source_gardening_proposals(root)
+    for proposal in report["proposals"]:
+        if proposal["proposal_type"] != "source_rename_candidate":
+            continue
+        missing_evidence = next(
+            evidence
+            for evidence in proposal["evidence"]
+            if evidence["kind"] == "missing_record"
+        )
+        untracked_evidence = next(
+            evidence
+            for evidence in proposal["evidence"]
+            if evidence["kind"] == "untracked_source"
+        )
+        issue = _make_issue(
+            code="L505",
+            check="source.rename_candidate",
+            severity="info",
+            path=str(missing_evidence.get("normalized_path", missing_evidence["source_path"])),
+            message=(
+                "missing source has an exact-hash untracked rename candidate: "
+                f"{missing_evidence['relative_path']} -> {untracked_evidence['relative_path']}"
+            ),
+            target=untracked_evidence["source_path"],
+        )
+        issue["proposal_id"] = proposal["proposal_id"]
+        issue["proposal_type"] = proposal["proposal_type"]
+        issue["recommended_action"] = proposal["recommended_action"]
+        issue["evidence"] = list(proposal["evidence"])
+        issues.append(issue)
     return issues
 
 
@@ -384,6 +425,7 @@ def _build_checks(issues: list[LintIssue]) -> list[LintCheck]:
         ("freshness.stale_compiled_page", "Stale compiled pages", "info"),
         ("source.modified", "Modified Markdown sources", "warning"),
         ("source.missing", "Missing Markdown sources", "warning"),
+        ("source.rename_candidate", "Markdown source rename candidates", "info"),
         ("source.untracked", "Untracked Markdown sources", "info"),
         ("source.invalid_metadata", "Invalid Markdown source metadata", "warning"),
         ("coverage.source_without_summary", "Sources without summary pages", "info"),
@@ -413,6 +455,7 @@ def run_lint(root: str | Path) -> LintResult:
         *check_layer_integrity(base)["issues"],
         *collect_freshness_issues(base),
         *collect_source_freshness_issues(base),
+        *collect_source_gardening_issues(base),
         *collect_summary_coverage_issues(base),
     ]
     sorted_issues = sorted(issues, key=_issue_sort_key)

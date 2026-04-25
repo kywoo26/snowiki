@@ -281,7 +281,55 @@ def test_lint_json_output_reports_source_freshness_findings(tmp_path: Path) -> N
     checks_by_name = {check["name"]: check for check in payload["result"]["checks"]}
     assert checks_by_name["source.modified"]["issue_count"] == 1
     assert checks_by_name["source.missing"]["issue_count"] == 0
+    assert checks_by_name["source.rename_candidate"]["issue_count"] == 0
     assert checks_by_name["source.untracked"]["issue_count"] == 1
+
+
+def test_lint_json_output_reports_source_rename_candidate(tmp_path: Path) -> None:
+    runner = CliRunner()
+    source_root = tmp_path / "vault"
+    source_root.mkdir()
+    anchor = source_root / "anchor.md"
+    old = source_root / "old-name.md"
+    new = source_root / "new-name.md"
+    _ = anchor.write_text("# Anchor\n", encoding="utf-8")
+    _ = old.write_text("# Topic\n\nSame content.\n", encoding="utf-8")
+    snowiki_root = tmp_path / "snowiki"
+    ingest_result = runner.invoke(
+        app,
+        ["ingest", str(source_root), "--rebuild", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(snowiki_root)},
+    )
+    assert ingest_result.exit_code == 0, ingest_result.output
+    old.unlink()
+    _ = new.write_text("# Topic\n\nSame content.\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        ["lint", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(snowiki_root)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    rename_issue = next(
+        issue
+        for issue in payload["result"]["issues"]
+        if issue["check"] == "source.rename_candidate"
+    )
+    assert rename_issue["code"] == "L505"
+    assert rename_issue["severity"] == "info"
+    assert rename_issue["proposal_type"] == "source_rename_candidate"
+    assert rename_issue["recommended_action"] == (
+        "reingest_new_source_then_review_prune_old_record"
+    )
+    assert rename_issue["target"] == new.as_posix()
+    assert [evidence["relative_path"] for evidence in rename_issue["evidence"]] == [
+        "old-name.md",
+        "new-name.md",
+    ]
+    checks_by_name = {check["name"]: check for check in payload["result"]["checks"]}
+    assert checks_by_name["source.rename_candidate"]["issue_count"] == 1
 
 
 def test_lint_exit_code_depends_only_on_error_findings(tmp_path: Path) -> None:
