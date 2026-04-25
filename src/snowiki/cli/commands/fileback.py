@@ -7,7 +7,8 @@ from typing import Any, Literal, cast
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
 from snowiki.config import resolve_snowiki_root
 from snowiki.fileback import (
     apply_fileback_proposal,
@@ -22,10 +23,6 @@ from snowiki.fileback.queue import build_queue_list_result, run_fileback_preview
 
 QueueCliStatus = Literal["pending", "applied", "rejected", "failed", "all"]
 TerminalQueueCliStatus = Literal["applied", "rejected", "failed", "all"]
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    return "json" if value == "json" else "human"
 
 
 def _render_preview_human(payload: dict[str, Any]) -> str:
@@ -148,18 +145,8 @@ def command() -> None:
     required=True,
     help="Supporting compiled/, normalized/, or raw/ workspace file path. Repeat as needed.",
 )
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 @click.option(
     "--queue",
     "queue_proposal",
@@ -181,7 +168,7 @@ def preview_command(
     queue_proposal: bool,
     auto_apply_low_risk: bool,
 ) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         result = run_fileback_preview(
             root,
@@ -212,20 +199,10 @@ def preview_command(
     required=True,
     help="Path to a reviewed preview payload or proposal JSON file.",
 )
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 def apply_command(proposal_file: Path, output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         reviewed_payload = json.loads(proposal_file.read_text(encoding="utf-8"))
         apply_root = root if root is not None else resolve_preview_root(None)
@@ -256,20 +233,10 @@ def queue_command() -> None:
     show_default=True,
     help="Queue state to list.",
 )
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 def queue_list_command(status: str, output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         queue_root = resolve_snowiki_root(root)
         normalized_status = _queue_cli_status(status)
@@ -295,22 +262,12 @@ def queue_list_command(status: str, output: str, root: Path | None) -> None:
 @queue_command.command("show")
 @click.argument("proposal_id")
 @click.option("--verbose", is_flag=True, help="Include full proposal and apply payloads.")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 def queue_show_command(
     proposal_id: str, verbose: bool, output: str, root: Path | None
 ) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         queue_root = resolve_snowiki_root(root)
         result = show_queued_fileback_proposal(queue_root, proposal_id, verbose=verbose)
@@ -329,20 +286,10 @@ def queue_show_command(
 
 @queue_command.command("apply")
 @click.argument("proposal_id")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 def queue_apply_command(proposal_id: str, output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         queue_root = resolve_snowiki_root(root)
         result = apply_queued_fileback_proposal(queue_root, proposal_id)
@@ -362,22 +309,12 @@ def queue_apply_command(proposal_id: str, output: str, root: Path | None) -> Non
 @queue_command.command("reject")
 @click.argument("proposal_id")
 @click.option("--reason", required=True, help="Human-readable rejection reason.")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 def queue_reject_command(
     proposal_id: str, reason: str, output: str, root: Path | None
 ) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         queue_root = resolve_snowiki_root(root)
         result = reject_queued_fileback_proposal(queue_root, proposal_id, reason=reason)
@@ -406,18 +343,8 @@ def queue_reject_command(
 @click.option("--dry-run", is_flag=True, help="Preview prune candidates without deleting them.")
 @click.option("--delete", "delete_artifacts", is_flag=True, help="Delete prune candidates.")
 @click.option("--yes", is_flag=True, help="Confirm deletion when --delete is used.")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
+@output_option
+@root_option
 def queue_prune_command(
     status: str,
     keep: int | None,
@@ -428,7 +355,7 @@ def queue_prune_command(
     output: str,
     root: Path | None,
 ) -> None:
-    output_mode = _normalize_output_mode(output)
+    output_mode = normalize_output_mode(output)
     try:
         if dry_run and delete_artifacts:
             raise ValueError("--dry-run cannot be combined with --delete")
