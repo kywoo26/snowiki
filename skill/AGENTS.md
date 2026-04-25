@@ -15,9 +15,9 @@ This directory governs the distributable skill package and its associated workfl
 ## Workflow & Logic
 
 - `skill/SKILL.md` defines the tool surface and core architecture.
-- `skill/workflows/wiki.md` contains the detailed step-by-step routing for current and deferred modes.
-- Logic changes in `skill/scripts/` must preserve the "One Thing" synthesis principle in recall.
-- Lifecycle route names are skill workflows, not `snowiki` subcommands. Keep `/wiki-start`, `/wiki-progress`, `/wiki-finish`, and `/wiki-health` mapped to current CLI sequences in `skill/workflows/wiki.md`.
+- `skill/references/wiki-workflow.md` contains on-demand intent-mapping details for current and deferred modes.
+- The skill should call the installed `snowiki` CLI rather than maintaining shadow runtime logic in bundled scripts.
+- Lifecycle intent names are `/wiki` arguments, not `snowiki` subcommands or independent slash commands. Keep `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` mapped to current CLI sequences in `skill/references/wiki-workflow.md`.
 - Session filing must convert durable Claude/OpenCode knowledge into Markdown before ingest; do not teach raw session-export ingest as the shipped workflow.
 
 ## Write Safety
