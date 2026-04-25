@@ -6,6 +6,10 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
+from snowiki.storage.provenance import (
+    dedupe_raw_refs as dedupe_provenance_raw_refs,
+)
+from snowiki.storage.provenance import raw_refs_from_record
 from snowiki.storage.zones import isoformat_utc, relative_to_root
 
 from .models import (
@@ -14,7 +18,6 @@ from .models import (
     RawRefDict,
     coerce_raw_ref,
     is_raw_ref_mapping,
-    stringify_mapping,
 )
 
 
@@ -86,17 +89,10 @@ def build_workspace_raw_ref(root: Path, path: Path) -> RawRefDict:
 
 def dedupe_raw_refs(raw_refs: Sequence[Mapping[str, object]]) -> list[RawRefDict]:
     """Deduplicate raw refs using the compiler provenance key."""
-    deduped: list[RawRefDict] = []
-    seen: set[tuple[str, str]] = set()
-    for raw_ref in raw_refs:
-        entry = coerce_raw_ref({str(key): value for key, value in raw_ref.items()})
-        key = (entry["sha256"], entry["path"])
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(entry)
-    deduped.sort(key=lambda entry: (entry["path"], entry["sha256"]))
-    return deduped
+    return [
+        coerce_raw_ref(raw_ref)
+        for raw_ref in dedupe_provenance_raw_refs(raw_refs, sort=True)
+    ]
 
 
 def dedupe_supporting_raw_refs(
@@ -188,21 +184,9 @@ def _parse_list_scalar(value: str) -> str:
 
 def _query_raw_sources(record: Mapping[str, object]) -> list[RawRefDict]:
     refs: list[RawRefDict] = []
-    raw_ref_value = record.get("raw_ref")
-    if isinstance(raw_ref_value, Mapping):
-        raw_ref_mapping = stringify_mapping(raw_ref_value)
+    for raw_ref_mapping in raw_refs_from_record(record):
         if is_raw_ref_mapping(raw_ref_mapping):
             refs.append(coerce_raw_ref(raw_ref_mapping))
-
-    provenance = record.get("provenance")
-    if isinstance(provenance, Mapping):
-        raw_refs = stringify_mapping(provenance).get("raw_refs")
-        if isinstance(raw_refs, list):
-            for raw_ref in raw_refs:
-                if isinstance(raw_ref, Mapping):
-                    raw_ref_mapping = stringify_mapping(raw_ref)
-                    if is_raw_ref_mapping(raw_ref_mapping):
-                        refs.append(coerce_raw_ref(raw_ref_mapping))
     return dedupe_raw_refs(refs)
 
 

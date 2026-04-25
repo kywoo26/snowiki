@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from snowiki.storage.provenance import dedupe_raw_refs
 from snowiki.storage.zones import ensure_utc_datetime
 
 
@@ -126,19 +127,7 @@ def merge_string_list(target: list[str], values: Iterable[str]) -> None:
 def merge_raw_refs(
     target: list[dict[str, Any]], values: Iterable[Mapping[str, Any]]
 ) -> None:
-    seen = {
-        (str(entry.get("sha256", "")), str(entry.get("path", ""))) for entry in target
-    }
-    for value in values:
-        raw_ref = dict(value)
-        key = (str(raw_ref.get("sha256", "")), str(raw_ref.get("path", "")))
-        if key in seen:
-            continue
-        seen.add(key)
-        target.append(raw_ref)
-    target.sort(
-        key=lambda entry: (str(entry.get("path", "")), str(entry.get("sha256", "")))
-    )
+    target[:] = dedupe_raw_refs([*target, *values], sort=True)
 
 
 def append_section(page: CompiledPage, title: str, body: str) -> None:
