@@ -1,7 +1,7 @@
 ---
 name: wiki
-description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, and reviewable fileback flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/edit/merge/graph workflows deferred."
-argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|fileback preview QUESTION|fileback apply|export|benchmark PRESET|daemon|mcp]
+description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/edit/merge/graph workflows deferred."
+argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|fileback preview QUESTION|fileback preview --queue QUESTION|fileback queue list|fileback apply|export|benchmark PRESET|daemon|mcp]
 allowed-tools: Bash(python3:*), Read, Write, Edit, Glob, Grep, WebFetch
 ---
 
@@ -65,6 +65,8 @@ Read optimization:
 Write posture:
 - `fileback` is current shipped behavior
 - `fileback preview` is non-mutating and reviewable
+- `fileback preview --queue` persists a pending proposal under the active Snowiki root without applying it
+- `fileback queue list` inspects pending proposal metadata
 - `fileback apply` requires a reviewed proposal file
 - MCP write support is not shipped
 
@@ -85,7 +87,7 @@ Recall against current stored knowledge/session-derived material through the shi
 These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
 
 #### `fileback`
-Use `snowiki fileback preview` to produce a reviewed proposal and `snowiki fileback apply` to persist that reviewed proposal through the canonical CLI path.
+Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback preview --queue` to persist a non-blocking pending proposal, `snowiki fileback queue list` to inspect pending proposals, and `snowiki fileback apply` to persist a reviewed proposal through the canonical CLI path.
 
 ### Deferred / broader workflow ideas
 

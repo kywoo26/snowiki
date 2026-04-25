@@ -76,7 +76,27 @@ snowiki fileback preview \
   --output json > /tmp/fileback-preview.json
 ```
 
-Review the JSON proposal before applying it.
+Review the JSON proposal before applying it, or queue it when autonomous work should continue without applying immediately.
+
+### Queue a pending proposal
+
+```bash
+snowiki fileback preview \
+  "What did we ship?" \
+  --answer-markdown "We shipped the reviewable fileback flow." \
+  --summary "Reviewed answer for the current shipped behavior." \
+  --evidence-path compiled/summaries/example.md \
+  --queue \
+  --output json
+```
+
+Queued proposals are written under the active Snowiki root as `queue/proposals/pending/*.json`. They are control-plane proposal artifacts, not applied writes.
+
+### List pending proposals
+
+```bash
+snowiki fileback queue list --output json
+```
 
 ### Apply the reviewed proposal
 
@@ -86,7 +106,7 @@ snowiki fileback apply \
   --output json
 ```
 
-This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the generated compiled question page. It does not grant MCP write support.
+This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the generated compiled question page. Queueing a proposal does not do this; it remains pending until applied through a documented CLI path. Fileback does not grant MCP write support.
 
 ## 5. What is deferred
 
