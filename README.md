@@ -61,7 +61,7 @@ The `/wiki` skill should currently mirror this shipped surface for everyday use:
 
 - current: `ingest`, `query`, `recall`, `status`, `lint`, `prune sources --dry-run`, `prune sources --delete --yes --all-candidates`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
 - optimization, not separate runtime truth: daemon-backed warm reads for query/recall when a daemon is already reachable
-- Phase 6 planning: Claude/OpenCode/OMO agent workflows over the shipped CLI truth, including lifecycle skill routes such as `/wiki-start`, `/wiki-progress`, `/wiki-finish`, and `/wiki-health` that expand to current CLI sequences rather than new runtime commands
+- agent workflows: Claude/OpenCode/OMO agents use lifecycle skill routes such as `/wiki-start`, `/wiki-progress`, `/wiki-finish`, and `/wiki-health` that expand to current CLI sequences rather than new runtime commands
 - deferred unless explicitly accepted by runtime spec: standalone `sync`, standalone `edit`, standalone `merge`, graph-oriented workflows
 
 Do not treat daemon-backed reads, qmd lineage, or older vault-layout docs as a separate product contract.

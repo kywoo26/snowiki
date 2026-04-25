@@ -33,10 +33,10 @@ Lifecycle names such as `/wiki-start`, `/wiki-progress`, `/wiki-finish`, and `/w
 Example route expansions:
 
 ```text
-/wiki-start phase 6
+/wiki-start current project
   -> snowiki status --output json
-  -> snowiki recall "phase 6" --output json
-  -> optional snowiki query "Phase 6 agent workflows" --output json
+  -> snowiki recall "current project" --output json
+  -> optional snowiki query "current project decisions" --output json
 
 /wiki-finish
   -> write a Markdown session note
@@ -191,7 +191,7 @@ These remain deferred workflow ideas, not shipped runtime behavior:
 - standalone `merge`
 - graph-oriented workflows
 
-Phase 6 planning focuses on Claude/OpenCode/OMO workflows over the shipped CLI truth. Do not treat standalone `sync`, `edit`, `merge`, or graph workflows as shipped runtime commands until the CLI exposes them.
+Claude/OpenCode/OMO workflows operate over the shipped CLI truth. Do not treat standalone `sync`, `edit`, `merge`, or graph workflows as shipped runtime commands until the CLI exposes them.
 
 Do not document or rely on them as if they already ship.
 
