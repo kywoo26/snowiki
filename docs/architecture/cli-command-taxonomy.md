@@ -50,6 +50,8 @@ Avoid grouping by vague nouns such as `utils`, by output format, or by whether a
 
 Do not introduce this directory split as a cosmetic refactor. It becomes worthwhile only when it reduces review load, clarifies ownership, or prevents product-role drift.
 
+Implementation sequencing for this taxonomy lives in `docs/architecture/cli-command-implementation-plan.md`.
+
 ## Primary wiki loop
 
 The smallest user-facing LLM wiki loop is:
