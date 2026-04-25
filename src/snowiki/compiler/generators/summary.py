@@ -9,6 +9,7 @@ from ..projection import (
     projected_source_identity,
     projected_summary,
     projected_tags,
+    projected_taxonomy_items,
     projected_title,
 )
 from ..taxonomy import (
@@ -22,10 +23,7 @@ from ..taxonomy import (
     merge_raw_refs,
     merge_string_list,
     record_session_id,
-    record_summary,
-    record_title,
     slugify,
-    taxonomy_items_for_record,
 )
 
 
@@ -35,8 +33,8 @@ def generate_summary_pages(records: list[NormalizedRecord]) -> list[CompiledPage
 
     for record in records:
         date = iso_to_date(record.recorded_at)
-        summary_text = projected_summary(record, record_summary(record))
-        title = f"Summary: {projected_title(record, record_title(record))}"
+        summary_text = projected_summary(record)
+        title = f"Summary: {projected_title(record)}"
         page = CompiledPage(
             page_type=PageType.SUMMARY,
             slug=summary_slug_for_record(record),
@@ -50,7 +48,7 @@ def generate_summary_pages(records: list[NormalizedRecord]) -> list[CompiledPage
         session_id = record_session_id(record)
         if session_id is not None:
             related.append(session_path_for_id(session_id))
-        related.extend(item_path(item) for item in taxonomy_items_for_record(record))
+        related.extend(item_path(item) for item in projected_taxonomy_items(record))
 
         merge_string_list(page.related, related)
         merge_string_list(
@@ -84,22 +82,6 @@ def generate_summary_pages(records: list[NormalizedRecord]) -> list[CompiledPage
         append_section(page, "Source Identity", "\n".join(source_identity_lines))
         for section in projected_sections(record):
             append_section(page, section["title"], section["body"])
-
-        facts = record.payload.get("facts")
-        if isinstance(facts, list) and facts:
-            append_section(
-                page,
-                "Facts",
-                "\n".join(f"- {fact}" for fact in facts if isinstance(fact, str)),
-            )
-
-        inferences = record.payload.get("inferences")
-        if isinstance(inferences, list) and inferences:
-            append_section(
-                page,
-                "Inferences",
-                "\n".join(f"- {item}" for item in inferences if isinstance(item, str)),
-            )
 
         pages.append(page)
 

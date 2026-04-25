@@ -19,6 +19,28 @@ def test_markdown_document_rebuild_projects_body_and_source_identity(
             "title": "Guide",
             "summary": "A short guide.",
             "text": "# Guide\n\nMarkdown body.",
+            "projection": {
+                "title": "Guide",
+                "summary": "A short guide.",
+                "body": "# Guide\n\nMarkdown body.",
+                "tags": ["docs"],
+                "source_identity": {
+                    "source_root": "/repo/docs",
+                    "relative_path": "guide.md",
+                    "content_hash": "abc123",
+                },
+                "sections": [
+                    {"title": "Document", "body": "# Guide\n\nMarkdown body."}
+                ],
+                "taxonomy": {
+                    "concepts": [],
+                    "entities": [],
+                    "topics": [],
+                    "questions": [],
+                    "projects": [],
+                    "decisions": [],
+                },
+            },
             "frontmatter": {"title": "Guide", "tags": ["docs"]},
             "promoted_frontmatter": {"title": "Guide", "tags": ["docs"]},
             "reserved_frontmatter": {},
@@ -57,7 +79,23 @@ def test_summary_slug_for_record_bounds_long_titles() -> None:
         source_type="markdown",
         record_type="document",
         recorded_at="2026-04-08T12:00:00Z",
-        payload={"title": "Very Long Title " * 40},
+        payload={
+            "projection": {
+                "title": "Very Long Title " * 40,
+                "summary": "",
+                "tags": [],
+                "source_identity": {},
+                "sections": [],
+                "taxonomy": {
+                    "concepts": [],
+                    "entities": [],
+                    "topics": [],
+                    "questions": [],
+                    "projects": [],
+                    "decisions": [],
+                },
+            }
+        },
         raw_refs=[],
     )
 

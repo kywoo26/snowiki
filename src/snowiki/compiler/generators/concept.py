@@ -15,8 +15,6 @@ from ..taxonomy import (
     merge_raw_refs,
     merge_string_list,
     record_session_id,
-    record_summary,
-    record_title,
     slugify,
     upsert_page,
 )
@@ -70,10 +68,10 @@ def generate_concept_pages(records: list[NormalizedRecord]) -> list[CompiledPage
 
             append_section(
                 page,
-                f"Source: {projected_title(record, record_title(record))}",
+                f"Source: {projected_title(record)}",
                 "\n".join(
                     [
-                        projected_summary(record, record_summary(record)),
+                        projected_summary(record),
                         "",
                         f"Related summary: [[{summary_path[:-3]}]]",
                     ]

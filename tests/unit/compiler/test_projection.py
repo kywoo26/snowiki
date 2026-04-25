@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import inspect
 
+import pytest
+
 from snowiki.compiler.generators import summary as summary_generator
 from snowiki.compiler.projection import (
     projected_sections,
@@ -40,8 +42,8 @@ def test_projection_helpers_prefer_projection_fields() -> None:
         raw_refs=[],
     )
 
-    assert projected_title(record, "Fallback") == "Projected Title"
-    assert projected_summary(record, "Fallback") == "Projected summary"
+    assert projected_title(record) == "Projected Title"
+    assert projected_summary(record) == "Projected summary"
     assert projected_tags(record) == ["docs", "wiki"]
     assert projected_source_identity(record) == {
         "source_root": "/repo/docs",
@@ -55,7 +57,7 @@ def test_projection_helpers_prefer_projection_fields() -> None:
     ]
 
 
-def test_projection_helpers_preserve_legacy_fallbacks() -> None:
+def test_projection_helpers_require_projection_contract() -> None:
     record = NormalizedRecord(
         id="record-1",
         path="normalized/markdown/documents/record-1.json",
@@ -74,19 +76,8 @@ def test_projection_helpers_preserve_legacy_fallbacks() -> None:
         raw_refs=[],
     )
 
-    assert projected_title(record, "Fallback") == "Fallback"
-    assert projected_summary(record, "Fallback") == "Legacy summary"
-    assert projected_tags(record) == ["docs", "legacy"]
-    assert projected_source_identity(record) == {
-        "source_root": "/repo/docs",
-        "relative_path": "guide.md",
-        "content_hash": "abc123",
-    }
-    assert projected_sections(record) == [{"title": "Document", "body": "Legacy body"}]
-    taxonomy = projected_taxonomy_items(record)
-    assert [(item.page_type, item.title) for item in taxonomy] == [
-        (PageType.TOPIC, "Legacy Topic")
-    ]
+    with pytest.raises(ValueError, match="missing compiler projection"):
+        _ = projected_title(record)
 
 
 def test_summary_generator_has_no_markdown_source_type_branch() -> None:

@@ -6,6 +6,7 @@ from ..paths import (  # pyright: ignore[reportMissingImports]
     session_slug_for_id,
     summary_path_for_record,
 )
+from ..projection import projected_summary, projected_taxonomy_items, projected_title
 from ..taxonomy import (
     CompiledPage,
     NormalizedRecord,
@@ -16,10 +17,7 @@ from ..taxonomy import (
     merge_raw_refs,
     merge_string_list,
     record_session_id,
-    record_summary,
-    record_title,
     slugify,
-    taxonomy_items_for_record,
 )
 
 
@@ -39,7 +37,7 @@ def generate_session_pages(records: list[NormalizedRecord]) -> list[CompiledPage
         )
         anchor = session_records[0]
         date = iso_to_date(anchor.recorded_at)
-        title = f"Session: {record_title(anchor)}"
+        title = f"Session: {projected_title(anchor)}"
         page = CompiledPage(
             page_type=PageType.SESSION,
             slug=session_slug_for_id(session_id),
@@ -62,10 +60,10 @@ def generate_session_pages(records: list[NormalizedRecord]) -> list[CompiledPage
             related.append(summary_path_for_record(record))
             related.extend(
                 compiled_page_path(item.page_type, slugify(item.title))
-                for item in taxonomy_items_for_record(record)
+                for item in projected_taxonomy_items(record)
             )
             timeline_lines.append(
-                f"- {iso_to_date(record.recorded_at)} · `{record.record_type}` · {record_title(record)}"
+                f"- {iso_to_date(record.recorded_at)} · `{record.record_type}` · {projected_title(record)}"
             )
 
         merge_string_list(page.related, related)
@@ -74,7 +72,7 @@ def generate_session_pages(records: list[NormalizedRecord]) -> list[CompiledPage
         append_section(
             page,
             "Summary",
-            "\n".join(record_summary(record) for record in session_records),
+            "\n".join(projected_summary(record) for record in session_records),
         )
         pages.append(page)
 

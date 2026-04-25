@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from typing import Any, NotRequired, TypedDict, cast
+from typing import NotRequired, TypedDict, cast
 
 from .taxonomy import (
     NormalizedRecord,
@@ -50,54 +50,36 @@ TAXONOMY_BUCKETS: tuple[tuple[str, PageType], ...] = (
 
 
 def projection_for_record(record: NormalizedRecord) -> Mapping[str, object]:
-    """Return the compiler projection mapping for a record, if present."""
+    """Return the required compiler projection mapping for a record."""
     projection = record.payload.get("projection")
     if isinstance(projection, Mapping):
         return cast(Mapping[str, object], projection)
-    return {}
+    raise ValueError(f"normalized record `{record.path}` is missing compiler projection")
 
 
-def projected_title(record: NormalizedRecord, fallback: str) -> str:
-    """Return the projection title or a legacy fallback title."""
+def projected_title(record: NormalizedRecord) -> str:
+    """Return the projected compiler title for a record."""
     title = projection_for_record(record).get("title")
     if isinstance(title, str) and title.strip():
         return title.strip()
-    return fallback
+    raise ValueError(f"normalized record `{record.path}` projection.title is required")
 
 
-def projected_summary(record: NormalizedRecord, fallback: str) -> str:
-    """Return the projection summary or a legacy fallback summary."""
+def projected_summary(record: NormalizedRecord) -> str:
+    """Return the projected compiler summary for a record."""
     projection = projection_for_record(record)
     summary = projection.get("summary")
     if isinstance(summary, str):
         return summary.strip()
-
-    legacy_summary = record.payload.get("summary")
-    if isinstance(legacy_summary, str):
-        return legacy_summary.strip()
-    return fallback
+    raise ValueError(f"normalized record `{record.path}` projection.summary is required")
 
 
 def projected_tags(record: NormalizedRecord) -> list[str]:
-    """Return tags projected for compiler use, including legacy frontmatter tags."""
+    """Return tags projected for compiler use."""
     projection = projection_for_record(record)
     tags = projection.get("tags")
     if isinstance(tags, Iterable) and not isinstance(tags, (str, bytes, Mapping)):
         return sorted({tag.strip() for tag in tags if isinstance(tag, str) and tag.strip()})
-
-    promoted = record.payload.get("promoted_frontmatter")
-    if isinstance(promoted, Mapping):
-        promoted_tags = promoted.get("tags")
-        if isinstance(promoted_tags, Iterable) and not isinstance(
-            promoted_tags, (str, bytes, Mapping)
-        ):
-            return sorted(
-                {
-                    tag.strip()
-                    for tag in promoted_tags
-                    if isinstance(tag, str) and tag.strip()
-                }
-            )
     return []
 
 
@@ -115,10 +97,6 @@ def projected_source_identity(record: NormalizedRecord) -> SourceIdentity:
         if fields:
             return fields
 
-    for key in ("source_root", "relative_path", "content_hash"):
-        value = record.payload.get(key)
-        if isinstance(value, str) and value:
-            fields[key] = value
     return fields
 
 
@@ -139,15 +117,11 @@ def projected_sections(record: NormalizedRecord) -> list[ProjectionSection]:
         if projected:
             return projected
 
-    if record.record_type == "document":
-        text = record.payload.get("text")
-        if isinstance(text, str) and text.strip():
-            return [{"title": "Document", "body": text}]
     return []
 
 
 def projected_taxonomy_items(record: NormalizedRecord) -> list[TaxonomyItem]:
-    """Return taxonomy items from projection first, then legacy payload buckets."""
+    """Return taxonomy items from the required compiler projection."""
     taxonomy = projection_for_record(record).get("taxonomy")
     items: list[TaxonomyItem] = []
     if isinstance(taxonomy, Mapping):
@@ -164,19 +138,4 @@ def projected_taxonomy_items(record: NormalizedRecord) -> list[TaxonomyItem]:
         )
         return items
 
-    for key, page_type in TAXONOMY_BUCKETS:
-        items.extend(
-            normalize_taxonomy_items(
-                _legacy_compiler_bucket(record, key),
-                page_type=page_type,
-            )
-        )
-    items.sort(key=lambda item: (item.page_type.value, slugify(item.title), item.title.lower()))
-    return items
-
-
-def _legacy_compiler_bucket(record: NormalizedRecord, key: str) -> Any:
-    compiler = record.payload.get("compiler")
-    if isinstance(compiler, Mapping) and key in compiler:
-        return compiler[key]
-    return record.payload.get(key)
+    return []
