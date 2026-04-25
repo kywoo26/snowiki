@@ -80,3 +80,29 @@ def test_privacy_gate_prepare_payload_redacts_allowed_payloads() -> None:
         "nested": {"password": REDACTED_VALUE},
     }
     assert gate.prepare_payload({"token": "abc123"}) == {"token": REDACTED_VALUE}
+
+
+def test_redact_secrets_handles_tuple_and_non_string_keys() -> None:
+    payload = {
+        123: "api_key=sk_live_1234567890",
+        "tokens": ("ghp_1234567890abcdef", "safe"),
+    }
+
+    redacted = redact_secrets(payload)
+
+    assert redacted[123] == f"api_key={REDACTED_VALUE}"
+    assert redacted["tokens"] == (REDACTED_VALUE, "safe")
+
+
+def test_redact_secrets_recurses_sensitive_container_values_and_preserves_none() -> None:
+    payload = {
+        "api_key": {"nested": "sk_live_1234567890"},
+        "access_token": ["ghp_1234567890abcdef"],
+        "password": None,
+    }
+
+    assert redact_secrets(payload) == {
+        "api_key": {"nested": REDACTED_VALUE},
+        "access_token": [REDACTED_VALUE],
+        "password": None,
+    }
