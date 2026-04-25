@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.helpers.projection import compiler_projection
+
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.compiler.paths import MAX_SUMMARY_SLUG_LENGTH, summary_slug_for_record
 from snowiki.compiler.taxonomy import NormalizedRecord
@@ -19,28 +21,18 @@ def test_markdown_document_rebuild_projects_body_and_source_identity(
             "title": "Guide",
             "summary": "A short guide.",
             "text": "# Guide\n\nMarkdown body.",
-            "projection": {
-                "title": "Guide",
-                "summary": "A short guide.",
-                "body": "# Guide\n\nMarkdown body.",
-                "tags": ["docs"],
-                "source_identity": {
+            "projection": compiler_projection(
+                "Guide",
+                "A short guide.",
+                body="# Guide\n\nMarkdown body.",
+                tags=["docs"],
+                source_identity={
                     "source_root": "/repo/docs",
                     "relative_path": "guide.md",
                     "content_hash": "abc123",
                 },
-                "sections": [
-                    {"title": "Document", "body": "# Guide\n\nMarkdown body."}
-                ],
-                "taxonomy": {
-                    "concepts": [],
-                    "entities": [],
-                    "topics": [],
-                    "questions": [],
-                    "projects": [],
-                    "decisions": [],
-                },
-            },
+                sections=[{"title": "Document", "body": "# Guide\n\nMarkdown body."}],
+            ),
             "frontmatter": {"title": "Guide", "tags": ["docs"]},
             "promoted_frontmatter": {"title": "Guide", "tags": ["docs"]},
             "reserved_frontmatter": {},
@@ -80,21 +72,7 @@ def test_summary_slug_for_record_bounds_long_titles() -> None:
         record_type="document",
         recorded_at="2026-04-08T12:00:00Z",
         payload={
-            "projection": {
-                "title": "Very Long Title " * 40,
-                "summary": "",
-                "tags": [],
-                "source_identity": {},
-                "sections": [],
-                "taxonomy": {
-                    "concepts": [],
-                    "entities": [],
-                    "topics": [],
-                    "questions": [],
-                    "projects": [],
-                    "decisions": [],
-                },
-            }
+            "projection": compiler_projection("Very Long Title " * 40)
         },
         raw_refs=[],
     )

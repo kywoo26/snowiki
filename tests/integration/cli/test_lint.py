@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from click.testing import CliRunner
+from tests.helpers.projection import compiler_projection
 
 from snowiki.cli.main import app
 
@@ -296,21 +297,7 @@ def test_lint_json_output_reports_info_level_stale_and_summary_coverage_checks(
             "source_type": "claude",
             "record_type": "session",
             "recorded_at": "2026-04-16T10:00:00Z",
-            "projection": {
-                "title": "Claude Basic",
-                "summary": "",
-                "tags": [],
-                "source_identity": {},
-                "sections": [],
-                "taxonomy": {
-                    "concepts": [],
-                    "entities": [],
-                    "topics": [],
-                    "questions": [],
-                    "projects": [],
-                    "decisions": [],
-                },
-            },
+            "projection": compiler_projection("Claude Basic"),
             "raw_refs": [{"path": "raw/claude/source.jsonl"}],
             "provenance": {"raw_refs": [{"path": "raw/claude/source.jsonl"}]},
         },

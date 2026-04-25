@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from typing import NotRequired, TypedDict, cast
 
 from .taxonomy import (
@@ -47,6 +47,47 @@ TAXONOMY_BUCKETS: tuple[tuple[str, PageType], ...] = (
     ("projects", PageType.PROJECT),
     ("decisions", PageType.DECISION),
 )
+
+
+def empty_projection_taxonomy() -> dict[str, list[object]]:
+    """Return the strict empty taxonomy shape required by compiler projections."""
+    return {bucket: [] for bucket, _page_type in TAXONOMY_BUCKETS}
+
+
+def make_compiler_projection(
+    *,
+    title: str,
+    summary: str,
+    body: str | None = None,
+    tags: Sequence[str] = (),
+    source_identity: SourceIdentity | None = None,
+    sections: Sequence[ProjectionSection] = (),
+    taxonomy: Mapping[str, Sequence[object]] | None = None,
+) -> CompilerProjection:
+    """Build the normalized compiler projection contract for active writers."""
+    identity: SourceIdentity = {} if source_identity is None else source_identity
+    projection: CompilerProjection = {
+        "title": title,
+        "summary": summary,
+        "tags": list(tags),
+        "source_identity": identity,
+        "sections": list(sections),
+        "taxonomy": _projection_taxonomy(taxonomy),
+    }
+    if body is not None:
+        projection["body"] = body
+    return projection
+
+
+def _projection_taxonomy(
+    taxonomy: Mapping[str, Sequence[object]] | None,
+) -> dict[str, list[object]]:
+    if taxonomy is None:
+        return empty_projection_taxonomy()
+    return {
+        bucket: list(taxonomy.get(bucket, ()))
+        for bucket, _page_type in TAXONOMY_BUCKETS
+    }
 
 
 def projection_for_record(record: NormalizedRecord) -> Mapping[str, object]:

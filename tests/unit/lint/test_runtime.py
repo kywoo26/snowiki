@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from tests.helpers.projection import compiler_projection
+
 from snowiki.lint.runtime import (
     collect_freshness_issues,
     collect_structural_issues,
@@ -221,21 +223,7 @@ def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(
             "source_type": "claude",
             "record_type": "session",
             "recorded_at": "2026-04-16T10:00:00Z",
-            "projection": {
-                "title": "Claude Basic",
-                "summary": "",
-                "tags": [],
-                "source_identity": {},
-                "sections": [],
-                "taxonomy": {
-                    "concepts": [],
-                    "entities": [],
-                    "topics": [],
-                    "questions": [],
-                    "projects": [],
-                    "decisions": [],
-                },
-            },
+            "projection": compiler_projection("Claude Basic"),
             "raw_refs": [{"path": "raw/claude/source.jsonl"}],
         },
     )

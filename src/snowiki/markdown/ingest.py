@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NotRequired, Protocol, TypedDict
 
-from snowiki.compiler.projection import CompilerProjection, SourceIdentity
+from snowiki.compiler.projection import SourceIdentity, make_compiler_projection
 from snowiki.privacy import PrivacyGate
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.search.workspace import clear_query_search_index_cache
@@ -120,22 +120,14 @@ def build_markdown_payload(
         "relative_path": source.relative_path,
         "content_hash": str(raw_ref["sha256"]),
     }
-    projection: CompilerProjection = {
-        "title": title,
-        "summary": summary,
-        "body": document.text,
-        "tags": tags,
-        "source_identity": source_identity,
-        "sections": [{"title": "Document", "body": document.text}],
-        "taxonomy": {
-            "concepts": [],
-            "entities": [],
-            "topics": [],
-            "questions": [],
-            "projects": [],
-            "decisions": [],
-        },
-    }
+    projection = make_compiler_projection(
+        title=title,
+        summary=summary,
+        body=document.text,
+        tags=tags,
+        source_identity=source_identity,
+        sections=[{"title": "Document", "body": document.text}],
+    )
     return {
         "title": title,
         "summary": summary,
