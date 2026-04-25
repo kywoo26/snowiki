@@ -18,6 +18,7 @@ from snowiki.bench.metrics import (
     DEFAULT_METRIC_REGISTRY,
     MetricRegistry,
 )
+from snowiki.bench.normalization import normalize_query_results
 from snowiki.bench.runner import run_cell
 from snowiki.bench.specs import (
     BenchmarkQuery,
@@ -205,6 +206,27 @@ def test_duplicate_registration_raises_value_error() -> None:
 
     with pytest.raises(ValueError, match="Metric already registered: duplicate_metric"):
         registry.register_metric("duplicate_metric", _stub_metric)
+
+
+def test_normalize_query_results_accepts_query_results_and_tuples() -> None:
+    existing = QueryResult(query_id="q1", ranked_doc_ids=("d1",), latency_ms=1.5)
+
+    results = normalize_query_results((existing, ("q2", ["d2", 3])))
+
+    assert results == (
+        existing,
+        QueryResult(query_id="q2", ranked_doc_ids=("d2", "3")),
+    )
+
+
+def test_normalize_query_results_rejects_scalar_payloads() -> None:
+    with pytest.raises(TypeError, match="must be a sequence"):
+        _ = normalize_query_results("not results")
+
+
+def test_normalize_query_results_rejects_invalid_ranked_docs() -> None:
+    with pytest.raises(TypeError, match="ranked results"):
+        _ = normalize_query_results((("q1", "doc-id"),))
 
 
 def test_run_cell_executes_adapter_and_computes_all_metrics(

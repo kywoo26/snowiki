@@ -11,6 +11,7 @@ EXPECTED_FILES: tuple[str, ...] = (
     "cache.py",
     "datasets.py",
     "metrics.py",
+    "normalization.py",
     "report.py",
     "runner.py",
     "specs.py",

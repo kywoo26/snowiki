@@ -284,7 +284,7 @@ Follow-up refactor target:
 - Split reviewed writeback/fileback logic by schema, proposal, evidence, rendering, payload, and apply orchestration.
 - Keep `snowiki.fileback` as a narrow facade rather than widening public access to internal helpers.
 - Add seam-level unit tests when a refactor extracts pure/schema functions from an integration-only flow.
-- The completed Phase 2 executable plan has been removed; durable outcomes are recorded in `docs/architecture/llm-wiki-ingest-redesign.md` and this document.
+- The completed Phase 2 executable plan has been removed; durable outcomes are recorded in this document.
 
 Do not follow Phase 2 by changing frontmatter libraries, storage layout, or search
 indexing inside projection/fileback cleanup PRs. Those remain separate waves unless
@@ -292,7 +292,7 @@ the touched seam proves they are required.
 
 ### Phase 3: CLI autonomous writeback queue hardening
 
-Status: **complete and merged in PR #105**. Durable outcomes are recorded in `docs/architecture/llm-wiki-ingest-redesign.md`; the completed executable plan has been removed.
+Status: **complete and merged in PR #105**. Durable outcomes are recorded in this document; the completed executable plan has been removed.
 
 Refactor targets for this wave:
 
@@ -304,7 +304,7 @@ Refactor targets for this wave:
 
 ### Phase 4: wiki contract, source freshness, and prune
 
-Status: **shipped in PR #106**. Durable outcomes live in `docs/architecture/llm-wiki-ingest-redesign.md`.
+Status: **shipped in PR #106**. Durable outcomes live in this document and the shipped CLI behavior.
 
 Refactor targets for this wave:
 
@@ -318,7 +318,7 @@ Refactor targets for this wave:
 
 ### Phase 5: agent-readable gardening proposals
 
-Status: **foundation slice shipped in PR #107**. Durable outcomes live in `docs/architecture/llm-wiki-ingest-redesign.md`.
+Status: **foundation slice shipped in PR #107**. Durable outcomes live in this document and the shipped lint/prune/fileback behavior.
 
 Refactor targets for this wave:
 
