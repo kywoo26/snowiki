@@ -10,6 +10,7 @@ from typing import Any, Literal, NotRequired, TypedDict
 from snowiki.markdown.discovery import MARKDOWN_SUFFIXES, discover_markdown_sources
 from snowiki.privacy import PrivacyGate
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
+from snowiki.storage.provenance import raw_refs_from_record
 from snowiki.storage.zones import atomic_write_json, isoformat_utc, relative_to_root
 
 MarkdownSourceState = Literal["invalid", "current", "modified", "missing", "untracked"]
@@ -320,17 +321,9 @@ def _raw_reference_counts(root: Path) -> dict[str, int]:
 
 
 def _raw_paths(payload: dict[str, object]) -> list[str]:
-    raw_refs = payload.get("raw_refs")
-    provenance = payload.get("provenance")
-    if not isinstance(raw_refs, list) and isinstance(provenance, dict):
-        raw_refs = {str(key): value for key, value in provenance.items()}.get("raw_refs")
-    if not isinstance(raw_refs, list):
-        return []
     paths: list[str] = []
-    for raw_ref in raw_refs:
-        if not isinstance(raw_ref, dict):
-            continue
-        raw_path = {str(key): value for key, value in raw_ref.items()}.get("path")
+    for raw_ref in raw_refs_from_record(payload):
+        raw_path = raw_ref.get("path")
         if isinstance(raw_path, str):
             safe_path = _safe_zone_path(raw_path, zone="raw")
             if safe_path is not None:

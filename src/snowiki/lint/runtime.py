@@ -11,6 +11,7 @@ from snowiki.compiler.paths import summary_path_for_record
 from snowiki.compiler.taxonomy import NormalizedRecord
 from snowiki.gardening.sources import collect_source_gardening_proposals
 from snowiki.markdown.source_state import collect_markdown_source_state
+from snowiki.storage.provenance import raw_refs_from_record
 from snowiki.storage.zones import ensure_utc_datetime
 
 from .integrity import check_layer_integrity
@@ -150,10 +151,6 @@ def _load_normalized_record(path: Path, root: Path) -> NormalizedRecord | None:
     source_type = _string_field("source_type")
     record_type = _string_field("record_type")
     recorded_at = _string_field("recorded_at")
-    raw_refs = payload.get("raw_refs")
-    provenance = payload.get("provenance")
-    if not isinstance(raw_refs, list) and isinstance(provenance, dict):
-        raw_refs = provenance.get("raw_refs")
     if (
         record_id is None
         or source_type is None
@@ -161,8 +158,6 @@ def _load_normalized_record(path: Path, root: Path) -> NormalizedRecord | None:
         or recorded_at is None
     ):
         return None
-    if not isinstance(raw_refs, list):
-        raw_refs = []
     return NormalizedRecord(
         id=record_id,
         path=path.relative_to(root).as_posix(),
@@ -170,7 +165,7 @@ def _load_normalized_record(path: Path, root: Path) -> NormalizedRecord | None:
         record_type=record_type,
         recorded_at=recorded_at,
         payload=payload,
-        raw_refs=[ref for ref in raw_refs if isinstance(ref, dict)],
+        raw_refs=raw_refs_from_record(payload),
     )
 
 

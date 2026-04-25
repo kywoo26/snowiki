@@ -116,6 +116,25 @@ def test_check_layer_integrity_reports_missing_raw_targets_and_manifest(
     ]
 
 
+def test_check_layer_integrity_accepts_top_level_raw_ref_shape(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw_path = tmp_path / "raw" / "claude" / "fixture.jsonl"
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+    raw_path.write_text("{}\n", encoding="utf-8")
+    _write_json(
+        tmp_path / "normalized" / "record.json",
+        {"raw_ref": {"path": "raw/claude/fixture.jsonl"}},
+    )
+    monkeypatch.setattr(integrity, "find_stale_wikilinks", lambda base: [])
+    monkeypatch.setattr(integrity, "find_orphaned_compiled_pages", lambda base: [])
+
+    result = integrity.check_layer_integrity(tmp_path)
+
+    assert not any(issue["code"] == "L101" for issue in result["issues"])
+
+
 def test_check_layer_integrity_returns_clean_result_for_healthy_layers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

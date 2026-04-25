@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+from snowiki.storage.provenance import raw_refs_from_record
 
 from .orphaned import find_orphaned_compiled_pages
 from .stale_links import find_stale_wikilinks
@@ -16,10 +19,12 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
         (base / "normalized").rglob("*.json"), key=lambda item: item.as_posix()
     )
     for path in normalized_paths:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        provenance = payload.get("provenance")
-        raw_refs = provenance.get("raw_refs") if isinstance(provenance, dict) else None
-        if not isinstance(raw_refs, list) or not raw_refs:
+        payload = cast(object, json.loads(path.read_text(encoding="utf-8")))
+        if not isinstance(payload, Mapping):
+            raw_refs: list[dict[str, object]] = []
+        else:
+            raw_refs = raw_refs_from_record(cast(Mapping[str, object], payload))
+        if not raw_refs:
             issues.append(
                 {
                     "code": "L101",
@@ -31,8 +36,6 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
             )
             continue
         for raw_ref in raw_refs:
-            if not isinstance(raw_ref, dict):
-                continue
             raw_path = raw_ref.get("path")
             if (
                 isinstance(raw_path, str)

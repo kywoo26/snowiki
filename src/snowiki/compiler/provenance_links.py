@@ -3,21 +3,11 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from snowiki.storage.provenance import dedupe_raw_refs as dedupe_provenance_raw_refs
+
 
 def dedupe_raw_refs(raw_refs: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    deduped: list[dict[str, Any]] = []
-    seen: set[tuple[str, str]] = set()
-    for raw_ref in raw_refs:
-        entry = dict(raw_ref)
-        key = (str(entry.get("sha256", "")), str(entry.get("path", "")))
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(entry)
-    deduped.sort(
-        key=lambda entry: (str(entry.get("path", "")), str(entry.get("sha256", "")))
-    )
-    return deduped
+    return dedupe_provenance_raw_refs(raw_refs, sort=True)
 
 
 def raw_source_paths(raw_refs: Iterable[Mapping[str, Any]]) -> list[str]:
