@@ -243,6 +243,7 @@ Run `snowiki lint` for the authoritative runtime linting. Source freshness findi
 
 - `source.modified`: reingest the changed source before relying on compiled state.
 - `source.missing`: inspect with `snowiki prune sources --dry-run` before cleanup.
+- `source.rename_candidate`: review the exact-hash missing/untracked evidence before pruning; usually reingest the untracked source first, then review prune candidates again.
 - `source.untracked`: ingest the source root if the file should become durable knowledge.
 
 ### 10.2: Semantic Checks (Informative)

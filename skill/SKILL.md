@@ -89,7 +89,7 @@ Recall against current stored knowledge/session-derived material through the shi
 #### `status`, `lint`, `prune`, `export`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`
 These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
 
-Use `status` and `lint` before source gardening. `status` gives source freshness summary counts, while `lint` gives actionable `source.modified`, `source.missing`, and `source.untracked` findings. Use `prune sources --dry-run` before any destructive source cleanup.
+Use `status` and `lint` before source gardening. `status` gives source freshness summary counts, while `lint --output json` gives actionable `source.modified`, `source.missing`, `source.untracked`, and `source.rename_candidate` findings. Use `prune sources --dry-run` before any destructive source cleanup, and inspect rename candidates before pruning missing-source records.
 
 #### `fileback`
 Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback preview --queue` to persist a non-blocking pending proposal, `snowiki fileback queue list/show/apply/reject/prune` to manage queue lifecycle state, `snowiki fileback preview --queue --auto-apply-low-risk` only for runtime-proven low-risk proposals, and `snowiki fileback apply` to persist a reviewed proposal file through the canonical CLI path.
