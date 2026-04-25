@@ -195,7 +195,7 @@ This document is the running architecture ledger for Markdown-first ingest. Keep
 
 Dedicated executable plans:
 
-- `docs/architecture/markdown-ingest-phase2-plan.md` — active Phase 2 compiler projection boundary plan.
+- `docs/architecture/markdown-ingest-phase2-plan.md` — completed Phase 2 compiler projection boundary plan and active Phase 2 follow-up refactor ledger.
 
 Every phase should finish with a **phase-end consistency and cleanup pass** before PR:
 
@@ -275,6 +275,8 @@ Implementation order:
 
 ### Phase 2: Compiler Projection Boundary
 
+Status: **implemented in PR #101**. Projection is now the required compiler-facing normalized payload contract.
+
 Deliverables:
 
 - Define a source-agnostic compiler projection contract for normalized records.
@@ -284,13 +286,20 @@ Deliverables:
 - Preserve source/provenance traceability in generated pages.
 - Remove legacy compiler fallback paths from active rebuild behavior; records without `projection` must be re-ingested or explicitly backfilled.
 
-Concrete follow-up work:
+Completed implementation:
 
-- Add a `projection` contract, or an explicitly named equivalent, to normalized Markdown document payloads.
-- Add compiler helpers that require projection fields and fail fast on legacy normalized records without `projection`.
-- Refactor `generate_summary_pages()` so Markdown document records do not require source-type-specific branches.
-- Keep compiled page output deterministic; document and test any intentional output contract changes.
-- Keep stale source reports, source manifests, storage layout changes, and pruning out of Phase 2 unless the compiler boundary work proves they are required.
+- Added `payload["projection"]` as the strict compiler projection contract.
+- Added compiler helpers that require projection fields and fail fast on legacy normalized records without `projection`.
+- Refactored summary/concept/question/session/path generation to consume projection helpers instead of loose payload fallback.
+- Updated Markdown ingest and fileback manual-question writes to emit projection.
+- Kept old records inspectable by lint/status diagnostics without adding rebuild/query compatibility fallback.
+
+Phase 2 follow-up refactor work:
+
+- Keep projection construction centralized in compiler projection helpers rather than repeated hand-built dictionaries.
+- Split fileback/writeback code by schema, proposal, evidence, rendering, normalized payload, and apply orchestration while keeping the CLI facade narrow.
+- Add seam-level unit tests for extracted fileback functions instead of relying only on CLI integration tests.
+- Keep normalized storage write-contract redesign and projection backfill/migration as separate, explicit future specs.
 
 ### Phase 3: Wiki Contract and Stale Source Reporting
 
@@ -386,7 +395,7 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 ## Open Questions
 
 - What explicit migration/backfill command, if any, should convert pre-projection normalized records?
-- Which future compiler projection changes should intentionally improve summary page structure rather than preserve byte-compatible output?
+- Which future compiler projection changes should intentionally improve summary page structure rather than preserve current output?
 - What exact JSON schema should stale/missing source reports use across `ingest`, `status`, and `lint`?
 - Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?
 - What is the minimum frontmatter schema for user-authored documents versus Snowiki-generated pages?
