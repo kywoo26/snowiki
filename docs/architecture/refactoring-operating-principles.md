@@ -308,11 +308,11 @@ Status: **active implementation wave**. Active ledger: `docs/architecture/wiki-c
 
 Refactor targets for this wave:
 
-- Keep source freshness classification in a domain module, not Click callbacks.
+- Keep Markdown source freshness classification and prune planning in `snowiki.markdown.source_state`, not Click callbacks.
 - Treat `content_hash` as the authoritative freshness signal; use mtime/size only as cache hints.
 - Keep `status` as a summary surface and `lint` as an actionable diagnostic surface.
 - Generate `index.md`, `log.md`, and `overview.md` deterministically from runtime state rather than through brittle string insertion.
-- Keep prune dry-run-first and require explicit `--delete --yes` for destructive cleanup.
+- Keep prune dry-run-first and require explicit `--delete --yes --all-candidates` for destructive cleanup.
 - Do not silently delete normalized, raw, or compiled artifacts during ingest or rebuild.
 - Do not expand this wave into MCP writes, semantic/vector search, broad sync/edit/merge workflows, or full event sourcing.
 

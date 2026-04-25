@@ -325,7 +325,7 @@ Concrete follow-up work:
 
 ### Phase 4: Wiki Contract and Stale Source Reporting
 
-Status: **active implementation phase for `feat/phase4-wiki-contract`**. Active executable plan: `docs/architecture/wiki-contract-phase4-plan.md`.
+Status: **active implementation phase for `feat/phase4-wiki-contract`**. Source freshness, generated navigation artifacts, and explicit source prune are implemented in the branch and tracked by the active executable plan: `docs/architecture/wiki-contract-phase4-plan.md`.
 
 Deliverables:
 
@@ -336,16 +336,20 @@ Deliverables:
 - Define the operator-facing stale source report format.
 - Add an explicit dry-run-first `snowiki prune sources` cleanup path for removed source identities.
 
-Concrete follow-up work:
+Implemented in the Phase 4 branch:
 
-- Add a status/lint source manifest reader that compares normalized Markdown document records against original `source_path` and `content_hash`.
-- Define a stable JSON shape for source freshness reports, including `state`, `severity`, `recommended_action`, `relative_path`, `source_path`, `record_id`, `stored_content_hash`, and `current_content_hash`.
-- Use `current`, `modified`, `missing`, and `untracked` as the source freshness states; content hash is the authoritative truth and mtime/size are cache hints only.
-- Keep `status` as the summary surface, `lint` as the detailed diagnostic surface, and `ingest` as an operation-local aggregate surface.
-- Generate `compiled/index.md` as navigation/catalog, `compiled/log.md` as parseable operation summary, and `compiled/overview.md` as living synthesis/dashboard.
-- Document Snowiki-generated page frontmatter separately from user-authored source frontmatter.
-- Implement source cleanup as explicit prune: dry-run by default, destructive delete only with `--delete --yes`, and no implicit deletion during ingest or rebuild.
-- Update README and skill-facing docs only after the shipped CLI behavior is the runtime truth.
+- `snowiki.markdown.source_state` owns source freshness classification for normalized Markdown records.
+- `snowiki status --output json` reports `sources.freshness` summary counts while preserving search/index freshness separately.
+- `snowiki lint --output json` emits actionable `source.modified`, `source.missing`, `source.untracked`, and `source.invalid_metadata` findings.
+- `snowiki ingest` derives `documents_stale` from modified/missing/invalid records in the current source root instead of hardcoding zero; untracked files remain status/lint findings.
+- `snowiki rebuild` generates `compiled/index.md`, `compiled/log.md`, and strengthened `compiled/overview.md` artifacts from compiler domain state.
+- `snowiki.markdown.source_state` owns source prune planning/deletion; `snowiki prune sources` is dry-run-first and destructive deletion requires `--delete --yes --all-candidates`.
+- Source prune deletes missing-source normalized Markdown records and raw snapshots that become unreferenced, writes `index/source-prune-tombstones.json`, and rebuilds generated artifacts after deletion.
+
+Remaining before PR:
+
+- Sync skill-facing docs after runtime verification.
+- Run full default and integration verification.
 
 ### Phase 5: Agent Workflow and Higher-Level Gardening
 

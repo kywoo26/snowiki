@@ -1,7 +1,7 @@
 ---
 name: wiki
-description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/edit/merge/graph workflows deferred."
-argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|fileback preview QUESTION|fileback preview --queue QUESTION|fileback queue list|fileback apply|export|benchmark PRESET|daemon|mcp]
+description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, dry-run-first source prune, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/edit/merge/graph workflows deferred."
+argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|prune sources|fileback preview QUESTION|fileback preview --queue QUESTION|fileback queue list|fileback apply|export|benchmark PRESET|daemon|mcp]
 allowed-tools: Bash(python3:*), Read, Write, Edit, Glob, Grep, WebFetch
 ---
 
@@ -23,6 +23,7 @@ Atomic units of execution provided by the `snowiki` CLI:
 - `snowiki recall`
 - `snowiki status`
 - `snowiki lint`
+- `snowiki prune`
 - `snowiki fileback`
 
 ### Advanced Passthrough
@@ -69,6 +70,7 @@ Write posture:
 - `fileback preview --queue --auto-apply-low-risk` may apply only when runtime policy proves the proposal low-risk
 - `fileback queue list`, `queue show`, `queue apply`, `queue reject`, and `queue prune` manage CLI queue lifecycle state
 - `fileback apply` requires a reviewed proposal file
+- `prune sources --dry-run` previews missing-source cleanup candidates; destructive cleanup requires `prune sources --delete --yes --all-candidates`
 - MCP write support is not shipped
 
 ## Current Commands vs Deferred Workflow Ideas
@@ -84,8 +86,10 @@ Search compiled knowledge through the current lexical retrieval runtime.
 #### `recall`
 Recall against current stored knowledge/session-derived material through the shipped Snowiki runtime.
 
-#### `status`, `lint`, `export`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`
+#### `status`, `lint`, `prune`, `export`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`
 These are all part of the current shipped CLI surface and should be invoked through `snowiki ...`.
+
+Use `status` and `lint` before source gardening. `status` gives source freshness summary counts, while `lint` gives actionable `source.modified`, `source.missing`, and `source.untracked` findings. Use `prune sources --dry-run` before any destructive source cleanup.
 
 #### `fileback`
 Use `snowiki fileback preview` to produce a reviewed proposal, `snowiki fileback preview --queue` to persist a non-blocking pending proposal, `snowiki fileback queue list/show/apply/reject/prune` to manage queue lifecycle state, `snowiki fileback preview --queue --auto-apply-low-risk` only for runtime-proven low-risk proposals, and `snowiki fileback apply` to persist a reviewed proposal file through the canonical CLI path.

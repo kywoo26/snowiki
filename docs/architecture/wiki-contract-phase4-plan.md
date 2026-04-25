@@ -95,30 +95,28 @@ Implementation PRs for Phase 4 must preserve these boundaries. If any item becom
 
 Snowiki runtime, not an agent, owns source freshness classification.
 
-| State | Meaning | Default severity | Recommended action |
+| State | Meaning | Lint severity | Operator action |
 | :--- | :--- | :--- | :--- |
 | `current` | Source file exists and current content hash matches normalized record. | none | `none` |
 | `modified` | Source file exists but current content hash differs from normalized record. | warning | `reingest` |
 | `missing` | Normalized Markdown record points at a source path that no longer exists. | warning | `review_prune` |
 | `untracked` | Source root contains a Markdown file with no normalized record. | info | `ingest` |
+| `invalid` | Normalized Markdown record has malformed or out-of-root source metadata. | warning | `reingest_or_prune` |
 
 `content_hash` is the authoritative correctness signal. `mtime` and file size may be used later as cache hints, but they must not be the durable truth. This follows standard cache invalidation practice: cheap metadata can identify candidates, but hash comparison determines freshness.
 
 ### Source Freshness Report Schema
 
-The shared report item shape should be stable across `status`, `lint`, and future prune flows:
+The shared runtime source-state item shape stays minimal and domain-owned. `status`, `lint`, and prune may render different projections from it:
 
 ```json
 {
   "state": "modified",
-  "severity": "warning",
-  "recommended_action": "reingest",
   "record_id": "markdown-document-...",
   "source_root": "/abs/source/root",
   "relative_path": "notes/topic.md",
   "source_path": "/abs/source/root/notes/topic.md",
   "normalized_path": "normalized/markdown/documents/....json",
-  "compiled_paths": ["compiled/summaries/topic.md"],
   "stored_content_hash": "...",
   "current_content_hash": "..."
 }
@@ -141,10 +139,14 @@ Status should provide a dashboard summary:
     "total": 120,
     "by_type": {"markdown": 120},
     "freshness": {
-      "current": 113,
-      "modified": 4,
-      "missing": 2,
-      "untracked": 1
+      "total": 120,
+      "counts": {
+        "modified": 4,
+        "missing": 2,
+        "untracked": 1,
+        "current": 113
+      },
+      "stale_count": 7
     }
   }
 }
@@ -163,7 +165,7 @@ Lint should provide actionable issues:
 }
 ```
 
-Ingest may continue reporting `documents_stale`, but `status`/`lint` own the canonical cross-run freshness report. `documents_stale` should count stale records only within the scope of the source roots involved in the current ingest operation.
+Ingest may continue reporting `documents_stale`, but `status`/`lint` own the canonical cross-run freshness report. `documents_stale` should count stale records only within the scope of the source roots involved in the current ingest operation; untracked files are not records and remain status/lint findings.
 
 ### Prune / Cleanup Surface
 
@@ -171,7 +173,7 @@ The Phase 4 prune command should be explicit and dry-run-first:
 
 ```text
 snowiki prune sources --dry-run --output json
-snowiki prune sources --delete --yes --output json
+snowiki prune sources --delete --yes --all-candidates --output json
 ```
 
 Decision: use **`snowiki prune sources`** rather than `cleanup sources` because it matches the existing `fileback queue prune` safety vocabulary.
@@ -179,15 +181,16 @@ Decision: use **`snowiki prune sources`** rather than `cleanup sources` because 
 Prune scope:
 
 - produce candidates for missing-source normalized Markdown records;
-- produce candidates for compiled pages that are single-source and derive only from pruned identities;
-- produce candidates for raw snapshots no longer referenced by any normalized provenance;
-- update generated navigation artifacts after deletion;
-- preserve audit evidence through tombstone or archive records.
+- produce candidates for raw snapshots no longer referenced by any normalized provenance after those records are removed;
+- update generated navigation artifacts after deletion by rebuilding derived compiled/index artifacts;
+- preserve audit evidence through `index/source-prune-tombstones.json`.
+
+Phase 4 intentionally does **not** structurally edit multi-source generated pages. Rebuild removes pages only when their normalized inputs are gone. Richer cascade cleanup, dead wikilink repair, and reviewable cleanup proposals stay in Phase 5.
 
 Safety rules:
 
 - dry-run is the default;
-- deletion requires `--delete --yes`;
+- deletion requires `--delete --yes --all-candidates`;
 - pruning requires explicit source identity selection or an explicit all-candidates confirmation;
 - rebuild/ingest must not silently cascade delete;
 - multi-source generated pages must not be deleted until tests prove source removal can update `sources[]` structurally;
@@ -267,7 +270,7 @@ Snowiki-managed compiled frontmatter:
 
 ### Step 1: Source Freshness Domain Module
 
-Add a domain module, likely `src/snowiki/source_freshness.py` or `src/snowiki/sources/freshness.py`, that:
+Add a Markdown domain module, `src/snowiki/markdown/source_state.py`, that:
 
 - loads normalized Markdown document records;
 - extracts `source_root`, `relative_path`, `source_path`, `content_hash`, and record paths;
@@ -296,7 +299,8 @@ Lint:
 - introduce check code family such as `source.freshness` with issue codes:
   - `source.modified`;
   - `source.missing`;
-  - `source.untracked`.
+  - `source.untracked`;
+  - `source.invalid_metadata`.
 
 Tests:
 
@@ -306,7 +310,7 @@ Tests:
 
 ### Step 3: Ingest Stale Aggregate
 
-Update `src/snowiki/markdown/ingest.py` so `documents_stale` is no longer hardcoded.
+Update `src/snowiki/markdown/ingest.py` so `documents_stale` is derived from the shared source freshness report instead of hardcoded.
 
 Rules:
 
@@ -316,16 +320,14 @@ Rules:
 
 ### Step 4: Navigation Generators
 
-Add compiler generators for `index.md` and `log.md`, and strengthen the overview contract.
+Compiler generation emits `compiled/index.md`, `compiled/log.md`, and an overview that links to the generated navigation artifacts.
 
-Likely files:
+Files:
 
-- `src/snowiki/compiler/generators/index.py`
-- `src/snowiki/compiler/generators/log.py`
+- `src/snowiki/compiler/generators/navigation.py`
 - `src/snowiki/compiler/generators/overview.py`
 - `src/snowiki/compiler/engine.py`
 - `src/snowiki/compiler/taxonomy.py`
-- `src/snowiki/compiler/paths.py`
 
 Tests:
 
@@ -335,18 +337,18 @@ Tests:
 
 ### Step 5: `snowiki prune sources`
 
-Add source prune planning and explicit deletion.
+`snowiki prune sources` plans missing-source cleanup by default and deletes only with `--delete --yes --all-candidates`.
 
 Likely files:
 
-- `src/snowiki/prune.py` or `src/snowiki/sources/prune.py`
+- `src/snowiki/markdown/source_state.py`
 - `src/snowiki/cli/commands/prune.py`
 - `src/snowiki/cli/main.py`
 
 Behavior:
 
 - dry-run default;
-- `--delete --yes` required for deletion;
+- `--delete --yes --all-candidates` required for deletion;
 - JSON reports candidates and deleted paths;
 - preserve tombstones or archives for pruned normalized records;
 - do not delete multi-source generated pages in the first implementation unless source reference removal is structurally safe and tested.
@@ -357,7 +359,6 @@ Tests:
 - delete requires `--yes`;
 - missing source candidate selection;
 - raw snapshot reference safety;
-- compiled single-source page cleanup;
 - generated navigation artifacts regenerate after prune.
 
 ### Step 6: Docs and Skill Sync After Runtime Truth
@@ -384,7 +385,7 @@ Before the Phase 4 PR opens:
 - `snowiki lint --output json` emits detailed source freshness issues.
 - `documents_stale` is no longer a hardcoded zero.
 - `compiled/index.md`, `compiled/log.md`, and `compiled/overview.md` have explicit, tested contracts.
-- `snowiki prune sources` is dry-run-first and requires `--delete --yes` for deletion.
+- `snowiki prune sources` is dry-run-first and requires `--delete --yes --all-candidates` for deletion.
 - Missing live source files never trigger implicit deletion during ingest or rebuild.
 - Source freshness uses content hash as authoritative truth.
 - Tests cover current/modified/missing/untracked source states.
@@ -399,7 +400,7 @@ Before the Phase 4 PR opens:
 | Risk | Mitigation |
 | :--- | :--- |
 | Source-root scans become expensive. | Hash known source paths first; add untracked scans only for known source roots and keep results bounded. |
-| Missing files cause accidental data loss. | Report missing first; require explicit prune source identity and `--delete --yes`. |
+| Missing files cause accidental data loss. | Report missing first; require explicit all-candidate confirmation and `--delete --yes --all-candidates`. |
 | `log.md` implies audit guarantees Snowiki cannot yet meet. | Treat Phase 4 `log.md` as generated operation summary, not durable event store. |
 | `index.md` becomes stale or hand-edited. | Regenerate deterministically on rebuild and mark as Snowiki-managed. |
 | Multi-source page cleanup deletes shared knowledge. | Do not delete multi-source pages until structural source-reference removal is implemented and tested. |
