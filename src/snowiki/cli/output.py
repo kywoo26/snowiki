@@ -9,6 +9,10 @@ import click
 OutputMode = Literal["human", "json"]
 
 
+def normalize_output_mode(value: str) -> OutputMode:
+    return "json" if value == "json" else "human"
+
+
 def emit_result(
     payload: dict[str, Any],
     *,
