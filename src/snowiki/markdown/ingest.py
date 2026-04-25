@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import NotRequired, Protocol, TypedDict
 
+from snowiki.compiler.projection import CompilerProjection, SourceIdentity
 from snowiki.privacy import PrivacyGate
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.search.workspace import clear_query_search_index_cache
@@ -111,13 +112,38 @@ def build_markdown_payload(
     raw_ref: RawRef,
 ) -> dict[str, object]:
     """Build the normalized payload for a parsed Markdown source."""
+    title = resolve_markdown_title(source, document.text, document.promoted)
+    summary = resolve_markdown_summary(document.promoted)
+    tags = _promoted_tags(document.promoted)
+    source_identity: SourceIdentity = {
+        "source_root": source.source_root.as_posix(),
+        "relative_path": source.relative_path,
+        "content_hash": str(raw_ref["sha256"]),
+    }
+    projection: CompilerProjection = {
+        "title": title,
+        "summary": summary,
+        "body": document.text,
+        "tags": tags,
+        "source_identity": source_identity,
+        "sections": [{"title": "Document", "body": document.text}],
+        "taxonomy": {
+            "concepts": [],
+            "entities": [],
+            "topics": [],
+            "questions": [],
+            "projects": [],
+            "decisions": [],
+        },
+    }
     return {
-        "title": resolve_markdown_title(source, document.text, document.promoted),
-        "summary": resolve_markdown_summary(document.promoted),
+        "title": title,
+        "summary": summary,
         "text": document.text,
         "frontmatter": document.frontmatter,
         "promoted_frontmatter": document.promoted,
         "reserved_frontmatter": document.reserved,
+        "projection": projection,
         "source_path": source.path.as_posix(),
         "source_root": source.source_root.as_posix(),
         "relative_path": source.relative_path,
@@ -182,3 +208,10 @@ def _count_documents_by_status(
 
 def _run_rebuild(root: Path) -> dict[str, object]:
     return {"root": root.as_posix(), **run_rebuild_with_integrity(root)}
+
+
+def _promoted_tags(promoted: dict[str, FrontmatterValue]) -> list[str]:
+    tags = promoted.get("tags")
+    if not isinstance(tags, list):
+        return []
+    return sorted({tag.strip() for tag in tags if isinstance(tag, str) and tag.strip()})

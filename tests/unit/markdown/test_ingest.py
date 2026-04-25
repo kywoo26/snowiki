@@ -95,6 +95,26 @@ def test_build_markdown_payload_isolated_from_storage(tmp_path: Path) -> None:
     assert payload["summary"] == "Helpful"
     assert payload["content_hash"] == "abc123"
     assert payload["source_metadata"] == {"extension": ".md", "size": 42}
+    assert payload["projection"] == {
+        "title": "Guide",
+        "summary": "Helpful",
+        "body": "# Guide\n\nBody",
+        "tags": [],
+        "source_identity": {
+            "source_root": tmp_path.as_posix(),
+            "relative_path": "guide.md",
+            "content_hash": "abc123",
+        },
+        "sections": [{"title": "Document", "body": "# Guide\n\nBody"}],
+        "taxonomy": {
+            "concepts": [],
+            "entities": [],
+            "topics": [],
+            "questions": [],
+            "projects": [],
+            "decisions": [],
+        },
+    }
 
 
 def test_ingest_markdown_source_uses_injected_privacy_gate(tmp_path: Path) -> None:
