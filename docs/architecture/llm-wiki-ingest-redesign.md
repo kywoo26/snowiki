@@ -162,7 +162,7 @@ Minimum payload fields:
 
 The primary `snowiki ingest PATH` surface should stop accepting Claude/OpenCode exports as core write paths in Phase 1. Session exports should move above Snowiki core: a skill or workflow converts Claude/OpenCode sessions into Markdown notes, then runs `snowiki ingest <note>`.
 
-Existing normalized Claude/OpenCode records should remain readable by `rebuild`, `query`, and compatibility tests where feasible. This is a read/rebuild compatibility goal only. Phase 1 removes adapter-specific session export write paths from `snowiki ingest`, including hidden `--source claude|opencode` compatibility bridges.
+Existing normalized Claude/OpenCode records remain useful for diagnostics and explicit migration/backfill tooling, but Phase 2 makes them invalid rebuild/query inputs until they carry `payload["projection"]`. Phase 1 removes adapter-specific session export write paths from `snowiki ingest`, including hidden `--source claude|opencode` compatibility bridges.
 
 ## Reference Patterns to Adopt
 
@@ -203,7 +203,7 @@ Every phase should finish with a **phase-end consistency and cleanup pass** befo
 2. Fix contract mismatches before treating the phase as complete.
 3. Add missing acceptance tests for safety, help surface, compatibility, and error behavior.
 4. Perform bounded maintainability cleanup where it improves the current phase boundary.
-5. Remove compatibility bridges when tests/workflows can be migrated to the new contract without losing read compatibility.
+5. Remove compatibility bridges once tests/workflows have migrated to the new contract, and keep any legacy handling explicit as diagnostics or migration/backfill tooling.
 6. Record any larger refactor or product decision as a deferred item in this ledger.
 7. Re-run required verification after cleanup.
 
@@ -221,7 +221,7 @@ Phase 1 includes:
 - Frontmatter preservation with safe field promotion and reserved field blocking.
 - Summary-only compiled output for Markdown document records.
 - `--rebuild` and JSON freshness reporting.
-- Legacy normalized read/rebuild/query compatibility where feasible.
+- Legacy normalized records remain physically readable for diagnostics, but rebuild/query compiler input now requires `payload["projection"]`.
 
 Phase 1 explicitly does **not** include:
 
@@ -248,7 +248,7 @@ Deliverables:
 - Preserve and safely promote frontmatter.
 - Add `--rebuild` and `rebuild_required` output.
 - Emit summary pages only from Markdown document records.
-- Keep old normalized records readable by rebuild/query where feasible.
+- Keep old normalized records inspectable by lint/status diagnostics; rebuild/query compatibility requires explicit projection backfill or re-ingest.
 - Remove Claude/OpenCode write paths from the primary ingest CLI surface.
 - Report stale/missing source documents in ingest/status output when detectable; do not prune automatically.
 
@@ -259,7 +259,7 @@ Verification:
 - Frontmatter preservation/promotion test.
 - Hash unchanged/update test.
 - Rebuild flag test.
-- Legacy normalized rebuild compatibility test if retained.
+- Missing-projection lint/status diagnostic test and explicit rebuild failure test.
 - Path safety tests for symlinks, hidden/internal directories, and traversal-like paths.
 - Summary slug/path length regression test for long Markdown titles or bodies.
 
@@ -282,12 +282,12 @@ Deliverables:
 - Populate the projection contract for Markdown document records during ingest.
 - Remove inline Markdown-specific branches from `src/snowiki/compiler/generators/summary.py`.
 - Preserve source/provenance traceability in generated pages.
-- Decide which legacy compiler fallback paths are retained for read compatibility and which are removed.
+- Remove legacy compiler fallback paths from active rebuild behavior; records without `projection` must be re-ingested or explicitly backfilled.
 
 Concrete follow-up work:
 
 - Add a `projection` contract, or an explicitly named equivalent, to normalized Markdown document payloads.
-- Add compiler helpers that read projection fields first and legacy fallbacks only when intentionally supported.
+- Add compiler helpers that require projection fields and fail fast on legacy normalized records without `projection`.
 - Refactor `generate_summary_pages()` so Markdown document records do not require source-type-specific branches.
 - Keep compiled page output deterministic; document and test any intentional output contract changes.
 - Keep stale source reports, source manifests, storage layout changes, and pruning out of Phase 2 unless the compiler boundary work proves they are required.
@@ -385,7 +385,7 @@ This means Phase 1 ingest is compatible with a future Rust engine as long as it 
 
 ## Open Questions
 
-- Which remaining legacy compiler fallback paths should be deleted after projection compatibility is proven?
+- What explicit migration/backfill command, if any, should convert pre-projection normalized records?
 - Which future compiler projection changes should intentionally improve summary page structure rather than preserve byte-compatible output?
 - What exact JSON schema should stale/missing source reports use across `ingest`, `status`, and `lint`?
 - Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?

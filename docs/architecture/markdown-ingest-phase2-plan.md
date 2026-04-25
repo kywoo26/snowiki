@@ -53,7 +53,7 @@ Related weaker seams:
 - Populate that projection for Markdown document records during ingest.
 - Refactor summary page generation to consume the projection instead of checking `source_type == "markdown"`.
 - Preserve source/provenance traceability in generated pages.
-- Decide which legacy compiler fallback paths are retained for read compatibility and which are removed.
+- Remove legacy compiler fallback paths from active rebuild behavior instead of retaining them as compatibility debt.
 - Add compiler-seam tests before changing projection behavior.
 - Update architecture docs to make compiled pages explicitly derived artifacts.
 
@@ -100,8 +100,8 @@ Implementation may use a Python `TypedDict` rather than runtime validation. The 
 ### Contract Rules
 
 - Ingest adapters own source-specific interpretation.
-- Compiler generators consume `projection` fields first.
-- Legacy records without `projection` may use compatibility fallback helpers.
+- Compiler generators consume `projection` fields as the required contract.
+- Legacy records without `projection` are not valid compiler inputs. They must be re-ingested or converted by an explicit migration/backfill path before rebuild.
 - New source types must not add branches to summary generators; they must write the projection contract.
 - Compiled pages must retain provenance through raw refs and source identity.
 
@@ -117,9 +117,12 @@ These Phase 2 decisions are now part of the implementation contract:
 3. Markdown tags are duplicated intentionally.
    - Source frontmatter remains preserved under `promoted_frontmatter`.
    - Compiler-facing tags are copied into `projection.tags`.
-4. Existing normalized Markdown records are not migrated in Phase 2.
+4. Existing normalized Markdown records are not silently migrated in Phase 2.
    - Re-ingest writes the new shape.
-   - Compiler fallback handles existing records until pruning/migration is explicit.
+   - Rebuild treats missing `projection` as invalid normalized input rather than reconstructing meaning from loose legacy fields.
+5. Active writers must emit `projection`.
+   - Markdown ingest writes projection during normalization.
+   - Fileback manual-question writes use `projection.taxonomy.questions`, not the loose legacy `compiler.questions` bucket.
 
 ## Implementation Waves
 
@@ -133,15 +136,15 @@ Files:
 Deliverables:
 
 - Define `CompilerProjection`, `ProjectionSection`, and `SourceIdentity` typed contracts.
-- Add helpers for extracting title, summary, tags, sections, source identity, and taxonomy buckets from either projection or legacy fallback.
-- Add unit tests for projection-first extraction and legacy fallback.
-- Keep legacy taxonomy fallback behavior available through projection helpers rather than expanding generator-level branching.
+- Add helpers for extracting title, summary, tags, sections, source identity, and taxonomy buckets from the projection contract.
+- Add unit tests for strict projection extraction and missing-projection failure.
+- Delete loose compiler fallback behavior from projection helpers rather than expanding generator-level branching.
 
 Acceptance criteria:
 
 - A record with `payload["projection"]` compiles without checking source type.
-- A legacy record without projection still compiles if compatibility is intentionally retained.
-- Tests lock the fallback behavior that remains.
+- A record without projection fails fast as invalid compiler input.
+- Tests lock the strict contract instead of preserving legacy fallback behavior.
 
 ### Wave 2: Markdown ingest writes projection
 
@@ -183,7 +186,7 @@ Acceptance criteria:
 - Markdown document summary output remains intentionally tested.
 - If output changes, tests and architecture docs describe the new contract.
 
-### Wave 4: Legacy cleanup decision
+### Wave 4: Legacy cleanup
 
 Files:
 
@@ -192,16 +195,14 @@ Files:
 
 Deliverables:
 
-- Decide whether to delete or retain:
-  - `extract_compiler_bucket()` loose `payload["compiler"]` convention,
-  - title/summary fallback chains,
-  - session-era taxonomy bucket assumptions.
-- Keep compatibility only where tests prove it is still a supported read path.
+- Delete `extract_compiler_bucket()` and the loose `payload["compiler"]` convention from compiler behavior.
+- Delete title/summary fallback chains that re-derive compiler fields from raw payload data.
+- Move session-era taxonomy buckets under `projection.taxonomy` in tests and active writers.
 
 Acceptance criteria:
 
-- Removed legacy paths have replacement behavior or explicit documentation that they are no longer supported.
-- Retained fallback paths have tests and comments explaining why they remain.
+- Removed legacy paths have replacement behavior through `projection` or explicit documentation that they are no longer supported.
+- No compiler fallback path remains without a current, tested writer.
 
 ### Wave 5: Documentation sync and verification
 
@@ -241,5 +242,5 @@ Recommended atomic commits:
 2. `refactor(compiler): add projection contract helpers`
 3. `refactor(markdown): write compiler projection payloads`
 4. `refactor(compiler): consume projection summaries`
-5. `test(compiler): cover projection compatibility`
+5. `test(compiler): cover strict projection contract`
 6. `docs(architecture): sync compiler projection contract`
