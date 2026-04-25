@@ -2,7 +2,7 @@
 
 This plan turns the post-Phase-1 refactor ledger into an executable Phase 2 scope. It supersedes the completed Phase 1 implementation plan and keeps `docs/architecture/llm-wiki-ingest-redesign.md` synchronized as the canonical architecture ledger.
 
-Status: **implemented in PR #101**. The remaining content is the durable projection contract plus the Phase 2 follow-up refactor ledger.
+Status: **implemented in PR #101**. The remaining content is the durable projection contract plus the Phase 2 follow-up refactor ledger. The Phase 2 closing writeback plan lives in `docs/architecture/autonomous-writeback-queue-plan.md`.
 
 ## Summary
 
@@ -30,7 +30,7 @@ Relevant ideas:
 - LLM wiki references generally use a two-stage pipeline: analyze/normalize first, generate pages second.
 - Compiled wiki pages should be projections, not source-of-truth. Raw sources and normalized records remain auditable durable layers.
 - Traceability should be first-class: generated pages need source/provenance links that explain where claims came from.
-- Review queues, graph extraction, semantic retrieval, and UI-heavy workflows are later concerns unless Phase 2 needs a specific seam for them.
+- Graph extraction, semantic retrieval, and UI-heavy workflows are later concerns unless Phase 2 needs a specific seam for them. Broad review queues remain deferred, but the narrower autonomous fileback proposal queue is now tracked separately as the Phase 2 closing writeback plan.
 
 Snowiki should use these as design pressure, not requirements. Phase 2 should not inherit external taxonomies wholesale.
 
@@ -64,7 +64,7 @@ Related weaker seams removed by PR #101:
 - New frontmatter/YAML/Markdown parser dependencies.
 - Storage layout redesign or pruning semantics.
 - Stale source reports, source manifests, or destructive cleanup.
-- Graph/community detection, vector search, review queues, and UI flows.
+- Graph/community detection, vector search, broad review queues, and UI flows.
 - LLM summarization inside deterministic rebuild.
 - MCP writes or daemon behavior changes.
 
@@ -235,7 +235,7 @@ Keep these out of Phase 2 unless implementation proves they are required:
 - Normalized storage write-contract split.
 - Explicit prune/cascade cleanup.
 - Graph/vector extraction and semantic retrieval.
-- Review queues or approval workflows.
+- Broad review queues or approval workflows beyond `docs/architecture/autonomous-writeback-queue-plan.md`.
 - Parser dependency changes.
 
 ## Phase 2 Follow-up Refactor Ledger
@@ -244,8 +244,8 @@ These are not new product features. They are bounded cleanup items created by th
 
 1. **Fileback application seam**
    - `fileback` is a reviewed writeback pipeline, not a single helper file.
-   - Keep `snowiki.fileback` as a narrow facade for CLI entrypoints only: `resolve_preview_root`, `build_fileback_proposal`, and `apply_fileback_proposal`.
-   - Keep schema/data contracts in `snowiki.fileback.models`, proposal construction/validation in `proposal`, evidence resolution in `evidence`, raw-note rendering in `render`, normalized projection/write-set construction in `payload`, and mutating persistence/rebuild orchestration in `apply`.
+   - Keep `snowiki.fileback` as a narrow facade for CLI entrypoints only: preview, queue, and apply orchestration helpers.
+   - Keep schema/data contracts in `snowiki.fileback.models`, proposal construction/validation in `proposal`, evidence resolution in `evidence`, raw-note rendering in `render`, normalized projection/write-set construction in `payload`, queue persistence/listing in `queue`, and mutating persistence/rebuild orchestration in `apply`.
    - Do not preserve accidental access to internal helpers through the facade; tests should import submodules directly when they are testing seams.
 
 2. **Projection construction ownership**
@@ -262,6 +262,12 @@ These are not new product features. They are bounded cleanup items created by th
    - Old projection-less normalized records remain diagnostics/migration inputs only.
    - Do not add silent compatibility fallback to rebuild/query.
    - A future explicit command may backfill projection fields, but it needs a separate spec because it changes operator workflows and old data compatibility expectations.
+
+5. **Autonomous fileback proposal queue**
+   - Implemented after the dedicated spec/plan was synchronized.
+   - Queue artifacts belong under the resolved Snowiki runtime root, not the development checkout.
+   - Pending proposals are control-plane state outside `raw/`, `normalized/`, `compiled/`, and `index/` until reviewed apply succeeds.
+   - The MVP should keep apply explicit through the existing reviewed proposal-file path and defer auto-apply unless the runtime validates every low-risk condition documented in `autonomous-writeback-queue-plan.md`.
 
 ## Commit Strategy
 
