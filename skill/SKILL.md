@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, dry-run-first source prune, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/standalone edit/standalone merge/graph workflows deferred unless a future gardening proposal flow explicitly ships them."
+description: "Snowiki — CLI-first workflow skill. Use the installed snowiki runtime for ingest, query, recall, status, lint, dry-run-first source prune, and reviewable fileback/queue flows. The skill mirrors current CLI truth, prefers daemon-backed reads only as an optimization, and keeps sync/standalone edit/standalone merge/graph workflows deferred unless a future runtime spec explicitly ships them."
 argument-hint: [ingest SOURCE|query QUESTION|recall TARGET|status|lint|prune sources|fileback preview QUESTION|fileback preview --queue QUESTION|fileback queue list|fileback apply|export|benchmark PRESET|daemon|mcp]
 allowed-tools: Bash(python3:*), Read, Write, Edit, Glob, Grep, WebFetch
 ---
@@ -103,7 +103,7 @@ The following remain workflow or roadmap concepts rather than guaranteed shipped
 - graph-oriented recall workflows
 - qmd-backed hybrid/vector routing as a default runtime path
 
-Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. Phase 5 planning may introduce narrow edit/merge semantics only as part of reviewed source-gardening proposals over Phase 4 freshness and prune primitives.
+Treat them as future-facing workflow concepts unless the runtime explicitly exposes them. Phase 6 planning defines how Claude/OpenCode/OMO agents orchestrate current CLI truth without claiming those standalone commands ship.
 
 ## Search Strategy
 

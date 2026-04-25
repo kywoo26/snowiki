@@ -36,6 +36,23 @@ On first use:
 2. Prefer `snowiki ... --output json` for machine-readable results.
 3. If faster repeated reads are useful, optionally start `snowiki daemon`; treat it as an optimization, not a separate contract.
 
+Agent behavior rules:
+- Observe before asking; inspect status, lint, recall, or relevant paths when the answer is available locally.
+- Hypothesize before asking; prefer “I think X because Y; confirm?” over broad discovery questions.
+- Propose concrete writes before executing them, especially session Markdown filing and fileback flows.
+- Ask only a small set of targeted questions during lifecycle workflows; trivial ingest/query routes should not trigger interviews.
+- Continue softly if optional optimizations such as daemon or MCP are unavailable; canonical CLI use remains valid.
+
+Session lifecycle workflow names may be used by agents or slash-command wrappers, but they are not Snowiki runtime commands:
+
+| Lifecycle route | Expand to current CLI |
+| --- | --- |
+| `/wiki-start` | `status --output json` plus relevant `recall`/`query` to brief context and propose a plan |
+| `/wiki-ingest` | `ingest <path> --output json`, optional `rebuild`, then status/lint validation |
+| `/wiki-progress` | `status --output json` plus `lint --output json` to check drift and source health |
+| `/wiki-finish` | session Markdown note, `ingest <note> --rebuild --output json`, optional `fileback preview --queue` |
+| `/wiki-health` | `lint --output json` plus targeted human-readable review; do not silently fix semantic issues |
+
 ## Step 1: Classify Command
 
 Parse input after `/wiki`:
@@ -50,13 +67,13 @@ Parse input after `/wiki`:
 | `fileback queue list` | Step 5: Fileback Preview | Current |
 | `fileback apply` | Step 6: Fileback Apply | Current |
 | `prune sources` | Step 12: Source Prune | Current |
+| `lint` | Step 10: Lint | Current |
+| `status` | Step 11: Status | Current |
 | `sync` | Step 7: Sync | **Deferred** |
 | `edit <page>` | Step 8: Edit | **Deferred** |
 | `merge <p1> <p2>` | Step 9: Merge | **Deferred** |
 
-Standalone sync/edit/merge/graph workflows remain deferred. Phase 5 planning may introduce narrow edit/merge behavior only inside reviewed source-gardening proposals.
-| `lint` | Step 10: Lint | Current |
-| `status` | Step 11: Status | Current |
+Standalone sync/edit/merge/graph workflows remain deferred. Phase 6 planning defines how agents orchestrate current CLI truth without claiming those standalone commands ship.
 
 Implicit routing (no explicit mode keyword):
 - Temporal words ("yesterday", "last week", "what was I doing") -> Step 4: Recall
@@ -79,6 +96,11 @@ snowiki rebuild
 
 For Claude/OpenCode sessions, first summarize or export the durable knowledge into a Markdown note, then ingest that note. Do not present direct session-export ingest as the primary shipped workflow.
 
+After ingest, validate before claiming success:
+- inspect JSON output for stale/rebuild-required state;
+- run `snowiki status --output json` or `snowiki lint --output json` when health matters;
+- summarize what changed and which source paths became durable.
+
 Do not describe older `sources/` or `wiki/` hand-edited layouts as the shipped contract.
 
 ---
@@ -96,6 +118,12 @@ Current truth:
 - Semantic/hybrid/rerank remain deferred reference workflows.
 - When a daemon is already reachable, daemon-backed reads may be preferred as a warm-read optimization.
 - If the daemon is unavailable, fall back to the canonical CLI path without changing result shape.
+
+Use progressive disclosure when more context is needed:
+1. Start from status/index-like summaries and query results.
+2. Read compiled answer or concept paths returned by Snowiki.
+3. Follow evidence/source paths when claims need verification.
+4. Read raw source files only when compiled/evidence summaries are insufficient.
 
 ### 3.2: Synthesize
 
@@ -210,7 +238,7 @@ Exporting Claude Code sessions to Obsidian markdown is a deferred reference work
 
 ## Step 8: Edit (Deferred Workflow)
 
-This is not part of the current shipped runtime as a standalone workflow. Phase 5 planning may introduce narrow edit semantics only inside reviewed source-gardening proposals.
+This is not part of the current shipped runtime as a standalone workflow. Phase 6 planning keeps edit-like behavior above the runtime unless a future write contract ships it.
 
 Lightweight page modification is a deferred reference workflow. If the runtime later exposes an `edit` command:
 1. Identify target page.
@@ -222,7 +250,7 @@ Lightweight page modification is a deferred reference workflow. If the runtime l
 
 ## Step 9: Merge (Deferred Workflow)
 
-This is not part of the current shipped runtime as a standalone workflow. Phase 5 planning may introduce narrow merge semantics only inside reviewed source-gardening proposals.
+This is not part of the current shipped runtime as a standalone workflow. Phase 6 planning keeps merge-like behavior above the runtime unless a future write contract ships it.
 
 Consolidating overlapping pages is a deferred reference workflow. If the runtime later exposes a `merge` command:
 1. Identify pages to merge.
@@ -264,6 +292,7 @@ Suggest new sources to seek:
 
 Present findings. For auto-fixable issues, offer to fix.
 For semantic issues, present the contradiction and let user decide.
+Any fix must use current CLI-mediated paths such as reingest, dry-run-first prune, or reviewable fileback. Do not present standalone edit/merge-style fixes as shipped behavior unless a future runtime spec accepts them.
 
 ---
 
