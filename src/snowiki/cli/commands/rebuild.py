@@ -5,9 +5,14 @@ from typing import Any
 
 import click
 
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
-from snowiki.config import get_snowiki_root
+from snowiki.cli.output import emit_error, emit_result
 from snowiki.rebuild.integrity import RebuildFreshnessError, run_rebuild_with_integrity
 
 
@@ -28,14 +33,16 @@ def run_rebuild(root: Path) -> dict[str, Any]:
     return {"root": root.as_posix(), **result}
 
 
-@click.command("rebuild")
+@click.command("rebuild", short_help="Rebuild compiled artifacts and search index.")
 @output_option
 @root_option
-def command(output: str, root: Path | None) -> None:
-    output_mode = normalize_output_mode(output)
+@pass_snowiki_context
+def command(cli_context: SnowikiCliContext, output: str, root: Path | None) -> None:
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     result: dict[str, Any] | None = None
     try:
-        result = run_rebuild(root if root else get_snowiki_root())
+        result = run_rebuild(initialize_cli_root(cli_context))
     except RebuildFreshnessError as exc:
         emit_error(
             str(exc),
@@ -46,7 +53,7 @@ def command(output: str, root: Path | None) -> None:
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="rebuild_failed")
     if result is None:
-        raise RuntimeError("rebuild did not produce a result")
+        raise click.ClickException("rebuild did not produce a result")
     emit_result(
         {"ok": True, "command": "rebuild", "result": result},
         output=output_mode,

@@ -5,9 +5,14 @@ from typing import Any
 
 import click
 
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
-from snowiki.config import get_snowiki_root
+from snowiki.cli.output import emit_error, emit_result
 from snowiki.storage.export_bundle import build_export_bundle
 
 
@@ -17,7 +22,7 @@ def _render_export_human(payload: dict[str, Any]) -> str:
     return f"Exported {len(result[key])} item(s) as {result['format']}"
 
 
-@click.command("export")
+@click.command("export", short_help="Export compiled wiki data.")
 @click.option(
     "--format",
     "export_format",
@@ -26,10 +31,14 @@ def _render_export_human(payload: dict[str, Any]) -> str:
 )
 @output_option
 @root_option
-def command(export_format: str, output: str, root: Path | None) -> None:
-    output_mode = normalize_output_mode(output)
+@pass_snowiki_context
+def command(
+    cli_context: SnowikiCliContext, export_format: str, output: str, root: Path | None
+) -> None:
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     try:
-        result = build_export_bundle(root if root else get_snowiki_root(), export_format)
+        result = build_export_bundle(initialize_cli_root(cli_context), export_format)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="export_failed")
     emit_result(

@@ -5,9 +5,14 @@ from typing import Any
 
 import click
 
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
-from snowiki.config import get_snowiki_root
+from snowiki.cli.output import emit_error, emit_result
 from snowiki.status import run_status
 
 
@@ -68,13 +73,15 @@ def _render_status_human(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-@click.command("status")
+@click.command("status", short_help="Summarize wiki health and freshness.")
 @output_option
 @root_option
-def command(output: str, root: Path | None) -> None:
-    output_mode = normalize_output_mode(output)
+@pass_snowiki_context
+def command(cli_context: SnowikiCliContext, output: str, root: Path | None) -> None:
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     try:
-        result = run_status(root if root else get_snowiki_root())
+        result = run_status(initialize_cli_root(cli_context))
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="status_failed")
     emit_result(
