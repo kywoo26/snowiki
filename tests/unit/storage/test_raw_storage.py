@@ -50,3 +50,14 @@ def test_store_bytes_returns_existing_entry_for_duplicate_content(
     second = storage.store_bytes("claude", b"same content")
 
     assert second == first
+
+
+def test_store_bytes_accepts_datetime_mtime(tmp_path: Path) -> None:
+    storage = RawStorage(tmp_path)
+    captured_at = datetime(2026, 4, 8, 12, 0, tzinfo=UTC)
+
+    result = storage.store_bytes("markdown", b"# Note", mtime=captured_at)
+
+    stored_path = tmp_path / str(result["path"])
+    assert result["mtime"] == "2026-04-08T12:00:00Z"
+    assert stored_path.stat().st_mtime == captured_at.timestamp()

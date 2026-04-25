@@ -242,6 +242,22 @@ def test_collect_freshness_issues_reports_stale_compiled_pages(tmp_path: Path) -
     ]
 
 
+def test_collect_freshness_issues_skips_missing_invalid_and_current_dates(
+    tmp_path: Path,
+) -> None:
+    _write_compiled_page(tmp_path / "compiled" / "missing.md", "---\ntitle: Missing\n---\n")
+    _write_compiled_page(
+        tmp_path / "compiled" / "invalid.md",
+        "---\nupdated: not-a-date\n---\n",
+    )
+    _write_compiled_page(
+        tmp_path / "compiled" / "current.md",
+        "---\nupdated: 2999-01-01T00:00:00Z\n---\n",
+    )
+
+    assert collect_freshness_issues(tmp_path) == []
+
+
 def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(
     tmp_path: Path,
 ) -> None:
@@ -267,6 +283,64 @@ def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(
             "path": "normalized/claude/record.json",
             "severity": "info",
             "target": "compiled/summaries/claude-claude-basic-record-1.md",
+        }
+    ]
+
+
+def test_collect_summary_coverage_issues_skips_unloadable_records(tmp_path: Path) -> None:
+    normalized_root = tmp_path / "normalized"
+    normalized_root.mkdir()
+    (normalized_root / "invalid.json").write_text("{", encoding="utf-8")
+    _write_json(normalized_root / "array.json", [])
+    _write_json(
+        normalized_root / "missing-recorded-at.json",
+        {"id": "record-1", "source_type": "claude", "record_type": "session"},
+    )
+    _write_json(
+        normalized_root / "invalid-summary-path.json",
+        {
+            "id": "record-2",
+            "source_type": "claude",
+            "record_type": "session",
+            "recorded_at": "2026-04-16T10:00:00Z",
+            "provenance": {"raw_refs": [{"path": "raw/claude/source.jsonl"}]},
+        },
+    )
+
+    assert collect_summary_coverage_issues(tmp_path) == []
+
+
+def test_collect_structural_issues_reports_invalid_json_and_payload_shape(
+    tmp_path: Path,
+) -> None:
+    normalized_root = tmp_path / "normalized"
+    normalized_root.mkdir()
+    (normalized_root / "invalid.json").write_text("{", encoding="utf-8")
+    _write_json(normalized_root / "array.json", [])
+
+    issues = collect_structural_issues(tmp_path)
+
+    assert [issue["code"] for issue in issues] == ["L011", "L010"]
+    assert {issue["check"] for issue in issues} == {
+        "normalized.invalid_json",
+        "normalized.invalid_payload",
+    }
+
+
+def test_collect_structural_issues_reports_compiled_page_without_frontmatter(
+    tmp_path: Path,
+) -> None:
+    _write_compiled_page(tmp_path / "compiled" / "plain.md", "# Plain\n")
+
+    issues = collect_structural_issues(tmp_path)
+
+    assert issues == [
+        {
+            "code": "L002",
+            "check": "compiled.frontmatter",
+            "message": "compiled page missing YAML frontmatter",
+            "path": "compiled/plain.md",
+            "severity": "error",
         }
     ]
 

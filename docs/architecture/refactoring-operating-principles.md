@@ -357,8 +357,11 @@ Refactor targets for this wave:
    - Old projection-less normalized records should not regain rebuild/query compatibility through hidden fallback.
    - If needed, add an explicit operator command with tests and docs for projection backfill.
 
-4. **Document deferred parser/library decision**
-   - Keep the current deterministic frontmatter parser while simple.
-   - Revisit `PyYAML`/`ruamel.yaml` only when unsupported frontmatter features become real requirements.
+4. **Keep Markdown responsibilities explicit**
+   - Non-Markdown conversion belongs to MarkItDown before Markdown ingest.
+   - Frontmatter envelope handling belongs to `python-frontmatter`; YAML payload semantics come from PyYAML.
+   - Snowiki remains responsible for deterministic coercion, safe promotion, and reserved-field policy.
+   - Markdown body parsing belongs to `markdown-it-py`, but only Snowiki-owned DTOs may feed title resolution, projection sections, links, wikilinks, and later source gardening.
+   - HTML rendering libraries such as Python-Markdown belong behind renderer interfaces only, not the ingest loader contract.
 
 Each refactor PR should update this document or the relevant architecture ledger when it changes a durable principle.

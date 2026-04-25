@@ -165,3 +165,67 @@ def test_store_markdown_document_reports_unchanged_then_updated(
     assert updated["status"] == "updated"
     assert first["path"] == second["path"] == updated["path"]
     assert updated["record"]["content_hash"] == "def456"
+
+
+def test_store_markdown_document_requires_source_identity(tmp_path: Path) -> None:
+    storage = NormalizedStorage(tmp_path)
+    raw_ref = {
+        "sha256": "abc123",
+        "path": "raw/markdown/ab/c123",
+        "size": 42,
+        "mtime": "2026-04-08T12:00:00Z",
+    }
+
+    with pytest.raises(ValueError, match="source_root is required"):
+        _ = storage.store_markdown_document(
+            source_root="",
+            relative_path="README.md",
+            payload={"content_hash": "abc123"},
+            raw_ref=raw_ref,
+            recorded_at="2026-04-08T12:00:00Z",
+        )
+    with pytest.raises(ValueError, match="relative_path is required"):
+        _ = storage.store_markdown_document(
+            source_root="/repo/docs",
+            relative_path="",
+            payload={"content_hash": "abc123"},
+            raw_ref=raw_ref,
+            recorded_at="2026-04-08T12:00:00Z",
+        )
+
+
+def test_read_record_requires_json_object(tmp_path: Path) -> None:
+    storage = NormalizedStorage(tmp_path)
+    record_path = tmp_path / "normalized" / "record.json"
+    record_path.parent.mkdir(parents=True, exist_ok=True)
+    record_path.write_text("[]", encoding="utf-8")
+
+    with pytest.raises(TypeError, match="must be a JSON object"):
+        _ = storage.read_record(record_path)
+
+
+def test_store_markdown_document_treats_non_string_existing_hash_as_update(
+    tmp_path: Path,
+) -> None:
+    storage = NormalizedStorage(tmp_path)
+    raw_ref = {
+        "sha256": "abc123",
+        "path": "raw/markdown/ab/c123",
+        "size": 42,
+        "mtime": "2026-04-08T12:00:00Z",
+    }
+    record_id = storage.deterministic_id("markdown_document", "/repo/docs", "README.md")
+    existing_path = storage.path_for_markdown_document(record_id)
+    existing_path.parent.mkdir(parents=True)
+    existing_path.write_text('{"content_hash": null}', encoding="utf-8")
+
+    result = storage.store_markdown_document(
+        source_root="/repo/docs",
+        relative_path="README.md",
+        payload={"content_hash": "abc123"},
+        raw_ref=raw_ref,
+        recorded_at="2026-04-08T12:00:00Z",
+    )
+
+    assert result["status"] == "inserted"
+    assert result["record"]["content_hash"] == "abc123"

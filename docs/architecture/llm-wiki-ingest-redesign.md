@@ -453,16 +453,48 @@ Portability constraints:
 
 This means Phase 1 ingest is compatible with a future Rust engine as long as it continues to write deterministic raw/normalized/compiled artifacts and keeps the CLI contract authoritative.
 
-## Open Questions
+## Implemented Follow-up Closures
 
-- What explicit migration/backfill command, if any, should convert pre-projection normalized records?
-- Which future compiler projection changes should intentionally improve summary page structure rather than preserve current output?
-- What explicit event journal, if any, should replace generated `log.md` summaries after Phase 4?
-- Should compatibility tooling expose legacy Claude/OpenCode adapter writes outside the primary ingest CLI, or should those paths remain fully removed after Markdown conversion workflows land?
-- What is the minimum frontmatter schema for user-authored documents versus Snowiki-generated pages?
-- Should source move/rename be represented as reingest+prune, or does it need a first-class rename-aware workflow?
-- Should reviewable gardening proposals reuse fileback queue semantics, or use a dedicated gardening queue namespace?
-- Which `edit` or `merge` behavior is truly required by source gardening, and which belongs to later standalone workflow phases?
+These items close the ingest-redesign follow-up list that blocked confidence in
+real-corpus lexical baseline runs. Each decision is backed by runtime behavior or
+guardrail tests rather than policy text alone.
+
+- **Projection-less legacy records**: do not add hidden rebuild/query fallback.
+  Existing projection-bearing contracts are guarded by lint/runtime tests; if an
+  operator migration is ever needed, it should be an explicit future command, not
+  an implicit ingest fallback.
+- **Legacy Claude/OpenCode exports**: keep direct export writes out of primary
+  `snowiki ingest PATH`. Session exports remain a workflow conversion concern:
+  convert to Markdown first, then ingest the Markdown source.
+- **Markdown loading pipeline**: document conversion, frontmatter loading, and
+  body parsing are separate runtime responsibilities. Non-Markdown source files
+  are converted to Markdown with MarkItDown before ingest. Markdown frontmatter
+  is split with `python-frontmatter` and parsed with PyYAML semantics, then
+  coerced into Snowiki-safe JSON-compatible metadata. Markdown body structure is
+  parsed with `markdown-it-py` into Snowiki DTOs for headings, links, wikilinks,
+  and compiler sections.
+- **Frontmatter schema**: Snowiki owns safe promotion and reserved-field
+  blocking. Libraries parse syntax; they do not define Snowiki runtime policy.
+- **Source move/rename**: the implemented workflow remains reingest the new path,
+  review `source.rename_candidate` / missing-source diagnostics, then prune the
+  old record through dry-run-first source pruning. Additional prune/source-state
+  tests cover symlink, privacy, metadata, raw-reference, and tombstone safety.
+- **Normalized storage write contract**: latest-only Markdown document records
+  remain the ingest write shape. Storage tests now pin source identity
+  validation, non-object record rejection, existing-hash handling, and raw mtime
+  preservation. Library-specific objects from MarkItDown, python-frontmatter,
+  PyYAML, and `markdown-it-py` never leak into normalized records.
+
+## Remaining Non-Ingest Questions
+
+- Which future compiler projection changes should intentionally improve summary
+  page structure rather than preserve current output?
+- What explicit event journal, if any, should replace generated `log.md`
+  summaries after Phase 4?
+- Should reviewable gardening proposals reuse fileback queue semantics, or use a
+  dedicated gardening queue namespace?
+- Which `edit` or `merge` behavior is truly required by source gardening, and
+  which belongs to later standalone workflow phases?
 
 ## Implementation Checklist
 
