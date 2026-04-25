@@ -32,6 +32,7 @@ Claude Code loads one skill named `wiki`, invoked directly as `/wiki`. These are
 | “save this answer” | `snowiki fileback preview`, queue/apply only after review |
 | “is the wiki healthy?” | `snowiki status`, then `snowiki lint` |
 | “clean missing sources” | `snowiki prune sources --dry-run`, then explicit delete only after review |
+| “export/backup/debug wiki state” | `snowiki export` only as a support flow, not as everyday memory authoring |
 
 ## Session-to-Markdown Filing
 
@@ -70,6 +71,13 @@ Source freshness handling:
 Source prune is narrow: missing-source normalized Markdown records and raw snapshots that become unreferenced. Do not claim multi-source cascade cleanup, rename repair, or dead-wikilink gardening as shipped behavior.
 
 Any fix must use current CLI-mediated paths such as reingest, dry-run-first prune, or reviewable fileback. Standalone edit/merge-style fixes remain deferred unless a future runtime spec ships them.
+
+## Support and Advanced Commands
+
+- `snowiki export` is for backup, migration, inspection, fixtures, and external integration. Do not present it as a required Obsidian workflow or as the normal way to edit knowledge.
+- `snowiki daemon` is runtime optimization, not skill-owned fallback logic.
+- `snowiki mcp` is a read-only transport bridge, not a writable workflow command family.
+- `snowiki benchmark` and `snowiki benchmark-fetch` support retrieval evaluation and should not be used as ordinary wiki memory commands.
 
 ## Deferred Reference Workflows
 
