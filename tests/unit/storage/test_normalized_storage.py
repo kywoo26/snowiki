@@ -74,3 +74,94 @@ def test_store_record_requires_record_id(tmp_path: Path) -> None:
             },
             recorded_at="2026-04-08T12:00:00Z",
         )
+
+
+def test_store_markdown_document_uses_latest_only_path(tmp_path: Path) -> None:
+    storage = NormalizedStorage(tmp_path)
+    raw_ref = {
+        "sha256": "abc123",
+        "path": "raw/markdown/ab/c123",
+        "size": 42,
+        "mtime": "2026-04-08T12:00:00Z",
+    }
+
+    result = storage.store_markdown_document(
+        source_root="/repo/docs",
+        relative_path="README.md",
+        payload={
+            "title": "Readme",
+            "summary": "",
+            "text": "# Readme",
+            "frontmatter": {},
+            "promoted_frontmatter": {},
+            "reserved_frontmatter": {},
+            "source_path": "/repo/docs/README.md",
+            "source_root": "/repo/docs",
+            "relative_path": "README.md",
+            "content_hash": "abc123",
+            "source_metadata": {"extension": ".md", "size": 42},
+        },
+        raw_ref=raw_ref,
+        recorded_at="2026-04-08T12:00:00Z",
+    )
+
+    assert result["status"] == "inserted"
+    assert result["path"].startswith("normalized/markdown/documents/")
+    assert result["path"].endswith(".json")
+    assert result["record"]["source_type"] == "markdown"
+    assert result["record"]["record_type"] == "document"
+    assert result["record"]["content_hash"] == "abc123"
+    assert storage.read_record(result["path"]) == result["record"]
+
+
+def test_store_markdown_document_reports_unchanged_then_updated(
+    tmp_path: Path,
+) -> None:
+    storage = NormalizedStorage(tmp_path)
+    raw_ref = {
+        "sha256": "abc123",
+        "path": "raw/markdown/ab/c123",
+        "size": 42,
+        "mtime": "2026-04-08T12:00:00Z",
+    }
+    payload: dict[str, object] = {
+        "title": "Readme",
+        "summary": "",
+        "text": "# Readme",
+        "frontmatter": {},
+        "promoted_frontmatter": {},
+        "reserved_frontmatter": {},
+        "source_path": "/repo/docs/README.md",
+        "source_root": "/repo/docs",
+        "relative_path": "README.md",
+        "content_hash": "abc123",
+        "source_metadata": {"extension": ".md", "size": 42},
+    }
+
+    first = storage.store_markdown_document(
+        source_root="/repo/docs",
+        relative_path="README.md",
+        payload=payload,
+        raw_ref=raw_ref,
+        recorded_at="2026-04-08T12:00:00Z",
+    )
+    second = storage.store_markdown_document(
+        source_root="/repo/docs",
+        relative_path="README.md",
+        payload=payload,
+        raw_ref=raw_ref,
+        recorded_at="2026-04-08T12:00:00Z",
+    )
+    updated = storage.store_markdown_document(
+        source_root="/repo/docs",
+        relative_path="README.md",
+        payload={**payload, "content_hash": "def456", "text": "# Changed"},
+        raw_ref={**raw_ref, "sha256": "def456", "path": "raw/markdown/de/f456"},
+        recorded_at="2026-04-08T12:01:00Z",
+    )
+
+    assert first["status"] == "inserted"
+    assert second["status"] == "unchanged"
+    assert updated["status"] == "updated"
+    assert first["path"] == second["path"] == updated["path"]
+    assert updated["record"]["content_hash"] == "def456"

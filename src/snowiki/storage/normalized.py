@@ -4,7 +4,7 @@ import json
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from snowiki.privacy import PrivacyGate
 
@@ -30,6 +30,12 @@ class StoreResult(TypedDict):
     record: NormalizedRecord
 
 
+class MarkdownStoreResult(StoreResult):
+    """Serialized result returned after storing a Markdown document."""
+
+    status: str
+
+
 class NormalizedStorage:
     """Persist normalized manifests, events, messages, and parts."""
 
@@ -39,11 +45,11 @@ class NormalizedStorage:
         *,
         provenance: ProvenanceTracker | None = None,
     ) -> None:
-        self.paths = StoragePaths(Path(root))
+        self.paths: StoragePaths = StoragePaths(Path(root))
         self.paths.ensure_all()
-        self.provenance = provenance or ProvenanceTracker(self.paths.root)
-        self.privacy = PrivacyGate()
-        self._ids = DedupeEngine(self.paths.root)
+        self.provenance: ProvenanceTracker = provenance or ProvenanceTracker(self.paths.root)
+        self.privacy: PrivacyGate = PrivacyGate()
+        self._ids: DedupeEngine = DedupeEngine(self.paths.root)
 
     @property
     def root(self) -> Path:
@@ -64,6 +70,10 @@ class NormalizedStorage:
             / f"{moment.day:02d}"
             / f"{record_id}.json"
         )
+
+    def path_for_markdown_document(self, record_id: str) -> Path:
+        """Build the latest-only normalized path for a Markdown document."""
+        return self.paths.normalized / "markdown" / "documents" / f"{record_id}.json"
 
     def store_manifest(
         self,
@@ -168,7 +178,7 @@ class NormalizedStorage:
         }
         record = self.provenance.attach_raw_refs(record, raw_ref)
 
-        atomic_write_json(target, record)
+        _ = atomic_write_json(target, record)
 
         return {
             "id": record_id,
@@ -176,16 +186,67 @@ class NormalizedStorage:
             "record": record,
         }
 
+    def store_markdown_document(
+        self,
+        *,
+        source_root: str,
+        relative_path: str,
+        payload: dict[str, object],
+        raw_ref: RawRef,
+        recorded_at: TimestampInput,
+    ) -> MarkdownStoreResult:
+        """Store a latest-only normalized Markdown document record."""
+        if not source_root.strip():
+            raise ValueError("source_root is required")
+        if not relative_path.strip():
+            raise ValueError("relative_path is required")
+
+        record_id = self.deterministic_id("markdown_document", source_root, relative_path)
+        target = self.path_for_markdown_document(record_id)
+        moment = ensure_utc_datetime(recorded_at)
+        existing_hash = self._existing_content_hash(target)
+        content_hash = str(payload.get("content_hash", ""))
+        status = "inserted" if existing_hash is None else "updated"
+        if existing_hash == content_hash:
+            status = "unchanged"
+
+        record: NormalizedRecord = {
+            **self.privacy.prepare_payload(dict(payload)),
+            "id": record_id,
+            "record_type": "document",
+            "recorded_at": isoformat_utc(moment),
+            "source_type": "markdown",
+        }
+        record = self.provenance.attach_raw_refs(record, raw_ref)
+
+        if status != "unchanged":
+            _ = atomic_write_json(target, record)
+
+        return {
+            "id": record_id,
+            "path": relative_to_root(self.root, target),
+            "record": record if status != "unchanged" else self.read_record(target),
+            "status": status,
+        }
+
     def deterministic_id(self, record_type: str, *parts: object) -> str:
         """Return a stable identifier for a normalized record."""
         return self._ids.stable_id(record_type, *parts)
+
+    def _existing_content_hash(self, path: Path) -> str | None:
+        if not path.exists():
+            return None
+        payload = self.read_record(path)
+        value = payload.get("content_hash")
+        return value if isinstance(value, str) else None
 
     def read_record(self, path: str | Path) -> NormalizedRecord:
         """Read a normalized record from disk."""
         candidate = Path(path)
         if not candidate.is_absolute():
             candidate = self.root / candidate
-        payload = json.loads(candidate.read_text(encoding="utf-8"))
+        payload = cast(object, json.loads(candidate.read_text(encoding="utf-8")))
         if not isinstance(payload, dict):
             raise TypeError(f"normalized record at {candidate} must be a JSON object")
-        return {str(key): value for key, value in payload.items()}
+        payload_dict = cast(dict[object, object], payload)
+        return {str(key): value for key, value in payload_dict.items()}
