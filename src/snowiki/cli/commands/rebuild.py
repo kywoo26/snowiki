@@ -5,13 +5,15 @@ from typing import Any
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.config import get_snowiki_root
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result
 from snowiki.rebuild.integrity import RebuildFreshnessError, run_rebuild_with_integrity
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    return "json" if value == "json" else "human"
 
 
 def _render_rebuild_human(payload: dict[str, Any]) -> str:
@@ -31,24 +33,16 @@ def run_rebuild(root: Path) -> dict[str, Any]:
     return {"root": root.as_posix(), **result}
 
 
-@click.command("rebuild")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
-def command(output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
+@click.command("rebuild", short_help="Rebuild compiled artifacts and search index.")
+@output_option
+@root_option
+@pass_snowiki_context
+def command(cli_context: SnowikiCliContext, output: str, root: Path | None) -> None:
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     result: dict[str, Any] | None = None
     try:
-        result = run_rebuild(root if root else get_snowiki_root())
+        result = run_rebuild(initialize_cli_root(cli_context))
     except RebuildFreshnessError as exc:
         emit_error(
             str(exc),
@@ -59,7 +53,7 @@ def command(output: str, root: Path | None) -> None:
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="rebuild_failed")
     if result is None:
-        raise RuntimeError("rebuild did not produce a result")
+        raise click.ClickException("rebuild did not produce a result")
     emit_result(
         {"ok": True, "command": "rebuild", "result": result},
         output=output_mode,

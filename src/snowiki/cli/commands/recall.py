@@ -5,30 +5,15 @@ from typing import Any
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.config import get_snowiki_root
-from snowiki.search import (
-    known_item_lookup,
-    run_authoritative_recall,
-    temporal_recall,
-    topical_recall,
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
 )
-from snowiki.search.workspace import RetrievalService
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    return "json" if value == "json" else "human"
-
-
-def _hit_to_payload(hit: Any) -> dict[str, Any]:
-    return {
-        "id": hit.document.id,
-        "path": hit.document.path,
-        "title": hit.document.title,
-        "kind": hit.document.kind,
-        "score": round(hit.score, 6),
-        "summary": hit.document.summary,
-    }
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result
+from snowiki.search.queries import run_recall
 
 
 def _render_recall_human(payload: dict[str, Any]) -> str:
@@ -39,46 +24,20 @@ def _render_recall_human(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def run_recall(root: Path, target: str) -> dict[str, Any]:
-    snapshot = RetrievalService.from_root(root)
-    hits, strategy = run_authoritative_recall(
-        snapshot.index,
-        target,
-        limit=10,
-        known_item_lookup=known_item_lookup,
-        temporal_recall=temporal_recall,
-        topical_recall=topical_recall,
-    )
-    return {
-        "target": target,
-        "strategy": strategy,
-        "hits": [_hit_to_payload(hit) for hit in hits],
-    }
-
-
-@click.command("recall")
+@click.command("recall", short_help="Recall by temporal or topical target.")
 @click.argument("target")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
-def command(target: str, output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
-    result: dict[str, Any] | None = None
+@output_option
+@root_option
+@pass_snowiki_context
+def command(
+    cli_context: SnowikiCliContext, target: str, output: str, root: Path | None
+) -> None:
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     try:
-        result = run_recall(root if root else get_snowiki_root(), target)
+        result = run_recall(initialize_cli_root(cli_context), target)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="recall_failed")
-    if result is None:
-        raise RuntimeError("recall did not produce a result")
     emit_result(
         {"ok": True, "command": "recall", "result": result},
         output=output_mode,

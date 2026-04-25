@@ -10,7 +10,7 @@ The `src/snowiki/cli/commands/` modules are runtime adapters for parsing and dis
 
 | Class | Commands | Role |
 | :--- | :--- | :--- |
-| Agent/wiki flows | `ingest`, `query`, `recall` | Primary knowledge loop: accept durable material, answer from memory/evidence, and recover temporal/topic context. |
+| Knowledge flow | `ingest`, `query`, `recall` | Primary knowledge loop: accept durable material, answer from memory/evidence, and recover temporal/topic context. |
 | Lifecycle and health | `status`, `lint`, `fileback` | Keep source freshness, structure, and reviewable writeback visible and safe. |
 | Maintenance and rebuild | `rebuild`, `prune` | Recompute derived state or remove stale accepted records through explicit maintenance paths. |
 | Runtime/control plane | `daemon` | Runtime optimization/control-plane surface. It must not redefine CLI truth. |
@@ -18,37 +18,43 @@ The `src/snowiki/cli/commands/` modules are runtime adapters for parsing and dis
 | Support/debug/export | `export` | Portability, inspection, migration, and snapshot/debug support. Not a primary wiki flow. |
 | Development/evaluation | `benchmark`, `benchmark-fetch` | Retrieval and benchmark development support. Not a user memory workflow. |
 
-## Directory hierarchy guidance
+## Command package layout
 
-The current implementation keeps command adapter files flat under `src/snowiki/cli/commands/`. That is acceptable while each adapter is small and delegates quickly to domain modules.
+Command adapter files live flat under `src/snowiki/cli/commands/` with one module per shipped top-level command. Each adapter should stay small and delegate quickly to domain modules.
 
-If the command package grows, hierarchy should be based on **runtime role and primary consumer**, not on incidental implementation details.
+The role taxonomy below is the conceptual ownership map, not a directory tree. This keeps CLI import paths short while preserving the product-role distinction in architecture docs and review checklists.
 
-Recommended future grouping:
+Current layout:
 
 ```text
 src/snowiki/cli/commands/
-  wiki_flow/       ingest.py, query.py, recall.py
-  lifecycle/       status.py, lint.py, fileback.py
-  maintenance/     rebuild.py, prune.py
-  runtime/         daemon.py
-  transport/       mcp.py
-  support/         export.py
-  evaluation/      benchmark.py, benchmark_fetch.py
+  ingest.py
+  query.py
+  recall.py
+  status.py
+  lint.py
+  fileback.py
+  rebuild.py
+  prune.py
+  daemon.py
+  mcp.py
+  export.py
+  benchmark.py
+  benchmark_fetch.py
 ```
 
 Grouping criteria:
 
 | Criterion | Meaning | Example |
 | :--- | :--- | :--- |
-| Product role | What part of the wiki lifecycle the command represents. | `ingest` belongs to wiki flow; `prune` belongs to maintenance. |
+| Product role | What part of the wiki lifecycle the command represents. | `ingest` belongs to the knowledge flow; `prune` belongs to maintenance. |
 | Primary consumer | Who normally invokes or depends on it. | Agents use `query`; benchmark maintainers use `benchmark`. |
 | Mutation posture | Whether the command reads, proposes, applies, or deletes durable state. | `mcp` is read-only; `fileback` proposes/applies; `prune` deletes only through explicit maintenance. |
 | Contract status | Whether the command is everyday runtime truth, support/debug, transport, or dev/eval. | `export` is support/debug; `benchmark-fetch` is dev/eval. |
 
 Avoid grouping by vague nouns such as `utils`, by output format, or by whether a command happens to share a helper today. CLI adapters should stay thin; shared behavior should move into domain modules only when there is a real domain boundary.
 
-Do not introduce this directory split as a cosmetic refactor. It becomes worthwhile only when it reduces review load, clarifies ownership, or prevents product-role drift.
+Do not add directory depth as a cosmetic refactor. A subpackage becomes worthwhile only when multiple commands share enough implementation or ownership to reduce review load. The taxonomy should remain the conceptual source of truth when the physical package stays flat.
 
 Implementation sequencing for this taxonomy lives in `docs/architecture/cli-command-implementation-plan.md`.
 

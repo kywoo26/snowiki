@@ -9,11 +9,10 @@ import pytest
 from click.testing import CliRunner
 from tests.helpers.markdown_ingest import ingest_markdown_fixture
 
-from snowiki.cli.commands.query import run_query
 from snowiki.cli.commands.rebuild import run_rebuild
-from snowiki.cli.commands.recall import run_recall
 from snowiki.cli.main import app
 from snowiki.search.indexer import SearchDocument, SearchHit
+from snowiki.search.queries import run_query, run_recall
 from snowiki.search.workspace import (
     build_retrieval_snapshot,
     clear_query_search_index_cache,
@@ -112,16 +111,16 @@ def test_recall_json_routes_temporal_queries_and_freezes_payload_shape(
         return [hit]
 
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.RetrievalService.from_root", fake_from_root
+        "snowiki.search.queries.runtime.RetrievalService.from_root", fake_from_root
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.known_item_lookup", fail_known_item_lookup
+        "snowiki.search.queries.runtime.known_item_lookup", fail_known_item_lookup
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.topical_recall", fail_topical_recall
+        "snowiki.search.queries.runtime.topical_recall", fail_topical_recall
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.temporal_recall", fake_temporal_recall
+        "snowiki.search.queries.runtime.temporal_recall", fake_temporal_recall
     )
 
     result = runner.invoke(
@@ -221,16 +220,16 @@ def test_run_recall_prefers_known_item_before_topic(
         raise AssertionError("known-item queries should not use temporal recall")
 
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.RetrievalService.from_root", fake_from_root
+        "snowiki.search.queries.runtime.RetrievalService.from_root", fake_from_root
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.known_item_lookup", fake_known_item_lookup
+        "snowiki.search.queries.runtime.known_item_lookup", fake_known_item_lookup
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.topical_recall", fail_topical_recall
+        "snowiki.search.queries.runtime.topical_recall", fail_topical_recall
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.temporal_recall", fail_temporal_recall
+        "snowiki.search.queries.runtime.temporal_recall", fail_temporal_recall
     )
 
     result = run_recall(tmp_path, "known item")
@@ -312,16 +311,16 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
         raise AssertionError("ISO-date recall should use date-window index search")
 
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.RetrievalService.from_root", fake_from_root
+        "snowiki.search.queries.runtime.RetrievalService.from_root", fake_from_root
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.known_item_lookup", fail_known_item_lookup
+        "snowiki.search.queries.runtime.known_item_lookup", fail_known_item_lookup
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.topical_recall", fail_topical_recall
+        "snowiki.search.queries.runtime.topical_recall", fail_topical_recall
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.recall.temporal_recall", fail_temporal_recall
+        "snowiki.search.queries.runtime.temporal_recall", fail_temporal_recall
     )
 
     result = run_recall(tmp_path, "2026-04-08")
@@ -382,11 +381,11 @@ def test_query_hybrid_mode_still_uses_topical_recall_and_reports_disabled_semant
         raise AssertionError("hybrid query should still use the runtime topical path")
 
     monkeypatch.setattr(
-        "snowiki.cli.commands.query.build_retrieval_snapshot",
+        "snowiki.search.queries.runtime.build_retrieval_snapshot",
         fake_build_retrieval_snapshot,
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.query.topical_recall", fake_topical_recall
+        "snowiki.search.queries.runtime.topical_recall", fake_topical_recall
     )
     monkeypatch.setattr("snowiki.search.bm25_index.BM25SearchIndex", fail_bm25)
 
@@ -559,11 +558,11 @@ def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexe
         raise AssertionError("query runtime must not promote benchmark BM25 candidates")
 
     monkeypatch.setattr(
-        "snowiki.cli.commands.query.build_retrieval_snapshot",
+        "snowiki.search.queries.runtime.build_retrieval_snapshot",
         fake_build_retrieval_snapshot,
     )
     monkeypatch.setattr(
-        "snowiki.cli.commands.query.topical_recall",
+        "snowiki.search.queries.runtime.topical_recall",
         fake_topical_recall,
     )
     monkeypatch.setattr("snowiki.search.bm25_index.BM25SearchIndex", fail_bm25)

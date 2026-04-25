@@ -1,44 +1,19 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.config import get_snowiki_root
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    return "json" if value == "json" else "human"
-
-
-def run_export(root: Path, export_format: str) -> dict[str, Any]:
-    if export_format == "json":
-        records = []
-        for path in sorted(
-            (root / "normalized").rglob("*.json"), key=lambda item: item.as_posix()
-        ):
-            records.append(
-                {
-                    "path": path.relative_to(root).as_posix(),
-                    "record": json.loads(path.read_text(encoding="utf-8")),
-                }
-            )
-        return {"format": "json", "records": records}
-
-    pages = []
-    for path in sorted(
-        (root / "compiled").rglob("*.md"), key=lambda item: item.as_posix()
-    ):
-        pages.append(
-            {
-                "path": path.relative_to(root).as_posix(),
-                "content": path.read_text(encoding="utf-8"),
-            }
-        )
-    return {"format": "markdown", "pages": pages}
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result
+from snowiki.storage.export_bundle import build_export_bundle
 
 
 def _render_export_human(payload: dict[str, Any]) -> str:
@@ -47,34 +22,25 @@ def _render_export_human(payload: dict[str, Any]) -> str:
     return f"Exported {len(result[key])} item(s) as {result['format']}"
 
 
-@click.command("export")
+@click.command("export", short_help="Export compiled wiki data.")
 @click.option(
     "--format",
     "export_format",
     type=click.Choice(["markdown", "json"], case_sensitive=False),
     required=True,
 )
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
-def command(export_format: str, output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
-    result: dict[str, Any] | None = None
+@output_option
+@root_option
+@pass_snowiki_context
+def command(
+    cli_context: SnowikiCliContext, export_format: str, output: str, root: Path | None
+) -> None:
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     try:
-        result = run_export(root if root else get_snowiki_root(), export_format)
+        result = build_export_bundle(initialize_cli_root(cli_context), export_format)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="export_failed")
-    if result is None:
-        raise RuntimeError("export did not produce a result")
     emit_result(
         {"ok": True, "command": "export", "result": result},
         output=output_mode,

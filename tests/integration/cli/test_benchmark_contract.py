@@ -118,7 +118,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
 
     with monkeypatch.context() as context:
         context.setattr(
-            "snowiki.cli.commands.benchmark.run_matrix_with_exit_code",
+        "snowiki.cli.commands.benchmark.run_matrix_with_exit_code",
             lambda matrix, selection, fail_fast=False: (success_result, 0),
         )
         success = _invoke_benchmark(

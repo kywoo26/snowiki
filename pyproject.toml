@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Snowiki V2 CLI-first operational surface"
 requires-python = ">=3.14"
 dependencies = [
-  "click>=8.1",
+  "click>=8.3.3",
   "pydantic>=2",
   "huggingface_hub>=0.34.0",
   "datasets>=3.0.0",

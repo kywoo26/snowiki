@@ -12,7 +12,7 @@ from snowiki.bench.runner import run_matrix_with_exit_code
 DEFAULT_MATRIX_PATH = Path("benchmarks/contracts/official_matrix.yaml")
 
 
-@click.command("benchmark")
+@click.command("benchmark", short_help="Run benchmark matrix contracts.")
 @click.option(
     "--matrix",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),

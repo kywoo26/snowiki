@@ -5,13 +5,15 @@ from typing import cast
 
 import click
 
-from snowiki.cli.output import OutputMode, emit_error, emit_result
-from snowiki.config import get_snowiki_root
+from snowiki.cli.context import (
+    SnowikiCliContext,
+    bind_cli_context,
+    initialize_cli_root,
+    pass_snowiki_context,
+)
+from snowiki.cli.decorators import output_option, root_option
+from snowiki.cli.output import emit_error, emit_result
 from snowiki.lint import LintResult, run_lint
-
-
-def _normalize_output_mode(value: str) -> OutputMode:
-    return "json" if value == "json" else "human"
 
 
 def _render_lint_human(payload: dict[str, object]) -> str:
@@ -44,23 +46,15 @@ def _render_lint_human(payload: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-@click.command("lint")
-@click.option(
-    "--output",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
-    show_default=True,
-)
-@click.option(
-    "--root",
-    type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
-    default=None,
-    help="Snowiki storage root (defaults to ~/.snowiki)",
-)
-def command(output: str, root: Path | None) -> None:
-    output_mode = _normalize_output_mode(output)
+@click.command("lint", short_help="Report integrity and source-gardening issues.")
+@output_option
+@root_option
+@pass_snowiki_context
+def command(cli_context: SnowikiCliContext, output: str, root: Path | None) -> None:
+    bind_cli_context(cli_context, root=root, output=output)
+    output_mode = cli_context.output
     try:
-        result = run_lint(root if root else get_snowiki_root())
+        result = run_lint(initialize_cli_root(cli_context))
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="lint_failed")
     if result["error_count"]:

@@ -116,21 +116,41 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-@click.command("daemon")
+@click.command("daemon", short_help="Control the Snowiki daemon.")
 @click.argument("action", type=click.Choice(("start", "stop", "status")))
 @click.option(
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
     default=None,
+    envvar="SNOWIKI_ROOT",
+    show_envvar=True,
     help="Snowiki storage root (defaults to ~/.snowiki)",
 )
-@click.option("--host", default=DEFAULT_HOST, help="Daemon bind host")
-@click.option("--port", type=int, default=DEFAULT_PORT, help="Daemon port")
+@click.option(
+    "--host",
+    default=DEFAULT_HOST,
+    envvar="SNOWIKI_DAEMON_HOST",
+    show_default=True,
+    show_envvar=True,
+    help="Daemon bind host",
+)
+@click.option(
+    "--port",
+    type=click.IntRange(min=1, max=65535),
+    default=DEFAULT_PORT,
+    envvar="SNOWIKI_DAEMON_PORT",
+    show_default=True,
+    show_envvar=True,
+    help="Daemon port",
+)
 @click.option(
     "--cache-ttl",
-    type=float,
+    type=click.FloatRange(min=0.0),
     default=30.0,
+    envvar="SNOWIKI_DAEMON_CACHE_TTL",
     help="Query cache TTL in seconds",
+    show_default=True,
+    show_envvar=True,
 )
 def command(
     action: str, root: Path | None, host: str, port: int, cache_ttl: float
@@ -146,4 +166,4 @@ def command(
     ]
     if root is not None:
         argv[1:1] = ["--root", str(root)]
-    raise SystemExit(main(argv))
+    raise click.exceptions.Exit(main(argv))

@@ -5,7 +5,12 @@ import json
 import click
 import pytest
 
-from snowiki.cli.output import emit_error, emit_result
+from snowiki.cli.output import emit_error, emit_result, normalize_output_mode
+
+
+def test_normalize_output_mode_maps_click_choice_values() -> None:
+    assert normalize_output_mode("json") == "json"
+    assert normalize_output_mode("human") == "human"
 
 
 def test_emit_result_json_sorts_payload_keys(capsys: pytest.CaptureFixture[str]) -> None:

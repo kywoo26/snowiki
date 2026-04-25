@@ -49,12 +49,12 @@ def run(
     return 0
 
 
-@click.group("mcp")
+@click.group("mcp", no_args_is_help=True, short_help="Serve Snowiki over MCP.")
 def command() -> None:
     """Snowiki MCP commands."""
 
 
-@command.command("serve")
+@command.command("serve", short_help="Serve the read-only MCP facade.")
 @click.option(
     "--stdio",
     is_flag=True,
@@ -64,4 +64,4 @@ def serve_command(stdio: bool) -> None:
     argv: list[str] = ["serve"]
     if stdio:
         argv.append("--stdio")
-    raise SystemExit(run(argv))
+    raise click.exceptions.Exit(run(argv))

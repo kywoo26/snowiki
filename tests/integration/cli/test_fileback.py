@@ -166,6 +166,41 @@ def test_fileback_preview_is_reviewable_and_non_mutating(
     assert proposal["apply_plan"]["rebuild_required"] is True
 
 
+def test_fileback_preview_env_root_does_not_create_storage_directories(
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    evidence_dir = tmp_path / "raw"
+    evidence_dir.mkdir()
+    evidence_path = evidence_dir / "support.md"
+    evidence_path.write_text("Supporting note.\n", encoding="utf-8")
+    before = _workspace_snapshot(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "fileback",
+            "preview",
+            "What remains non-mutating?",
+            "--answer-markdown",
+            "Preview should not initialize storage directories.",
+            "--summary",
+            "Non-mutating preview root handling.",
+            "--evidence-path",
+            "raw/support.md",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert _workspace_snapshot(tmp_path) == before
+    assert not (tmp_path / "compiled").exists()
+    assert not (tmp_path / "normalized").exists()
+    assert not (tmp_path / "queue").exists()
+
+
 def test_fileback_preview_queue_persists_pending_proposal_without_applying(
     tmp_path: Path,
 ) -> None:
@@ -515,6 +550,56 @@ def test_fileback_queue_prune_is_dry_run_then_delete(tmp_path: Path) -> None:
     assert deleted_payload["result"]["deleted_count"] == 1
     assert not (tmp_path / deleted_payload["result"]["deleted"][0]).exists()
     assert len(proposal_ids) == 2
+
+
+def test_fileback_queue_prune_rejects_negative_keep(tmp_path: Path) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "fileback",
+            "queue",
+            "prune",
+            "--status",
+            "rejected",
+            "--keep",
+            "-1",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 2
+    assert "Invalid value for '--keep'" in result.output
+
+
+def test_fileback_queue_prune_invalid_flags_do_not_create_storage(
+    tmp_path: Path,
+) -> None:
+    result = CliRunner().invoke(
+        app,
+        [
+            "fileback",
+            "queue",
+            "prune",
+            "--status",
+            "rejected",
+            "--dry-run",
+            "--delete",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code != 0
+    payload = json.loads(result.output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "fileback_queue_prune_failed"
+    assert not (tmp_path / "raw").exists()
+    assert not (tmp_path / "normalized").exists()
+    assert not (tmp_path / "compiled").exists()
+    assert not (tmp_path / "queue").exists()
 
 
 def test_fileback_preview_auto_apply_low_risk_applies_immediately(tmp_path: Path) -> None:
