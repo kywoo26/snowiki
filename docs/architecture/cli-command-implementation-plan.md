@@ -120,3 +120,30 @@ The current implementation slice is **command-adapter thinning**:
 6. share repeated Click option declarations through `snowiki.cli.decorators` and output mode normalization through `snowiki.cli.output`;
 7. keep package-level command re-exports intentional and tested indirectly through existing command-internal tests;
 8. do not add compatibility flat modules unless an external consumer requires them.
+
+## Click contract guidance
+
+Snowiki treats Click as the agent-facing runtime contract layer, not only as a
+decorator convenience. Command adapters should use Click features when they make
+the installed `snowiki` command easier for humans and agents to inspect, invoke,
+and test.
+
+- Use `ctx.obj` via `snowiki.cli.context.SnowikiCliContext` for shared adapter
+  state such as parsed output mode and root path.
+- Keep option callbacks side-effect free. Parsing may normalize values, but
+  storage initialization belongs in command execution paths that actually need a
+  prepared Snowiki root.
+- Prefer typed Click parameters (`Choice`, `IntRange`, `FloatRange`, `Path`, and
+  project `ParamType` instances) over command-local string parsing.
+- Expose stable environment variables in help with `show_envvar=True` for common
+  agent configuration (`SNOWIKI_ROOT`, `SNOWIKI_OUTPUT`, daemon settings).
+- Add explicit `short_help` and `no_args_is_help=True` for groups so `--help`
+  remains a compact command index.
+- Keep destructive commands dry-run-first and flag-confirmed (`--delete --yes`),
+  rather than using interactive prompts that can hang automated agents.
+- Validate Click shell completion with a smoke test. Users can enable Bash
+  completion with:
+
+```bash
+eval "$(_SNOWIKI_COMPLETE=bash_source snowiki)"
+```
