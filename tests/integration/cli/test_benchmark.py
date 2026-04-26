@@ -381,6 +381,7 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
             "metrics": [],
             "latency": None,
             "per_query": {},
+            "slices": {},
             "error": (
                 "Cell execution failed: Missing queries file: "
                 f"{repo_root / 'benchmarks' / 'materialized' / dataset_id / 'quick' / 'queries.parquet'} "

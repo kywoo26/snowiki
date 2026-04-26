@@ -63,6 +63,7 @@ def test_render_cell_uses_stable_schema_for_success_and_failure() -> None:
         "metrics",
         "latency",
         "per_query",
+        "slices",
         "error",
     }
     assert set(success_payload) == expected_keys
@@ -70,10 +71,12 @@ def test_render_cell_uses_stable_schema_for_success_and_failure() -> None:
     assert success_payload["metrics"] == [{"metric_id": "recall_at_100", "value": 0.75}]
     assert success_payload["latency"] == {"p50": 11.0, "p95": 22.0}
     assert success_payload["per_query"] == {"q1": {"score": 1.0}}
+    assert success_payload["slices"] == {}
     assert success_payload["error"] is None
     assert failed_payload["metrics"] == []
     assert failed_payload["latency"] is None
     assert failed_payload["per_query"] == {}
+    assert failed_payload["slices"] == {}
     assert failed_payload["error"] == "boom"
 
 

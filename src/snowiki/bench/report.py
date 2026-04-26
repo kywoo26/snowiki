@@ -44,6 +44,7 @@ def _render_cell(cell: CellResult) -> dict[str, object]:
         "metrics": [],
         "latency": None,
         "per_query": {},
+        "slices": {},
         "error": None,
     }
     if cell.status == "success":
@@ -59,6 +60,7 @@ def _render_cell(cell: CellResult) -> dict[str, object]:
         payload["per_query"] = dict(
             cast(dict[str, object], cell.details.get("per_query", {}))
         )
+        payload["slices"] = dict(cast(dict[str, object], cell.details.get("slices", {})))
         run_classification = cell.details.get("run_classification")
         if isinstance(run_classification, str):
             payload["run_classification"] = run_classification

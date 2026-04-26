@@ -33,6 +33,11 @@ EXIT_CODE_SUCCESS = 0
 EXIT_CODE_PARTIAL_FAILURE = 1
 EXIT_CODE_INVALID_INPUT = 2
 QUERY_SAMPLING_SEED = 1729
+QUALITY_SLICE_METRIC_IDS = frozenset(
+    metric_id
+    for metric_id in DEFAULT_METRIC_REGISTRY.list_metrics()
+    if not metric_id.startswith("latency_")
+)
 
 
 def run_cell(
@@ -127,6 +132,7 @@ def run_cell(
         "eligible_query_count": eligible_query_count,
         "effective_query_count": len(selected_queries),
         "per_query": _build_per_query_evidence(query_results, qrels, metrics),
+        "slices": _build_slice_evidence(selected_queries, metrics),
         "sampling_seed": QUERY_SAMPLING_SEED,
     }
     if level.corpus_cap is not None:
@@ -324,6 +330,8 @@ def _load_materialized_queries(
                 level_id=level_id,
             )
         )
+    if queries_path.suffix == ".json":
+        return _load_json_queries(queries_path)
     from datasets import load_dataset
 
     dataset = load_dataset("parquet", data_files=str(queries_path), split="train")
@@ -339,6 +347,37 @@ def _load_materialized_queries(
             raise ValueError(f"Missing query field mapping in {queries_path}")
         queries.append(
             BenchmarkQuery(query_id=str(query_id), query_text=str(query_text))
+        )
+    return tuple(queries)
+
+
+def _load_json_queries(queries_path: Path) -> tuple[BenchmarkQuery, ...]:
+    payload = json.loads(queries_path.read_text(encoding="utf-8"))
+    rows: object
+    if isinstance(payload, Mapping) and "queries" in payload:
+        rows = payload["queries"]
+    else:
+        rows = payload
+    if not isinstance(rows, list):
+        raise ValueError(f"Expected benchmark query rows in {queries_path}")
+    queries: list[BenchmarkQuery] = []
+    for row in rows:
+        if not isinstance(row, Mapping):
+            raise ValueError(f"Expected query row mappings in {queries_path}")
+        query_id = row.get("id") or row.get("qid")
+        query_text = row.get("text") or row.get("query")
+        if query_id is None or query_text is None:
+            raise ValueError(f"Missing query id/text in {queries_path}")
+        group = row.get("group")
+        kind = row.get("kind")
+        queries.append(
+            BenchmarkQuery(
+                query_id=str(query_id),
+                query_text=str(query_text),
+                group=str(group) if group not in (None, "") else None,
+                kind=str(kind) if kind not in (None, "") else None,
+                tags=_coerce_query_tags(row.get("tags"), queries_path),
+            )
         )
     return tuple(queries)
 
@@ -423,6 +462,8 @@ def _load_json_qrels(
     field_mappings: Mapping[str, tuple[str, ...]],
 ) -> dict[str, set[str]]:
     payload = json.loads(judgments_path.read_text(encoding="utf-8"))
+    if isinstance(payload, Mapping) and "judgments" in payload:
+        return _coerce_qrels(cast(Mapping[str, object], payload["judgments"]))
     if isinstance(payload, dict):
         return _coerce_qrels(payload)
     if not isinstance(payload, list):
@@ -505,6 +546,61 @@ def _build_per_query_evidence(
             },
         }
     return evidence
+
+
+def _build_slice_evidence(
+    selected_queries: Sequence[BenchmarkQuery],
+    metrics: Sequence[MetricResult],
+) -> dict[str, dict[str, object]]:
+    metric_lookup: dict[str, Mapping[str, object]] = {}
+    for metric in metrics:
+        per_query = metric.details.get("per_query")
+        if isinstance(per_query, Mapping):
+            metric_lookup[metric.metric_id] = cast(Mapping[str, object], per_query)
+    slice_query_ids: dict[str, set[str]] = {"all": set()}
+    for query in selected_queries:
+        slice_query_ids["all"].add(query.query_id)
+        if query.group:
+            slice_query_ids.setdefault(f"group:{query.group}", set()).add(query.query_id)
+        if query.kind:
+            slice_query_ids.setdefault(f"kind:{query.kind}", set()).add(query.query_id)
+        for tag in query.tags:
+            slice_query_ids.setdefault(f"tag:{tag}", set()).add(query.query_id)
+
+    evidence: dict[str, dict[str, object]] = {}
+    for slice_id, query_ids in sorted(slice_query_ids.items()):
+        metric_values: dict[str, float | None] = {}
+        evaluated_counts: dict[str, int] = {}
+        for metric_id, per_query_scores in metric_lookup.items():
+            if metric_id not in QUALITY_SLICE_METRIC_IDS:
+                continue
+            values = tuple(
+                float(value)
+                for query_id in query_ids
+                if isinstance((value := per_query_scores.get(query_id)), int | float)
+            )
+            metric_values[metric_id] = _mean_float(values)
+            evaluated_counts[metric_id] = len(values)
+        evidence[slice_id] = {
+            "query_count": len(query_ids),
+            "metrics": metric_values,
+            "evaluated_queries": evaluated_counts,
+        }
+    return evidence
+
+
+def _coerce_query_tags(raw_tags: object, source_path: Path) -> tuple[str, ...]:
+    if raw_tags in (None, ""):
+        return ()
+    if not isinstance(raw_tags, Sequence) or isinstance(raw_tags, str | bytes):
+        raise ValueError(f"Expected query tags list in {source_path}")
+    return tuple(str(tag) for tag in raw_tags if str(tag))
+
+
+def _mean_float(values: Sequence[float]) -> float | None:
+    if not values:
+        return None
+    return sum(values) / len(values)
 
 
 def _coerce_float(value: object) -> float:
