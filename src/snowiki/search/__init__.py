@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .analyzer import MixedLanguageAnalyzer, build_mixed_language_analyzer
 from .bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
 from .contract import (
     TEMPORAL_KEYWORDS,
@@ -11,6 +12,12 @@ from .contract import (
     normalize_recall_hits,
     normalize_recall_result,
     run_authoritative_recall,
+)
+from .corpus import (
+    RuntimeCorpusDocument,
+    runtime_corpus_from_mappings,
+    runtime_document_from_compiled_page,
+    runtime_document_from_normalized_mapping,
 )
 from .index_lexical import LexicalIndex, build_lexical_index
 from .index_wiki import WikiIndex, build_wiki_index
@@ -47,11 +54,13 @@ __all__ = [
     "KoreanTokenizer",
     "LexicalIndex",
     "MecabSearchTokenizer",
+    "MixedLanguageAnalyzer",
     "NoOpReranker",
     "TEMPORAL_KEYWORDS",
     "DEFAULT_TOKENIZER_NAME",
     "RetrievalService",
     "RetrievalSnapshot",
+    "RuntimeCorpusDocument",
     "SearchTokenizer",
     "SearchDocument",
     "SearchHit",
@@ -61,6 +70,7 @@ __all__ = [
     "WikiIndex",
     "all_candidates",
     "build_blended_index",
+    "build_mixed_language_analyzer",
     "build_lexical_index",
     "build_wiki_index",
     "create",
@@ -76,6 +86,9 @@ __all__ = [
     "normalize_recall_hits",
     "normalize_recall_result",
     "register",
+    "runtime_corpus_from_mappings",
+    "runtime_document_from_compiled_page",
+    "runtime_document_from_normalized_mapping",
     "run_authoritative_recall",
     "temporal_recall",
     "tokenize_text",
