@@ -10,10 +10,8 @@ from snowiki.compiler.taxonomy import PageType
 from snowiki.lint.integrity import check_layer_integrity
 from snowiki.lint.runtime import collect_structural_issues
 from snowiki.markdown.source_state import collect_markdown_source_state
-from snowiki.search.workspace import (
-    content_freshness_identity,
-    normalize_stored_tokenizer_name,
-)
+from snowiki.search.tokenizer_compat import normalize_stored_tokenizer_name
+from snowiki.search.workspace import content_freshness_identity
 
 
 class StatusResult(TypedDict):
