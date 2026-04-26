@@ -27,7 +27,7 @@ Supported JSON commands use Snowiki's CLI envelope: success normally looks like 
 
 ## 2. First useful commands
 
-Lifecycle intents such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` are arguments to the single `wiki` skill command, not independent slash commands or shipped `snowiki` subcommands. They should expand to the current CLI commands below: status/recall/query for start, status/lint for progress and health, and session-to-Markdown plus ingest/fileback for finish.
+Lifecycle intents such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` are arguments to the single `wiki` skill command, not independent slash commands or shipped `snowiki` subcommands. They should expand to the current CLI commands below: status/recall/query for start, status as the fast health snapshot, lint for full diagnostics during progress or deep health review, and session-to-Markdown plus ingest/fileback for finish.
 
 Example argument expansions:
 
@@ -44,7 +44,7 @@ Example argument expansions:
 
 /wiki health
   -> snowiki status --output json
-  -> snowiki lint --output json
+  -> optional snowiki lint --output json
   -> optional snowiki prune sources --dry-run --output json
 ```
 
@@ -57,7 +57,7 @@ snowiki ingest /path/to/docs/ --rebuild --output json
 
 Markdown files and directories are the primary ingest surface. Convert Claude/OpenCode session exports into Markdown notes before ingesting them.
 
-After ingest, inspect JSON output for stale or rebuild-required state, then run `snowiki status --output json` or `snowiki lint --output json` before claiming the wiki is healthy.
+After ingest, inspect JSON output for stale or rebuild-required state, then run `snowiki status --output json` for a fast snapshot. Run `snowiki lint --output json` for full validation before claiming deep health, before cleanup, or during periodic maintenance.
 
 ### Query
 
@@ -83,7 +83,7 @@ snowiki status --output json
 snowiki lint --output json
 ```
 
-`status` gives source freshness summary counts. `lint --output json` gives actionable source findings such as `source.modified`, `source.missing`, `source.untracked`, `source.invalid_metadata`, and agent-readable `source.rename_candidate` diagnostics when a missing source has an exact-hash untracked rename candidate.
+`status` gives fast source freshness, index, and structural health summary counts. `lint --output json` gives full actionable source findings such as `source.modified`, `source.missing`, `source.untracked`, `source.invalid_metadata`, and agent-readable `source.rename_candidate` diagnostics when a missing source has an exact-hash untracked rename candidate.
 
 ### Source prune
 

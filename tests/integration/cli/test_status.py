@@ -173,7 +173,7 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
                 },
             },
             "lint": {
-                "summary": {"error": 0, "warning": 0, "info": 2, "total": 2},
+                "summary": {"error": 0, "warning": 0, "info": 0, "total": 0},
                 "error_count": 0,
             },
             "freshness": {
@@ -234,7 +234,7 @@ def test_status_human_output_renders_dashboard_summary(tmp_path: Path) -> None:
     )
     assert "Sources: 2 total" in result.output
     assert "By source: claude: 1, opencode: 1" in result.output
-    assert "Lint: 0 errors, 0 warnings, 2 info" in result.output
+    assert "Lint: 0 errors, 0 warnings, 0 info" in result.output
     assert (
         "Freshness: state=current, tokenizer=regex_v1, latest normalized=2026-04-16T08:30:00Z, latest compiled=2026-04-16"
         in result.output

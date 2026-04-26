@@ -17,10 +17,10 @@ These are phase arguments after `/wiki`, not separate slash commands or Snowiki 
 | Intent | Agent expansion |
 | --- | --- |
 | `/wiki start ...` | Run status, then relevant recall/query, then propose one next action. |
-| `/wiki ingest <path> [goal]` | Resolve the first existing path as source. If it is a durable Markdown source, ingest it; if it is a broad scope plus a goal, inspect relevant evidence, write one derived Markdown note, ingest that note with `--rebuild`, then validate with status/lint/query. Do not bulk-ingest broad directories unless explicitly requested. |
-| `/wiki progress` | Run status and lint to detect drift, stale sources, and pending cleanup risks. |
+| `/wiki ingest <path> [goal]` | Resolve the first existing path as source. If it is a durable Markdown source, ingest it; if it is a broad scope plus a goal, inspect relevant evidence, write one derived Markdown note, ingest that note with `--rebuild`, then validate with status for a fast snapshot, lint for full diagnostics when needed, and query for retrieval. Do not bulk-ingest broad directories unless explicitly requested. |
+| `/wiki progress` | Run status for the fast snapshot; run lint when full drift, stale-source, or pending-cleanup diagnostics are needed. |
 | `/wiki finish` | Write a durable Markdown session note, ingest it, verify retrieval, and optionally queue fileback. |
-| `/wiki health` | Run lint plus targeted review; surface issues without silently applying semantic fixes. |
+| `/wiki health` | Run status for a fast health snapshot; run lint for deep actionable diagnostics without silently applying semantic fixes. |
 
 ## Intent Selection
 
@@ -30,7 +30,7 @@ These are phase arguments after `/wiki`, not separate slash commands or Snowiki 
 | “what do I know about X?” | `snowiki query` |
 | “what did we work on yesterday/last week?” | `snowiki recall` |
 | “save this answer” | `snowiki fileback preview`, queue/apply only after review |
-| “is the wiki healthy?” | `snowiki status`, then `snowiki lint` |
+| “is the wiki healthy?” | `snowiki status` for a fast snapshot; `snowiki lint` for full diagnostics |
 | “clean missing sources” | `snowiki prune sources --dry-run`, then `snowiki prune sources --delete --yes --all-candidates` only after review |
 | “export/backup/debug wiki state” | `snowiki export` only as a support flow, not as everyday memory authoring |
 

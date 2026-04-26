@@ -81,7 +81,7 @@ Do not treat qmd lineage or older vault-layout docs as a separate product contra
 - CLI JSON output via `snowiki ... --output json`
 - read-only MCP via `snowiki mcp`
 
-Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup is report-first through `status`/`lint` and dry-run-first through `snowiki prune sources`; destructive source pruning requires `--delete --yes --all-candidates`. `lint --output json` may include agent-readable source gardening diagnostics such as exact-hash rename candidates before a missing source is pruned. Autonomous writeback queues are pending control-plane proposal artifacts until applied or rejected through a documented CLI path. Successful queue apply deletes the pending proposal only after the reviewed raw/normalized/rebuild path succeeds; queue reject deletes the pending proposal with a reason.
+Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup is report-first through `status` for a fast snapshot and `lint` for full diagnostics, and dry-run-first through `snowiki prune sources`; destructive source pruning requires `--delete --yes --all-candidates`. `lint --output json` may include agent-readable source gardening diagnostics such as exact-hash rename candidates before a missing source is pruned. Autonomous writeback queues are pending control-plane proposal artifacts until applied or rejected through a documented CLI path. Successful queue apply deletes the pending proposal only after the reviewed raw/normalized/rebuild path succeeds; queue reject deletes the pending proposal with a reason.
 
 ## Design Principles
 
