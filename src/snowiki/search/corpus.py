@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class RuntimeCorpusDocument:
-    """Typed retrieval corpus document shared by runtime lexical and BM25 paths."""
+    """Typed retrieval corpus document used by the BM25 runtime."""
 
     id: str
     path: str

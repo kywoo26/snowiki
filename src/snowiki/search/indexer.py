@@ -25,7 +25,7 @@ FIELD_BOOSTS = {
 
 @dataclass(frozen=True)
 class SearchDocument:
-    """Searchable document stored in the in-memory index."""
+    """Searchable document returned by runtime retrieval indexes."""
 
     id: str
     path: str
@@ -41,7 +41,7 @@ class SearchDocument:
 
 @dataclass(frozen=True)
 class SearchHit:
-    """Scored search hit returned by the inverted index."""
+    """Scored search hit returned by runtime retrieval indexes."""
 
     document: SearchDocument
     score: float

@@ -4,11 +4,12 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Protocol
 
-from .indexer import SearchHit, SearchTokenizer
+from .indexer import SearchHit
+from .registry import SearchTokenizer
 
 
 class RuntimeSearchIndex(Protocol):
-    """Search interface shared by legacy and BM25 runtime indexes."""
+    """Primary runtime search interface used by query and recall policies."""
 
     @property
     def size(self) -> int: ...
