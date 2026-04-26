@@ -17,7 +17,7 @@ from snowiki.cli.output import (
     emit_error,
     validate_destructive_flags,
 )
-from snowiki.markdown.source_state import prune_missing_markdown_sources
+from snowiki.markdown.source_prune import prune_missing_markdown_sources
 
 
 def _render_sources_human(payload: dict[str, Any]) -> str:
