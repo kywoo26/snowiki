@@ -88,7 +88,7 @@ Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup 
 1. **CLI truth first** — docs and skills mirror the installed runtime instead of inventing a parallel wiki backend
 2. **Compilation, not ad-hoc mutation** — durable knowledge flows through Snowiki storage and rebuild paths
 3. **Reviewable writes** — `fileback apply` requires a reviewed proposal from `fileback preview`
-4. **Search-strategic** — lexical-first retrieval is shipped now; hybrid/semantic work remains deferred
+4. **Search-strategic** — BM25 lexical retrieval is shipped now; hybrid/semantic work remains deferred
 5. **Performance where it matters** — runtime optimizations belong behind shipped `snowiki` commands, not in the skill package
 
 ## Related

@@ -124,7 +124,7 @@ Those may be adjacent systems or useful comparisons, but they are not the center
 At the current stage, Snowiki should prioritize:
 1. a clear source/raw/normalized/compiled taxonomy
 2. a canonical retrieval/corpus contract
-3. lexical-first retrieval quality and performance
+3. BM25 lexical retrieval quality and performance
 4. stronger evidence and benchmark discipline
 5. clearer agent-facing runtime contracts
 

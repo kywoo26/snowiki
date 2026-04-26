@@ -202,7 +202,7 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
         "--level",
         "quick",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--report",
         str(output_path),
     )
@@ -215,7 +215,7 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
     assert payload["selection"] == {
         "dataset_ids": [dataset_id],
         "level_ids": ["quick"],
-        "target_ids": ["lexical_regex_v1"],
+        "target_ids": ["snowiki_query_runtime_v1"],
         "metric_ids": DEFAULT_METRIC_IDS,
     }
     assert payload["summary"] == {
@@ -238,7 +238,7 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
     assert isinstance(cell, dict)
     assert cell["dataset_id"] == dataset_id
     assert cell["level_id"] == "quick"
-    assert cell["target_id"] == "lexical_regex_v1"
+    assert cell["target_id"] == "snowiki_query_runtime_v1"
     assert cell["status"] == "success"
     assert cell["error"] is None
 
@@ -358,7 +358,7 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
         "--level",
         "quick",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--report",
         str(output_path),
     )
@@ -376,7 +376,7 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
         {
             "dataset_id": dataset_id,
             "level_id": "quick",
-            "target_id": "lexical_regex_v1",
+            "target_id": "snowiki_query_runtime_v1",
             "status": "failed",
             "metrics": [],
             "latency": None,
@@ -391,7 +391,7 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
 
 
 def test_benchmark_missing_report_fails_in_click_validation() -> None:
-    result = _invoke_benchmark("--target", "lexical_regex_v1")
+    result = _invoke_benchmark("--target", "snowiki_query_runtime_v1")
 
     assert result.exit_code == 2
     assert "Missing option '--report'." in result.output
@@ -403,7 +403,7 @@ def test_benchmark_invalid_dataset_reports_clear_error(tmp_path: Path) -> None:
         "--dataset",
         "missing_dataset",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--report",
         str(output_path),
     )
@@ -419,7 +419,7 @@ def test_benchmark_invalid_level_reports_clear_error(tmp_path: Path) -> None:
         "--level",
         "missing_level",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--report",
         str(output_path),
     )
@@ -473,7 +473,7 @@ def test_benchmark_fail_fast_stops_after_first_failure(
         "--level",
         "quick",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--fail-fast",
         "--report",
         str(output_path),

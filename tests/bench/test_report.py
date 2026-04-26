@@ -11,7 +11,7 @@ def test_render_json_returns_expected_top_level_keys() -> None:
             CellResult(
                 dataset_id="beir_nq",
                 level_id="quick",
-                target_id="lexical_regex_v1",
+                target_id="snowiki_query_runtime_v1",
                 status="success",
                 metrics=(MetricResult(metric_id="recall_at_100", value=0.75),),
             ),
@@ -35,7 +35,7 @@ def test_render_cell_uses_stable_schema_for_success_and_failure() -> None:
     success_cell = CellResult(
         dataset_id="beir_scifact",
         level_id="quick",
-        target_id="lexical_regex_v1",
+        target_id="snowiki_query_runtime_v1",
         status="success",
         metrics=(
             MetricResult(metric_id="recall_at_100", value=0.75),
@@ -47,7 +47,7 @@ def test_render_cell_uses_stable_schema_for_success_and_failure() -> None:
     failed_cell = CellResult(
         dataset_id="beir_scifact",
         level_id="quick",
-        target_id="lexical_regex_v1",
+        target_id="snowiki_query_runtime_v1",
         status="failed",
         error_message="boom",
     )
@@ -84,7 +84,7 @@ def test_render_summary_uses_expected_format() -> None:
             CellResult(
                 dataset_id="beir_scifact",
                 level_id="quick",
-                target_id="lexical_regex_v1",
+                target_id="snowiki_query_runtime_v1",
                 status="failed",
                 error_message="boom",
             ),

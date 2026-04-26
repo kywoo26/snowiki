@@ -19,10 +19,8 @@ from .corpus import (
     runtime_document_from_compiled_page,
     runtime_document_from_normalized_mapping,
 )
-from .engine_v2 import BM25RuntimeIndex
-from .index_lexical import LexicalIndex, build_lexical_index
-from .index_wiki import WikiIndex, build_wiki_index
-from .indexer import InvertedIndex, SearchDocument, SearchHit, build_blended_index
+from .engine import BM25RuntimeIndex
+from .indexer import SearchDocument, SearchHit
 from .kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
 from .mecab_tokenizer import MecabSearchTokenizer
 from .protocols import RuntimeSearchIndex
@@ -53,9 +51,7 @@ __all__ = [
     "BM25SearchIndex",
     "BilingualTokenizer",
     "DisabledSemanticBackend",
-    "InvertedIndex",
     "KoreanTokenizer",
-    "LexicalIndex",
     "MecabSearchTokenizer",
     "MixedLanguageAnalyzer",
     "NoOpReranker",
@@ -71,12 +67,8 @@ __all__ = [
     "SemanticBackend",
     "TokenizerSpec",
     "WordPieceSearchTokenizer",
-    "WikiIndex",
     "all_candidates",
-    "build_blended_index",
     "build_mixed_language_analyzer",
-    "build_lexical_index",
-    "build_wiki_index",
     "create",
     "default",
     "get",

@@ -68,7 +68,7 @@ def test_query_help_documents_machine_output_flag() -> None:
     assert result.exit_code == 0
     assert "--output [human|json]" in result.output
     assert "--top-k INTEGER RANGE" in result.output
-    assert "--mode [lexical|hybrid]" in result.output
+    assert "--mode [lexical]" in result.output
 
 
 def test_recall_json_routes_temporal_queries_and_freezes_payload_shape(
@@ -345,7 +345,7 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
     assert call_log[1]["limit"] == 10
 
 
-def test_query_hybrid_mode_still_uses_topical_recall_and_reports_disabled_semantics(
+def test_query_lexical_mode_uses_topical_recall(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     runner = CliRunner()
@@ -356,13 +356,13 @@ def test_query_hybrid_mode_still_uses_topical_recall_and_reports_disabled_semant
             id="session-2",
             path="normalized/session-2.json",
             kind="session",
-            title="Hybrid query hit",
-            content="hybrid query content",
-            summary="Hybrid query summary.",
+            title="Lexical query hit",
+            content="lexical query content",
+            summary="Lexical query summary.",
             source_type="normalized",
         ),
         score=4.25,
-        matched_terms=("hybrid", "query"),
+        matched_terms=("lexical", "query"),
     )
 
     def fake_build_retrieval_snapshot(root: Path) -> object:
@@ -377,9 +377,6 @@ def test_query_hybrid_mode_still_uses_topical_recall_and_reports_disabled_semant
         )
         return [hit]
 
-    def fail_bm25(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError("hybrid query should still use the runtime topical path")
-
     monkeypatch.setattr(
         "snowiki.search.queries.runtime.build_retrieval_snapshot",
         fake_build_retrieval_snapshot,
@@ -387,15 +384,14 @@ def test_query_hybrid_mode_still_uses_topical_recall_and_reports_disabled_semant
     monkeypatch.setattr(
         "snowiki.search.queries.runtime.topical_recall", fake_topical_recall
     )
-    monkeypatch.setattr("snowiki.search.bm25_index.BM25SearchIndex", fail_bm25)
 
     result = runner.invoke(
         app,
         [
             "query",
-            "hybrid query",
+            "lexical query",
             "--mode",
-            "hybrid",
+            "lexical",
             "--top-k",
             "2",
             "--output",
@@ -410,35 +406,31 @@ def test_query_hybrid_mode_still_uses_topical_recall_and_reports_disabled_semant
         "command": "query",
         "ok": True,
         "result": {
-            "query": "hybrid query",
-            "mode": "hybrid",
-            "semantic_backend": "disabled",
+            "query": "lexical query",
+            "mode": "lexical",
+            "semantic_backend": None,
             "records_indexed": 7,
             "pages_indexed": 4,
             "hits": [
                 {
                     "id": "session-2",
                     "path": "normalized/session-2.json",
-                    "title": "Hybrid query hit",
+                    "title": "Lexical query hit",
                     "kind": "session",
                     "source_type": "normalized",
                     "score": 4.25,
-                    "matched_terms": ["hybrid", "query"],
-                    "summary": "Hybrid query summary.",
+                    "matched_terms": ["lexical", "query"],
+                    "summary": "Lexical query summary.",
                 }
             ],
         },
     }
-    help_result = runner.invoke(app, ["query", "--help"])
-    assert "hybrid" in help_result.output
-    assert "lexical/no-op" in help_result.output
-    assert "compatibility surface" in help_result.output
     assert call_log == [
         {"fn": "build_retrieval_snapshot", "root": tmp_path},
         {
             "fn": "topical_recall",
             "index": runtime_index,
-            "query": "hybrid query",
+            "query": "lexical query",
             "limit": 2,
         },
     ]

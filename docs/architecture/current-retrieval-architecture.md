@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document describes Snowiki’s current retrieval architecture as it exists in the BM25 runtime branch.
+This document describes Snowiki’s current retrieval architecture.
 
 The goal is to keep CLI, MCP, and bench aligned without turning any one of them into a separate contract universe.
 
@@ -20,13 +20,11 @@ The current active retrieval backbone is BM25 lexical candidate generation with 
 
 Primary modules:
 
-- `src/snowiki/search/engine_v2.py`
+- `src/snowiki/search/engine.py`
 - `src/snowiki/search/protocols.py`
 - `src/snowiki/search/bm25_index.py`
 - `src/snowiki/search/corpus.py`
 - `src/snowiki/search/indexer.py`
-- `src/snowiki/search/index_lexical.py`
-- `src/snowiki/search/index_wiki.py`
 - `src/snowiki/search/tokenizer.py`
 - `src/snowiki/search/queries/*`
 
@@ -42,9 +40,7 @@ Its role is to:
 4. provide the common retrieval contract used across runtime surfaces
 
 `RetrievalSnapshot.index` is the primary runtime search surface and implements
-`RuntimeSearchIndex` through `BM25RuntimeIndex`. The older `InvertedIndex`
-composition may still appear as `legacy_index` for compatibility and tests, but
-it is not the primary runtime query engine on this branch.
+`RuntimeSearchIndex` through `BM25RuntimeIndex`.
 
 ## Canonical retrieval contract
 
@@ -101,14 +97,14 @@ The codebase currently points toward this order:
 1. canonical retrieval contract
 2. BM25 lexical quality and language strategy improvements
 3. profiling and performance improvements
-4. legacy primary-path cleanup
+4. analyzer promotion gates
 5. semantic, graph, and rerank questions
 
-## BM25 runtime direction
+## BM25 runtime
 
-The BM25 lexical-v2 direction is described in
-[`bm25-retrieval-engine-v2-plan.md`](bm25-retrieval-engine-v2-plan.md).
+The BM25 runtime is described in
+[`bm25-retrieval-engine.md`](bm25-retrieval-engine.md).
 
 The important distinction is that Snowiki should preserve external CLI, MCP,
-provenance, and benchmark contracts while the internal runtime engine moves away
-from `InvertedIndex(regex_v1)` as the primary retrieval substrate.
+provenance, and benchmark contracts while BM25 remains the primary retrieval
+substrate.

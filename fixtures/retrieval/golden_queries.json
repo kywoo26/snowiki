@@ -53,14 +53,14 @@
     {
       "id": "topical_exploratory",
       "slice": "topical exploratory query",
-      "query": "retrieval engine v2 BM25 architecture plan",
-      "expected_paths": ["docs/architecture/bm25-retrieval-engine-v2-plan.md"]
+      "query": "BM25 retrieval engine architecture",
+      "expected_paths": ["docs/architecture/bm25-retrieval-engine.md"]
     },
     {
       "id": "source_provenance",
       "slice": "source/provenance validation query",
       "query": "source_type normalized compiled provenance fields",
-      "expected_paths": ["docs/architecture/bm25-retrieval-engine-v2-plan.md"]
+      "expected_paths": ["docs/architecture/bm25-retrieval-engine.md"]
     }
   ]
 }

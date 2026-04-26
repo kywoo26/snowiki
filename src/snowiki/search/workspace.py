@@ -10,10 +10,7 @@ from snowiki.compiler.engine import CompilerEngine
 from snowiki.compiler.taxonomy import CompiledPage, NormalizedRecord, PageSection
 
 from .corpus import runtime_corpus_from_mappings
-from .engine_v2 import BM25RuntimeIndex
-from .index_lexical import LexicalIndex, build_lexical_index
-from .index_wiki import WikiIndex, build_wiki_index
-from .indexer import InvertedIndex, build_blended_index
+from .engine import BM25RuntimeIndex
 from .protocols import RuntimeSearchIndex
 from .registry import (
     SearchTokenizer,
@@ -78,10 +75,7 @@ def normalized_record_to_search_mapping(record: NormalizedRecord) -> dict[str, A
 
 @dataclass(frozen=True, slots=True)
 class RetrievalSnapshot:
-    lexical: LexicalIndex
-    wiki: WikiIndex
     index: RuntimeSearchIndex
-    legacy_index: InvertedIndex
     records_indexed: int
     pages_indexed: int
 
@@ -140,25 +134,6 @@ class RetrievalService:
         normalized_records = cls._normalize_records(records)
         normalized_pages = cls._normalize_pages(pages)
         resolved_tokenizer = tokenizer or create_tokenizer(default().name)
-        lexical = (
-            build_lexical_index(normalized_records)
-            if tokenizer is None
-            else build_lexical_index(normalized_records, tokenizer=resolved_tokenizer)
-        )
-        wiki = (
-            build_wiki_index(normalized_pages)
-            if tokenizer is None
-            else build_wiki_index(normalized_pages, tokenizer=resolved_tokenizer)
-        )
-        legacy_index = (
-            build_blended_index(lexical.documents, wiki.documents)
-            if tokenizer is None
-            else build_blended_index(
-                lexical.documents,
-                wiki.documents,
-                tokenizer=resolved_tokenizer,
-            )
-        )
         runtime_tokenizer_name = getattr(resolved_tokenizer, "name", default().name)
         if not isinstance(runtime_tokenizer_name, str):
             runtime_tokenizer_name = default().name
@@ -167,16 +142,13 @@ class RetrievalService:
             pages=normalized_pages,
         )
         return RetrievalSnapshot(
-            lexical=lexical,
-            wiki=wiki,
             index=BM25RuntimeIndex(
                 corpus,
                 tokenizer_name=runtime_tokenizer_name,
                 tokenizer=resolved_tokenizer,
             ),
-            legacy_index=legacy_index,
-            records_indexed=len(lexical.documents),
-            pages_indexed=len(wiki.documents),
+            records_indexed=len(normalized_records),
+            pages_indexed=len(normalized_pages),
         )
 
     @staticmethod

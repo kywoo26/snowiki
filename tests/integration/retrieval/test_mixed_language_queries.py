@@ -16,8 +16,8 @@ def search_api() -> Any:
 
 
 @pytest.fixture(scope="module")
-def blended_index() -> Any:
-    return retrieval_fixtures.blended_index()
+def runtime_index() -> Any:
+    return retrieval_fixtures.runtime_index()
 
 
 @pytest.fixture(scope="module")
@@ -45,9 +45,9 @@ def benchmark_judgments() -> dict[str, list[str]]:
     ],
 )
 def test_known_item_lookup_supports_mixed_language_queries(
-    search_api: Any, blended_index: Any, query: str, expected_path: str
+    search_api: Any, runtime_index: Any, query: str, expected_path: str
 ) -> None:
-    hits = search_api.known_item_lookup(blended_index, query, limit=3)
+    hits = search_api.known_item_lookup(runtime_index, query, limit=3)
 
     assert hits
     assert hits[0].document.path == expected_path
@@ -75,9 +75,9 @@ def test_known_item_lookup_supports_mixed_language_queries(
     ],
 )
 def test_topical_recall_blends_session_and_page_results(
-    search_api: Any, blended_index: Any, query: str, expected_path: str
+    search_api: Any, runtime_index: Any, query: str, expected_path: str
 ) -> None:
-    hits = search_api.topical_recall(blended_index, query, limit=4)
+    hits = search_api.topical_recall(runtime_index, query, limit=4)
     kinds = {hit.document.kind for hit in hits}
 
     assert hits
@@ -104,10 +104,10 @@ def test_topical_recall_blends_session_and_page_results(
     ],
 )
 def test_temporal_recall_prioritizes_recent_window(
-    search_api: Any, blended_index: Any, query: str, expected_path: str
+    search_api: Any, runtime_index: Any, query: str, expected_path: str
 ) -> None:
     hits = search_api.temporal_recall(
-        blended_index,
+        runtime_index,
         query,
         limit=3,
         reference_time=datetime(2026, 4, 8, 12, 0, tzinfo=UTC),
@@ -119,12 +119,12 @@ def test_temporal_recall_prioritizes_recent_window(
 
 def test_benchmark_queries_return_gold_paths(
     search_api: Any,
-    blended_index: Any,
+    runtime_index: Any,
     benchmark_queries: list[dict[str, object]],
     benchmark_judgments: dict[str, list[str]],
 ) -> None:
     for query in benchmark_queries:
-        hits = search_api.known_item_lookup(blended_index, str(query["text"]), limit=5)
+        hits = search_api.known_item_lookup(runtime_index, str(query["text"]), limit=5)
         returned_paths = {hit.document.path for hit in hits}
         gold_paths = set(benchmark_judgments[str(query["id"])])
 

@@ -36,10 +36,10 @@ def _render_query_human(payload: dict[str, Any]) -> str:
 @click.argument("query")
 @click.option(
     "--mode",
-    type=click.Choice(["lexical", "hybrid"], case_sensitive=False),
+    type=click.Choice(["lexical"], case_sensitive=False),
     default="lexical",
     show_default=True,
-    help="Search mode. 'hybrid' is currently a lexical/no-op compatibility surface.",
+    help="Search mode.",
 )
 @click.option("--top-k", type=click.IntRange(min=1), default=5, show_default=True)
 @root_option

@@ -24,46 +24,15 @@ from snowiki.bench.specs import (
 from snowiki.config import get_snowiki_root
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchIndex
 from snowiki.search.corpus import RuntimeCorpusDocument
-from snowiki.search.engine_v2 import BM25RuntimeIndex
-from snowiki.search.indexer import InvertedIndex, SearchDocument
+from snowiki.search.engine import BM25RuntimeIndex
 from snowiki.search.protocols import RuntimeSearchIndex
 from snowiki.search.queries.topical import topical_recall
-from snowiki.search.registry import create, default
+from snowiki.search.registry import default
 from snowiki.search.registry import get as get_tokenizer_spec
 from snowiki.storage.zones import StoragePaths
 
 BENCHMARK_RETRIEVAL_LIMIT = 100
 CORPUS_SAMPLING_SEED = 2718
-
-
-class _LexicalRegexTargetAdapter:
-    """Benchmark target adapter for lexical retrieval with the regex tokenizer."""
-
-    def run(
-        self,
-        *,
-        manifest: DatasetManifest,
-        level: LevelConfig,
-        queries: tuple[BenchmarkQuery, ...],
-    ) -> Mapping[str, object]:
-        documents = tuple(
-            SearchDocument(
-                id=doc_id,
-                path=doc_id,
-                title=doc_id,
-                kind="benchmark_doc",
-                content=text,
-            )
-            for doc_id, text in _load_materialized_corpus_rows(
-                manifest,
-                level=level,
-            )
-        )
-        index = InvertedIndex(documents, tokenizer=create(default().name))
-        results = tuple(
-            _run_lexical_query(index=index, query=query) for query in queries
-        )
-        return {"results": results}
 
 
 class _SnowikiQueryRuntimeTargetAdapter:
@@ -312,21 +281,6 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _run_lexical_query(
-    *,
-    index: InvertedIndex,
-    query: BenchmarkQuery,
-) -> QueryResult:
-    start = time.perf_counter()
-    hits = index.search(query.query_text, limit=BENCHMARK_RETRIEVAL_LIMIT)
-    latency_ms = (time.perf_counter() - start) * 1000.0
-    return QueryResult(
-        query_id=query.query_id,
-        ranked_doc_ids=tuple(hit.document.id for hit in hits),
-        latency_ms=latency_ms,
-    )
-
-
 def _run_snowiki_query_runtime(
     *,
     index: RuntimeSearchIndex,
@@ -357,7 +311,6 @@ def _run_bm25_query(
     )
 
 
-LEXICAL_REGEX_TARGET_ADAPTER = _LexicalRegexTargetAdapter()
 SNOWIKI_QUERY_RUNTIME_TARGET_ADAPTER = _SnowikiQueryRuntimeTargetAdapter()
 BM25_REGEX_TARGET_ADAPTER = _BM25TargetAdapter("bm25_regex_v1", "regex_v1")
 BM25_KIWI_MORPHOLOGY_TARGET_ADAPTER = _BM25TargetAdapter(
