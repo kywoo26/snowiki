@@ -28,7 +28,11 @@ def test_convert_non_markdown_source_uses_markitdown_boundary(
             calls.append(path)
             return FakeResult()
 
-    monkeypatch.setattr(conversion_module, "MarkItDown", FakeMarkItDown)
+    monkeypatch.setattr(
+        conversion_module,
+        "_create_markitdown_converter",
+        lambda: FakeMarkItDown(enable_plugins=False),
+    )
 
     converted = convert_non_markdown_source(source)
 
@@ -56,7 +60,11 @@ def test_convert_non_markdown_source_accepts_legacy_text_content(
             _ = path
             return FakeResult()
 
-    monkeypatch.setattr(conversion_module, "MarkItDown", FakeMarkItDown)
+    monkeypatch.setattr(
+        conversion_module,
+        "_create_markitdown_converter",
+        lambda: FakeMarkItDown(enable_plugins=False),
+    )
 
     converted = convert_non_markdown_source(source)
 
