@@ -8,8 +8,6 @@ from snowiki.search.corpus import (
     runtime_document_from_compiled_page,
     runtime_document_from_normalized_mapping,
 )
-from snowiki.search.index_lexical import normalized_record_to_document
-from snowiki.search.index_wiki import compiled_page_to_document
 
 
 def test_runtime_document_from_normalized_mapping_preserves_identity() -> None:
@@ -75,13 +73,13 @@ def test_runtime_corpus_converts_to_search_and_bm25_documents() -> None:
     assert corpus[1].to_bm25_document().source_type == "compiled"
 
 
-def test_existing_index_builders_use_runtime_corpus_contract() -> None:
-    record_doc = normalized_record_to_document(
+def test_runtime_corpus_search_documents_preserve_source_identity() -> None:
+    record_doc = runtime_document_from_normalized_mapping(
         {"id": "record-1", "path": "normalized/record-1.json", "text": "hello"}
-    )
-    page_doc = compiled_page_to_document(
+    ).to_search_document()
+    page_doc = runtime_document_from_compiled_page(
         {"id": "page-1", "path": "compiled/page-1.md", "body": "world"}
-    )
+    ).to_search_document()
 
     assert record_doc.kind == "session"
     assert record_doc.source_type == "normalized"
@@ -92,12 +90,12 @@ def test_existing_index_builders_use_runtime_corpus_contract() -> None:
 
 
 def test_runtime_corpus_metadata_includes_synthesized_defaults() -> None:
-    record_doc = normalized_record_to_document(
+    record_doc = runtime_document_from_normalized_mapping(
         {"id": "record-1", "path": "normalized/record-1.json"}
-    )
-    page_doc = compiled_page_to_document(
+    ).to_search_document()
+    page_doc = runtime_document_from_compiled_page(
         {"id": "page-1", "path": "compiled/page-1.md"}
-    )
+    ).to_search_document()
 
     assert record_doc.title == "record-1"
     assert record_doc.summary == "normalized record"
