@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, TypedDict
 
 from snowiki.compiler.taxonomy import PageType
-from snowiki.lint import run_lint
+from snowiki.lint.integrity import check_layer_integrity
+from snowiki.lint.runtime import collect_structural_issues
 from snowiki.markdown.source_state import collect_markdown_source_state
 from snowiki.search.workspace import (
     content_freshness_identity,
@@ -156,11 +158,32 @@ def _source_freshness_status(root: Path) -> dict[str, Any]:
     }
 
 
+def _severity_counts(issues: Iterable[Mapping[str, object]]) -> dict[str, int]:
+    counts = {"error": 0, "warning": 0, "info": 0}
+    for issue in issues:
+        severity = issue.get("severity")
+        if isinstance(severity, str) and severity in counts:
+            counts[severity] += 1
+    return counts
+
+
+def _status_lint_summary(root: Path) -> dict[str, Any]:
+    issues: list[Mapping[str, object]] = []
+    for issue in collect_structural_issues(root):
+        issues.append(issue)
+    for issue in check_layer_integrity(root)["issues"]:
+        if isinstance(issue, Mapping):
+            issues.append(issue)
+    counts = _severity_counts(issues)
+    summary = {**counts, "total": len(issues)}
+    return {"summary": summary, "error_count": summary["error"]}
+
+
 def run_status(root: Path) -> StatusResult:
     manifest = _load_manifest(root / "index" / "manifest.json")
     page_counts, latest_compiled_update = _page_type_counts(root / "compiled")
     source_counts, latest_normalized_recorded_at = _source_type_counts(root / "normalized")
-    lint_result = run_lint(root)
+    lint_result = _status_lint_summary(root)
     current_identity = content_freshness_identity(root)
     return {
         "root": root.as_posix(),
