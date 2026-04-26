@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any
 
 import click
 
@@ -13,26 +12,21 @@ from snowiki.cli.context import (
     initialize_cli_root,
     pass_snowiki_context,
 )
-from snowiki.cli.decorators import destructive_options, output_option, root_option
+from snowiki.cli.decorators import output_option, root_option
 from snowiki.cli.output import (
     emit_command_result,
     emit_error,
-    validate_destructive_flags,
 )
-from snowiki.cli.types import DURATION, PROPOSAL_ID
+from snowiki.cli.types import PROPOSAL_ID
 from snowiki.fileback import (
     apply_fileback_proposal,
     apply_queued_fileback_proposal,
     list_queued_fileback_proposals,
-    prune_queued_fileback_proposals,
     reject_queued_fileback_proposal,
     resolve_preview_root,
     show_queued_fileback_proposal,
 )
 from snowiki.fileback.queue import build_queue_list_result, run_fileback_preview
-
-QueueCliStatus = Literal["pending", "applied", "rejected", "failed", "all"]
-TerminalQueueCliStatus = Literal["applied", "rejected", "failed", "all"]
 
 
 def _render_preview_human(payload: dict[str, Any]) -> str:
@@ -52,7 +46,7 @@ def _render_preview_human(payload: dict[str, Any]) -> str:
     if isinstance(queue_result, dict):
         lines.extend(
             [
-                f"queued: {queue_result['decision']}",
+                f"queued: {queue_result['status']}",
                 f"queue path: {queue_result['proposal_path']}",
             ]
         )
@@ -93,30 +87,12 @@ def _render_queue_item_human(payload: dict[str, Any]) -> str:
         f"summary: {result['summary']}",
         f"target: {result['target']['compiled_path']}",
         f"queue path: {result['proposal_path']}",
-        f"decision: {result['decision']}",
-        f"requires human review: {result['requires_human_review']}",
     ]
-    if "transitioned_at" in result:
-        lines.append(f"transitioned: {result['transitioned_at']}")
+    if "deleted_proposal_path" in result:
+        lines.append(f"deleted queue path: {result['deleted_proposal_path']}")
+    if "transition_reason" in result:
         lines.append(f"transition reason: {result['transition_reason']}")
     return "\n".join(lines)
-
-
-def _render_queue_prune_human(payload: dict[str, Any]) -> str:
-    result = payload["result"]
-    action = "Would delete" if result["dry_run"] else "Deleted"
-    return (
-        f"{action} {result['candidate_count']} fileback queue artifact(s) "
-        f"for {', '.join(result['statuses'])}; retained {result['retained_count']}"
-    )
-
-
-def _queue_cli_status(value: str) -> QueueCliStatus:
-    return cast(QueueCliStatus, value.lower())
-
-
-def _terminal_queue_cli_status(value: str) -> TerminalQueueCliStatus:
-    return cast(TerminalQueueCliStatus, value.lower())
 
 
 @click.group(
@@ -145,11 +121,6 @@ def command() -> None:
     is_flag=True,
     help="Persist the preview as a pending proposal under the Snowiki root queue.",
 )
-@click.option(
-    "--auto-apply-low-risk",
-    is_flag=True,
-    help="Queue and immediately apply only if runtime low-risk policy passes.",
-)
 @root_option
 @output_option
 @pass_snowiki_context
@@ -160,7 +131,6 @@ def preview_command(
     summary: str,
     evidence_paths: tuple[str, ...],
     queue_proposal: bool,
-    auto_apply_low_risk: bool,
     root: Path | None,
     output: str,
 ) -> None:
@@ -174,7 +144,6 @@ def preview_command(
             summary=summary,
             evidence_paths=evidence_paths,
             queue_proposal=queue_proposal,
-            auto_apply_low_risk=auto_apply_low_risk,
         )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_preview_failed")
@@ -203,7 +172,9 @@ def apply_command(
     output_mode = cli_context.output
     try:
         reviewed_payload = json.loads(proposal_file.read_text(encoding="utf-8"))
-        apply_root = cli_context.root if cli_context.root is not None else resolve_preview_root(None)
+        apply_root = (
+            cli_context.root if cli_context.root is not None else resolve_preview_root(None)
+        )
         result = apply_fileback_proposal(apply_root, reviewed_payload)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_apply_failed")
@@ -225,28 +196,19 @@ def queue_command() -> None:
 
 
 @queue_command.command("list", short_help="List queued fileback proposals.")
-@click.option(
-    "--status",
-    type=click.Choice(["pending", "applied", "rejected", "failed", "all"], case_sensitive=False),
-    default="pending",
-    show_default=True,
-    help="Queue state to list.",
-)
 @root_option
 @output_option
 @pass_snowiki_context
 def queue_list_command(
-    cli_context: SnowikiCliContext, status: str, root: Path | None, output: str
+    cli_context: SnowikiCliContext, root: Path | None, output: str
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
     try:
         queue_root = initialize_cli_root(cli_context)
-        normalized_status = _queue_cli_status(status)
-        proposals = list_queued_fileback_proposals(queue_root, status=normalized_status)
+        proposals = list_queued_fileback_proposals(queue_root)
         result = build_queue_list_result(
             root=queue_root,
-            status=normalized_status,
             proposals=proposals,
         )
     except Exception as exc:
@@ -335,67 +297,4 @@ def queue_reject_command(
         command="fileback queue reject",
         output=output_mode,
         human_renderer=_render_queue_item_human,
-    )
-
-
-@queue_command.command("prune", short_help="Prune terminal queue artifacts.")
-@click.option(
-    "--status",
-    type=click.Choice(["applied", "rejected", "failed", "all"], case_sensitive=False),
-    required=True,
-    help="Terminal queue state to prune.",
-)
-@click.option(
-    "--keep",
-    type=click.IntRange(min=0),
-    default=None,
-    help="Number of newest terminal artifacts to retain.",
-)
-@click.option(
-    "--older-than",
-    type=DURATION,
-    default=None,
-    help="Optional age filter such as 30d, 12h, or 60s.",
-)
-@destructive_options
-@root_option
-@output_option
-@pass_snowiki_context
-def queue_prune_command(
-    cli_context: SnowikiCliContext,
-    status: str,
-    keep: int | None,
-    older_than: timedelta | None,
-    dry_run: bool,
-    delete_artifacts: bool,
-    yes: bool,
-    root: Path | None,
-    output: str,
-) -> None:
-    bind_cli_context(cli_context, root=root, output=output)
-    output_mode = cli_context.output
-    validate_destructive_flags(
-        dry_run=dry_run,
-        delete_artifacts=delete_artifacts,
-        yes=yes,
-        output=output_mode,
-        code="fileback_queue_prune_failed",
-        confirmation_message="--delete requires --yes",
-    )
-    try:
-        queue_root = initialize_cli_root(cli_context)
-        result = prune_queued_fileback_proposals(
-            queue_root,
-            status=_terminal_queue_cli_status(status),
-            keep=keep,
-            older_than=older_than,
-            dry_run=not delete_artifacts,
-        )
-    except Exception as exc:
-        emit_error(str(exc), output=output_mode, code="fileback_queue_prune_failed")
-    emit_command_result(
-        result,
-        command="fileback queue prune",
-        output=output_mode,
-        human_renderer=_render_queue_prune_human,
     )
