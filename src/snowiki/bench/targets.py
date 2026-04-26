@@ -6,7 +6,6 @@ from snowiki.benchmark_targets import (
     BM25_KIWI_NOUNS_TARGET_ADAPTER,
     BM25_MECAB_MORPHOLOGY_TARGET_ADAPTER,
     BM25_REGEX_TARGET_ADAPTER,
-    LEXICAL_REGEX_TARGET_ADAPTER,
     SNOWIKI_QUERY_RUNTIME_TARGET_ADAPTER,
 )
 
@@ -49,11 +48,6 @@ OFFICIAL_DATASET_IDS: tuple[str, ...] = (
     "trec_dl_2020_passage",
     "miracl_ko",
 )
-LEXICAL_REGEX_V1 = BenchmarkTargetSpec(
-    target_id="lexical_regex_v1",
-    description="Lexical retrieval target using the runtime regex tokenizer.",
-    supported_datasets=OFFICIAL_DATASET_IDS,
-)
 BM25_REGEX_V1 = BenchmarkTargetSpec(
     target_id="bm25_regex_v1",
     description="BM25 retrieval target using the regex tokenizer.",
@@ -87,7 +81,6 @@ BM25_HF_WORDPIECE_V1 = BenchmarkTargetSpec(
 
 
 BUILTIN_TARGETS: tuple[BenchmarkTargetSpec, ...] = (
-    LEXICAL_REGEX_V1,
     SNOWIKI_QUERY_RUNTIME_V1,
     BM25_REGEX_V1,
     BM25_KIWI_MORPHOLOGY_V1,
@@ -96,10 +89,6 @@ BUILTIN_TARGETS: tuple[BenchmarkTargetSpec, ...] = (
     BM25_HF_WORDPIECE_V1,
 )
 DEFAULT_TARGET_REGISTRY = TargetRegistry()
-DEFAULT_TARGET_REGISTRY.register_target(
-    LEXICAL_REGEX_V1,
-    LEXICAL_REGEX_TARGET_ADAPTER,
-)
 DEFAULT_TARGET_REGISTRY.register_target(
     SNOWIKI_QUERY_RUNTIME_V1,
     SNOWIKI_QUERY_RUNTIME_TARGET_ADAPTER,
