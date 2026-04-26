@@ -13,7 +13,15 @@ from snowiki.cli.main import app
 pytestmark = pytest.mark.integration
 
 DEFAULT_METRIC_IDS = [
+    "recall_at_1",
+    "recall_at_3",
+    "recall_at_5",
+    "recall_at_10",
     "recall_at_100",
+    "hit_rate_at_1",
+    "hit_rate_at_3",
+    "hit_rate_at_5",
+    "hit_rate_at_10",
     "mrr_at_10",
     "ndcg_at_10",
     "latency_p50_ms",
@@ -237,7 +245,15 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
     metrics = cell["metrics"]
     assert isinstance(metrics, list)
     assert metrics == [
+        {"metric_id": "recall_at_1", "value": 1.0},
+        {"metric_id": "recall_at_3", "value": 1.0},
+        {"metric_id": "recall_at_5", "value": 1.0},
+        {"metric_id": "recall_at_10", "value": 1.0},
         {"metric_id": "recall_at_100", "value": 1.0},
+        {"metric_id": "hit_rate_at_1", "value": 1.0},
+        {"metric_id": "hit_rate_at_3", "value": 1.0},
+        {"metric_id": "hit_rate_at_5", "value": 1.0},
+        {"metric_id": "hit_rate_at_10", "value": 1.0},
         {"metric_id": "mrr_at_10", "value": 1.0},
         {"metric_id": "ndcg_at_10", "value": 1.0},
     ]
@@ -252,7 +268,15 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
         assert isinstance(evidence, dict)
         metrics_by_query = evidence["metrics"]
         assert isinstance(metrics_by_query, dict)
+        assert metrics_by_query["recall_at_1"] == 1.0
+        assert metrics_by_query["recall_at_3"] == 1.0
+        assert metrics_by_query["recall_at_5"] == 1.0
+        assert metrics_by_query["recall_at_10"] == 1.0
         assert metrics_by_query["recall_at_100"] == 1.0
+        assert metrics_by_query["hit_rate_at_1"] == 1.0
+        assert metrics_by_query["hit_rate_at_3"] == 1.0
+        assert metrics_by_query["hit_rate_at_5"] == 1.0
+        assert metrics_by_query["hit_rate_at_10"] == 1.0
         assert metrics_by_query["mrr_at_10"] == 1.0
         assert metrics_by_query["ndcg_at_10"] == 1.0
 
