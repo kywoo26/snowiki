@@ -19,11 +19,13 @@ from .corpus import (
     runtime_document_from_compiled_page,
     runtime_document_from_normalized_mapping,
 )
+from .engine_v2 import BM25RuntimeIndex
 from .index_lexical import LexicalIndex, build_lexical_index
 from .index_wiki import WikiIndex, build_wiki_index
 from .indexer import InvertedIndex, SearchDocument, SearchHit, build_blended_index
 from .kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
 from .mecab_tokenizer import MecabSearchTokenizer
+from .protocols import RuntimeSearchIndex
 from .queries.known_item import known_item_lookup
 from .queries.temporal import temporal_recall
 from .queries.topical import topical_recall
@@ -47,6 +49,7 @@ from .workspace import RetrievalService, RetrievalSnapshot
 __all__ = [
     "BM25SearchDocument",
     "BM25SearchHit",
+    "BM25RuntimeIndex",
     "BM25SearchIndex",
     "BilingualTokenizer",
     "DisabledSemanticBackend",
@@ -61,6 +64,7 @@ __all__ = [
     "RetrievalService",
     "RetrievalSnapshot",
     "RuntimeCorpusDocument",
+    "RuntimeSearchIndex",
     "SearchTokenizer",
     "SearchDocument",
     "SearchHit",
