@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import argparse
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -14,50 +14,50 @@ from snowiki.daemon.fallback import DaemonUnavailableError, daemon_request
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
+CACHE_TTL_DEFAULT = 30.0
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="snowiki daemon")
-    parser.add_argument("action", choices=("start", "stop", "status"))
-    parser.add_argument("--root", default=None, help="Snowiki storage root")
-    parser.add_argument("--host", default=DEFAULT_HOST, help="Daemon bind host")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Daemon port")
-    parser.add_argument(
-        "--cache-ttl",
-        type=float,
-        default=30.0,
-        help="Query cache TTL in seconds",
-    )
-    return parser
+def _host_option(func: Callable[..., object]) -> Callable[..., object]:
+    return click.option(
+        "--host",
+        default=DEFAULT_HOST,
+        envvar="SNOWIKI_DAEMON_HOST",
+        show_default=True,
+        show_envvar=True,
+        help="Daemon bind host",
+    )(func)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    if args.action == "start":
-        return start_command(args)
-    if args.action == "stop":
-        return stop_command(args)
-    return status_command(args)
+def _port_option(func: Callable[..., object]) -> Callable[..., object]:
+    return click.option(
+        "--port",
+        type=click.IntRange(min=1, max=65535),
+        default=DEFAULT_PORT,
+        envvar="SNOWIKI_DAEMON_PORT",
+        show_default=True,
+        show_envvar=True,
+        help="Daemon port",
+    )(func)
 
 
-def start_command(args: argparse.Namespace) -> int:
-    root = Path(args.root).resolve() if args.root else get_snowiki_root()
-    if _health(args.host, args.port) is not None:
+def start_daemon(root: Path | None, host: str, port: int, cache_ttl: float) -> int:
+    resolved_root = root.resolve() if root else get_snowiki_root()
+    if _health(host, port) is not None:
         return 0
 
-    subprocess.Popen(
+    _ = subprocess.Popen(
         [
             sys.executable,
             "-m",
             "snowiki.daemon.server",
             "--root",
-            str(root),
+            str(resolved_root),
             "--host",
-            args.host,
+            host,
             "--port",
-            str(args.port),
+            str(port),
             "--cache-ttl",
-            str(args.cache_ttl),
+            str(cache_ttl),
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -66,16 +66,16 @@ def start_command(args: argparse.Namespace) -> int:
 
     deadline = time.monotonic() + 5.0
     while time.monotonic() < deadline:
-        if _health(args.host, args.port) is not None:
+        if _health(host, port) is not None:
             return 0
         time.sleep(0.1)
     return 1
 
 
-def stop_command(args: argparse.Namespace) -> int:
+def stop_daemon(host: str, port: int) -> int:
     try:
-        daemon_request(
-            _base_url(args.host, args.port),
+        _ = daemon_request(
+            _base_url(host, port),
             "/stop",
             method="POST",
             timeout=1.0,
@@ -85,20 +85,20 @@ def stop_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def status_command(args: argparse.Namespace) -> int:
-    return 0 if _health(args.host, args.port) is not None else 1
-
-
-def daemon_status(args: argparse.Namespace) -> dict[str, Any]:
-    health = _health(args.host, args.port)
+def daemon_status(host: str, port: int) -> dict[str, Any]:
+    health = _health(host, port)
     if health is not None:
         return health
     return {
         "ok": False,
         "reachable": False,
-        "host": args.host,
-        "port": args.port,
+        "host": host,
+        "port": port,
     }
+
+
+def status_daemon(host: str, port: int) -> int:
+    return 0 if daemon_status(host, port)["ok"] is True else 1
 
 
 def _health(host: str, port: int) -> dict[str, Any] | None:
@@ -112,12 +112,12 @@ def _base_url(host: str, port: int) -> str:
     return f"http://{host}:{port}"
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+@click.group("daemon", no_args_is_help=True, short_help="Control the Snowiki daemon.")
+def command() -> None:
+    """Control the Snowiki daemon."""
 
 
-@click.command("daemon", short_help="Control the Snowiki daemon.")
-@click.argument("action", type=click.Choice(("start", "stop", "status")))
+@command.command("start", short_help="Start the Snowiki daemon.")
 @click.option(
     "--root",
     type=click.Path(path_type=Path, file_okay=False, dir_okay=True),
@@ -126,44 +126,30 @@ if __name__ == "__main__":
     show_envvar=True,
     help="Snowiki storage root (defaults to ~/.snowiki)",
 )
-@click.option(
-    "--host",
-    default=DEFAULT_HOST,
-    envvar="SNOWIKI_DAEMON_HOST",
-    show_default=True,
-    show_envvar=True,
-    help="Daemon bind host",
-)
-@click.option(
-    "--port",
-    type=click.IntRange(min=1, max=65535),
-    default=DEFAULT_PORT,
-    envvar="SNOWIKI_DAEMON_PORT",
-    show_default=True,
-    show_envvar=True,
-    help="Daemon port",
-)
+@_host_option
+@_port_option
 @click.option(
     "--cache-ttl",
     type=click.FloatRange(min=0.0),
-    default=30.0,
+    default=CACHE_TTL_DEFAULT,
     envvar="SNOWIKI_DAEMON_CACHE_TTL",
     help="Query cache TTL in seconds",
     show_default=True,
     show_envvar=True,
 )
-def command(
-    action: str, root: Path | None, host: str, port: int, cache_ttl: float
-) -> None:
-    argv = [
-        action,
-        "--host",
-        host,
-        "--port",
-        str(port),
-        "--cache-ttl",
-        str(cache_ttl),
-    ]
-    if root is not None:
-        argv[1:1] = ["--root", str(root)]
-    raise click.exceptions.Exit(main(argv))
+def start_command(root: Path | None, host: str, port: int, cache_ttl: float) -> None:
+    raise click.exceptions.Exit(start_daemon(root, host, port, cache_ttl))
+
+
+@command.command("stop", short_help="Stop the Snowiki daemon.")
+@_host_option
+@_port_option
+def stop_command(host: str, port: int) -> None:
+    raise click.exceptions.Exit(stop_daemon(host, port))
+
+
+@command.command("status", short_help="Check Snowiki daemon reachability.")
+@_host_option
+@_port_option
+def status_command(host: str, port: int) -> None:
+    raise click.exceptions.Exit(status_daemon(host, port))
