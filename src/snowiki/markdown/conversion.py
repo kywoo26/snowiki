@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
 
-from markitdown import MarkItDown
+
+class _MarkItDownConverter(Protocol):
+    def convert(self, source: str) -> object:
+        """Convert a source path to a MarkItDown result object."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,7 +22,7 @@ class ConvertedMarkdownDocument:
 def convert_non_markdown_source(path: str | Path) -> ConvertedMarkdownDocument:
     """Convert a non-Markdown source file into Markdown text with MarkItDown."""
     source_path = Path(path)
-    converter = MarkItDown(enable_plugins=False)
+    converter = _create_markitdown_converter()
     result = converter.convert(source_path.as_posix())
     markdown = _converted_markdown_text(result)
     title = getattr(result, "title", None)
@@ -27,6 +31,12 @@ def convert_non_markdown_source(path: str | Path) -> ConvertedMarkdownDocument:
         title=title if isinstance(title, str) and title.strip() else None,
         source_path=source_path.as_posix(),
     )
+
+
+def _create_markitdown_converter() -> _MarkItDownConverter:
+    from markitdown import MarkItDown
+
+    return MarkItDown(enable_plugins=False)
 
 
 def _converted_markdown_text(result: object) -> str:
