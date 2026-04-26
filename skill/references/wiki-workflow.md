@@ -54,10 +54,10 @@ For Claude/OpenCode sessions:
 
 1. Preview first; preview output is a proposal, not an applied write.
 2. Queue when autonomous work should continue without immediate apply.
-3. Apply only through documented fileback apply or queue apply paths after review.
-4. Rebuild or validate after successful apply when needed.
-5. Trust runtime low-risk policy, not agent labels, for any auto-apply behavior.
-6. Prune terminal queue artifacts with dry-run-first `snowiki fileback queue prune`; deletion requires `--delete --yes`.
+3. Inspect queued proposals with `snowiki fileback queue list` and `snowiki fileback queue show`.
+4. Apply only through documented fileback apply or queue apply paths after review.
+5. Reject stale or unsuitable queued proposals with a reason instead of archiving them.
+6. Rebuild or validate after successful apply when needed.
 
 ## Status, Lint, and Source Prune
 

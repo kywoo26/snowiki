@@ -51,7 +51,7 @@ Support commands exist (`export`, `rebuild`, read-only `mcp`, benchmarks), but t
 - Do not edit compiled wiki artifacts directly.
 - Use `fileback preview` before any durable answer write; apply only through reviewed fileback paths.
 - Use `prune sources --dry-run` before destructive source cleanup; deletion requires `prune sources --delete --yes --all-candidates`.
-- Use `fileback queue prune` as a dry-run-first cleanup surface; deletion requires `fileback queue prune --delete --yes`.
+- Treat `fileback preview --queue` as an agent-mediated pending inbox; inspect with `fileback queue list/show`, then use `fileback queue apply` or `fileback queue reject`.
 - Do not implement payload normalization or command behavior in this skill; call the shipped CLI instead.
 - If `snowiki` is unavailable or returns an error, report that failure rather than emulating runtime behavior.
 - Do not claim MCP write/delete support.
