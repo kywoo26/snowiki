@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from snowiki.search.corpus import RuntimeCorpusDocument
-from snowiki.search.engine_v2 import BM25RuntimeIndex
+from snowiki.search.engine import BM25RuntimeIndex
 
 
 class SynonymTokenizer:
