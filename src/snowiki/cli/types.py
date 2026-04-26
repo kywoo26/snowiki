@@ -1,21 +1,28 @@
 from __future__ import annotations
 
+import re
 from datetime import timedelta
+from typing import override
 
 import click
+
+from snowiki.fileback.models import FILEBACK_PROPOSAL_ID_PATTERN
 
 
 class DurationParamType(click.ParamType):
     """Parse compact duration strings such as 30d, 12h, or 60s."""
 
-    name = "duration"
+    name: str = "duration"
 
+    @override
     def convert(
         self,
         value: object,
         param: click.Parameter | None,
         ctx: click.Context | None,
     ) -> timedelta:
+        if isinstance(value, timedelta):
+            return value
         if not isinstance(value, str):
             self.fail("duration must be a string", param, ctx)
         normalized = value.strip().lower()
@@ -36,3 +43,32 @@ class DurationParamType(click.ParamType):
 
 
 DURATION = DurationParamType()
+
+
+class ProposalIdParamType(click.ParamType):
+    """Validate Snowiki fileback proposal identifiers at the CLI boundary."""
+
+    name: str = "proposal-id"
+
+    def __init__(self, pattern: re.Pattern[str]) -> None:
+        self._pattern: re.Pattern[str] = pattern
+
+    @override
+    def convert(
+        self,
+        value: object,
+        param: click.Parameter | None,
+        ctx: click.Context | None,
+    ) -> str:
+        if not isinstance(value, str):
+            self.fail("proposal id must be a string", param, ctx)
+        if self._pattern.fullmatch(value) is None:
+            self.fail(
+                "proposal id must match fileback-proposal-<16 lowercase hex chars>",
+                param,
+                ctx,
+            )
+        return value
+
+
+PROPOSAL_ID = ProposalIdParamType(FILEBACK_PROPOSAL_ID_PATTERN)

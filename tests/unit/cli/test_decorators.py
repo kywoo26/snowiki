@@ -10,9 +10,9 @@ from snowiki.cli.decorators import output_option, root_option
 
 
 @click.command("decorated")
-@output_option
 @root_option
-def decorated_command(output: str, root: Path | None) -> None:
+@output_option
+def decorated_command(root: Path | None, output: str) -> None:
     click.echo(f"output={output}")
     click.echo(f"root={root.as_posix() if root else 'none'}")
 
@@ -81,3 +81,12 @@ def test_decorated_help_documents_shared_options() -> None:
     assert "--root DIRECTORY" in result.output
     assert "env var: SNOWIKI_ROOT" in " ".join(result.output.split())
     assert "env var: SNOWIKI_OUTPUT" in " ".join(result.output.split())
+
+
+def test_shared_option_order_is_root_then_output() -> None:
+    result = CliRunner().invoke(decorated_command, ["--help"])
+
+    assert result.exit_code == 0
+    assert result.output.index("--root DIRECTORY") < result.output.index(
+        "--output [human|json]"
+    )
