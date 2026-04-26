@@ -94,3 +94,12 @@ The codebase currently points toward this order:
 3. profiling and performance improvements
 4. semantic and rerank questions
 5. backend evolution and native acceleration
+
+## Next planned retrieval architecture
+
+The next planned retrieval direction is BM25 lexical-v2, described in
+[`bm25-retrieval-engine-v2-plan.md`](bm25-retrieval-engine-v2-plan.md).
+
+The important distinction is that Snowiki should preserve external CLI, MCP,
+provenance, and benchmark contracts while allowing the internal runtime engine to
+move away from `InvertedIndex(regex_v1)` as the primary retrieval substrate.
