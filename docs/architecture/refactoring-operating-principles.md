@@ -282,7 +282,7 @@ These boundaries are current architecture guidance, not historical phase plans.
 
 ### Status, lint, prune, and gardening
 
-- Keep Markdown source freshness classification and prune planning in domain modules such as `snowiki.markdown.source_state`, not Click callbacks.
+- Keep Markdown source freshness classification and prune planning in domain modules such as `snowiki.markdown.source_state` and `snowiki.markdown.source_prune`, not Click callbacks.
 - Keep `status` as a summary surface and `lint` as an actionable diagnostic surface.
 - Keep `prune sources` narrow, dry-run-first, and destructive only through explicit `--delete --yes --all-candidates` style confirmation.
 - Model source rename, dead-wikilink, and cascade cleanup as reviewable proposals before any apply path mutates files.
