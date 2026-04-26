@@ -31,7 +31,7 @@ snowiki prune sources --dry-run --output json
 
 Markdown files and directories are the primary ingest surface. Claude/OpenCode session exports should be converted into Markdown notes by an agent or skill workflow, then ingested with `snowiki ingest <note-or-directory>`.
 
-For the Claude Code `wiki` skill workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/queue/apply` flow.
+For the Claude Code `wiki` skill workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout and the current `fileback preview/queue/apply` flow.
 
 If you are working from a development checkout instead of a tool install, run the same commands as `uv run snowiki ...`.
 
@@ -39,7 +39,6 @@ If you are working from a development checkout instead of a tool install, run th
 
 - Help and discovery: every command supports `-h` and `--help`; the top-level command also supports `--version`.
 - Shared configuration: set `SNOWIKI_ROOT` to choose the storage root and `SNOWIKI_OUTPUT=json` to make supported commands emit machine-readable output without repeating `--output json`.
-- Daemon configuration: `snowiki daemon` also respects `SNOWIKI_DAEMON_HOST`, `SNOWIKI_DAEMON_PORT`, and `SNOWIKI_DAEMON_CACHE_TTL`.
 - Shell completion: Click completion scripts are available for Bash, Zsh, and Fish; for Bash use `eval "$(_SNOWIKI_COMPLETE=bash_source snowiki)"`.
 - JSON envelope: successful JSON commands emit `{"ok": true, "command": "...", "result": {...}}`; runtime failures emit `{"ok": false, "error": {...}}`; semantic failures such as lint errors may emit `{"ok": false, "command": "lint", "result": {...}}`.
 
@@ -60,7 +59,6 @@ The current runtime exposes these top-level commands. For the detailed role taxo
 - `snowiki export`
 - `snowiki benchmark`
 - `snowiki benchmark-fetch`
-- `snowiki daemon`
 - `snowiki mcp`
 
 ### Shipped CLI Support
@@ -71,11 +69,10 @@ The current runtime exposes these top-level commands. For the detailed role taxo
 The `wiki` skill should currently mirror this shipped surface for everyday use:
 
 - current: `ingest`, `query`, `recall`, `status`, `lint`, `prune sources --dry-run`, `prune sources --delete --yes --all-candidates`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
-- optimization, not skill logic: `snowiki daemon` remains a runtime CLI feature, but the `wiki` skill should call documented `snowiki ... --output json` commands rather than implementing daemon fallback itself
 - agent workflows: Claude Code exposes one `/wiki` skill command; phase arguments such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` expand to current CLI sequences rather than new runtime commands
 - deferred unless explicitly accepted by runtime spec: standalone `sync`, standalone `edit`, standalone `merge`, graph-oriented workflows
 
-Do not treat daemon internals, qmd lineage, or older vault-layout docs as a separate product contract.
+Do not treat qmd lineage or older vault-layout docs as a separate product contract.
 
 `export` is a support/debug surface for backup, migration, inspection, fixtures, and external integration. It is not a primary everyday `/wiki` flow.
 

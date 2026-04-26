@@ -20,7 +20,7 @@ Use normal file tools for Markdown reading/drafting. Durable Snowiki changes sti
 
 ## Optional CLI Invocation Defaults
 
-These are installed CLI defaults, not skill configuration. Snowiki works without them. Use `SNOWIKI_ROOT` only to pin a non-default wiki root and `SNOWIKI_OUTPUT=json` only to avoid repeating `--output json`. Discover command-specific defaults with CLI help, for example `snowiki daemon --help`.
+These are installed CLI defaults, not skill configuration. Snowiki works without them. Use `SNOWIKI_ROOT` only to pin a non-default wiki root and `SNOWIKI_OUTPUT=json` only to avoid repeating `--output json`.
 
 JSON success is normally `{"ok": true, "command": "...", "result": {...}}`; runtime failures use `{"ok": false, "error": {...}}`; semantic failures such as lint errors may return `{"ok": false, "command": "lint", "result": {...}}`.
 
@@ -36,7 +36,7 @@ Use these shipped commands as atomic building blocks:
 - `snowiki prune`
 - `snowiki fileback`
 
-Support commands exist (`export`, `rebuild`, `daemon`, read-only `mcp`, benchmarks), but they are not primary `/wiki` primitives.
+Support commands exist (`export`, `rebuild`, read-only `mcp`, benchmarks), but they are not primary `/wiki` primitives.
 
 ## Common `/wiki` Arguments
 
@@ -52,7 +52,7 @@ Support commands exist (`export`, `rebuild`, `daemon`, read-only `mcp`, benchmar
 - Use `fileback preview` before any durable answer write; apply only through reviewed fileback paths.
 - Use `prune sources --dry-run` before destructive source cleanup; deletion requires `prune sources --delete --yes --all-candidates`.
 - Use `fileback queue prune` as a dry-run-first cleanup surface; deletion requires `fileback queue prune --delete --yes`.
-- Do not implement daemon fallback, payload normalization, or command behavior in this skill; call the shipped CLI instead.
+- Do not implement payload normalization or command behavior in this skill; call the shipped CLI instead.
 - If `snowiki` is unavailable or returns an error, report that failure rather than emulating runtime behavior.
 - Do not claim MCP write/delete support.
 

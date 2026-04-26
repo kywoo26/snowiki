@@ -75,7 +75,6 @@ Any fix must use current CLI-mediated paths such as reingest, dry-run-first prun
 ## Support and Advanced Commands
 
 - `snowiki export` is for backup, migration, inspection, fixtures, and external integration. Do not present it as a required Obsidian workflow or as the normal way to edit knowledge.
-- `snowiki daemon` is runtime optimization; inspect CLI help when needed.
 - `snowiki mcp` is a read-only transport bridge, not a writable workflow command family.
 - `snowiki benchmark` and `snowiki benchmark-fetch` support retrieval evaluation and should not be used as ordinary wiki memory commands.
 

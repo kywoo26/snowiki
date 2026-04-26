@@ -4,16 +4,15 @@
 
 This document describes Snowiki’s current retrieval architecture as it exists in the shipped runtime.
 
-The goal is to keep CLI, daemon, MCP, and bench aligned without turning any one of them into a separate contract universe.
+The goal is to keep CLI, MCP, and bench aligned without turning any one of them into a separate contract universe.
 
 ## Active retrieval surfaces
 
-Snowiki’s retrieval stack shows up through four surfaces:
+Snowiki’s retrieval stack shows up through three surfaces:
 
 1. CLI query and recall
-2. Daemon warm retrieval
-3. Read only MCP retrieval
-4. Bench evaluation runs
+2. Read only MCP retrieval
+3. Bench evaluation runs
 
 ## The lexical backbone
 
@@ -81,12 +80,6 @@ These remain extension seams, not active runtime layers.
 
 - `src/snowiki/search/semantic_abstraction.py`
 - `src/snowiki/search/rerank.py`
-
-## Daemon and cache semantics
-
-Snowiki can keep separate cache like layers for query reuse and warm serving.
-
-That means stale state must stay explicit, and cache behavior must not redefine the retrieval contract.
 
 ## Main current risk
 

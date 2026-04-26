@@ -13,7 +13,6 @@ The `src/snowiki/cli/commands/` modules are runtime adapters for parsing and dis
 | Knowledge flow | `ingest`, `query`, `recall` | Primary knowledge loop: accept durable material, answer from memory/evidence, and recover temporal/topic context. |
 | Lifecycle and health | `status`, `lint`, `fileback` | Keep source freshness, structure, and reviewable writeback visible and safe. |
 | Maintenance and rebuild | `rebuild`, `prune` | Recompute derived state or remove stale accepted records through explicit maintenance paths. |
-| Runtime/control plane | `daemon` | Runtime optimization/control-plane surface. It must not redefine CLI truth. |
 | Transport bridge | `mcp` | Read-only MCP bridge for tools/resources. It is a transport surface, not a mutation or workflow command family. |
 | Support/debug/export | `export` | Portability, inspection, migration, and snapshot/debug support. Not a primary wiki flow. |
 | Development/evaluation | `benchmark`, `benchmark-fetch` | Retrieval and benchmark development support. Not a user memory workflow. |
@@ -36,7 +35,6 @@ src/snowiki/cli/commands/
   fileback.py
   rebuild.py
   prune.py
-  daemon.py
   mcp.py
   export.py
   benchmark.py
@@ -95,10 +93,6 @@ Skill workflows should expand short `/wiki` intents into these CLI commands inst
 
 `rebuild` recomputes derived state from accepted memory. `prune` removes stale accepted source records only through narrow, explicit, dry-run-first maintenance flows. Neither should be presented as everyday knowledge authoring.
 
-### `daemon`
-
-`daemon` may improve performance or long-running runtime behavior, but it is not a second product contract. Skill and agent instructions should continue to call documented `snowiki ... --output json` commands instead of implementing daemon-specific fallback logic.
-
 ### `mcp`
 
 `mcp` is a read-only bridge. The shipped shape is `snowiki mcp serve --stdio`. MCP tools/resources expose read-only retrieval semantics and must not be treated as write-capable equivalents of CLI commands.
@@ -127,7 +121,6 @@ Claude/OpenCode skills should map user intent to command classes:
 - everyday knowledge work: `ingest`, `query`, `recall`
 - health and cleanup: `status`, `lint`, `prune` dry-run before delete
 - reviewed durable writes: `fileback`
-- runtime optimization: `daemon` only when explicitly needed by the runtime setup
 - transport: `mcp` only for read-only tool/resource exposure
 - support: `export` only when the user asks for backup, migration, inspection, or external integration
 

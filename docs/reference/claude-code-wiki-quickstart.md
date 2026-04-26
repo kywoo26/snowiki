@@ -25,20 +25,7 @@ For automation, prefer environment-backed defaults when they make repeated calls
 
 Supported JSON commands use Snowiki's CLI envelope: success normally looks like `{"ok": true, "command": "...", "result": {...}}`; runtime failures use `{"ok": false, "error": {...}}`; lint errors are semantic failures and may return `{"ok": false, "command": "lint", "result": {...}}`.
 
-## 2. Optional: start the daemon for faster repeated reads
-
-The daemon is an optimization for `query` and `recall`, not a separate runtime truth and not a correctness requirement.
-
-```bash
-snowiki daemon start
-snowiki daemon status
-```
-
-Daemon binding can be configured with `SNOWIKI_DAEMON_HOST`, `SNOWIKI_DAEMON_PORT`, and `SNOWIKI_DAEMON_CACHE_TTL` when the defaults are not suitable.
-
-The `wiki` skill should still call shipped CLI commands such as `snowiki query --output json` and `snowiki recall --output json`. Daemon behavior is a runtime concern behind Snowiki commands, not logic for the skill package to reimplement.
-
-## 3. First useful commands
+## 2. First useful commands
 
 Lifecycle intents such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` are arguments to the single `wiki` skill command, not independent slash commands or shipped `snowiki` subcommands. They should expand to the current CLI commands below: status/recall/query for start, status/lint for progress and health, and session-to-Markdown plus ingest/fileback for finish.
 
@@ -109,7 +96,7 @@ snowiki prune sources --delete --yes --all-candidates --output json
 
 Review the dry-run candidates before deletion. Do not treat source prune as source rename repair, dead-wikilink cleanup, or multi-source cascade gardening.
 
-## 4. Reviewable file-back flow
+## 3. Reviewable file-back flow
 
 `fileback` is current shipped behavior. It is CLI-only, reviewable, and derived: preview first, then apply a reviewed proposal.
 
@@ -194,7 +181,7 @@ snowiki fileback apply \
 
 This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the generated compiled question page. Queueing a proposal does not do this unless queue apply or runtime low-risk auto-apply succeeds. Fileback does not grant MCP write support.
 
-## 5. What is deferred
+## 4. What is deferred
 
 These remain deferred workflow ideas, not shipped runtime behavior:
 
@@ -207,11 +194,10 @@ Claude/OpenCode/OMO workflows operate over the shipped CLI truth. Do not treat s
 
 Do not document or rely on them as if they already ship.
 
-## 6. Current `wiki` skill mental model
+## 5. Current `wiki` skill mental model
 
 - use `ingest`, `query`, `recall`, `status`, `lint`, `prune sources`, and `fileback` today
 - treat lifecycle intents as arguments to the single `/wiki` skill command, not shipped `snowiki` subcommands or separate commands defined inside the skill
 - observe first, hypothesize before asking, and propose concrete writes before executing reviewable write flows
-- keep daemon behavior behind shipped Snowiki runtime commands rather than skill-side fallback logic
 - use CLI JSON output for automation and reliable machine-readable contracts
 - treat the read-only MCP surface as retrieval-only
