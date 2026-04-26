@@ -87,7 +87,7 @@ Snowiki approval semantics are intentionally minimal:
 - **Required**: The action may be proposed, but a human or host-controlled approval step must occur before it is applied.
 - **Denied**: The action must not be applied through the current interface.
 
-Snowiki assumes a human-in-the-loop posture for operations that modify durable knowledge unless the authoritative runtime explicitly defines a narrower or broader allowed path. In the current verified contract, mutation remains CLI-mediated and the MCP surface remains read-only.
+Snowiki assumes a reviewable posture for operations that modify durable knowledge unless the authoritative runtime explicitly defines a narrower or broader allowed path. Review may be performed by an agent, host harness, or human reviewer, but in the current verified contract mutation remains CLI-mediated and the MCP surface remains read-only.
 
 For autonomous operation, approval must not be confused with interrupting the agent's primary task. A review-required proposal may be accepted into a control-plane queue as a successful, non-blocking outcome while remaining unapplied. The queue records mutation intent; approval controls whether that intent becomes durable knowledge.
 
