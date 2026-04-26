@@ -131,7 +131,6 @@ Queued proposals are written under the active Snowiki root as `queue/proposals/p
 
 ```bash
 snowiki fileback queue list --output json
-snowiki fileback queue list --status applied --output json
 snowiki fileback queue show fileback-proposal-0123456789abcdef --output json
 snowiki fileback queue show fileback-proposal-0123456789abcdef --verbose --output json
 ```
@@ -145,31 +144,7 @@ snowiki fileback queue reject fileback-proposal-0123456789abcdef \
   --output json
 ```
 
-Queue apply uses the same reviewed raw/normalized/rebuild path as file-based apply. Successful applies move the envelope to `queue/proposals/applied/`; failed applies move it to `queue/proposals/failed/`; rejected proposals move to `queue/proposals/rejected/`.
-
-### Prune terminal queue artifacts
-
-```bash
-snowiki fileback queue prune --status applied --keep 50 --output json
-snowiki fileback queue prune --status rejected --older-than 30d --delete --yes --output json
-```
-
-Prune is dry-run by default. Actual deletion requires `--delete --yes`, and the default bounded retention policy is count-based rather than a hidden age TTL.
-
-### Auto-apply only runtime-proven low-risk proposals
-
-```bash
-snowiki fileback preview \
-  "What did we ship?" \
-  --answer-markdown "We shipped the reviewable fileback flow." \
-  --summary "Reviewed answer for the current shipped behavior." \
-  --evidence-path compiled/summaries/example.md \
-  --queue \
-  --auto-apply-low-risk \
-  --output json
-```
-
-This still queues first and only applies if deterministic runtime policy checks prove the proposal is a new low-risk manual question record with in-root evidence and non-colliding write paths.
+Queue apply uses the same reviewed raw/normalized/rebuild path as file-based apply and deletes the pending proposal only after that path succeeds. Queue reject deletes the pending proposal with the supplied reason. Failed queue apply attempts leave the pending proposal in place for retry or rejection.
 
 ### Apply a reviewed proposal file
 
@@ -179,7 +154,7 @@ snowiki fileback apply \
   --output json
 ```
 
-This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the generated compiled question page. Queueing a proposal does not do this unless queue apply or runtime low-risk auto-apply succeeds. Fileback does not grant MCP write support.
+This writes through Snowiki’s reviewed raw/normalized flow and rebuilds the generated compiled question page. Queueing a proposal does not do this unless queue apply succeeds. Fileback does not grant MCP write support.
 
 ## 4. What is deferred
 

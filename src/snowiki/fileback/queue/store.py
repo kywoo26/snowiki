@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from pathlib import Path
 
 from snowiki.storage.zones import StoragePaths, relative_to_root
 
 from ..models import FILEBACK_PROPOSAL_ID_PATTERN
-from .types import (
-    ALL_QUEUE_STATUSES,
-    PENDING_QUEUE_STATUS,
-    QueueStatus,
-)
+from .types import PENDING_QUEUE_STATUS, QueueStatus
 
 
 def queue_status_dir(root: Path, status: QueueStatus) -> Path:
@@ -32,20 +27,17 @@ def pending_proposal_path(root: Path, proposal_id: str) -> Path:
 
 def find_existing_queue_state_paths(root: Path, proposal_id: str) -> list[Path]:
     validate_queue_proposal_id(proposal_id)
-    return [
-        path
-        for status in ALL_QUEUE_STATUSES
-        for path in [queue_proposal_path(root, proposal_id, status)]
-        if path.exists() or path.is_symlink()
-    ]
+    path = pending_proposal_path(root, proposal_id)
+    if path.exists() or path.is_symlink():
+        return [path]
+    return []
 
 
-def iter_queue_paths(root: Path, statuses: Iterable[QueueStatus]) -> Iterable[Path]:
-    for status in statuses:
-        queue_dir = queue_status_dir(root, status)
-        if not queue_dir.exists():
-            continue
-        yield from sorted(queue_dir.glob("*.json"), key=lambda candidate: candidate.as_posix())
+def iter_pending_queue_paths(root: Path) -> list[Path]:
+    queue_dir = pending_proposals_dir(root)
+    if not queue_dir.exists():
+        return []
+    return sorted(queue_dir.glob("*.json"), key=lambda candidate: candidate.as_posix())
 
 
 def validate_queue_proposal_id(proposal_id: str) -> None:

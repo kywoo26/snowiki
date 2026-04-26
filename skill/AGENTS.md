@@ -25,7 +25,7 @@ This directory governs the distributable skill package and its associated workfl
 ## Write Safety
 
 - Mutation must stay CLI-mediated.
-- `fileback preview` is non-mutating; `fileback apply` or queue apply is the reviewed write path.
+- `fileback preview` is non-mutating; `fileback preview --queue` creates pending proposal inbox entries; `fileback apply` or queue apply is the reviewed write path.
 - `prune sources --dry-run` is required before destructive source cleanup.
 - Destructive prune requires `prune sources --delete --yes --all-candidates`.
 - MCP write/delete support is not shipped.

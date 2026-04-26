@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import Any, NotRequired, TypedDict
+from typing import Any, TypedDict
 
 PROPOSAL_VERSION = 1
 QUEUE_VERSION = 1
@@ -54,15 +54,7 @@ class QueuedFilebackProposal(TypedDict):
     queued_at: str
     root: str
     status: str
-    decision: str
-    impact: str
-    requires_human_review: bool
-    reasons: list[str]
     proposal: FilebackProposal
-    previous_status: NotRequired[str]
-    transitioned_at: NotRequired[str]
-    transition_reason: NotRequired[str]
-    result: NotRequired[dict[str, Any]]
 
 
 class QueuedFilebackResult(TypedDict):
@@ -70,10 +62,6 @@ class QueuedFilebackResult(TypedDict):
     proposal_id: str
     queued_at: str
     status: str
-    decision: str
-    impact: str
-    requires_human_review: bool
-    reasons: list[str]
     proposal_path: str
 
 
@@ -81,10 +69,6 @@ class QueuedFilebackSummary(TypedDict):
     proposal_id: str
     queued_at: str
     status: str
-    decision: str
-    impact: str
-    requires_human_review: bool
-    reasons: list[str]
     proposal_path: str
     target: FilebackTarget
     summary: str

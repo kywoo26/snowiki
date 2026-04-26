@@ -68,7 +68,7 @@ The current runtime exposes these top-level commands. For the detailed role taxo
 
 The `wiki` skill should currently mirror this shipped surface for everyday use:
 
-- current: `ingest`, `query`, `recall`, `status`, `lint`, `prune sources --dry-run`, `prune sources --delete --yes --all-candidates`, `fileback preview`, `fileback preview --queue`, `fileback preview --queue --auto-apply-low-risk`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback queue prune`, `fileback apply`
+- current: `ingest`, `query`, `recall`, `status`, `lint`, `prune sources --dry-run`, `prune sources --delete --yes --all-candidates`, `fileback preview`, `fileback preview --queue`, `fileback queue list`, `fileback queue show`, `fileback queue apply`, `fileback queue reject`, `fileback apply`
 - agent workflows: Claude Code exposes one `/wiki` skill command; phase arguments such as `/wiki start`, `/wiki progress`, `/wiki finish`, and `/wiki health` expand to current CLI sequences rather than new runtime commands
 - deferred unless explicitly accepted by runtime spec: standalone `sync`, standalone `edit`, standalone `merge`, graph-oriented workflows
 
@@ -81,7 +81,7 @@ Do not treat qmd lineage or older vault-layout docs as a separate product contra
 - CLI JSON output via `snowiki ... --output json`
 - read-only MCP via `snowiki mcp`
 
-Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup is report-first through `status`/`lint` and dry-run-first through `snowiki prune sources`; destructive source pruning requires `--delete --yes --all-candidates`. `lint --output json` may include agent-readable source gardening diagnostics such as exact-hash rename candidates before a missing source is pruned. Autonomous writeback queues are control-plane proposal artifacts until applied through a documented CLI path. The CLI queue lifecycle supports pending/applied/rejected/failed proposal states, dry-run-first terminal pruning, and runtime-owned low-risk auto-apply policy before any broader mutation surface is considered.
+Mutation remains CLI-mediated. MCP write support is not shipped. Source cleanup is report-first through `status`/`lint` and dry-run-first through `snowiki prune sources`; destructive source pruning requires `--delete --yes --all-candidates`. `lint --output json` may include agent-readable source gardening diagnostics such as exact-hash rename candidates before a missing source is pruned. Autonomous writeback queues are pending control-plane proposal artifacts until applied or rejected through a documented CLI path. Successful queue apply deletes the pending proposal only after the reviewed raw/normalized/rebuild path succeeds; queue reject deletes the pending proposal with a reason.
 
 ## Design Principles
 
