@@ -156,7 +156,7 @@ def test_benchmark_json_output_uses_lean_schema(
         "--level",
         "quick",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--report",
         str(output_path),
     )
@@ -187,7 +187,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
     selection = {
         "dataset_ids": ["beir_nq"],
         "level_ids": ["quick"],
-        "target_ids": ["lexical_regex_v1"],
+        "target_ids": ["snowiki_query_runtime_v1"],
         "metric_ids": ["recall_at_100"],
     }
     success_result = BenchmarkRunResult(
@@ -196,7 +196,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
             CellResult(
                 dataset_id="beir_nq",
                 level_id="quick",
-                target_id="lexical_regex_v1",
+                target_id="snowiki_query_runtime_v1",
                 status="success",
             ),
         ),
@@ -214,7 +214,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
             "--level",
             "quick",
             "--target",
-            "lexical_regex_v1",
+            "snowiki_query_runtime_v1",
             "--report",
             str(output_path),
         )
@@ -235,7 +235,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
         "--level",
         "quick",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--report",
         str(tmp_path / "partial-failure.json"),
     )
@@ -245,7 +245,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
         "--dataset",
         "missing_dataset",
         "--target",
-        "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "--report",
         str(tmp_path / "invalid-input.json"),
     )

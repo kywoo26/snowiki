@@ -864,7 +864,7 @@ def test_run_cell_omits_cache_metadata_when_adapter_does_not_report_it(
         matrix=matrix,
         dataset_id="beir_nq",
         level_id="quick",
-        target_id="lexical_regex_v1",
+        target_id="snowiki_query_runtime_v1",
     )
 
     assert result.status == "success"
