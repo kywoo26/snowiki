@@ -1,0 +1,81 @@
+gate_id: korean_analyzer_promotion_v1
+baseline_target: bm25_regex_v1
+candidate_targets:
+  - bm25_kiwi_morphology_v1
+  - bm25_kiwi_nouns_v1
+  - bm25_mecab_morphology_v1
+  - bm25_hf_wordpiece_v1
+public_matrix:
+  matrix: benchmarks/contracts/official_matrix.yaml
+  required_dataset_ids:
+    - miracl_ko
+    - beir_nq
+    - beir_scifact
+    - trec_dl_2020_passage
+  required_level_ids:
+    - standard
+snowiki_slices:
+  required_slice_ids:
+    - group:ko
+    - group:en
+    - group:mixed
+    - kind:known-item
+    - kind:topical
+    - kind:temporal
+    - tag:identifier-path-code-heavy
+    - tag:hard-negative
+  required_golden_query_ids:
+    - cli_tool_command
+    - session_history
+    - source_provenance
+thresholds:
+  public_korean:
+    dataset_id: miracl_ko
+    slice_id: all
+    must_improve_metrics:
+      ndcg_at_10:
+        min_relative_delta: 0.03
+      recall_at_100:
+        min_relative_delta: 0.03
+  snowiki_korean:
+    slice_id: group:ko
+    must_improve_metrics:
+      hit_rate_at_5:
+        min_relative_delta: 0.03
+      mrr_at_10:
+        min_relative_delta: 0.03
+  mixed_and_identifier_regression:
+    slice_ids:
+      - group:mixed
+      - tag:identifier-path-code-heavy
+    max_allowed_absolute_regression: 0.0
+    metrics:
+      - hit_rate_at_5
+      - mrr_at_10
+  temporal_regression:
+    slice_id: kind:temporal
+    max_allowed_absolute_regression: 0.0
+    metrics:
+      - hit_rate_at_5
+      - mrr_at_10
+  golden_query_regression:
+    fixture: fixtures/retrieval/golden_queries.json
+    required_query_ids:
+      - cli_tool_command
+      - session_history
+      - source_provenance
+    max_allowed_top5_regressions: 0
+  english_regression:
+    slice_id: group:en
+    max_allowed_absolute_regression: 0.005
+    max_allowed_relative_regression: 0.01
+    metrics:
+      - ndcg_at_10
+      - mrr_at_10
+      - hit_rate_at_5
+  latency:
+    max_p95_multiplier_vs_baseline: 1.5
+notes:
+  - Public MIRACL Korean evidence is necessary but not sufficient for promotion.
+  - Exact path, code, CLI, and known-item slices must not regress when Korean quality improves.
+  - This contract describes default promotion gates; it does not flip the runtime tokenizer.
