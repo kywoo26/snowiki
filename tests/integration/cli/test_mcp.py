@@ -21,18 +21,18 @@ def test_mcp_serve_stdio_forwards_to_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner = CliRunner()
-    calls: list[list[str] | None] = []
+    calls: list[bool] = []
 
-    def fake_run(argv: list[str] | None = None) -> int:
-        calls.append(argv)
+    def fake_serve_stdio_command(**_kwargs: object) -> int:
+        calls.append(True)
         return 0
 
-    monkeypatch.setattr(mcp_command, "run", fake_run)
+    monkeypatch.setattr(mcp_command, "serve_stdio_command", fake_serve_stdio_command)
 
     result = runner.invoke(app, ["mcp", "serve", "--stdio"])
 
     assert result.exit_code == 0, result.output
-    assert calls == [["serve", "--stdio"]]
+    assert calls == [True]
 
 
 def test_mcp_serve_without_stdio_fails_closed() -> None:
