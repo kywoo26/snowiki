@@ -192,6 +192,7 @@ def test_bm25_cache_paths_use_snowiki_runtime_index_zone(tmp_path: Path) -> None
 def test_builtin_targets_are_discoverable() -> None:
     expected_ids = {
         "lexical_regex_v1",
+        "snowiki_query_runtime_v1",
         "bm25_regex_v1",
         "bm25_kiwi_morphology_v1",
         "bm25_kiwi_nouns_v1",
@@ -205,7 +206,7 @@ def test_builtin_targets_are_discoverable() -> None:
         "miracl_ko",
     )
 
-    assert len(BUILTIN_TARGETS) == 6
+    assert len(BUILTIN_TARGETS) == 7
     assert {spec.target_id for spec in BUILTIN_TARGETS} == expected_ids
     assert {spec.target_id for spec in DEFAULT_TARGET_REGISTRY.list_targets()} == expected_ids
     for spec in BUILTIN_TARGETS:
@@ -263,6 +264,44 @@ def test_lexical_regex_target_executes_on_tiny_fixture(tmp_path: Path) -> None:
     assert set(results[0].ranked_doc_ids[:3]) == {"doc-a", "doc-b", "doc-c"}
     assert results[0].latency_ms is not None
     assert (results[0].latency_ms or 0.0) >= 0.0
+
+
+def test_snowiki_query_runtime_target_executes_topical_policy(tmp_path: Path) -> None:
+    manifest = _materialized_fixture_manifest(tmp_path)
+    _write_parquet(
+        _level_asset_path(manifest.corpus_path),
+        rows=[
+            {"docid": "doc-a", "text": "alpha topic"},
+            {"docid": "doc-b", "text": "needle alpha phrase"},
+            {"docid": "doc-c", "text": "needle only"},
+        ],
+        columns=("docid", "text"),
+    )
+    _write_parquet(
+        Path(manifest.queries_path),
+        rows=[{"qid": "q1", "query": "needle alpha"}],
+        columns=("qid", "query"),
+    )
+    _ = _level_asset_path(manifest.judgments_path).write_text(
+        "qid\tdocid\trelevance\nq1\tdoc-b\t1\n",
+        encoding="utf-8",
+    )
+
+    execution = DEFAULT_TARGET_REGISTRY.get_target("snowiki_query_runtime_v1").run(
+        manifest=manifest,
+        level=LevelConfig(level_id="quick", query_cap=1),
+        queries=(BenchmarkQuery(query_id="q1", query_text="needle alpha"),),
+    )
+
+    results = tuple(cast(QueryResult, result) for result in execution["results"])
+
+    assert len(results) == 1
+    assert results[0].query_id == "q1"
+    assert results[0].ranked_doc_ids[0] == "doc-b"
+    assert set(results[0].ranked_doc_ids[:3]) == {"doc-a", "doc-b", "doc-c"}
+    assert results[0].latency_ms is not None
+    assert (results[0].latency_ms or 0.0) >= 0.0
+    assert "cache" not in execution
 
 
 def test_bm25_regex_target_executes_on_tiny_fixture(
@@ -522,7 +561,7 @@ def test_builtin_targets_are_executable(
         assert "doc104" in results[1].ranked_doc_ids
         assert all(result.latency_ms is not None for result in results)
         assert all((result.latency_ms or 0.0) >= 0.0 for result in results)
-        if spec.target_id == "lexical_regex_v1":
+        if spec.target_id in {"lexical_regex_v1", "snowiki_query_runtime_v1"}:
             assert "cache" not in execution
         else:
             cache = cast(Mapping[str, object], execution["cache"])

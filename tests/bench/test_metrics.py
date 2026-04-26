@@ -86,9 +86,17 @@ def _cache_identity() -> dict[str, object]:
     )
 
 
-def test_builtin_metric_registry_lists_all_five_metrics() -> None:
+def test_builtin_metric_registry_lists_all_query_baseline_metrics() -> None:
     expected = (
+        "recall_at_1",
+        "recall_at_3",
+        "recall_at_5",
+        "recall_at_10",
         "recall_at_100",
+        "hit_rate_at_1",
+        "hit_rate_at_3",
+        "hit_rate_at_5",
+        "hit_rate_at_10",
         "mrr_at_10",
         "ndcg_at_10",
         "latency_p50_ms",
@@ -112,6 +120,40 @@ def test_recall_at_100_computes_expected_average() -> None:
     metric = DEFAULT_METRIC_REGISTRY.compute("recall_at_100", results, qrels)
 
     assert metric.metric_id == "recall_at_100"
+    assert metric.value == 0.5
+    assert metric.details["per_query"] == {"q1": 1.0, "q2": 0.0}
+
+
+def test_recall_at_5_computes_cli_screen_candidate_recall() -> None:
+    results = (
+        QueryResult(query_id="q1", ranked_doc_ids=("d9", "d8", "d7", "d6", "d1")),
+        QueryResult(query_id="q2", ranked_doc_ids=("x1", "x2", "x3", "x4", "x5")),
+    )
+    qrels = {
+        "q1": {"d1", "d2"},
+        "q2": {"x6"},
+    }
+
+    metric = DEFAULT_METRIC_REGISTRY.compute("recall_at_5", results, qrels)
+
+    assert metric.metric_id == "recall_at_5"
+    assert metric.value == 0.25
+    assert metric.details["per_query"] == {"q1": 0.5, "q2": 0.0}
+
+
+def test_hit_rate_at_3_computes_candidate_presence() -> None:
+    results = (
+        QueryResult(query_id="q1", ranked_doc_ids=("d9", "d1", "d2")),
+        QueryResult(query_id="q2", ranked_doc_ids=("x1", "x2", "x3")),
+    )
+    qrels = {
+        "q1": {"d1"},
+        "q2": {"x4"},
+    }
+
+    metric = DEFAULT_METRIC_REGISTRY.compute("hit_rate_at_3", results, qrels)
+
+    assert metric.metric_id == "hit_rate_at_3"
     assert metric.value == 0.5
     assert metric.details["per_query"] == {"q1": 1.0, "q2": 0.0}
 
@@ -325,7 +367,15 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
             "relevant_doc_ids": ["d1"],
             "latency_ms": 10.0,
             "metrics": {
+                "recall_at_1": 1.0,
+                "recall_at_3": 1.0,
+                "recall_at_5": 1.0,
+                "recall_at_10": 1.0,
                 "recall_at_100": 1.0,
+                "hit_rate_at_1": 1.0,
+                "hit_rate_at_3": 1.0,
+                "hit_rate_at_5": 1.0,
+                "hit_rate_at_10": 1.0,
                 "mrr_at_10": 1.0,
                 "ndcg_at_10": 1.0,
                 "latency_p50_ms": 10.0,
@@ -337,7 +387,15 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
             "relevant_doc_ids": ["x3"],
             "latency_ms": 20.0,
             "metrics": {
+                "recall_at_1": 0.0,
+                "recall_at_3": 1.0,
+                "recall_at_5": 1.0,
+                "recall_at_10": 1.0,
                 "recall_at_100": 1.0,
+                "hit_rate_at_1": 0.0,
+                "hit_rate_at_3": 1.0,
+                "hit_rate_at_5": 1.0,
+                "hit_rate_at_10": 1.0,
                 "mrr_at_10": 1.0 / 3.0,
                 "ndcg_at_10": 1.0 / math.log2(4),
                 "latency_p50_ms": 20.0,
@@ -458,7 +516,15 @@ def test_graded_qrels_binary_contract(
             "relevant_doc_ids": ["d-positive-1", "d-positive-2"],
             "latency_ms": 5.0,
             "metrics": {
+                "recall_at_1": 0.0,
+                "recall_at_3": 1.0,
+                "recall_at_5": 1.0,
+                "recall_at_10": 1.0,
                 "recall_at_100": 1.0,
+                "hit_rate_at_1": 0.0,
+                "hit_rate_at_3": 1.0,
+                "hit_rate_at_5": 1.0,
+                "hit_rate_at_10": 1.0,
                 "mrr_at_10": 0.5,
                 "ndcg_at_10": pytest.approx(expected_ndcg),
                 "latency_p50_ms": 5.0,

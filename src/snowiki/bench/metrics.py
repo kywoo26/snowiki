@@ -37,23 +37,90 @@ class MetricRegistry:
         return tuple(self._compute_fns)
 
 
-def recall_at_100(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+def recall_at_k(
+    results: Sequence[object],
+    qrels: Mapping[str, Any],
+    *,
+    k: int,
+) -> MetricResult:
+    metric_id = f"recall_at_{k}"
     per_query_scores: dict[str, float] = {}
     normalized_qrels = _normalize_qrels(qrels)
     for result in _normalize_query_results(results):
         relevant_doc_ids = normalized_qrels.get(result.query_id, frozenset())
         if not relevant_doc_ids:
             continue
-        retrieved = set(result.ranked_doc_ids[:100])
+        retrieved = set(result.ranked_doc_ids[:k])
         per_query_scores[result.query_id] = len(retrieved & relevant_doc_ids) / len(relevant_doc_ids)
     return MetricResult(
-        metric_id="recall_at_100",
+        metric_id=metric_id,
         value=_mean_or_none(per_query_scores.values()),
         details={
             "evaluated_queries": len(per_query_scores),
             "per_query": per_query_scores,
         },
     )
+
+
+def recall_at_1(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return recall_at_k(results, qrels, k=1)
+
+
+def recall_at_3(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return recall_at_k(results, qrels, k=3)
+
+
+def recall_at_5(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return recall_at_k(results, qrels, k=5)
+
+
+def recall_at_10(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return recall_at_k(results, qrels, k=10)
+
+
+def recall_at_100(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return recall_at_k(results, qrels, k=100)
+
+
+def hit_rate_at_k(
+    results: Sequence[object],
+    qrels: Mapping[str, Any],
+    *,
+    k: int,
+) -> MetricResult:
+    metric_id = f"hit_rate_at_{k}"
+    per_query_scores: dict[str, float] = {}
+    normalized_qrels = _normalize_qrels(qrels)
+    for result in _normalize_query_results(results):
+        relevant_doc_ids = normalized_qrels.get(result.query_id, frozenset())
+        if not relevant_doc_ids:
+            continue
+        retrieved = set(result.ranked_doc_ids[:k])
+        per_query_scores[result.query_id] = 1.0 if retrieved & relevant_doc_ids else 0.0
+    return MetricResult(
+        metric_id=metric_id,
+        value=_mean_or_none(per_query_scores.values()),
+        details={
+            "evaluated_queries": len(per_query_scores),
+            "per_query": per_query_scores,
+        },
+    )
+
+
+def hit_rate_at_1(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return hit_rate_at_k(results, qrels, k=1)
+
+
+def hit_rate_at_3(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return hit_rate_at_k(results, qrels, k=3)
+
+
+def hit_rate_at_5(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return hit_rate_at_k(results, qrels, k=5)
+
+
+def hit_rate_at_10(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
+    return hit_rate_at_k(results, qrels, k=10)
 
 
 def mrr_at_10(results: Sequence[object], qrels: Mapping[str, Any]) -> MetricResult:
@@ -130,7 +197,15 @@ def latency_p95_ms(results: Sequence[object], qrels: Mapping[str, Any]) -> Metri
 
 
 BUILTIN_METRICS: tuple[str, ...] = (
+    "recall_at_1",
+    "recall_at_3",
+    "recall_at_5",
+    "recall_at_10",
     "recall_at_100",
+    "hit_rate_at_1",
+    "hit_rate_at_3",
+    "hit_rate_at_5",
+    "hit_rate_at_10",
     "mrr_at_10",
     "ndcg_at_10",
     "latency_p50_ms",
@@ -138,7 +213,15 @@ BUILTIN_METRICS: tuple[str, ...] = (
 )
 DEFAULT_METRIC_REGISTRY = MetricRegistry()
 
+DEFAULT_METRIC_REGISTRY.register_metric("recall_at_1", recall_at_1)
+DEFAULT_METRIC_REGISTRY.register_metric("recall_at_3", recall_at_3)
+DEFAULT_METRIC_REGISTRY.register_metric("recall_at_5", recall_at_5)
+DEFAULT_METRIC_REGISTRY.register_metric("recall_at_10", recall_at_10)
 DEFAULT_METRIC_REGISTRY.register_metric("recall_at_100", recall_at_100)
+DEFAULT_METRIC_REGISTRY.register_metric("hit_rate_at_1", hit_rate_at_1)
+DEFAULT_METRIC_REGISTRY.register_metric("hit_rate_at_3", hit_rate_at_3)
+DEFAULT_METRIC_REGISTRY.register_metric("hit_rate_at_5", hit_rate_at_5)
+DEFAULT_METRIC_REGISTRY.register_metric("hit_rate_at_10", hit_rate_at_10)
 DEFAULT_METRIC_REGISTRY.register_metric("mrr_at_10", mrr_at_10)
 DEFAULT_METRIC_REGISTRY.register_metric("ndcg_at_10", ndcg_at_10)
 DEFAULT_METRIC_REGISTRY.register_metric("latency_p50_ms", latency_p50_ms)

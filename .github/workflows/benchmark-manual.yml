@@ -24,9 +24,9 @@ on:
         default: ''
         type: string
       target:
-        description: Filter to a specific target (optional)
+        description: Target ID to run
         required: false
-        default: ''
+        default: bm25_regex_v1
         type: string
       metric:
         description: Filter to a specific metric (optional)
@@ -90,7 +90,7 @@ jobs:
           BENCHMARK_FAIL_FAST: ${{ inputs.fail_fast }}
         run: |
           mkdir -p "$(dirname "$BENCHMARK_OUTPUT")"
-          args=(--matrix "$BENCHMARK_MATRIX" --output "$BENCHMARK_OUTPUT")
+          args=(--matrix "$BENCHMARK_MATRIX" --report "$BENCHMARK_OUTPUT")
           [ -n "$BENCHMARK_DATASET" ] && args+=(--dataset "$BENCHMARK_DATASET")
           [ -n "$BENCHMARK_LEVEL" ] && args+=(--level "$BENCHMARK_LEVEL")
           [ -n "$BENCHMARK_TARGET" ] && args+=(--target "$BENCHMARK_TARGET")
