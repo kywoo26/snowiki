@@ -6,7 +6,8 @@ from typing import Literal, Protocol, TypedDict, cast
 
 from snowiki.storage.zones import ensure_utc_datetime
 
-from .indexer import InvertedIndex, SearchHit
+from .indexer import SearchHit
+from .protocols import RuntimeSearchIndex
 
 RecallStrategy = Literal["date", "temporal", "known_item", "topic"]
 RecallMode = Literal["auto", "date", "temporal", "known_item", "topic"]
@@ -44,7 +45,7 @@ class KnownItemLookupFn(Protocol):
     """Callable protocol for known-item lexical recall."""
 
     def __call__(
-        self, index: InvertedIndex, query: str, *, limit: int
+        self, index: RuntimeSearchIndex, query: str, *, limit: int
     ) -> list[SearchHit]: ...
 
 
@@ -52,7 +53,7 @@ class TopicalRecallFn(Protocol):
     """Callable protocol for topical lexical recall."""
 
     def __call__(
-        self, index: InvertedIndex, query: str, *, limit: int
+        self, index: RuntimeSearchIndex, query: str, *, limit: int
     ) -> list[SearchHit]: ...
 
 
@@ -61,7 +62,7 @@ class TemporalRecallFn(Protocol):
 
     def __call__(
         self,
-        index: InvertedIndex,
+        index: RuntimeSearchIndex,
         query: str,
         *,
         limit: int,
@@ -86,7 +87,7 @@ def is_temporal_query(text: str) -> bool:
 
 
 def run_authoritative_recall(
-    index: InvertedIndex,
+    index: RuntimeSearchIndex,
     query: str,
     *,
     limit: int,
@@ -152,7 +153,7 @@ def run_authoritative_recall(
 
 def _run_temporal_recall(
     temporal_recall: TemporalRecallFn,
-    index: InvertedIndex,
+    index: RuntimeSearchIndex,
     query: str,
     *,
     limit: int,
