@@ -290,9 +290,9 @@ These boundaries are current architecture guidance, not historical phase plans.
 ### Fileback and queues
 
 - Keep fileback preview output as proposal state until an approved CLI apply path succeeds.
-- Queue lifecycle state transitions belong in fileback queue seams, not Click callbacks.
-- Runtime low-risk classification must remain separate from agent-provided labels.
-- Keep retention and queue pruning scoped to control-plane artifacts.
+- Keep queued fileback proposals as a pending inbox, not a terminal archive manager.
+- Queue apply must delete pending proposals only after the reviewed raw/normalized/rebuild path succeeds.
+- Queue reject should delete the pending proposal with an explicit reason.
 
 ### CLI commands and agent workflows
 
