@@ -42,7 +42,7 @@ jobs:
             --dataset beir_scifact \
             --level quick \
             --target bm25_regex_v1 \
-            --output reports/benchmark-pr.json
+            --report reports/benchmark-pr.json
 
       - name: Upload benchmark report artifact
         uses: actions/upload-artifact@v4
