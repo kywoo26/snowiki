@@ -13,9 +13,13 @@ from snowiki.cli.context import (
     initialize_cli_root,
     pass_snowiki_context,
 )
-from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result
-from snowiki.cli.types import DURATION
+from snowiki.cli.decorators import destructive_options, output_option, root_option
+from snowiki.cli.output import (
+    emit_command_result,
+    emit_error,
+    validate_destructive_flags,
+)
+from snowiki.cli.types import DURATION, PROPOSAL_ID
 from snowiki.fileback import (
     apply_fileback_proposal,
     apply_queued_fileback_proposal,
@@ -82,7 +86,7 @@ def _render_queue_list_human(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _render_queue_show_human(payload: dict[str, Any]) -> str:
+def _render_queue_item_human(payload: dict[str, Any]) -> str:
     result = payload["result"]
     lines = [
         f"Fileback proposal {result['proposal_id']} [{result['status']}]",
@@ -135,8 +139,6 @@ def command() -> None:
     required=True,
     help="Supporting compiled/, normalized/, or raw/ workspace file path. Repeat as needed.",
 )
-@output_option
-@root_option
 @click.option(
     "--queue",
     "queue_proposal",
@@ -148,6 +150,8 @@ def command() -> None:
     is_flag=True,
     help="Queue and immediately apply only if runtime low-risk policy passes.",
 )
+@root_option
+@output_option
 @pass_snowiki_context
 def preview_command(
     cli_context: SnowikiCliContext,
@@ -155,10 +159,10 @@ def preview_command(
     answer_markdown: str,
     summary: str,
     evidence_paths: tuple[str, ...],
-    output: str,
-    root: Path | None,
     queue_proposal: bool,
     auto_apply_low_risk: bool,
+    root: Path | None,
+    output: str,
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -174,12 +178,9 @@ def preview_command(
         )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_preview_failed")
-    emit_result(
-        {
-            "ok": True,
-            "command": "fileback preview",
-            "result": result,
-        },
+    emit_command_result(
+        result,
+        command="fileback preview",
         output=output_mode,
         human_renderer=_render_preview_human,
     )
@@ -192,11 +193,11 @@ def preview_command(
     required=True,
     help="Path to a reviewed preview payload or proposal JSON file.",
 )
-@output_option
 @root_option
+@output_option
 @pass_snowiki_context
 def apply_command(
-    cli_context: SnowikiCliContext, proposal_file: Path, output: str, root: Path | None
+    cli_context: SnowikiCliContext, proposal_file: Path, root: Path | None, output: str
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -206,12 +207,9 @@ def apply_command(
         result = apply_fileback_proposal(apply_root, reviewed_payload)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_apply_failed")
-    emit_result(
-        {
-            "ok": True,
-            "command": "fileback apply",
-            "result": result,
-        },
+    emit_command_result(
+        result,
+        command="fileback apply",
         output=output_mode,
         human_renderer=_render_apply_human,
     )
@@ -234,11 +232,11 @@ def queue_command() -> None:
     show_default=True,
     help="Queue state to list.",
 )
-@output_option
 @root_option
+@output_option
 @pass_snowiki_context
 def queue_list_command(
-    cli_context: SnowikiCliContext, status: str, output: str, root: Path | None
+    cli_context: SnowikiCliContext, status: str, root: Path | None, output: str
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -253,29 +251,26 @@ def queue_list_command(
         )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_queue_list_failed")
-    emit_result(
-        {
-            "ok": True,
-            "command": "fileback queue list",
-            "result": result,
-        },
+    emit_command_result(
+        result,
+        command="fileback queue list",
         output=output_mode,
         human_renderer=_render_queue_list_human,
     )
 
 
 @queue_command.command("show", short_help="Show one queued fileback proposal.")
-@click.argument("proposal_id")
+@click.argument("proposal_id", type=PROPOSAL_ID)
 @click.option("--verbose", is_flag=True, help="Include full proposal and apply payloads.")
-@output_option
 @root_option
+@output_option
 @pass_snowiki_context
 def queue_show_command(
     cli_context: SnowikiCliContext,
     proposal_id: str,
     verbose: bool,
-    output: str,
     root: Path | None,
+    output: str,
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -284,24 +279,21 @@ def queue_show_command(
         result = show_queued_fileback_proposal(queue_root, proposal_id, verbose=verbose)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_queue_show_failed")
-    emit_result(
-        {
-            "ok": True,
-            "command": "fileback queue show",
-            "result": result,
-        },
+    emit_command_result(
+        result,
+        command="fileback queue show",
         output=output_mode,
-        human_renderer=_render_queue_show_human,
+        human_renderer=_render_queue_item_human,
     )
 
 
 @queue_command.command("apply", short_help="Apply one queued fileback proposal.")
-@click.argument("proposal_id")
-@output_option
+@click.argument("proposal_id", type=PROPOSAL_ID)
 @root_option
+@output_option
 @pass_snowiki_context
 def queue_apply_command(
-    cli_context: SnowikiCliContext, proposal_id: str, output: str, root: Path | None
+    cli_context: SnowikiCliContext, proposal_id: str, root: Path | None, output: str
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -310,29 +302,26 @@ def queue_apply_command(
         result = apply_queued_fileback_proposal(queue_root, proposal_id)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_queue_apply_failed")
-    emit_result(
-        {
-            "ok": True,
-            "command": "fileback queue apply",
-            "result": result,
-        },
+    emit_command_result(
+        result,
+        command="fileback queue apply",
         output=output_mode,
-        human_renderer=_render_queue_show_human,
+        human_renderer=_render_queue_item_human,
     )
 
 
 @queue_command.command("reject", short_help="Reject one queued fileback proposal.")
-@click.argument("proposal_id")
+@click.argument("proposal_id", type=PROPOSAL_ID)
 @click.option("--reason", required=True, help="Human-readable rejection reason.")
-@output_option
 @root_option
+@output_option
 @pass_snowiki_context
 def queue_reject_command(
     cli_context: SnowikiCliContext,
     proposal_id: str,
     reason: str,
-    output: str,
     root: Path | None,
+    output: str,
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -341,14 +330,11 @@ def queue_reject_command(
         result = reject_queued_fileback_proposal(queue_root, proposal_id, reason=reason)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_queue_reject_failed")
-    emit_result(
-        {
-            "ok": True,
-            "command": "fileback queue reject",
-            "result": result,
-        },
+    emit_command_result(
+        result,
+        command="fileback queue reject",
         output=output_mode,
-        human_renderer=_render_queue_show_human,
+        human_renderer=_render_queue_item_human,
     )
 
 
@@ -371,11 +357,9 @@ def queue_reject_command(
     default=None,
     help="Optional age filter such as 30d, 12h, or 60s.",
 )
-@click.option("--dry-run", is_flag=True, help="Preview prune candidates without deleting them.")
-@click.option("--delete", "delete_artifacts", is_flag=True, help="Delete prune candidates.")
-@click.option("--yes", is_flag=True, help="Confirm deletion when --delete is used.")
-@output_option
+@destructive_options
 @root_option
+@output_option
 @pass_snowiki_context
 def queue_prune_command(
     cli_context: SnowikiCliContext,
@@ -385,16 +369,20 @@ def queue_prune_command(
     dry_run: bool,
     delete_artifacts: bool,
     yes: bool,
-    output: str,
     root: Path | None,
+    output: str,
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
+    validate_destructive_flags(
+        dry_run=dry_run,
+        delete_artifacts=delete_artifacts,
+        yes=yes,
+        output=output_mode,
+        code="fileback_queue_prune_failed",
+        confirmation_message="--delete requires --yes",
+    )
     try:
-        if dry_run and delete_artifacts:
-            raise ValueError("--dry-run cannot be combined with --delete")
-        if delete_artifacts and not yes:
-            raise ValueError("--delete requires --yes")
         queue_root = initialize_cli_root(cli_context)
         result = prune_queued_fileback_proposals(
             queue_root,
@@ -405,12 +393,9 @@ def queue_prune_command(
         )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="fileback_queue_prune_failed")
-    emit_result(
-        {
-            "ok": True,
-            "command": "fileback queue prune",
-            "result": result,
-        },
+    emit_command_result(
+        result,
+        command="fileback queue prune",
         output=output_mode,
         human_renderer=_render_queue_prune_human,
     )
