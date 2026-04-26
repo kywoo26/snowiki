@@ -71,10 +71,14 @@ def test_rebuild_fails_closed_when_integrity_freshness_changes(
         },
     }
 
-    def fail_run_rebuild(_root: Path) -> dict[str, Any]:
+    def fail_run_rebuild_with_integrity(_root: Path) -> dict[str, Any]:
         raise RebuildFreshnessError(mismatch_result)
 
-    monkeypatch.setattr(rebuild_command, "run_rebuild", fail_run_rebuild)
+    monkeypatch.setattr(
+        rebuild_command,
+        "run_rebuild_with_integrity",
+        fail_run_rebuild_with_integrity,
+    )
 
     rebuild = runner.invoke(
         app,

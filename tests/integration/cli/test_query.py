@@ -9,8 +9,8 @@ import pytest
 from click.testing import CliRunner
 from tests.helpers.markdown_ingest import ingest_markdown_fixture
 
-from snowiki.cli.commands.rebuild import run_rebuild
 from snowiki.cli.main import app
+from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.search.indexer import SearchDocument, SearchHit
 from snowiki.search.queries import run_query, run_recall
 from snowiki.search.workspace import (
@@ -467,7 +467,7 @@ def test_query_cache_invalidates_after_rebuild(
     before = build_retrieval_snapshot(tmp_path)
     before_size = before.index.size
 
-    result = run_rebuild(tmp_path)
+    result = run_rebuild_with_integrity(tmp_path)
     after = build_retrieval_snapshot(tmp_path)
 
     assert result["records_indexed"] == after.records_indexed

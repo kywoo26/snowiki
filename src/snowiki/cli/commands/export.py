@@ -12,7 +12,7 @@ from snowiki.cli.context import (
     pass_snowiki_context,
 )
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result
+from snowiki.cli.output import emit_command_result, emit_error
 from snowiki.storage.export_bundle import build_export_bundle
 
 
@@ -29,11 +29,11 @@ def _render_export_human(payload: dict[str, Any]) -> str:
     type=click.Choice(["markdown", "json"], case_sensitive=False),
     required=True,
 )
-@output_option
 @root_option
+@output_option
 @pass_snowiki_context
 def command(
-    cli_context: SnowikiCliContext, export_format: str, output: str, root: Path | None
+    cli_context: SnowikiCliContext, export_format: str, root: Path | None, output: str
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -41,8 +41,9 @@ def command(
         result = build_export_bundle(initialize_cli_root(cli_context), export_format)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="export_failed")
-    emit_result(
-        {"ok": True, "command": "export", "result": result},
+    emit_command_result(
+        result,
+        command="export",
         output=output_mode,
         human_renderer=_render_export_human,
     )

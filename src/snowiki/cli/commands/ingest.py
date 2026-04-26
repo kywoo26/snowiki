@@ -12,8 +12,8 @@ from snowiki.cli.context import (
     pass_snowiki_context,
 )
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result
-from snowiki.markdown.ingest import MarkdownIngestResult, run_markdown_ingest
+from snowiki.cli.output import emit_command_result, emit_error
+from snowiki.markdown.ingest import run_markdown_ingest
 
 
 def _render_ingest_human(payload: dict[str, Any]) -> str:
@@ -38,16 +38,6 @@ def _error_code_for_value_error(message: str) -> str:
     return "privacy_blocked" if message.startswith("sensitive path excluded") else "ingest_failed"
 
 
-def run_ingest(
-    path: Path,
-    *,
-    root: Path,
-    source_root: Path | None = None,
-    rebuild: bool = False,
-) -> MarkdownIngestResult:
-    return run_markdown_ingest(path, root=root, source_root=source_root, rebuild=rebuild)
-
-
 @click.command("ingest", short_help="Ingest Markdown sources.")
 @click.argument("path", type=click.Path(exists=False, path_type=Path))
 @click.option(
@@ -56,26 +46,26 @@ def run_ingest(
     default=None,
     help="Canonical source root for Markdown identity.",
 )
+@click.option("--rebuild", is_flag=True, help="Rebuild compiled artifacts after ingest.")
 @root_option
 @output_option
-@click.option("--rebuild", is_flag=True, help="Rebuild compiled artifacts after ingest.")
 @pass_snowiki_context
 def command(
     cli_context: SnowikiCliContext,
     path: Path,
     source_root: Path | None,
+    rebuild: bool,
     root: Path | None,
     output: str,
-    rebuild: bool,
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
     try:
         storage_root = initialize_cli_root(cli_context)
-        result = run_ingest(
+        result = run_markdown_ingest(
             path,
-            source_root=source_root,
             root=storage_root,
+            source_root=source_root,
             rebuild=rebuild,
         )
     except click.ClickException as exc:
@@ -100,8 +90,9 @@ def command(
             details={"path": path.as_posix()},
         )
 
-    emit_result(
-        {"ok": True, "command": "ingest", "result": result},
+    emit_command_result(
+        result,
+        command="ingest",
         output=output_mode,
         human_renderer=_render_ingest_human,
     )
