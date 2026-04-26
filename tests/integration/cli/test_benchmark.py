@@ -156,7 +156,7 @@ def test_benchmark_help_shows_lean_option_surface() -> None:
     assert result.exit_code == 0
     for option in (
         "--matrix FILE",
-        "--output FILE",
+        "--report FILE",
         "--dataset TEXT",
         "--level TEXT",
         "--target TEXT",
@@ -195,7 +195,7 @@ def test_benchmark_run_succeeds_after_materializing_temp_dataset(
         "quick",
         "--target",
         "lexical_regex_v1",
-        "--output",
+        "--report",
         str(output_path),
     )
 
@@ -285,8 +285,8 @@ def test_benchmark_bm25_reports_cache_metadata_and_hits_on_repeat(
         "bm25_regex_v1",
     )
 
-    first = _invoke_benchmark(*benchmark_args, "--output", str(first_output_path))
-    second = _invoke_benchmark(*benchmark_args, "--output", str(second_output_path))
+    first = _invoke_benchmark(*benchmark_args, "--report", str(first_output_path))
+    second = _invoke_benchmark(*benchmark_args, "--report", str(second_output_path))
 
     assert first.exit_code == 0, first.output
     assert second.exit_code == 0, second.output
@@ -335,7 +335,7 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
         "quick",
         "--target",
         "lexical_regex_v1",
-        "--output",
+        "--report",
         str(output_path),
     )
 
@@ -366,11 +366,11 @@ def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
     ]
 
 
-def test_benchmark_missing_output_fails_in_click_validation() -> None:
+def test_benchmark_missing_report_fails_in_click_validation() -> None:
     result = _invoke_benchmark("--target", "lexical_regex_v1")
 
     assert result.exit_code == 2
-    assert "Missing option '--output'." in result.output
+    assert "Missing option '--report'." in result.output
 
 
 def test_benchmark_invalid_dataset_reports_clear_error(tmp_path: Path) -> None:
@@ -380,7 +380,7 @@ def test_benchmark_invalid_dataset_reports_clear_error(tmp_path: Path) -> None:
         "missing_dataset",
         "--target",
         "lexical_regex_v1",
-        "--output",
+        "--report",
         str(output_path),
     )
 
@@ -396,7 +396,7 @@ def test_benchmark_invalid_level_reports_clear_error(tmp_path: Path) -> None:
         "missing_level",
         "--target",
         "lexical_regex_v1",
-        "--output",
+        "--report",
         str(output_path),
     )
 
@@ -410,7 +410,7 @@ def test_benchmark_invalid_target_reports_clear_error(tmp_path: Path) -> None:
     result = _invoke_benchmark(
         "--target",
         "missing_target",
-        "--output",
+        "--report",
         str(output_path),
     )
 
@@ -451,7 +451,7 @@ def test_benchmark_fail_fast_stops_after_first_failure(
         "--target",
         "lexical_regex_v1",
         "--fail-fast",
-        "--output",
+        "--report",
         str(output_path),
     )
 

@@ -1,6 +1,6 @@
 # Snowiki Workflow Reference
 
-Read this only when the main `SKILL.md` is not enough to choose a safe intent expansion. The installed `snowiki` CLI is runtime truth; this reference explains common orchestration patterns.
+Read this only when `SKILL.md` is not enough to choose a safe CLI sequence. This file is workflow detail, not runtime configuration.
 
 ## Operating Style
 
@@ -12,7 +12,7 @@ Read this only when the main `SKILL.md` is not enough to choose a safe intent ex
 
 ## Lifecycle Intents
 
-Claude Code loads one skill named `wiki`, invoked directly as `/wiki`. These are phase arguments or intent labels after `/wiki`, not separate slash commands defined by the skill.
+These are phase arguments after `/wiki`, not separate slash commands or Snowiki subcommands.
 
 | Intent | Agent expansion |
 | --- | --- |
@@ -31,7 +31,7 @@ Claude Code loads one skill named `wiki`, invoked directly as `/wiki`. These are
 | “what did we work on yesterday/last week?” | `snowiki recall` |
 | “save this answer” | `snowiki fileback preview`, queue/apply only after review |
 | “is the wiki healthy?” | `snowiki status`, then `snowiki lint` |
-| “clean missing sources” | `snowiki prune sources --dry-run`, then explicit delete only after review |
+| “clean missing sources” | `snowiki prune sources --dry-run`, then `snowiki prune sources --delete --yes --all-candidates` only after review |
 | “export/backup/debug wiki state” | `snowiki export` only as a support flow, not as everyday memory authoring |
 
 ## Session-to-Markdown Filing
@@ -47,7 +47,6 @@ For Claude/OpenCode sessions:
 
 - Use `snowiki query` for knowledge questions.
 - Use `snowiki recall` for temporal or topic recall supported by the runtime.
-- Call shipped CLI JSON commands; daemon behavior is runtime-owned and must not be reimplemented in the skill package.
 - If recall is used for work continuation, end with `**One Thing: [specific, concrete action]**`.
 - If an answer should become durable, use fileback instead of direct page edits.
 
@@ -58,6 +57,7 @@ For Claude/OpenCode sessions:
 3. Apply only through documented fileback apply or queue apply paths after review.
 4. Rebuild or validate after successful apply when needed.
 5. Trust runtime low-risk policy, not agent labels, for any auto-apply behavior.
+6. Prune terminal queue artifacts with dry-run-first `snowiki fileback queue prune`; deletion requires `--delete --yes`.
 
 ## Status, Lint, and Source Prune
 
@@ -75,7 +75,7 @@ Any fix must use current CLI-mediated paths such as reingest, dry-run-first prun
 ## Support and Advanced Commands
 
 - `snowiki export` is for backup, migration, inspection, fixtures, and external integration. Do not present it as a required Obsidian workflow or as the normal way to edit knowledge.
-- `snowiki daemon` is runtime optimization, not skill-owned fallback logic.
+- `snowiki daemon` is runtime optimization; inspect CLI help when needed.
 - `snowiki mcp` is a read-only transport bridge, not a writable workflow command family.
 - `snowiki benchmark` and `snowiki benchmark-fetch` support retrieval evaluation and should not be used as ordinary wiki memory commands.
 

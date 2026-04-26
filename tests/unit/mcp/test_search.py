@@ -5,7 +5,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from snowiki.cli.commands.mcp import run
+from snowiki.cli.commands.mcp import serve_stdio_command
 from snowiki.mcp.server import SnowikiReadOnlyFacade
 from snowiki.search.indexer import SearchDocument, SearchHit
 
@@ -147,8 +147,7 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
 
     stdin = io.BytesIO(requests)
     stdout = io.BytesIO()
-    exit_code = run(
-        ["serve", "--stdio"],
+    exit_code = serve_stdio_command(
         session_records=records,
         compiled_pages=pages,
         reference_time=reference_time,
@@ -310,7 +309,7 @@ def test_stdio_bridge_without_injected_project_data_stays_read_only_but_empty() 
     stdin = io.BytesIO(requests)
     stdout = io.BytesIO()
 
-    exit_code = run(["serve", "--stdio"], input_stream=stdin, output_stream=stdout)
+    exit_code = serve_stdio_command(input_stream=stdin, output_stream=stdout)
 
     assert exit_code == 0
     responses = {

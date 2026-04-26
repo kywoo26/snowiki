@@ -57,7 +57,7 @@ This makes the support/debug, transport, and shared output surfaces visible befo
 
 ### Step 2: Reduce import fragility — complete
 
-Command tests use `snowiki.cli.main.app` where possible. Direct imports remain only when a test intentionally targets a non-Click helper such as `run_rebuild`, `mcp.run`, or daemon parser/command internals. Query and recall helper tests target `snowiki.search.queries` domain entry points instead of CLI command modules.
+Command tests use `snowiki.cli.main.app` where possible. Direct imports remain only when a test intentionally targets a non-Click helper such as `run_rebuild`, `serve_stdio_command`, or daemon action helpers. Query and recall helper tests target `snowiki.search.queries` domain entry points instead of CLI command modules.
 
 If new direct imports are added later, list them in this plan before another package move.
 
@@ -135,14 +135,30 @@ and test.
   prepared Snowiki root.
 - Prefer typed Click parameters (`Choice`, `IntRange`, `FloatRange`, `Path`, and
   project `ParamType` instances) over command-local string parsing.
+- Keep command adapters visually consistent: command-specific arguments/options
+  first, then shared `@root_option`, `@output_option`, and
+  `@pass_snowiki_context` in that order.
+- Use shared option decorators for repeated CLI contracts. In particular,
+  dry-run-first destructive command surfaces should use `@destructive_options`
+  before `@root_option` / `@output_option` instead of repeating
+  `--dry-run`, `--delete`, and `--yes` declarations inline.
+- Export each command module's registered top-level Click object as `command`.
+  `src/snowiki/cli/main.py` is the command registry; it imports each module's
+  `command` as `<name>_command` and calls `app.add_command(...)`. Do not add
+  `main()` or `run()` compatibility entrypoints inside command modules; direct
+  tests should invoke the Click `command` object or a clearly named domain/helper
+  function such as `serve_stdio_command`.
 - Expose stable environment variables in help with `show_envvar=True` for common
   agent configuration (`SNOWIKI_ROOT`, `SNOWIKI_OUTPUT`, daemon settings).
+- Reserve `--output` for Snowiki's human/json output-mode contract. Commands
+  that write a file artifact should use a domain name such as `--report` rather
+  than overloading `--output` with a path type.
 - Add explicit `short_help` and `no_args_is_help=True` for groups so `--help`
   remains a compact command index.
 - Keep destructive commands dry-run-first and flag-confirmed (`--delete --yes`),
   rather than using interactive prompts that can hang automated agents.
-- Validate Click shell completion with a smoke test. Users can enable Bash
-  completion with:
+- Validate Click shell completion with smoke tests for Bash, Zsh, and Fish.
+  Users can enable Bash completion with:
 
 ```bash
 eval "$(_SNOWIKI_COMPLETE=bash_source snowiki)"

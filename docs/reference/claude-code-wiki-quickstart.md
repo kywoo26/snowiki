@@ -9,11 +9,21 @@ The runtime truth is still the installed `snowiki` CLI. The Claude Code `wiki` s
 ```bash
 uv tool install --from . snowiki
 snowiki --help
+snowiki -h
+snowiki --version
 ```
 
 If you also want the Claude Code `wiki` skill installed locally, place this repo's packaged skill at `~/.claude/skills/wiki/` so Claude Code can load `skill/SKILL.md` from that install path.
 
 If you are iterating from the repository checkout instead of a tool install, use `uv run snowiki ...` in the same examples below.
+
+For automation, prefer environment-backed defaults when they make repeated calls clearer:
+
+- `SNOWIKI_ROOT=/path/to/root` selects the Snowiki storage root.
+- `SNOWIKI_OUTPUT=json` makes supported commands emit JSON without repeating `--output json`.
+- Click completion scripts are available for Bash, Zsh, and Fish; for Bash use `eval "$(_SNOWIKI_COMPLETE=bash_source snowiki)"`.
+
+Supported JSON commands use Snowiki's CLI envelope: success normally looks like `{"ok": true, "command": "...", "result": {...}}`; runtime failures use `{"ok": false, "error": {...}}`; lint errors are semantic failures and may return `{"ok": false, "command": "lint", "result": {...}}`.
 
 ## 2. Optional: start the daemon for faster repeated reads
 
@@ -23,6 +33,8 @@ The daemon is an optimization for `query` and `recall`, not a separate runtime t
 snowiki daemon start
 snowiki daemon status
 ```
+
+Daemon binding can be configured with `SNOWIKI_DAEMON_HOST`, `SNOWIKI_DAEMON_PORT`, and `SNOWIKI_DAEMON_CACHE_TTL` when the defaults are not suitable.
 
 The `wiki` skill should still call shipped CLI commands such as `snowiki query --output json` and `snowiki recall --output json`. Daemon behavior is a runtime concern behind Snowiki commands, not logic for the skill package to reimplement.
 

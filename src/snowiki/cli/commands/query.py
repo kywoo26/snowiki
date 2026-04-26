@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import Any
 
 import click
 
@@ -12,23 +12,13 @@ from snowiki.cli.context import (
     pass_snowiki_context,
 )
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result
-from snowiki.search.queries import QueryResult, run_query
+from snowiki.cli.output import emit_command_result, emit_error
+from snowiki.search.queries import run_query
 
 
-class QueryCommandPayload(TypedDict):
-    """Top-level payload emitted by the query command."""
-
-    ok: bool
-    command: str
-    result: QueryResult
-
-
-def _render_query_human(payload: object) -> str:
+def _render_query_human(payload: dict[str, Any]) -> str:
     """Render a query result payload for human-readable CLI output."""
-    if not isinstance(payload, dict):
-        raise TypeError("query renderer expected a dictionary payload")
-    result = cast(QueryCommandPayload, cast(object, payload))["result"]
+    result = payload["result"]
     lines = [
         f"Query mode: {result['mode']}",
         f"records indexed: {result['records_indexed']}",
@@ -75,8 +65,9 @@ def command(
             code="query_failed",
             details={"query": query, "mode": mode, "top_k": top_k},
         )
-    emit_result(
-        {"ok": True, "command": "query", "result": result},
+    emit_command_result(
+        result,
+        command="query",
         output=output_mode,
         human_renderer=_render_query_human,
     )

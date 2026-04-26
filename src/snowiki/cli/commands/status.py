@@ -12,7 +12,7 @@ from snowiki.cli.context import (
     pass_snowiki_context,
 )
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result
+from snowiki.cli.output import emit_command_result, emit_error
 from snowiki.status import run_status
 
 
@@ -74,18 +74,19 @@ def _render_status_human(payload: dict[str, Any]) -> str:
 
 
 @click.command("status", short_help="Summarize wiki health and freshness.")
-@output_option
 @root_option
+@output_option
 @pass_snowiki_context
-def command(cli_context: SnowikiCliContext, output: str, root: Path | None) -> None:
+def command(cli_context: SnowikiCliContext, root: Path | None, output: str) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
     try:
         result = run_status(initialize_cli_root(cli_context))
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="status_failed")
-    emit_result(
-        {"ok": True, "command": "status", "result": result},
+    emit_command_result(
+        result,
+        command="status",
         output=output_mode,
         human_renderer=_render_status_human,
     )

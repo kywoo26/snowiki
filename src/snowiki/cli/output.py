@@ -28,6 +28,22 @@ def emit_result(
     click.echo(str(payload.get("message", "")))
 
 
+def emit_command_result(
+    result: object,
+    *,
+    command: str,
+    output: OutputMode,
+    human_renderer: Callable[[dict[str, Any]], str] | None = None,
+) -> None:
+    """Emit a standard successful Snowiki command envelope."""
+
+    emit_result(
+        {"ok": True, "command": command, "result": result},
+        output=output,
+        human_renderer=human_renderer,
+    )
+
+
 def emit_error(
     message: str,
     *,
@@ -51,3 +67,25 @@ def emit_error(
     else:
         click.echo(f"Error: {message}", err=True)
     raise click.exceptions.Exit(exit_code)
+
+
+def validate_destructive_flags(
+    *,
+    dry_run: bool,
+    delete_artifacts: bool,
+    yes: bool,
+    output: OutputMode,
+    code: str,
+    conflict_code: str | None = None,
+    confirmation_message: str = "deletion requires --yes",
+) -> None:
+    """Validate standard dry-run/delete/yes destructive option contracts."""
+
+    if dry_run and delete_artifacts:
+        emit_error(
+            "--dry-run cannot be combined with --delete",
+            output=output,
+            code=conflict_code or code,
+        )
+    if delete_artifacts and not yes:
+        emit_error(confirmation_message, output=output, code=code)

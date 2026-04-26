@@ -12,7 +12,7 @@ from snowiki.cli.context import (
     pass_snowiki_context,
 )
 from snowiki.cli.decorators import output_option, root_option
-from snowiki.cli.output import emit_error, emit_result
+from snowiki.cli.output import emit_command_result, emit_error
 from snowiki.search.queries import run_recall
 
 
@@ -26,11 +26,11 @@ def _render_recall_human(payload: dict[str, Any]) -> str:
 
 @click.command("recall", short_help="Recall by temporal or topical target.")
 @click.argument("target")
-@output_option
 @root_option
+@output_option
 @pass_snowiki_context
 def command(
-    cli_context: SnowikiCliContext, target: str, output: str, root: Path | None
+    cli_context: SnowikiCliContext, target: str, root: Path | None, output: str
 ) -> None:
     bind_cli_context(cli_context, root=root, output=output)
     output_mode = cli_context.output
@@ -38,8 +38,9 @@ def command(
         result = run_recall(initialize_cli_root(cli_context), target)
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="recall_failed")
-    emit_result(
-        {"ok": True, "command": "recall", "result": result},
+    emit_command_result(
+        result,
+        command="recall",
         output=output_mode,
         human_renderer=_render_recall_human,
     )

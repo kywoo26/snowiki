@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from importlib.metadata import version
 
+import pytest
 from click.testing import CliRunner
 
 from snowiki.cli.main import app
@@ -14,13 +15,20 @@ def test_root_command_reports_package_version() -> None:
     assert result.output == f"snowiki, version {version('snowiki')}\n"
 
 
-def test_root_command_emits_bash_completion_script() -> None:
+@pytest.mark.parametrize(
+    ("shell", "expected"),
+    [
+        ("bash", "_snowiki_completion"),
+        ("zsh", "#compdef snowiki"),
+        ("fish", "complete --no-files --command snowiki"),
+    ],
+)
+def test_root_command_emits_completion_script(shell: str, expected: str) -> None:
     result = CliRunner().invoke(
         app,
         [],
-        env={"_SNOWIKI_COMPLETE": "bash_source"},
+        env={"_SNOWIKI_COMPLETE": f"{shell}_source"},
     )
 
     assert result.exit_code == 0, result.output
-    assert "_snowiki_completion" in result.output
-    assert "complete -o nosort -F _snowiki_completion snowiki" in result.output
+    assert expected in result.output

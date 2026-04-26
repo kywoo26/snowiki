@@ -19,7 +19,7 @@ EXPECTED_HELP = dedent(
     Options:
       --matrix FILE                 Evaluation matrix contract to run.  [default:
                                     benchmarks/contracts/official_matrix.yaml]
-      --output FILE                 Path to write the benchmark JSON result.
+      --report FILE                 Path to write the benchmark JSON result.
                                     [required]
       --dataset TEXT                Dataset ID to run. Repeat to select multiple
                                     datasets.
@@ -70,7 +70,7 @@ def test_benchmark_json_output_uses_lean_schema(tmp_path: Path) -> None:
         "quick",
         "--target",
         "lexical_regex_v1",
-        "--output",
+        "--report",
         str(output_path),
     )
 
@@ -128,7 +128,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
             "quick",
             "--target",
             "lexical_regex_v1",
-            "--output",
+            "--report",
             str(output_path),
         )
     assert success.exit_code == 0, success.output
@@ -140,7 +140,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
         "quick",
         "--target",
         "lexical_regex_v1",
-        "--output",
+        "--report",
         str(tmp_path / "partial-failure.json"),
     )
     assert partial_failure.exit_code == 1, partial_failure.output
@@ -150,7 +150,7 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
         "missing_dataset",
         "--target",
         "lexical_regex_v1",
-        "--output",
+        "--report",
         str(tmp_path / "invalid-input.json"),
     )
     assert invalid_input.exit_code == 2, invalid_input.output
