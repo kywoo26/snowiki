@@ -21,7 +21,8 @@ DEFAULT_MATRIX_PATH = Path("benchmarks/contracts/official_matrix.yaml")
     help="Evaluation matrix contract to run.",
 )
 @click.option(
-    "--output",
+    "--report",
+    "report_path",
     type=click.Path(dir_okay=False, path_type=Path),
     required=True,
     help="Path to write the benchmark JSON result.",
@@ -58,7 +59,7 @@ DEFAULT_MATRIX_PATH = Path("benchmarks/contracts/official_matrix.yaml")
 )
 def command(
     matrix: Path,
-    output: Path,
+    report_path: Path,
     dataset_ids: tuple[str, ...],
     level_ids: tuple[str, ...],
     target_ids: tuple[str, ...],
@@ -88,8 +89,8 @@ def command(
         raise click.exceptions.Exit(exit_code)
     payload = render_json(result)
     rendered = json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    _ = output.write_text(f"{rendered}\n", encoding="utf-8")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    _ = report_path.write_text(f"{rendered}\n", encoding="utf-8")
     click.echo(render_summary(result))
     for failure in result.failures:
         click.echo(failure)

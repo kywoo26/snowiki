@@ -40,10 +40,10 @@ Run bench with the shipped CLI:
 
 ```bash
 # Run with the default official matrix
-uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --output report.json
+uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --report report.json
 
 # Run a single dataset at quick level
-uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --output report.json --dataset beir_scifact --level quick
+uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --report report.json --dataset beir_scifact --level quick
 ```
 
 The `snowiki benchmark` command is the supported surface for local evaluation runs.
@@ -84,7 +84,7 @@ uv run snowiki benchmark \
   --target bm25_kiwi_nouns_v1 \
   --target bm25_mecab_morphology_v1 \
   --target bm25_hf_wordpiece_v1 \
-  --output reports/benchmark-lexical-baselines.json
+  --report reports/benchmark-lexical-baselines.json
 ```
 
 ## Runner shape
