@@ -23,7 +23,10 @@ from snowiki.bench.specs import (
 )
 from snowiki.config import get_snowiki_root
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchIndex
+from snowiki.search.corpus import RuntimeCorpusDocument
+from snowiki.search.engine_v2 import BM25RuntimeIndex
 from snowiki.search.indexer import InvertedIndex, SearchDocument
+from snowiki.search.protocols import RuntimeSearchIndex
 from snowiki.search.queries.topical import topical_recall
 from snowiki.search.registry import create, default
 from snowiki.search.registry import get as get_tokenizer_spec
@@ -74,7 +77,7 @@ class _SnowikiQueryRuntimeTargetAdapter:
         queries: tuple[BenchmarkQuery, ...],
     ) -> Mapping[str, object]:
         documents = tuple(
-            SearchDocument(
+            RuntimeCorpusDocument(
                 id=doc_id,
                 path=doc_id,
                 title=doc_id,
@@ -87,7 +90,7 @@ class _SnowikiQueryRuntimeTargetAdapter:
                 level=level,
             )
         )
-        index = InvertedIndex(documents, tokenizer=create(default().name))
+        index = BM25RuntimeIndex(documents, tokenizer_name=default().name)
         results = tuple(
             _run_snowiki_query_runtime(index=index, query=query) for query in queries
         )
@@ -326,7 +329,7 @@ def _run_lexical_query(
 
 def _run_snowiki_query_runtime(
     *,
-    index: InvertedIndex,
+    index: RuntimeSearchIndex,
     query: BenchmarkQuery,
 ) -> QueryResult:
     start = time.perf_counter()

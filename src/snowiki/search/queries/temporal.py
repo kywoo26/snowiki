@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from ..indexer import InvertedIndex, SearchHit
+from ..indexer import SearchHit
+from ..protocols import RuntimeSearchIndex
 from ..rerank import NoOpReranker, Reranker
 
 
@@ -36,7 +37,7 @@ def _detect_temporal_window(query: str, *, reference_time: datetime) -> Temporal
 
 
 def temporal_recall(
-    index: InvertedIndex,
+    index: RuntimeSearchIndex,
     query: str,
     *,
     limit: int = 10,

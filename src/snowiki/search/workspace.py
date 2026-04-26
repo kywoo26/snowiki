@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -10,43 +9,22 @@ from typing import Any, cast
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.compiler.taxonomy import CompiledPage, NormalizedRecord, PageSection
 
+from .corpus import runtime_corpus_from_mappings
+from .engine_v2 import BM25RuntimeIndex
 from .index_lexical import LexicalIndex, build_lexical_index
 from .index_wiki import WikiIndex, build_wiki_index
 from .indexer import InvertedIndex, build_blended_index
+from .protocols import RuntimeSearchIndex
 from .registry import (
     SearchTokenizer,
     default,
     get,
-    is_tokenizer_compatible,
 )
 from .registry import create as create_tokenizer
-
-
-class StaleTokenizerArtifactError(RuntimeError):
-    """Raised when stored tokenizer metadata is missing or incompatible."""
-
-    def __init__(
-        self,
-        *,
-        artifact_path: Path,
-        requested_tokenizer_name: str,
-        stored_tokenizer_name: str | None,
-    ) -> None:
-        reason = (
-            "missing tokenizer identity"
-            if stored_tokenizer_name is None
-            else "tokenizer identity mismatch"
-        )
-        super().__init__(
-            f"{artifact_path.as_posix()} is stale: {reason}; rebuild required"
-        )
-        self.details = {
-            "artifact_path": artifact_path.as_posix(),
-            "requested_tokenizer_name": requested_tokenizer_name,
-            "stored_tokenizer_name": stored_tokenizer_name,
-            "rebuild_required": True,
-            "reason": reason,
-        }
+from .tokenizer_compat import (
+    StaleTokenizerArtifactError,
+    require_tokenizer_compatibility,
+)
 
 
 def page_body(sections: list[PageSection]) -> str:
@@ -102,7 +80,8 @@ def normalized_record_to_search_mapping(record: NormalizedRecord) -> dict[str, A
 class RetrievalSnapshot:
     lexical: LexicalIndex
     wiki: WikiIndex
-    index: InvertedIndex
+    index: RuntimeSearchIndex
+    legacy_index: InvertedIndex
     records_indexed: int
     pages_indexed: int
 
@@ -110,57 +89,6 @@ class RetrievalSnapshot:
 def current_runtime_tokenizer_name() -> str:
     """Return the canonical tokenizer identity for runtime retrieval."""
     return default().name
-
-
-def normalize_stored_tokenizer_name(metadata: Mapping[str, object]) -> str | None:
-    """Normalize canonical or legacy tokenizer metadata to one stable identity."""
-    raw_tokenizer_name = metadata.get("tokenizer_name")
-    if isinstance(raw_tokenizer_name, str) and raw_tokenizer_name.strip():
-        name = raw_tokenizer_name.strip()
-        try:
-            return get(name).name
-        except KeyError:
-            return None
-
-    has_legacy_flags = (
-        "use_kiwi_tokenizer" in metadata or "kiwi_lexical_candidate_mode" in metadata
-    )
-    if not has_legacy_flags:
-        return None
-
-    raw_use_kiwi_tokenizer = metadata.get("use_kiwi_tokenizer")
-    raw_kiwi_lexical_candidate_mode = metadata.get("kiwi_lexical_candidate_mode")
-    use_kiwi_tokenizer: bool | None
-    if isinstance(raw_use_kiwi_tokenizer, bool):
-        use_kiwi_tokenizer = raw_use_kiwi_tokenizer
-    elif isinstance(raw_kiwi_lexical_candidate_mode, str):
-        use_kiwi_tokenizer = True
-    else:
-        use_kiwi_tokenizer = None
-    if use_kiwi_tokenizer is False:
-        return default().name
-    if use_kiwi_tokenizer is True:
-        if raw_kiwi_lexical_candidate_mode == "nouns":
-            return "kiwi_nouns_v1"
-        return "kiwi_morphology_v1"
-    return default().name
-
-
-def require_tokenizer_compatibility(
-    *,
-    artifact_path: Path,
-    requested_tokenizer_name: str,
-    metadata: Mapping[str, object],
-) -> str:
-    """Validate stored tokenizer metadata against the requested identity."""
-    stored_tokenizer_name = normalize_stored_tokenizer_name(metadata)
-    if not is_tokenizer_compatible(stored_tokenizer_name, requested_tokenizer_name):
-        raise StaleTokenizerArtifactError(
-            artifact_path=artifact_path,
-            requested_tokenizer_name=requested_tokenizer_name,
-            stored_tokenizer_name=stored_tokenizer_name,
-        )
-    return cast(str, stored_tokenizer_name)
 
 
 def validate_runtime_manifest_tokenizer(root: Path) -> str | None:
@@ -222,18 +150,31 @@ class RetrievalService:
             if tokenizer is None
             else build_wiki_index(normalized_pages, tokenizer=resolved_tokenizer)
         )
+        legacy_index = (
+            build_blended_index(lexical.documents, wiki.documents)
+            if tokenizer is None
+            else build_blended_index(
+                lexical.documents,
+                wiki.documents,
+                tokenizer=resolved_tokenizer,
+            )
+        )
+        runtime_tokenizer_name = getattr(resolved_tokenizer, "name", default().name)
+        if not isinstance(runtime_tokenizer_name, str):
+            runtime_tokenizer_name = default().name
+        corpus = runtime_corpus_from_mappings(
+            records=normalized_records,
+            pages=normalized_pages,
+        )
         return RetrievalSnapshot(
             lexical=lexical,
             wiki=wiki,
-            index=(
-                build_blended_index(lexical.documents, wiki.documents)
-                if tokenizer is None
-                else build_blended_index(
-                    lexical.documents,
-                    wiki.documents,
-                    tokenizer=resolved_tokenizer,
-                )
+            index=BM25RuntimeIndex(
+                corpus,
+                tokenizer_name=runtime_tokenizer_name,
+                tokenizer=resolved_tokenizer,
             ),
+            legacy_index=legacy_index,
             records_indexed=len(lexical.documents),
             pages_indexed=len(wiki.documents),
         )
@@ -354,7 +295,7 @@ def build_retrieval_snapshot(root: Path) -> RetrievalSnapshot:
     return _build_search_snapshot_cached(_search_index_cache_key(root))
 
 
-def build_search_index(root: Path) -> tuple[InvertedIndex, int, int]:
+def build_search_index(root: Path) -> tuple[RuntimeSearchIndex, int, int]:
     snapshot = build_retrieval_snapshot(root)
     return (snapshot.index, snapshot.records_indexed, snapshot.pages_indexed)
 

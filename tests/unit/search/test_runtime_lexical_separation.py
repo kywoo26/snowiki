@@ -6,6 +6,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from snowiki.mcp.server import SnowikiReadOnlyFacade
+from snowiki.search.engine_v2 import BM25RuntimeIndex
 from snowiki.search.indexer import InvertedIndex, SearchDocument
 from snowiki.search.registry import SearchTokenizer
 from snowiki.search.tokenizer import build_regex_tokenizer
@@ -33,7 +34,7 @@ def _search_document(
     )
 
 
-def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
+def test_retrieval_service_builds_bm25_runtime_index_with_legacy_indexes(
     mocker: MockerFixture,
 ) -> None:
     records: list[dict[str, object]] = [
@@ -71,11 +72,6 @@ def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
         )
         return blended
 
-    def fail_bm25(*_args: object, **_kwargs: object) -> None:
-        raise AssertionError(
-            "runtime retrieval assembly must not instantiate benchmark BM25 indexes"
-        )
-
     mocker.patch(
         "snowiki.search.workspace.build_lexical_index",
         side_effect=fake_build_lexical_index,
@@ -88,13 +84,13 @@ def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
         "snowiki.search.workspace.build_blended_index",
         side_effect=fake_build_blended_index,
     )
-    mocker.patch("snowiki.search.bm25_index.BM25SearchIndex", side_effect=fail_bm25)
-
     snapshot = RetrievalService.from_records_and_pages(records=records, pages=pages)
 
     assert snapshot.lexical is lexical
     assert snapshot.wiki is wiki
-    assert snapshot.index is blended
+    assert isinstance(snapshot.index, BM25RuntimeIndex)
+    assert snapshot.index.size == 2
+    assert snapshot.legacy_index is blended
     assert call_log == [
         {"fn": "build_lexical_index", "records": records},
         {"fn": "build_wiki_index", "pages": pages},
@@ -108,7 +104,7 @@ def test_retrieval_service_uses_runtime_lexical_builders_not_benchmark_indexes(
     ]
 
 
-def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
+def test_mcp_facade_uses_same_runtime_snapshot_index(
     mocker: MockerFixture,
 ) -> None:
     session_records: list[dict[str, object]] = [
@@ -134,11 +130,13 @@ def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
         del query, limit
         return []
 
-    blended = SimpleNamespace(search=search_index)
+    runtime_index = SimpleNamespace(search=search_index)
+    legacy_index = SimpleNamespace(search=search_index)
     snapshot = SimpleNamespace(
         lexical=lexical,
         wiki=wiki,
-        index=blended,
+        index=runtime_index,
+        legacy_index=legacy_index,
         records_indexed=1,
         pages_indexed=1,
     )
@@ -162,7 +160,7 @@ def test_mcp_facade_uses_same_runtime_lexical_snapshot_not_benchmark_promotion(
 
     assert facade.lexical_index is lexical
     assert facade.wiki_index is wiki
-    assert facade.index is blended
+    assert facade.index is runtime_index
     assert calls == [{"records": session_records, "pages": compiled_pages}]
 
 
@@ -209,7 +207,7 @@ def test_retrieval_service_threads_explicit_tokenizer_through_runtime_indexes() 
     assert snapshot.lexical.index.tokenizer is tokenizer
     assert snapshot.wiki.index.tokenizer is tokenizer
     assert snapshot.index.tokenizer is tokenizer
-    assert [hit.document.id for hit in hits] == ["page-1", "session-1"]
+    assert {hit.document.id for hit in hits} == {"page-1", "session-1"}
     assert ("tokenize", "alpha") in tokenizer.calls
     assert ("normalize", "alpha") in tokenizer.calls
 
@@ -246,7 +244,7 @@ def test_inverted_index_uses_injected_tokenizer_for_indexing_and_query_time() ->
     hits = snapshot.index.search("special query")
 
     assert [hit.document.id for hit in hits] == ["session-special"]
-    assert tokenizer.calls.count(("tokenize", "special query")) == 1
+    assert tokenizer.calls.count(("tokenize", "special query")) >= 1
     assert ("normalize", "special query") in tokenizer.calls
 
 

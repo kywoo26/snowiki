@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ..indexer import InvertedIndex, SearchHit
+from ..indexer import SearchHit
+from ..protocols import RuntimeSearchIndex
 from ..rerank import NoOpReranker, Reranker
 
 
 def known_item_lookup(
-    index: InvertedIndex,
+    index: RuntimeSearchIndex,
     query: str,
     *,
     limit: int = 10,

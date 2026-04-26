@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document describes Snowiki’s current retrieval architecture as it exists in the shipped runtime.
+This document describes Snowiki’s current retrieval architecture as it exists in the BM25 runtime branch.
 
 The goal is to keep CLI, MCP, and bench aligned without turning any one of them into a separate contract universe.
 
@@ -14,12 +14,16 @@ Snowiki’s retrieval stack shows up through three surfaces:
 2. Read only MCP retrieval
 3. Bench evaluation runs
 
-## The lexical backbone
+## The BM25 lexical backbone
 
-The current active retrieval backbone is lexical and deterministic.
+The current active retrieval backbone is BM25 lexical candidate generation with deterministic result adaptation.
 
 Primary modules:
 
+- `src/snowiki/search/engine_v2.py`
+- `src/snowiki/search/protocols.py`
+- `src/snowiki/search/bm25_index.py`
+- `src/snowiki/search/corpus.py`
 - `src/snowiki/search/indexer.py`
 - `src/snowiki/search/index_lexical.py`
 - `src/snowiki/search/index_wiki.py`
@@ -34,8 +38,13 @@ Its role is to:
 
 1. turn normalized records into search ready structures
 2. turn compiled pages into search ready structures
-3. build a blended retrieval snapshot
+3. build a BM25 runtime retrieval snapshot
 4. provide the common retrieval contract used across runtime surfaces
+
+`RetrievalSnapshot.index` is the primary runtime search surface and implements
+`RuntimeSearchIndex` through `BM25RuntimeIndex`. The older `InvertedIndex`
+composition may still appear as `legacy_index` for compatibility and tests, but
+it is not the primary runtime query engine on this branch.
 
 ## Canonical retrieval contract
 
@@ -72,7 +81,7 @@ The retrieval policy wrappers currently live in:
 - `src/snowiki/search/queries/topical.py`
 - `src/snowiki/search/queries/temporal.py`
 
-These are strategy layers over the same lexical substrate, not separate engines.
+These are strategy layers over the same BM25 runtime search substrate, not separate engines.
 
 ## Semantic and rerank status
 
@@ -90,16 +99,16 @@ The main current architecture risk is drift between surfaces that should all be 
 The codebase currently points toward this order:
 
 1. canonical retrieval contract
-2. lexical quality and language strategy improvements
+2. BM25 lexical quality and language strategy improvements
 3. profiling and performance improvements
-4. semantic and rerank questions
-5. backend evolution and native acceleration
+4. legacy primary-path cleanup
+5. semantic, graph, and rerank questions
 
-## Next planned retrieval architecture
+## BM25 runtime direction
 
-The next planned retrieval direction is BM25 lexical-v2, described in
+The BM25 lexical-v2 direction is described in
 [`bm25-retrieval-engine-v2-plan.md`](bm25-retrieval-engine-v2-plan.md).
 
 The important distinction is that Snowiki should preserve external CLI, MCP,
-provenance, and benchmark contracts while allowing the internal runtime engine to
-move away from `InvertedIndex(regex_v1)` as the primary retrieval substrate.
+provenance, and benchmark contracts while the internal runtime engine moves away
+from `InvertedIndex(regex_v1)` as the primary retrieval substrate.

@@ -16,7 +16,10 @@ from .kiwi_tokenizer import (
     KiwiLexicalCandidateMode,
 )
 from .registry import SearchTokenizer, create, default, get
-from .workspace import normalize_stored_tokenizer_name, require_tokenizer_compatibility
+from .tokenizer_compat import (
+    normalize_stored_tokenizer_name,
+    require_tokenizer_compatibility,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -87,6 +90,7 @@ class BM25SearchIndex:
         b: float = 0.75,
         delta: float = 0.5,
         tokenizer_name: str | None = None,
+        tokenizer: SearchTokenizer | None = None,
         use_kiwi_tokenizer: bool = True,
         kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode = DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE,
     ) -> None:
@@ -101,10 +105,14 @@ class BM25SearchIndex:
                 + f"{sorted(KIWI_LEXICAL_CANDIDATE_MODES)}"
             )
 
-        resolved_tokenizer_name = self._resolve_tokenizer_name(
-            tokenizer_name=tokenizer_name,
-            use_kiwi_tokenizer=use_kiwi_tokenizer,
-            kiwi_lexical_candidate_mode=kiwi_lexical_candidate_mode,
+        resolved_tokenizer_name = (
+            tokenizer_name or default().name
+            if tokenizer is not None
+            else self._resolve_tokenizer_name(
+                tokenizer_name=tokenizer_name,
+                use_kiwi_tokenizer=use_kiwi_tokenizer,
+                kiwi_lexical_candidate_mode=kiwi_lexical_candidate_mode,
+            )
         )
         legacy_flags = self._legacy_tokenizer_flags(resolved_tokenizer_name)
 
@@ -117,11 +125,12 @@ class BM25SearchIndex:
         self.use_kiwi_tokenizer = legacy_flags[0]
         self.kiwi_lexical_candidate_mode = legacy_flags[1]
 
-        self.tokenizer: SearchTokenizer | None = (
+        self.tokenizer: SearchTokenizer | None = tokenizer or (
             create(resolved_tokenizer_name)
             if self.use_kiwi_tokenizer or resolved_tokenizer_name == "regex_v1"
             else None
         )
+        self._separate_field_tokenization = tokenizer is not None
         self.corpus_tokens: list[list[str]] = []
         self.bm25: Any
         self._build_index()
@@ -219,7 +228,19 @@ class BM25SearchIndex:
             fit = getattr(self.tokenizer, "fit_corpus", None)
             if callable(fit):
                 fit(corpus)
-            corpus_tokens = [list(self.tokenizer.tokenize(text)) for text in corpus]
+            if self._separate_field_tokenization:
+                corpus_tokens = [
+                    list(
+                        self.tokenizer.tokenize(doc.title)
+                        + self.tokenizer.tokenize(doc.path)
+                        + self.tokenizer.tokenize(doc.content)
+                        + self.tokenizer.tokenize(doc.summary)
+                        + self.tokenizer.tokenize(" ".join(doc.aliases))
+                    )
+                    for doc in self.documents
+                ]
+            else:
+                corpus_tokens = [list(self.tokenizer.tokenize(text)) for text in corpus]
         else:
             corpus_tokens = cast(
                 list[list[str]],
@@ -393,6 +414,7 @@ class BM25SearchIndex:
             if instance.use_kiwi_tokenizer or instance.tokenizer_name == "regex_v1"
             else None
         )
+        instance._separate_field_tokenization = False
         instance.corpus_tokens = []
         instance.bm25 = bm25s.BM25.load(path, load_corpus=True)
         return instance

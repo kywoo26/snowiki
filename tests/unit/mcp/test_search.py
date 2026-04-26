@@ -179,13 +179,13 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
     listed_tools = [tool["name"] for tool in responses[2]["result"]["tools"]]
     assert listed_tools == ["get_page", "recall", "resolve_links", "search"]
 
-    blended_index = search.build_blended_index(
-        search.build_lexical_index(records).documents,
-        search.build_wiki_index(pages).documents,
+    runtime_snapshot = search.RetrievalService.from_records_and_pages(
+        records=list(records),
+        pages=list(pages),
     )
     expected_search_paths = [
         hit.document.path
-        for hit in blended_index.search("basic Claude fixture 위치 알려줘.", limit=3)
+        for hit in runtime_snapshot.index.search("basic Claude fixture 위치 알려줘.", limit=3)
     ]
     returned_search_paths = [
         hit["path"] for hit in responses[3]["result"]["structuredContent"]["hits"]
@@ -204,7 +204,7 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
     expected_recall_paths = [
         hit.document.path
         for hit in search.temporal_recall(
-            blended_index,
+            runtime_snapshot.index,
             "What did we work on yesterday for Korean retrieval?",
             limit=3,
             reference_time=reference_time,
