@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "description": "Snowiki-owned golden retrieval slices for BM25 runtime promotion gates.",
+  "queries": [
+    {
+      "id": "ko_to_ko",
+      "slice": "Korean query -> Korean document",
+      "query": "한국어 검색 전략 문서",
+      "expected_paths": ["compiled/wiki/search/korean-strategy.md"]
+    },
+    {
+      "id": "ko_to_english_code",
+      "slice": "Korean query -> English or code-heavy document",
+      "query": "BM25SearchIndex 구현 위치",
+      "expected_paths": ["src/snowiki/search/bm25_index.py"]
+    },
+    {
+      "id": "english_to_ko",
+      "slice": "English query -> Korean document",
+      "query": "Korean retrieval mixed language strategy",
+      "expected_paths": ["compiled/wiki/search/korean-strategy.md"]
+    },
+    {
+      "id": "mixed_query",
+      "slice": "mixed Korean/English query",
+      "query": "mixed language retrieval 한국어 영어",
+      "expected_paths": ["compiled/wiki/search/mixed-language-overview.md"]
+    },
+    {
+      "id": "path_filename",
+      "slice": "exact path or filename query",
+      "query": "src/snowiki/search/workspace.py build_retrieval_snapshot",
+      "expected_paths": ["src/snowiki/search/workspace.py"]
+    },
+    {
+      "id": "code_api_symbol",
+      "slice": "code/API/symbol query",
+      "query": "RuntimeCorpusDocument to_bm25_document",
+      "expected_paths": ["src/snowiki/search/corpus.py"]
+    },
+    {
+      "id": "cli_tool_command",
+      "slice": "CLI/tool command query",
+      "query": "snowiki benchmark --target bm25_regex_v1 --report",
+      "expected_paths": ["benchmarks/README.md"]
+    },
+    {
+      "id": "session_history",
+      "slice": "session/history query",
+      "query": "어제 한국어 retrieval 작업은 뭐였지",
+      "expected_paths": ["sessions/2026/04/07/mixed-retrieval-session.json"]
+    },
+    {
+      "id": "topical_exploratory",
+      "slice": "topical exploratory query",
+      "query": "retrieval engine v2 BM25 architecture plan",
+      "expected_paths": ["docs/architecture/bm25-retrieval-engine-v2-plan.md"]
+    },
+    {
+      "id": "source_provenance",
+      "slice": "source/provenance validation query",
+      "query": "source_type normalized compiled provenance fields",
+      "expected_paths": ["docs/architecture/bm25-retrieval-engine-v2-plan.md"]
+    }
+  ]
+}
