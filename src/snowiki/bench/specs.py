@@ -79,6 +79,9 @@ class BenchmarkQuery:
 
     query_id: str
     query_text: str
+    group: str | None = None
+    kind: str | None = None
+    tags: tuple[str, ...] = ()
 
 
 class RetrievalTargetAdapter(Protocol):

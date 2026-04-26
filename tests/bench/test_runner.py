@@ -538,6 +538,155 @@ def test_run_cell_applies_query_cap_to_judged_query_intersection(
     assert result.details["sampling_seed"] == 1729
 
 
+def test_run_cell_reports_slice_metrics_from_query_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=3)},
+    )
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            del manifest, level
+            return {
+                "results": tuple(
+                    QueryResult(
+                        query_id=query.query_id,
+                        ranked_doc_ids=("doc-a",) if query.query_id != "q2" else ("miss",),
+                    )
+                    for query in queries
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest, **kwargs: (
+            BenchmarkQuery(
+                query_id="q1",
+                query_text="한국어 known item",
+                group="ko",
+                kind="known-item",
+                tags=("identifier-path-code-heavy",),
+            ),
+            BenchmarkQuery(
+                query_id="q2",
+                query_text="mixed query",
+                group="mixed",
+                kind="topical",
+            ),
+            BenchmarkQuery(
+                query_id="q3",
+                query_text="English known item",
+                group="en",
+                kind="known-item",
+                tags=("identifier-path-code-heavy",),
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest, **kwargs: {
+            "q1": {"doc-a"},
+            "q2": {"doc-b"},
+            "q3": {"doc-a"},
+        },
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="test_target",
+        metric_ids=("hit_rate_at_1", "mrr_at_10"),
+    )
+
+    slices = cast(dict[str, dict[str, object]], result.details["slices"])
+    group_ko = slices["group:ko"]
+    group_mixed = slices["group:mixed"]
+    known_item = slices["kind:known-item"]
+    identifier_slice = slices["tag:identifier-path-code-heavy"]
+
+    assert group_ko["query_count"] == 1
+    assert cast(dict[str, object], group_ko["metrics"])["hit_rate_at_1"] == 1.0
+    assert cast(dict[str, object], group_mixed["metrics"])["hit_rate_at_1"] == 0.0
+    assert cast(dict[str, object], known_item["metrics"])["mrr_at_10"] == 1.0
+    assert identifier_slice["query_count"] == 2
+
+
+def test_run_cell_excludes_latency_metrics_from_slice_metrics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=2)},
+    )
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            del manifest, level
+            latencies = {"q1": 1.0, "q2": 100.0}
+            return {
+                "results": tuple(
+                    QueryResult(
+                        query_id=query.query_id,
+                        ranked_doc_ids=("doc",),
+                        latency_ms=latencies[query.query_id],
+                    )
+                    for query in queries
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest, **kwargs: (
+            BenchmarkQuery(query_id="q1", query_text="one", group="ko"),
+            BenchmarkQuery(query_id="q2", query_text="two", group="ko"),
+        ),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest, **kwargs: {"q1": {"doc"}, "q2": {"doc"}},
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="test_target",
+    )
+
+    slices = cast(dict[str, dict[str, object]], result.details["slices"])
+    group_metrics = cast(dict[str, object], slices["group:ko"]["metrics"])
+
+    assert "latency_p50_ms" not in group_metrics
+    assert "latency_p95_ms" not in group_metrics
+
+
 def test_run_cell_uses_deterministic_sampling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1128,6 +1277,88 @@ def test_run_cell_accepts_normalized_materialized_query_and_qrels_fields(
     assert result.status == "success"
     assert result.details["eligible_query_count"] == 2
     assert result.details["effective_query_count"] == 2
+
+
+def test_run_cell_accepts_json_queries_and_wrapped_judgments(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=2)},
+    )
+    queries_path = tmp_path / "queries.json"
+    judgments_path = tmp_path / "judgments.json"
+    _ = queries_path.write_text(
+        json.dumps(
+            {
+                "queries": [
+                    {
+                        "id": "q1",
+                        "text": "한국어 질의",
+                        "group": "ko",
+                        "kind": "known-item",
+                        "tags": ["identifier-path-code-heavy"],
+                    },
+                    {"id": "q2", "text": "English query", "group": "en"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    _ = judgments_path.write_text(
+        json.dumps({"judgments": {"q1": ["d1"], "q2": ["d2"]}}),
+        encoding="utf-8",
+    )
+
+    observed_queries: list[BenchmarkQuery] = []
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            del manifest, level
+            observed_queries.extend(queries)
+            return {
+                "results": tuple(
+                    QueryResult(query_id=query.query_id, ranked_doc_ids=("d1", "d2"))
+                    for query in queries
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner.resolve_dataset_assets",
+        lambda manifest, **kwargs: {
+            "corpus": tmp_path / "corpus.parquet",
+            "queries": queries_path,
+            "judgments": judgments_path,
+        },
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="test_target",
+    )
+
+    assert result.status == "success"
+    assert {query.query_id for query in observed_queries} == {"q1", "q2"}
+    q1 = next(query for query in observed_queries if query.query_id == "q1")
+    assert q1.group == "ko"
+    assert q1.kind == "known-item"
+    assert q1.tags == ("identifier-path-code-heavy",)
+    assert "group:ko" in result.details["slices"]
 
 
 def _write_parquet(path: Path, data: dict[str, list[str]]) -> None:
