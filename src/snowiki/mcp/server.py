@@ -63,8 +63,6 @@ class SnowikiReadOnlyFacade:
             records=list(self.session_records),
             pages=list(self.compiled_pages),
         )
-        self.lexical_index = snapshot.lexical
-        self.wiki_index = snapshot.wiki
         self.index = snapshot.index
 
         self.page_by_path = {
@@ -108,7 +106,7 @@ class SnowikiReadOnlyFacade:
         mode: str = "auto",
         reference_time: datetime | None = None,
     ) -> MCPObject:
-        """Recall topical or temporal knowledge from the blended index."""
+        """Recall topical or temporal knowledge from the runtime index."""
         normalized_mode = self._normalize_recall_mode(mode)
         hits, strategy = run_authoritative_recall(
             self.index,
