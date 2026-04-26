@@ -6,7 +6,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from snowiki.mcp.server import SnowikiReadOnlyFacade
-from snowiki.search.engine_v2 import BM25RuntimeIndex
+from snowiki.search.engine import BM25RuntimeIndex
 from snowiki.search.indexer import InvertedIndex, SearchDocument
 from snowiki.search.registry import SearchTokenizer
 from snowiki.search.tokenizer import build_regex_tokenizer
@@ -34,9 +34,7 @@ def _search_document(
     )
 
 
-def test_retrieval_service_builds_bm25_runtime_index_with_legacy_indexes(
-    mocker: MockerFixture,
-) -> None:
+def test_retrieval_service_builds_primary_bm25_runtime_index() -> None:
     records: list[dict[str, object]] = [
         {
             "id": "session-1",
@@ -53,55 +51,12 @@ def test_retrieval_service_builds_bm25_runtime_index_with_legacy_indexes(
             "body": "page body",
         }
     ]
-    call_log: list[dict[str, object]] = []
-    lexical = SimpleNamespace(documents=("runtime-lexical-doc",))
-    wiki = SimpleNamespace(documents=("runtime-wiki-doc",))
-    blended = SimpleNamespace(size=2)
-
-    def fake_build_lexical_index(normalized_records: list[dict[str, object]]) -> object:
-        call_log.append({"fn": "build_lexical_index", "records": normalized_records})
-        return lexical
-
-    def fake_build_wiki_index(normalized_pages: list[dict[str, object]]) -> object:
-        call_log.append({"fn": "build_wiki_index", "pages": normalized_pages})
-        return wiki
-
-    def fake_build_blended_index(*document_groups: tuple[str, ...]) -> object:
-        call_log.append(
-            {"fn": "build_blended_index", "document_groups": document_groups}
-        )
-        return blended
-
-    mocker.patch(
-        "snowiki.search.workspace.build_lexical_index",
-        side_effect=fake_build_lexical_index,
-    )
-    mocker.patch(
-        "snowiki.search.workspace.build_wiki_index",
-        side_effect=fake_build_wiki_index,
-    )
-    mocker.patch(
-        "snowiki.search.workspace.build_blended_index",
-        side_effect=fake_build_blended_index,
-    )
     snapshot = RetrievalService.from_records_and_pages(records=records, pages=pages)
 
-    assert snapshot.lexical is lexical
-    assert snapshot.wiki is wiki
     assert isinstance(snapshot.index, BM25RuntimeIndex)
     assert snapshot.index.size == 2
-    assert snapshot.legacy_index is blended
-    assert call_log == [
-        {"fn": "build_lexical_index", "records": records},
-        {"fn": "build_wiki_index", "pages": pages},
-        {
-            "fn": "build_blended_index",
-            "document_groups": (
-                ("runtime-lexical-doc",),
-                ("runtime-wiki-doc",),
-            ),
-        },
-    ]
+    assert snapshot.records_indexed == 1
+    assert snapshot.pages_indexed == 1
 
 
 def test_mcp_facade_uses_same_runtime_snapshot_index(
@@ -123,20 +78,13 @@ def test_mcp_facade_uses_same_runtime_snapshot_index(
             "body": "runtime page",
         }
     ]
-    lexical = SimpleNamespace(documents=("runtime-lexical-doc",))
-    wiki = SimpleNamespace(documents=("runtime-wiki-doc",))
-
     def search_index(query: str, limit: int = 5) -> list[object]:
         del query, limit
         return []
 
     runtime_index = SimpleNamespace(search=search_index)
-    legacy_index = SimpleNamespace(search=search_index)
     snapshot = SimpleNamespace(
-        lexical=lexical,
-        wiki=wiki,
         index=runtime_index,
-        legacy_index=legacy_index,
         records_indexed=1,
         pages_indexed=1,
     )
@@ -158,9 +106,9 @@ def test_mcp_facade_uses_same_runtime_snapshot_index(
         compiled_pages=compiled_pages,
     )
 
-    assert facade.lexical_index is lexical
-    assert facade.wiki_index is wiki
     assert facade.index is runtime_index
+    assert not hasattr(facade, "lexical_index")
+    assert not hasattr(facade, "wiki_index")
     assert calls == [{"records": session_records, "pages": compiled_pages}]
 
 
@@ -204,15 +152,13 @@ def test_retrieval_service_threads_explicit_tokenizer_through_runtime_indexes() 
     )
     hits = snapshot.index.search("alpha")
 
-    assert snapshot.lexical.index.tokenizer is tokenizer
-    assert snapshot.wiki.index.tokenizer is tokenizer
     assert snapshot.index.tokenizer is tokenizer
     assert {hit.document.id for hit in hits} == {"page-1", "session-1"}
     assert ("tokenize", "alpha") in tokenizer.calls
     assert ("normalize", "alpha") in tokenizer.calls
 
 
-def test_inverted_index_uses_injected_tokenizer_for_indexing_and_query_time() -> None:
+def test_runtime_index_uses_injected_tokenizer_for_indexing_and_query_time() -> None:
     class ExactTokenizer:
         def __init__(self) -> None:
             self.calls: list[tuple[str, str]] = []

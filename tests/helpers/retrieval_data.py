@@ -91,11 +91,12 @@ def compiled_pages_data() -> tuple[dict[str, object], ...]:
 
 
 @pytest.fixture(scope="session")
-def blended_index_data(search_api_module, normalized_records_data, compiled_pages_data):
+def runtime_index_data(search_api_module, normalized_records_data, compiled_pages_data):
     search = search_api_module
-    lexical_index = search.build_lexical_index(normalized_records_data)
-    wiki_index = search.build_wiki_index(compiled_pages_data)
-    return search.build_blended_index(lexical_index.documents, wiki_index.documents)
+    return search.RetrievalService.from_records_and_pages(
+        records=list(normalized_records_data),
+        pages=list(compiled_pages_data),
+    ).index
 
 
 @lru_cache(maxsize=1)
@@ -472,8 +473,9 @@ def compiled_pages() -> tuple[dict[str, object], ...]:
 
 
 @lru_cache(maxsize=1)
-def blended_index():
+def runtime_index():
     search = load_search_api()
-    lexical_index = search.build_lexical_index(normalized_records())
-    wiki_index = search.build_wiki_index(compiled_pages())
-    return search.build_blended_index(lexical_index.documents, wiki_index.documents)
+    return search.RetrievalService.from_records_and_pages(
+        records=list(normalized_records()),
+        pages=list(compiled_pages()),
+    ).index
