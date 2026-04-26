@@ -4,7 +4,7 @@ Root `AGENTS.md` is inherited; this file defines local deltas only.
 
 ## Scope
 
-This directory governs benchmark assets, canonical corpora, and quality reports. Performance sensitive changes must be verified against the thresholds defined here and in `benchmarks/README.md`.
+This directory governs benchmark assets, canonical corpora, and quality reports. Performance sensitive changes must be verified with the benchmark levels, targets, and metric slices defined here and in `benchmarks/README.md`. Numeric promotion thresholds are intentionally not defined in this file.
 
 The governed benchmark asset surface lives in `benchmarks/`. Runtime benchmark implementation code under `src/snowiki/bench/` remains governed by the root contract for `src/snowiki/` and should use this file only for asset and report policy, thresholds, and benchmark specific workflow boundaries.
 

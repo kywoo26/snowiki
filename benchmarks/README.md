@@ -40,10 +40,10 @@ Run bench with the shipped CLI:
 
 ```bash
 # Run with the default official matrix
-uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --report report.json
+uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --target bm25_regex_v1 --report report.json
 
 # Run a single dataset at quick level
-uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --report report.json --dataset beir_scifact --level quick
+uv run snowiki benchmark --matrix benchmarks/contracts/official_matrix.yaml --target bm25_regex_v1 --report report.json --dataset beir_scifact --level quick
 ```
 
 The `snowiki benchmark` command is the supported surface for local evaluation runs.
@@ -55,11 +55,13 @@ Materialize datasets before benchmarking:
 uv run snowiki benchmark-fetch --level quick
 ```
 
-For CI smoke runs, `bm25_regex_v1` is the only target executed on pull requests and `main`. Keep tokenizer-variant BM25 targets plus `lexical_regex_v1` in the manual or local comparison lane while choosing the lexical baseline before semantic or hybrid work.
+For CI smoke runs, `bm25_regex_v1` is the only target executed on pull requests and `main`. Keep tokenizer-variant BM25 targets plus `lexical_regex_v1` and `snowiki_query_runtime_v1` in the manual or local comparison lane while choosing the lexical baseline before semantic or hybrid work.
+
+Useful top-k metrics for CLI query baselines are available as `recall_at_1`, `recall_at_3`, `recall_at_5`, `recall_at_10`, `hit_rate_at_1`, `hit_rate_at_3`, `hit_rate_at_5`, and `hit_rate_at_10`. `recall_at_5` and `hit_rate_at_5` are the most relevant defaults when evaluating whether a human or agent can find a useful candidate from the first screen of results.
 
 ## Manual lexical comparison recipe
 
-Use this manual recipe when comparing the six built-in lexical and BM25 targets across the official core datasets:
+Use this manual recipe when comparing the seven built-in lexical and BM25 targets across the official core datasets:
 
 ```bash
 # 1. Materialize the official core datasets once.
@@ -70,7 +72,7 @@ uv run snowiki benchmark-fetch \
   --dataset trec_dl_2020_passage \
   --dataset miracl_ko
 
-# 2. Run the official core-by-six lexical baseline comparison manually.
+# 2. Run the official core-by-seven lexical baseline comparison manually.
 uv run snowiki benchmark \
   --matrix benchmarks/contracts/official_matrix.yaml \
   --level standard \
@@ -79,6 +81,7 @@ uv run snowiki benchmark \
   --dataset trec_dl_2020_passage \
   --dataset miracl_ko \
   --target lexical_regex_v1 \
+  --target snowiki_query_runtime_v1 \
   --target bm25_regex_v1 \
   --target bm25_kiwi_morphology_v1 \
   --target bm25_kiwi_nouns_v1 \
