@@ -14,6 +14,8 @@ uv tool install --from . snowiki
 
 # 2. Inspect the shipped command surface
 snowiki --help
+snowiki -h
+snowiki --version
 
 # 3. Use the current runtime directly
 snowiki ingest /path/to/README.md --output json
@@ -32,6 +34,14 @@ Markdown files and directories are the primary ingest surface. Claude/OpenCode s
 For the Claude Code `wiki` skill workflow, use this README as the short entrypoint and follow the dedicated guide at [`docs/reference/claude-code-wiki-quickstart.md`](docs/reference/claude-code-wiki-quickstart.md). It covers install-from-checkout, optional daemon startup for faster reads, and the current `fileback preview/queue/apply` flow.
 
 If you are working from a development checkout instead of a tool install, run the same commands as `uv run snowiki ...`.
+
+## CLI affordances for agents
+
+- Help and discovery: every command supports `-h` and `--help`; the top-level command also supports `--version`.
+- Shared configuration: set `SNOWIKI_ROOT` to choose the storage root and `SNOWIKI_OUTPUT=json` to make supported commands emit machine-readable output without repeating `--output json`.
+- Daemon configuration: `snowiki daemon` also respects `SNOWIKI_DAEMON_HOST`, `SNOWIKI_DAEMON_PORT`, and `SNOWIKI_DAEMON_CACHE_TTL`.
+- Shell completion: Click completion scripts are available for Bash, Zsh, and Fish; for Bash use `eval "$(_SNOWIKI_COMPLETE=bash_source snowiki)"`.
+- JSON envelope: successful JSON commands emit `{"ok": true, "command": "...", "result": {...}}`; runtime failures emit `{"ok": false, "error": {...}}`; semantic failures such as lint errors may emit `{"ok": false, "command": "lint", "result": {...}}`.
 
 ## Current shipped CLI surface
 
