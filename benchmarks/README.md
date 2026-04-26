@@ -99,6 +99,13 @@ The bounded extension seams are:
 2. target registry, which maps a dataset or runtime target to an adapter
 3. metric registry, which defines the metrics bench can score
 
+## Analyzer promotion gates
+
+Analyzer candidates are evaluated with the gate contract at
+`benchmarks/contracts/analyzer_promotion_gates.yaml` and the architecture guide at
+`docs/architecture/analyzer-promotion-gates.md`. Benchmark reports include
+slice-level metrics when queries expose `group`, `kind`, or `tags` metadata.
+
 ## Scope
 
 Bench stays lean and only covers the local evaluation runner.

@@ -66,4 +66,5 @@ packaging gates.
 
 - Deterministic graph/taxonomy prefilters.
 - Optional vector recall and Reciprocal Rank Fusion.
-- Analyzer promotion after Snowiki-owned golden query and public benchmark gates.
+- Analyzer promotion after the gates in
+  [`analyzer-promotion-gates.md`](analyzer-promotion-gates.md).
