@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from .indexer import InvertedIndex, SearchDocument, document_from_mapping
+from .corpus import runtime_document_from_normalized_mapping
+from .indexer import InvertedIndex, SearchDocument
 from .registry import SearchTokenizer
 
 
@@ -29,15 +30,7 @@ class LexicalIndex:
 
 
 def normalized_record_to_document(record: Mapping[str, Any]) -> SearchDocument:
-    title = record.get("title") or record.get("id") or record.get("path") or "record"
-    payload = {
-        **record,
-        "title": title,
-        "summary": record.get("summary")
-        or record.get("record_type")
-        or "normalized record",
-    }
-    return document_from_mapping(payload, kind="session", source_type="normalized")
+    return runtime_document_from_normalized_mapping(record).to_search_document()
 
 
 def build_lexical_index(
