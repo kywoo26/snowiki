@@ -27,7 +27,7 @@ These rules come from `AGENTS.md` and CI configuration:
 - Use explicit type hints on all function signatures.
 - Keep `ruff`, `ty`, and `pytest` green.
 - Use `pytest` fixtures such as `tmp_path`, `monkeypatch`, and `pytest-mock`; avoid new `unittest.mock`-driven patterns.
-- Unit tests must stay deterministic: no daemon threads, sleeps, network, heavy datasets, or real external services.
+- Unit tests must stay deterministic: no sleeps, network, heavy datasets, or real external services.
 - Use `logging` or `click.echo`; never use `print()` for runtime logging.
 - Access repo assets through approved helpers such as `src/snowiki/config.py` and storage path helpers; avoid raw `cwd` coupling.
 
@@ -170,7 +170,7 @@ Evaluate candidates by domain and need:
 - YAML/frontmatter: consider a YAML library only if the current deterministic parser cannot support documented frontmatter requirements safely.
 - Retry: use a maintained retry library only around real transient I/O boundaries; do not add retry machinery for pure local transforms.
 - Async I/O and HTTP: add async or HTTP dependencies only when Snowiki ships a real network/runtime integration that needs them.
-- Structured logging: consider a structured logging dependency only when daemon/runtime workflows need cross-component correlation IDs or machine-ingested logs.
+- Structured logging: consider a structured logging dependency only when runtime workflows need cross-component correlation IDs or machine-ingested logs.
 
 Dependency rules:
 
@@ -184,7 +184,7 @@ Dependency rules:
 Snowiki uses four test levels:
 
 - `tests/unit/`: deterministic, fast, patched boundaries.
-- `tests/integration/`: real CLI/runtime/daemon boundaries.
+- `tests/integration/`: real CLI/runtime boundaries.
 - `tests/bench/`: actual benchmark validation, dataset-heavy benchmark checks, and benchmark-result guardrails.
 - `tests/perf/`: latency/performance assertions.
 
@@ -214,7 +214,7 @@ Use clear error types and output contracts:
 - Runtime logs should use `logging`; CLI user output should use `click.echo` through existing output helpers.
 - Do not log secrets, raw credentials, or private source content.
 
-Structured logging may become appropriate when daemon/runtime workflows need request IDs, source IDs, or operation IDs across multiple components.
+Structured logging may become appropriate when runtime workflows need request IDs, source IDs, or operation IDs across multiple components.
 
 ## Engine Portability
 
@@ -304,7 +304,7 @@ These boundaries are current architecture guidance, not historical phase plans.
 
 ### Retrieval and evaluation
 
-- Retrieval surfaces should preserve parity across CLI query/recall, daemon warm retrieval, MCP read-only retrieval, and benchmark runs.
+- Retrieval surfaces should preserve parity across CLI query/recall, MCP read-only retrieval, and benchmark runs.
 - Semantic/vector/rerank work should stay behind explicit extension seams until benchmark evidence justifies promotion.
 - Benchmark commands inform retrieval quality gates, but benchmark behavior is not the shipped wiki memory contract.
 

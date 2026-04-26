@@ -10,7 +10,7 @@ To maintain a single source of truth, Snowiki distinguishes between normative (a
 - **This Document**: The single normative owner of the interface contract and vocabulary.
 - **`snowiki` CLI**: The authoritative runtime contract. The behavior of the installed CLI defines the current system capabilities.
 - **CLI JSON Output**: The machine-readable contract for tool integration (`--output json`).
-- **CLI Environment Variables**: Stable agent configuration includes `SNOWIKI_ROOT`, `SNOWIKI_OUTPUT`, `SNOWIKI_DAEMON_HOST`, `SNOWIKI_DAEMON_PORT`, and `SNOWIKI_DAEMON_CACHE_TTL`.
+- **CLI Environment Variables**: Stable agent configuration includes `SNOWIKI_ROOT` and `SNOWIKI_OUTPUT`.
 - **`docs/architecture/source-vault-compiled-taxonomy.md`**: The canonical layer taxonomy for source roots, raw provenance, normalized records, compiled pages, indexes, and queues.
 
 ### 1.2 Informative Surfaces (The Mirrors)
@@ -26,7 +26,7 @@ Snowiki defines four distinct classes of artifacts that agents interact with.
 
 ### 2.1 Command
 An atomic unit of execution provided by the `snowiki` CLI. Commands are the primary mechanism for mutation and retrieval.
-- **Examples**: `ingest`, `rebuild`, `query`, `recall`, `lint`, `status`, `prune`, `export`, `fileback`, `benchmark`, `benchmark-fetch`, `daemon`, `mcp`.
+- **Examples**: `ingest`, `rebuild`, `query`, `recall`, `lint`, `status`, `prune`, `export`, `fileback`, `benchmark`, `benchmark-fetch`, `mcp`.
 - **Contract**: Commands must provide deterministic behavior and, where applicable, machine-readable JSON output. Every command supports `-h` and `--help`; the top-level `snowiki` command also supports `--version`. Click shell completion is a shipped CLI affordance for Bash, Zsh, and Fish; Bash may be enabled with `eval "$(_SNOWIKI_COMPLETE=bash_source snowiki)"`.
 
 CLI JSON output uses a small envelope family rather than command-specific ad hoc shapes:
@@ -211,7 +211,7 @@ Some concepts overlap across the CLI and MCP surfaces, but the shipped contract 
 - **CLI `query`** is the authoritative machine-facing retrieval command for local runtime use and emits the CLI JSON envelope (`ok`, `command`, `result`).
 - **MCP `search`** and **MCP `recall`** expose read-only retrieval through JSON-RPC tool calls and return MCP-shaped `structuredContent` plus text content.
 - **CLI `recall`** and **MCP `recall`** overlap conceptually, but MCP routing still terminates inside the read-only facade instead of invoking the CLI command implementation.
-- **CLI-only commands** such as `fileback`, `benchmark`, `daemon`, `status`, and `export` have no MCP equivalent. They are runtime-only surfaces and do not flow through the MCP bridge.
+- **CLI-only commands** such as `fileback`, `benchmark`, `status`, and `export` have no MCP equivalent. They are runtime-only surfaces and do not flow through the MCP bridge.
 
 This difference is intentional in the current verified contract and must be documented explicitly rather than hidden behind “shared adapter” language.
 

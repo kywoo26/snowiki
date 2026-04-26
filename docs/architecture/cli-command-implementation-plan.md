@@ -15,7 +15,6 @@ Command adapters live flat under `src/snowiki/cli/commands/` and are registered 
 | Knowledge flow | `ingest`, `query`, `recall` | `ingest.py`, `query.py`, `recall.py` |
 | Lifecycle / health | `status`, `lint`, `fileback` | `status.py`, `lint.py`, `fileback.py` |
 | Maintenance | `rebuild`, `prune` | `rebuild.py`, `prune.py` |
-| Runtime | `daemon` | `daemon.py` |
 | Transport | `mcp` | `mcp.py` |
 | Support | `export` | `export.py` |
 | Evaluation | `benchmark`, `benchmark-fetch` | `benchmark.py`, `benchmark_fetch.py` |
@@ -32,7 +31,6 @@ The flat layout is acceptable only while these gates remain satisfied:
     - storage export bundle assembly has direct unit coverage.
 2. **Direct imports are known and intentional**
     - `tests/integration/cli/test_rebuild.py`
-    - `tests/integration/cli/test_daemon.py`
     - `tests/integration/cli/test_mcp.py`
     - `tests/integration/cli/test_query.py` imports search-domain `run_query` and `run_recall`, not CLI adapter internals.
     - `tests/unit/mcp/test_search.py`
@@ -57,7 +55,7 @@ This makes the support/debug, transport, and shared output surfaces visible befo
 
 ### Step 2: Reduce import fragility — complete
 
-Command tests use `snowiki.cli.main.app` where possible. Direct imports remain only when a test intentionally targets a non-Click helper such as `run_rebuild`, `serve_stdio_command`, or daemon action helpers. Query and recall helper tests target `snowiki.search.queries` domain entry points instead of CLI command modules.
+Command tests use `snowiki.cli.main.app` where possible. Direct imports remain only when a test intentionally targets a non-Click helper such as `run_rebuild` or `serve_stdio_command`. Query and recall helper tests target `snowiki.search.queries` domain entry points instead of CLI command modules.
 
 If new direct imports are added later, list them in this plan before another package move.
 
@@ -75,7 +73,6 @@ src/snowiki/cli/commands/
   fileback.py
   rebuild.py
   prune.py
-  daemon.py
   mcp.py
   export.py
   benchmark.py
@@ -149,7 +146,7 @@ and test.
   tests should invoke the Click `command` object or a clearly named domain/helper
   function such as `serve_stdio_command`.
 - Expose stable environment variables in help with `show_envvar=True` for common
-  agent configuration (`SNOWIKI_ROOT`, `SNOWIKI_OUTPUT`, daemon settings).
+  agent configuration (`SNOWIKI_ROOT`, `SNOWIKI_OUTPUT`).
 - Reserve `--output` for Snowiki's human/json output-mode contract. Commands
   that write a file artifact should use a domain name such as `--report` rather
   than overloading `--output` with a path type.

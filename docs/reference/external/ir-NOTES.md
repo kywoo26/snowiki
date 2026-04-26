@@ -56,9 +56,9 @@ Rust port of qmd with per-collection SQLite, tiered retrieval, CJK preprocessors
 - `ir` uses structure-aware chunking with overlap and content-addressed indexing.
 - Chunking is treated as an index design concern, not only a search concern.
 
-### Embedder and daemon posture
+### Embedder posture
 - `ir` explicitly acknowledges the operational cost of cold-loading hybrid components.
-- Warm daemon posture exists precisely because dense-model cold start is too expensive for many local CLI workflows.
+- Warm serving is relevant evidence for future dense-model work, but it is not part of Snowiki's current shipped runtime surface.
 
 ### Storage and collection model
 - `ir`'s per-collection SQLite posture solves one of qmd's core operational pain points: a single global DB is awkward for concurrent multi-agent/project-local work.
@@ -73,5 +73,5 @@ Rust port of qmd with per-collection SQLite, tiered retrieval, CJK preprocessors
 
 1. Keep Korean preprocessing behind a pluggable boundary.
 2. Use `ir` as the primary evidence source for shortcut thresholds and RRF bonuses.
-3. Treat daemon warming as an operational answer to dense-model cold start, not as an architectural afterthought.
+3. Treat warm serving as a future dense-model concern, not as a current runtime requirement.
 4. Treat tokenizer/preprocessor configuration as collection/index metadata.
