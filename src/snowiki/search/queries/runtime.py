@@ -86,7 +86,7 @@ def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
     return {
         "query": query,
         "mode": mode,
-        "semantic_backend": "disabled" if mode == "hybrid" else None,
+        "semantic_backend": None,
         "records_indexed": snapshot.records_indexed,
         "pages_indexed": snapshot.pages_indexed,
         "hits": [query_hit_to_payload(hit) for hit in hits],
