@@ -15,7 +15,7 @@ The `src/snowiki/cli/commands/` modules are runtime adapters for parsing and dis
 | Maintenance and rebuild | `rebuild`, `prune` | Recompute derived state or remove stale accepted records through explicit maintenance paths. |
 | Transport bridge | `mcp` | Read-only MCP bridge for tools/resources. It is a transport surface, not a mutation or workflow command family. |
 | Support/debug/export | `export` | Portability, inspection, migration, and snapshot/debug support. Not a primary wiki flow. |
-| Development/evaluation | `benchmark`, `benchmark-fetch` | Retrieval and benchmark development support. Not a user memory workflow. |
+| Development/evaluation | `benchmark`, `benchmark-fetch`, `benchmark-gate` | Retrieval and benchmark development support. Not a user memory workflow. |
 
 ## Command package layout
 
@@ -39,6 +39,7 @@ src/snowiki/cli/commands/
   export.py
   benchmark.py
   benchmark_fetch.py
+  benchmark_gate.py
 ```
 
 Grouping criteria:
@@ -110,9 +111,9 @@ Useful cases include:
 
 It should not be promoted as a core `/wiki` workflow while the source/vault model remains filesystem-first and the runtime already exposes direct source roots plus generated compiled pages. If the maintenance cost grows faster than these use cases, `export` should be treated as a deprecation candidate rather than a primary command.
 
-### `benchmark` and `benchmark-fetch`
+### `benchmark`, `benchmark-fetch`, and `benchmark-gate`
 
-Benchmark commands belong to retrieval development and evaluation. They should inform runtime quality gates, but benchmark behavior is not the shipped wiki memory contract.
+Benchmark commands belong to retrieval development and evaluation. They should inform runtime quality gates, but benchmark behavior is not the shipped wiki memory contract. `benchmark-gate` is a report post-processor: it evaluates an existing benchmark JSON report against a gate contract and does not rerun datasets or change runtime defaults.
 
 ## Skill mapping rule
 

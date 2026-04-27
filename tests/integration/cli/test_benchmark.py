@@ -497,3 +497,381 @@ def test_benchmark_fail_fast_stops_after_first_failure(
     status = first_cell["status"]  # noqa: B018
     assert dataset_id == missing_dataset_id
     assert status == "failed"
+
+
+def test_benchmark_gate_cli_evaluates_report_and_writes_output(tmp_path: Path) -> None:
+    gate_path = tmp_path / "gate.yaml"
+    report_path = tmp_path / "benchmark-report.json"
+    gate_report_path = tmp_path / "gate-report.json"
+    _ = gate_path.write_text(
+        dedent(
+            """\
+            gate_id: korean_analyzer_promotion_v1
+            baseline_target: bm25_regex_v1
+            candidate_targets:
+              - bm25_kiwi_morphology_v1
+            public_matrix:
+              matrix: benchmarks/contracts/official_matrix.yaml
+              required_dataset_ids:
+                - miracl_ko
+              required_level_ids:
+                - standard
+            snowiki_slices:
+              required_slice_ids:
+                - group:ko
+              required_golden_query_ids:
+                - cli_tool_command
+            thresholds:
+              public_korean:
+                dataset_id: miracl_ko
+                slice_id: all
+                must_improve_metrics:
+                  ndcg_at_10:
+                    min_relative_delta: 0.03
+                  recall_at_100:
+                    min_relative_delta: 0.03
+              snowiki_korean:
+                slice_id: group:ko
+                must_improve_metrics:
+                  hit_rate_at_5:
+                    min_relative_delta: 0.03
+                  mrr_at_10:
+                    min_relative_delta: 0.03
+              mixed_and_identifier_regression:
+                slice_ids: []
+                max_allowed_absolute_regression: 0.0
+                metrics: []
+              temporal_regression:
+                slice_id: kind:temporal
+                max_allowed_absolute_regression: 0.0
+                metrics: []
+              golden_query_regression:
+                fixture: fixtures/retrieval/golden_queries.json
+                required_query_ids:
+                  - cli_tool_command
+                max_allowed_top5_regressions: 0
+              public_english_regression:
+                dataset_ids: []
+                slice_id: all
+                max_allowed_absolute_regression: 0.005
+                max_allowed_relative_regression: 0.01
+                metrics: []
+              english_regression:
+                slice_id: group:en
+                max_allowed_absolute_regression: 0.005
+                max_allowed_relative_regression: 0.01
+                metrics: []
+              latency:
+                max_p95_multiplier_vs_baseline: 1.5
+            """
+        ),
+        encoding="utf-8",
+    )
+    _ = report_path.write_text(
+        json.dumps(
+            {
+                "cells": [
+                    {
+                        "dataset_id": "miracl_ko",
+                        "level_id": "standard",
+                        "target_id": "bm25_regex_v1",
+                        "status": "success",
+                        "metrics": [
+                            {"metric_id": "ndcg_at_10", "value": 0.35},
+                            {"metric_id": "recall_at_100", "value": 0.72},
+                            {"metric_id": "hit_rate_at_5", "value": 0.50},
+                            {"metric_id": "mrr_at_10", "value": 0.40},
+                        ],
+                        "latency": {"p50": 2.0, "p95": 5.0},
+                        "per_query": {
+                            "cli_tool_command": {
+                                "metrics": {"hit_rate_at_5": 1.0},
+                            }
+                        },
+                        "slices": {
+                            "all": {
+                                "metrics": {
+                                    "ndcg_at_10": 0.35,
+                                    "recall_at_100": 0.72,
+                                },
+                            },
+                            "group:ko": {
+                                "metrics": {"hit_rate_at_5": 0.50, "mrr_at_10": 0.40},
+                            },
+                        },
+                        "error": None,
+                    },
+                    {
+                        "dataset_id": "miracl_ko",
+                        "level_id": "standard",
+                        "target_id": "bm25_kiwi_morphology_v1",
+                        "status": "success",
+                        "metrics": [
+                            {"metric_id": "ndcg_at_10", "value": 0.41},
+                            {"metric_id": "recall_at_100", "value": 0.75},
+                            {"metric_id": "hit_rate_at_5", "value": 0.55},
+                            {"metric_id": "mrr_at_10", "value": 0.43},
+                        ],
+                        "latency": {"p50": 2.1, "p95": 5.1},
+                        "per_query": {
+                            "cli_tool_command": {
+                                "metrics": {"hit_rate_at_5": 1.0},
+                            }
+                        },
+                        "slices": {
+                            "all": {
+                                "metrics": {
+                                    "ndcg_at_10": 0.41,
+                                    "recall_at_100": 0.75,
+                                },
+                            },
+                            "group:ko": {
+                                "metrics": {"hit_rate_at_5": 0.55, "mrr_at_10": 0.43},
+                            },
+                        },
+                        "error": None,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "benchmark-gate",
+            "--gate",
+            str(gate_path),
+            "--report",
+            str(report_path),
+            "--gate-report",
+            str(gate_report_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "gate=korean_analyzer_promotion_v1 candidates=1 status=pass failures=0" in result.output
+    payload = _read_json(gate_report_path)
+    assert payload["status"] == "pass"
+    assert payload["summary"] == {
+        "candidate_count": 1,
+        "pass_count": 1,
+        "fail_count": 0,
+        "failure_count": 0,
+    }
+
+
+def test_benchmark_gate_cli_writes_failing_gate_report(tmp_path: Path) -> None:
+    gate_path = tmp_path / "gate.yaml"
+    report_path = tmp_path / "benchmark-report.json"
+    gate_report_path = tmp_path / "gate-report.json"
+    _ = gate_path.write_text(
+        dedent(
+            """\
+            gate_id: korean_analyzer_promotion_v1
+            baseline_target: bm25_regex_v1
+            candidate_targets:
+              - bm25_kiwi_morphology_v1
+            public_matrix:
+              matrix: benchmarks/contracts/official_matrix.yaml
+              required_dataset_ids:
+                - miracl_ko
+              required_level_ids:
+                - standard
+            snowiki_slices:
+              required_slice_ids: []
+              required_golden_query_ids: []
+            thresholds:
+              public_korean:
+                dataset_id: miracl_ko
+                slice_id: all
+                must_improve_metrics:
+                  ndcg_at_10:
+                    min_relative_delta: 0.03
+              snowiki_korean:
+                slice_id: group:ko
+                must_improve_metrics: {}
+              mixed_and_identifier_regression:
+                slice_ids: []
+                max_allowed_absolute_regression: 0.0
+                metrics: []
+              temporal_regression:
+                slice_id: kind:temporal
+                max_allowed_absolute_regression: 0.0
+                metrics: []
+              golden_query_regression:
+                fixture: fixtures/retrieval/golden_queries.json
+                required_query_ids: []
+                max_allowed_top5_regressions: 0
+              public_english_regression:
+                dataset_ids: []
+                slice_id: all
+                max_allowed_absolute_regression: 0.005
+                max_allowed_relative_regression: 0.01
+                metrics: []
+              english_regression:
+                slice_id: group:en
+                max_allowed_absolute_regression: 0.005
+                max_allowed_relative_regression: 0.01
+                metrics: []
+              latency:
+                max_p95_multiplier_vs_baseline: 1.5
+            """
+        ),
+        encoding="utf-8",
+    )
+    _ = report_path.write_text(
+        json.dumps(
+            {
+                "cells": [
+                    {
+                        "dataset_id": "miracl_ko",
+                        "level_id": "standard",
+                        "target_id": "bm25_regex_v1",
+                        "status": "success",
+                        "metrics": [{"metric_id": "ndcg_at_10", "value": 0.40}],
+                        "latency": {"p95": 5.0},
+                        "per_query": {},
+                        "slices": {},
+                        "error": None,
+                    },
+                    {
+                        "dataset_id": "miracl_ko",
+                        "level_id": "standard",
+                        "target_id": "bm25_kiwi_morphology_v1",
+                        "status": "success",
+                        "metrics": [{"metric_id": "ndcg_at_10", "value": 0.40}],
+                        "latency": {"p95": 5.1},
+                        "per_query": {},
+                        "slices": {},
+                        "error": None,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "benchmark-gate",
+            "--gate",
+            str(gate_path),
+            "--report",
+            str(report_path),
+            "--gate-report",
+            str(gate_report_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "status=fail" in result.output
+    payload = _read_json(gate_report_path)
+    assert payload["status"] == "fail"
+    assert payload["summary"] == {
+        "candidate_count": 1,
+        "pass_count": 0,
+        "fail_count": 1,
+        "failure_count": 1,
+    }
+
+
+def test_benchmark_gate_missing_report_fails_in_click_validation(tmp_path: Path) -> None:
+    gate_path = tmp_path / "gate.yaml"
+    _ = gate_path.write_text("gate_id: x\n", encoding="utf-8")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["benchmark-gate", "--gate", str(gate_path)])
+
+    assert result.exit_code == 2
+    assert "Missing option '--report'." in result.output
+
+
+def test_benchmark_gate_malformed_report_uses_click_error(tmp_path: Path) -> None:
+    gate_path = tmp_path / "gate.yaml"
+    report_path = tmp_path / "bad-report.json"
+    _ = gate_path.write_text(
+        dedent(
+            """\
+            gate_id: korean_analyzer_promotion_v1
+            baseline_target: bm25_regex_v1
+            candidate_targets:
+              - bm25_kiwi_morphology_v1
+            public_matrix:
+              matrix: benchmarks/contracts/official_matrix.yaml
+              required_dataset_ids:
+                - miracl_ko
+              required_level_ids:
+                - standard
+            snowiki_slices:
+              required_slice_ids: []
+              required_golden_query_ids: []
+            thresholds:
+              public_korean:
+                dataset_id: miracl_ko
+                slice_id: all
+                must_improve_metrics: {}
+              snowiki_korean:
+                slice_id: group:ko
+                must_improve_metrics: {}
+              mixed_and_identifier_regression:
+                slice_ids: []
+                max_allowed_absolute_regression: 0.0
+                metrics: []
+              temporal_regression:
+                slice_id: kind:temporal
+                max_allowed_absolute_regression: 0.0
+                metrics: []
+              golden_query_regression:
+                fixture: fixtures/retrieval/golden_queries.json
+                required_query_ids: []
+                max_allowed_top5_regressions: 0
+              public_english_regression:
+                dataset_ids: []
+                slice_id: all
+                max_allowed_absolute_regression: 0.005
+                max_allowed_relative_regression: 0.01
+                metrics: []
+              english_regression:
+                slice_id: group:en
+                max_allowed_absolute_regression: 0.005
+                max_allowed_relative_regression: 0.01
+                metrics: []
+              latency:
+                max_p95_multiplier_vs_baseline: 1.5
+            """
+        ),
+        encoding="utf-8",
+    )
+    _ = report_path.write_text("{bad json", encoding="utf-8")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["benchmark-gate", "--gate", str(gate_path), "--report", str(report_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "Error:" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_benchmark_gate_malformed_gate_uses_click_error(tmp_path: Path) -> None:
+    gate_path = tmp_path / "bad-gate.yaml"
+    report_path = tmp_path / "report.json"
+    _ = gate_path.write_text("gate_id: [unterminated\n", encoding="utf-8")
+    _ = report_path.write_text('{"cells": []}\n', encoding="utf-8")
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["benchmark-gate", "--gate", str(gate_path), "--report", str(report_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "Error:" in result.output
+    assert "Traceback" not in result.output

@@ -59,6 +59,7 @@ The current runtime exposes these top-level commands. For the detailed role taxo
 - `snowiki export`
 - `snowiki benchmark`
 - `snowiki benchmark-fetch`
+- `snowiki benchmark-gate`
 - `snowiki mcp`
 
 ### Shipped CLI Support
