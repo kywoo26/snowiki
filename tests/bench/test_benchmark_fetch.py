@@ -116,6 +116,21 @@ def test_materialize_dataset_writes_normalized_outputs_and_metadata(
     assert set(timestamps) == {"started_at", "completed_at"}
 
 
+def test_materialize_dataset_rejects_static_local_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_static_manifest(tmp_path, dataset_id="snowiki_retrieval_regression")
+    monkeypatch.setattr(benchmark_fetch, "resolve_repo_asset_path", _resolver(tmp_path))
+    monkeypatch.setattr(benchmark_fetch, "resolve_dataset_assets", _asset_resolver(tmp_path))
+
+    with pytest.raises(ValueError, match="does not support benchmark-fetch materialization"):
+        _ = benchmark_fetch.materialize_dataset(
+            "snowiki_retrieval_regression",
+            level=LevelConfig(level_id="regression", query_cap=20),
+        )
+
+
 def test_materialize_dataset_passes_trust_remote_code_when_requested(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -509,6 +524,44 @@ def _write_manifest_with_query_text_keys(
     replacement = ["  query_text_keys:", *(f"    - {key}" for key in query_text_keys)]
     _ = manifest_path.write_text(
         "\n".join((*lines[:start], *replacement, *lines[end:])) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_static_manifest(tmp_path: Path, *, dataset_id: str) -> None:
+    manifest_path = tmp_path / "benchmarks/contracts/datasets" / f"{dataset_id}.yaml"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        "\n".join(
+            (
+                f"dataset_id: {dataset_id}",
+                "name: Static Dataset",
+                "language: mixed",
+                "purpose_tags:",
+                "  - product-regression",
+                "corpus_path: benchmarks/regression/static/corpus.json",
+                "queries_path: benchmarks/regression/static/queries.json",
+                "judgments_path: benchmarks/regression/static/judgments.json",
+                "field_mappings:",
+                "  corpus_id_keys:",
+                "    - docid",
+                "  corpus_text_keys:",
+                "    - text",
+                "  query_id_keys:",
+                "    - id",
+                "  query_text_keys:",
+                "    - text",
+                "  judgment_query_id_keys:",
+                "    - qid",
+                "  judgment_doc_id_keys:",
+                "    - docid",
+                "  judgment_relevance_keys:",
+                "    - relevance",
+                "supported_levels:",
+                "  - regression",
+            )
+        )
+        + "\n",
         encoding="utf-8",
     )
 
