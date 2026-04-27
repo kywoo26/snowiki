@@ -112,6 +112,7 @@ rerunning the matrix:
 ```bash
 uv run snowiki benchmark-gate \
   --report reports/benchmark-lexical-baselines.json \
+  --report reports/snowiki-regression-analyzers.json \
   --gate benchmarks/contracts/analyzer_promotion_gates.yaml \
   --gate-report reports/analyzer-gate.json
 ```
