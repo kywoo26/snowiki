@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import random
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import cast
 
@@ -22,7 +22,7 @@ from snowiki.bench.specs import (
     QueryResult,
 )
 from snowiki.config import get_snowiki_root
-from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchIndex
+from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
 from snowiki.search.corpus import RuntimeCorpusDocument
 from snowiki.search.engine import BM25RuntimeIndex
 from snowiki.search.protocols import RuntimeSearchIndex
@@ -33,6 +33,7 @@ from snowiki.search.subword_tokenizer import wordpiece_tokenizer_config
 from snowiki.storage.zones import StoragePaths
 
 BENCHMARK_RETRIEVAL_LIMIT = 100
+BENCHMARK_DIAGNOSTIC_HIT_LIMIT = 10
 CORPUS_SAMPLING_SEED = 2718
 
 
@@ -45,7 +46,9 @@ class _SnowikiQueryRuntimeTargetAdapter:
         manifest: DatasetManifest,
         level: LevelConfig,
         queries: tuple[BenchmarkQuery, ...],
+        include_diagnostics: bool = False,
     ) -> Mapping[str, object]:
+        del include_diagnostics
         documents = tuple(
             RuntimeCorpusDocument(
                 id=doc_id,
@@ -83,6 +86,7 @@ class _BM25TargetAdapter:
         manifest: DatasetManifest,
         level: LevelConfig,
         queries: tuple[BenchmarkQuery, ...],
+        include_diagnostics: bool = False,
     ) -> Mapping[str, object]:
         corpus_rows = _load_materialized_corpus_rows(
             manifest,
@@ -113,6 +117,7 @@ class _BM25TargetAdapter:
                 path,
                 documents,
                 expected_tokenizer_name=self._tokenizer_name,
+                load_corpus_tokens=include_diagnostics,
             )
 
         cache_result = load_or_rebuild_bm25_cache(
@@ -122,7 +127,14 @@ class _BM25TargetAdapter:
             load_artifact=_load_artifact,
         )
         index = cache_result.value
-        results = tuple(_run_bm25_query(index=index, query=query) for query in queries)
+        results = tuple(
+            _run_bm25_query(
+                index=index,
+                query=query,
+                include_diagnostics=include_diagnostics,
+            )
+            for query in queries
+        )
         return {"results": results, "cache": cache_result.metadata}
 
     def _cache_identity(
@@ -328,15 +340,62 @@ def _run_bm25_query(
     *,
     index: BM25SearchIndex,
     query: BenchmarkQuery,
+    include_diagnostics: bool = False,
 ) -> QueryResult:
     start = time.perf_counter()
     hits = index.search(query.query_text, limit=BENCHMARK_RETRIEVAL_LIMIT)
     latency_ms = (time.perf_counter() - start) * 1000.0
+    diagnostics = (
+        _bm25_query_diagnostics(index=index, query=query, hits=hits)
+        if include_diagnostics
+        else {}
+    )
     return QueryResult(
         query_id=query.query_id,
         ranked_doc_ids=tuple(hit.document.id for hit in hits),
         latency_ms=latency_ms,
+        diagnostics=diagnostics,
     )
+
+
+def _bm25_query_diagnostics(
+    *,
+    index: BM25SearchIndex,
+    query: BenchmarkQuery,
+    hits: Sequence[BM25SearchHit],
+) -> dict[str, object]:
+    query_tokens = index.tokenize_query(query.query_text)
+    top_hits: list[dict[str, object]] = []
+    for rank, hit in enumerate(hits[:BENCHMARK_DIAGNOSTIC_HIT_LIMIT], start=1):
+        document = hit.document
+        document_tokens = index.tokens_for_document(document.id)
+        matched_terms = tuple(hit.matched_terms)
+        top_hits.append(
+            {
+                "rank": rank,
+                "doc_id": document.id,
+                "score": float(hit.score),
+                "matched_terms": list(matched_terms),
+                "document_tokens": list(document_tokens),
+                "token_overlap": {
+                    "matched_query_token_count": len(matched_terms),
+                    "query_token_count": len(query_tokens),
+                    "document_token_count": len(document_tokens),
+                },
+                "document": {
+                    "path": document.path,
+                    "title": document.title,
+                    "kind": document.kind,
+                },
+            }
+        )
+    return {
+        "retriever": "bm25",
+        "tokenizer": index.tokenizer_name,
+        "query_text": query.query_text,
+        "query_tokens": list(query_tokens),
+        "top_hits": top_hits,
+    }
 
 
 SNOWIKI_QUERY_RUNTIME_TARGET_ADAPTER = _SnowikiQueryRuntimeTargetAdapter()

@@ -37,8 +37,9 @@ class _Adapter:
         manifest: DatasetManifest,
         level: LevelConfig,
         queries: tuple[BenchmarkQuery, ...],
+        include_diagnostics: bool = False,
     ) -> Mapping[str, object]:
-        del manifest, level, queries
+        del manifest, level, queries, include_diagnostics
         return {}
 
 
@@ -345,6 +346,7 @@ def test_bm25_regex_target_executes_on_tiny_fixture(
         manifest=manifest,
         level=LevelConfig(level_id="quick", query_cap=1),
         queries=(BenchmarkQuery(query_id="q1", query_text="needle alpha"),),
+        include_diagnostics=True,
     )
 
     results = tuple(cast(QueryResult, result) for result in execution["results"])
@@ -355,6 +357,21 @@ def test_bm25_regex_target_executes_on_tiny_fixture(
     assert results[0].ranked_doc_ids[:2] == ("doc-b", "doc-c")
     assert results[0].latency_ms is not None
     assert (results[0].latency_ms or 0.0) >= 0.0
+    diagnostics = results[0].diagnostics
+    assert diagnostics["retriever"] == "bm25"
+    assert diagnostics["tokenizer"] == "regex_v1"
+    assert diagnostics["query_tokens"] == ["needle alpha", "needle", "alpha"]
+    top_hits = cast(list[Mapping[str, object]], diagnostics["top_hits"])
+    assert top_hits[0]["rank"] == 1
+    assert top_hits[0]["doc_id"] == "doc-b"
+    assert isinstance(top_hits[0]["score"], float)
+    assert top_hits[0]["matched_terms"] == ["needle", "alpha"]
+    assert set(cast(list[str], top_hits[0]["document_tokens"])).issuperset(
+        {"needle", "alpha", "phrase"}
+    )
+    assert cast(Mapping[str, object], top_hits[0]["document"])["path"] == "doc-b"
+    token_overlap = cast(Mapping[str, object], top_hits[0]["token_overlap"])
+    assert token_overlap["matched_query_token_count"] == 2
     assert cache["cache_hit"] is False
     assert cache["cache_status"] == "rebuilt"
     assert cache["cache_miss_reason"] == "missing_manifest"
@@ -377,12 +394,15 @@ def test_bm25_target_hits_persistent_cache_and_skips_rebuild(
     class _FakeHit:
         def __init__(self, document: object) -> None:
             self.document = document
+            self.score = 1.0
+            self.matched_terms = ("alpha",)
 
     class _FakeIndex:
         def __init__(self, documents: Sequence[object], tokenizer_name: str) -> None:
             assert tokenizer_name == "regex_v1"
             builds.append(time.perf_counter())
             self.documents = list(documents)
+            self.tokenizer_name = tokenizer_name
 
         def to_cache_bytes(self) -> bytes:
             return b"fake-bm25-index"
@@ -394,17 +414,28 @@ def test_bm25_target_hits_persistent_cache_and_skips_rebuild(
             documents: Sequence[object],
             *,
             expected_tokenizer_name: str | None = None,
+            load_corpus_tokens: bool = False,
         ) -> object:
             assert expected_tokenizer_name == "regex_v1"
+            assert load_corpus_tokens is False
             assert path.read_bytes() == b"fake-bm25-index"
             loads.append(path)
             instance = cls.__new__(cls)
             instance.documents = list(documents)
+            instance.tokenizer_name = expected_tokenizer_name or "regex_v1"
             return instance
 
         def search(self, query: str, limit: int = 10) -> list[_FakeHit]:
             del query, limit
             return [_FakeHit(self.documents[0])]
+
+        def tokenize_query(self, query: str) -> tuple[str, ...]:
+            del query
+            return ("alpha",)
+
+        def tokens_for_document(self, document_id: str) -> tuple[str, ...]:
+            del document_id
+            return ("alpha", "cache", "hit")
 
     monkeypatch.setattr(
         "snowiki.benchmark_targets._load_materialized_corpus_rows",
@@ -462,9 +493,9 @@ def test_bm25_target_rebuilds_and_reports_corrupt_cached_load(
 
     class _FakeIndex:
         def __init__(self, documents: Sequence[object], tokenizer_name: str) -> None:
-            del tokenizer_name
             builds.append("built")
             self.documents = list(documents)
+            self.tokenizer_name = tokenizer_name
 
         def to_cache_bytes(self) -> bytes:
             return b"fake-bm25-index"
@@ -476,14 +507,19 @@ def test_bm25_target_rebuilds_and_reports_corrupt_cached_load(
             documents: Sequence[object],
             *,
             expected_tokenizer_name: str | None = None,
+            load_corpus_tokens: bool = False,
         ) -> object:
-            del documents, expected_tokenizer_name
+            del documents, expected_tokenizer_name, load_corpus_tokens
             load_attempts.append(path)
             raise ValueError("cached index is corrupt")
 
         def search(self, query: str, limit: int = 10) -> list[object]:
             del query, limit
             return []
+
+        def tokenize_query(self, query: str) -> tuple[str, ...]:
+            del query
+            return ("alpha",)
 
     monkeypatch.setattr(
         "snowiki.benchmark_targets._load_materialized_corpus_rows",
@@ -726,7 +762,8 @@ def test_bm25_target_uses_level_corpus_cap(
 
     class _FakeIndex:
         def __init__(self, documents: Sequence[object], tokenizer_name: str) -> None:
-            del documents, tokenizer_name
+            del documents
+            self.tokenizer_name = tokenizer_name
 
         def to_cache_bytes(self) -> bytes:
             return b"fake-bm25-index"
@@ -734,6 +771,10 @@ def test_bm25_target_uses_level_corpus_cap(
         def search(self, query: str, limit: int = 10) -> list[object]:
             del query, limit
             return []
+
+        def tokenize_query(self, query: str) -> tuple[str, ...]:
+            del query
+            return ("alpha",)
 
     monkeypatch.setattr("snowiki.benchmark_targets._load_materialized_corpus_rows", _load_rows)
     monkeypatch.setattr("snowiki.benchmark_targets.BM25SearchIndex", _FakeIndex)
