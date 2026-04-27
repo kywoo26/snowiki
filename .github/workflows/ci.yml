@@ -47,8 +47,8 @@ jobs:
       - name: Sync dependencies
         run: uv sync --group dev
 
-      - name: Pytest unit tests
-        run: uv run pytest
+      - name: Pytest unit tests with coverage
+        run: uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -69,23 +69,3 @@ jobs:
 
       - name: Pytest integration tests
         run: uv run pytest -m integration
-
-  coverage:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Set up uv with Python 3.14
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.14"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Sync dependencies
-        run: uv sync --group dev
-
-      - name: Pytest with coverage
-        run: uv run pytest --cov=snowiki --cov-report=term-missing --cov-report=xml

@@ -120,9 +120,9 @@ This support command is a report post-processor for CI and manual promotion
 checks; it does not change runtime analyzer defaults. A complete analyzer
 promotion report must include both the public matrix cells and the Snowiki-owned
 slice/golden-query evidence named by the gate contract; missing Snowiki evidence
-is an intentional gate failure, not an implicit pass. Until a dedicated
-Snowiki-owned benchmark matrix is added, keep using `benchmark-gate` to make that
-missing evidence explicit and block default analyzer promotion.
+is an intentional gate failure, not an implicit pass. Use the Snowiki-owned
+regression matrix below to generate the product slice/golden-query evidence
+required by the gate before considering any runtime default analyzer change.
 
 ## Snowiki regression evidence
 

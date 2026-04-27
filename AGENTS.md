@@ -45,6 +45,7 @@ This is the root AGENTS file for Snowiki. It defines repo-wide rules. Child `AGE
 
 - `tests/unit/` is the default fast loop. Keep tests deterministic and patch external boundaries.
 - `tests/integration/` exercises real CLI/runtime boundaries and runs with `pytest -m integration`.
+- `tests/smoke/` is for fast end-to-end product contract smoke tests and runs with `pytest -m smoke`.
 - `tests/bench/` is for benchmark-domain and dataset-heavy validation; it is excluded from the default unit loop.
 - `tests/perf/` is for latency/performance assertions and is excluded from the default unit loop.
 - Keep shared fixtures in the nearest `conftest.py`; do not dynamically import another test directory's `conftest.py`.
