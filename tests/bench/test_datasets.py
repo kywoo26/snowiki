@@ -69,6 +69,44 @@ def test_load_matrix_reads_official_contract() -> None:
     assert matrix.levels["standard"].corpus_cap == 200000
 
 
+def test_load_matrix_reads_snowiki_regression_contract() -> None:
+    matrix = load_matrix("benchmarks/contracts/snowiki_regression_matrix.yaml")
+
+    assert matrix.matrix_id == "snowiki_regression"
+    assert matrix.datasets == ("snowiki_retrieval_regression",)
+    assert tuple(matrix.levels) == ("regression",)
+    assert matrix.levels["regression"].query_cap == 20
+    assert matrix.levels["regression"].corpus_cap is None
+
+
+def test_load_dataset_manifest_reads_snowiki_regression_contract() -> None:
+    manifest = load_dataset_manifest(
+        "benchmarks/contracts/datasets/snowiki_retrieval_regression.yaml"
+    )
+
+    assert manifest.dataset_id == "snowiki_retrieval_regression"
+    assert manifest.language == "mixed"
+    assert manifest.purpose_tags == (
+        "product-regression",
+        "analyzer-promotion",
+        "snowiki-owned",
+    )
+    assert manifest.corpus_path == "benchmarks/regression/snowiki_retrieval/corpus.json"
+    assert manifest.queries_path == "benchmarks/regression/snowiki_retrieval/queries.json"
+    assert manifest.judgments_path == "benchmarks/regression/snowiki_retrieval/judgments.json"
+    assert manifest.supported_levels == ("regression",)
+
+
+def test_snowiki_regression_assets_cover_gate_slices() -> None:
+    manifest = load_dataset_manifest(
+        "benchmarks/contracts/datasets/snowiki_retrieval_regression.yaml"
+    )
+    assets = resolve_dataset_assets(manifest, level_id="regression")
+
+    assert set(assets) == {"corpus", "queries", "judgments"}
+    assert all(path.is_file() for path in assets.values())
+
+
 def test_resolve_dataset_assets_rejects_unsafe_level_id() -> None:
     manifest = load_dataset_manifest("benchmarks/contracts/datasets/beir_scifact.yaml")
 

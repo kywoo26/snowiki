@@ -1,0 +1,7 @@
+matrix_id: snowiki_regression
+datasets:
+  - snowiki_retrieval_regression
+levels:
+  regression:
+    query_cap: 20
+    note: Reviewable Snowiki-owned product retrieval regression evidence.

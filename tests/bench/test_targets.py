@@ -203,6 +203,7 @@ def test_builtin_targets_are_discoverable() -> None:
         "beir_scifact",
         "trec_dl_2020_passage",
         "miracl_ko",
+        "snowiki_retrieval_regression",
     )
 
     assert len(BUILTIN_TARGETS) == 6
@@ -616,6 +617,46 @@ def test_corpus_sampling_preserves_order_when_corpus_fits_cap(tmp_path: Path) ->
     assert tuple(doc_id for doc_id, _ in sampled_rows) == ("doc-a", "doc-b", "doc-c")
 
 
+def test_json_corpus_loader_reads_wrapped_corpus_rows(tmp_path: Path) -> None:
+    import snowiki.benchmark_targets as benchmark_targets
+
+    corpus_path = tmp_path / "corpus.json"
+    level_corpus_path = tmp_path / "regression" / "corpus.json"
+    level_corpus_path.parent.mkdir(parents=True, exist_ok=True)
+    level_corpus_path.write_text(
+        '{"corpus": [{"docid": "doc-a", "text": "alpha"}, {"docid": "doc-b", "text": "beta"}]}\n',
+        encoding="utf-8",
+    )
+    manifest = _json_fixture_manifest(corpus_path)
+
+    rows = benchmark_targets._load_materialized_corpus_rows(
+        manifest,
+        level=LevelConfig(level_id="regression", query_cap=2),
+    )
+
+    assert rows == (("doc-a", "alpha"), ("doc-b", "beta"))
+
+
+def test_json_corpus_loader_reads_top_level_rows(tmp_path: Path) -> None:
+    import snowiki.benchmark_targets as benchmark_targets
+
+    corpus_path = tmp_path / "corpus.json"
+    level_corpus_path = tmp_path / "regression" / "corpus.json"
+    level_corpus_path.parent.mkdir(parents=True, exist_ok=True)
+    level_corpus_path.write_text(
+        '[{"docid": "doc-a", "text": "alpha"}, {"docid": "doc-b", "text": "beta"}]\n',
+        encoding="utf-8",
+    )
+    manifest = _json_fixture_manifest(corpus_path)
+
+    rows = benchmark_targets._load_materialized_corpus_rows(
+        manifest,
+        level=LevelConfig(level_id="regression", query_cap=2, corpus_cap=1),
+    )
+
+    assert rows == (("doc-a", "alpha"),)
+
+
 def test_bm25_target_uses_level_corpus_cap(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -674,6 +715,20 @@ def _materialized_fixture_manifest(tmp_path: Path) -> DatasetManifest:
         judgments_path=(materialized_dir / "judgments.tsv").as_posix(),
         field_mappings={},
         supported_levels=("quick",),
+    )
+
+
+def _json_fixture_manifest(corpus_path: Path) -> DatasetManifest:
+    return DatasetManifest(
+        dataset_id="json_fixture",
+        name="JSON Fixture Dataset",
+        language="en",
+        purpose_tags=("product-regression",),
+        corpus_path=corpus_path.as_posix(),
+        queries_path=(corpus_path.parent / "queries.json").as_posix(),
+        judgments_path=(corpus_path.parent / "judgments.json").as_posix(),
+        field_mappings={},
+        supported_levels=("regression",),
     )
 
 

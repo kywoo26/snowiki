@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "dataset_id": "snowiki_retrieval_regression",
+    "description": "Gold relevance labels for the Snowiki-owned retrieval regression corpus."
+  },
+  "judgments": {
+    "ko_personal_wiki_contract": ["fixtures/claude/basic.jsonl"],
+    "ko_tool_session_qmd": ["fixtures/claude/with_tools.jsonl"],
+    "ko_privacy_reasoning": ["fixtures/opencode/with_reasoning.db"],
+    "ko_temporal_yesterday_retrieval": ["sessions/2026/04/07/mixed-retrieval-session.json"],
+    "ko_source_layers": ["docs/architecture/source-vault-compiled-taxonomy.md"],
+    "en_gate_default_promotion": ["docs/architecture/analyzer-promotion-gates.md"],
+    "en_benchmark_gate_cli": ["benchmarks/README.md"],
+    "en_judgments_not_diff_session": ["benchmarks/judgments.json"],
+    "en_runtime_corpus_conversion": ["docs/architecture/bm25-retrieval-engine.md"],
+    "en_resume_compaction_date": ["fixtures/opencode/with_compaction.db"],
+    "mixed_language_overview": ["compiled/wiki/search/mixed-language-overview.md"],
+    "mixed_cli_command_report": ["benchmarks/README.md"],
+    "mixed_indexing_today": ["sessions/2026/04/08/indexing-session.json"],
+    "mixed_attachment_planning": ["fixtures/claude/with_attachments.jsonl"],
+    "identifier_bm25_index": ["src/snowiki/search/bm25_index.py"],
+    "identifier_workspace_snapshot": ["src/snowiki/search/workspace.py"],
+    "source_provenance": ["docs/architecture/source-vault-compiled-taxonomy.md"],
+    "cli_tool_command": ["benchmarks/README.md"],
+    "session_history": ["fixtures/claude/resumed.jsonl", "fixtures/opencode/with_compaction.db"],
+    "hard_negative_secret_fixture": ["fixtures/secrets/test_api_keys.jsonl"]
+  }
+}

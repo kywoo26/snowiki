@@ -64,9 +64,10 @@ analyzer. Use `snowiki benchmark-gate --report <benchmark.json>` to evaluate an
 existing benchmark report against the contract without rerunning the matrix.
 Gate evaluation is intentionally strict: a public-only report may show Korean
 quality gains, but it still fails promotion when Snowiki-owned slice or golden
-query evidence is absent. A future Snowiki-owned benchmark matrix should produce
-those required slices directly from `benchmarks/queries.json`,
-`benchmarks/judgments.json`, and `fixtures/retrieval/golden_queries.json`.
+query evidence is absent. The Snowiki-owned regression matrix at
+`benchmarks/contracts/snowiki_regression_matrix.yaml` produces those required
+slices from reviewable product-regression assets under
+`benchmarks/regression/snowiki_retrieval/`.
 
 ## Non-goals
 

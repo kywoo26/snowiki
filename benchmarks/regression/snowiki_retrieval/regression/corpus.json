@@ -1,0 +1,101 @@
+{
+  "metadata": {
+    "dataset_id": "snowiki_retrieval_regression",
+    "description": "Reviewable Snowiki-owned product retrieval regression corpus assembled from existing fixture and architecture contracts.",
+    "bias_controls": [
+      "Pairs paraphrased user questions with product-shaped documents instead of title-only exact matches.",
+      "Keeps Korean, English, mixed-language, temporal, provenance, CLI, and identifier-heavy cases visible as separate slices.",
+      "Includes distractor documents so hard-negative queries are not solved by always returning any overlapping fixture."
+    ]
+  },
+  "corpus": [
+    {
+      "docid": "fixtures/claude/basic.jsonl",
+      "text": "Basic Claude session export for Snowiki. The conversation describes Snowiki as a personal wiki that compounds knowledge over time. It explains the durable memory model in both English and Korean: 개인 위키, 지식 축적, knowledge compounding, and source-to-compiled wiki flow."
+    },
+    {
+      "docid": "fixtures/claude/with_tools.jsonl",
+      "text": "Claude session with tool calls and tool results. It records a Bash tool_use that runs qmd search during a Snowiki workflow on 2026-04-02. The session is about using command output as evidence, not about benchmark scores."
+    },
+    {
+      "docid": "fixtures/claude/with_attachments.jsonl",
+      "text": "Claude session containing attachments design-notes.md and queries.csv. The work discusses benchmark planning, query inventory review, and attachment-based planning without claiming any analyzer promotion result."
+    },
+    {
+      "docid": "fixtures/claude/resumed.jsonl",
+      "text": "Resumed Claude session with resume_continuation marker. It preserves carry-over context and continuation notes for 2026-04-05 so later recall can find what was resumed from an earlier session."
+    },
+    {
+      "docid": "fixtures/opencode/with_todos.db",
+      "text": "OpenCode database fixture with todo rows for Korean and English benchmark work. It mentions query inventory, qmd search follow-up, benchmark coverage, and 한국어 query 검증 작업."
+    },
+    {
+      "docid": "fixtures/opencode/with_diffs.db",
+      "text": "OpenCode database fixture containing diff rows. One diff updates benchmarks/judgments.json, but this is the editing session around judgments, not the canonical gold-label dataset itself."
+    },
+    {
+      "docid": "fixtures/opencode/with_reasoning.db",
+      "text": "OpenCode reasoning fixture covering privacy gate reasoning, secret redaction, and rejection behavior. It explains why synthetic secrets should be blocked from durable memory and benchmark evidence."
+    },
+    {
+      "docid": "fixtures/opencode/with_compaction.db",
+      "text": "OpenCode compaction fixture. It records compaction timing, carry-over context, continuation flow, and resumed work on 2026-04-05. The document is a session-history fixture, not a search index cache."
+    },
+    {
+      "docid": "sessions/2026/04/07/mixed-retrieval-session.json",
+      "text": "Yesterday retrieval session from 2026-04-07. Work covered bilingual lexical retrieval, Korean tokenization, mixed Korean-English query behavior, analyzer candidates, and benchmark recall tradeoffs. 어제 한국어 검색과 mixed query retrieval 작업을 진행했다."
+    },
+    {
+      "docid": "sessions/2026/04/08/indexing-session.json",
+      "text": "Index builder session from 2026-04-08. The team worked on index building, blended search results, and runtime search behavior today. 오늘 인덱스 빌드 작업과 blended results를 다뤘다."
+    },
+    {
+      "docid": "compiled/wiki/search/mixed-language-overview.md",
+      "text": "Mixed-language lexical retrieval overview. This page explains blended session and wiki page retrieval for Korean and English mixed queries, including 한국어와 영어가 섞인 질문, session/page blended results, and why aggregate metrics can hide product regressions."
+    },
+    {
+      "docid": "compiled/wiki/benchmarks/overview.md",
+      "text": "Benchmark corpus overview. The benchmark corpus tracks Korean, English, and mixed-language query coverage with edge cases, hard negatives, ambiguous prompts, and judged evidence. It is not a runtime default promotion by itself."
+    },
+    {
+      "docid": "docs/architecture/bm25-retrieval-engine.md",
+      "text": "BM25 retrieval engine architecture. It describes RuntimeCorpusDocument, BM25SearchIndex, to_bm25_document conversion, query versus recall separation, and source_type fields used to preserve provenance."
+    },
+    {
+      "docid": "docs/architecture/source-vault-compiled-taxonomy.md",
+      "text": "Source, vault, compiled taxonomy. Source roots, raw provenance snapshots, normalized records, compiled pages, index cache, and fileback queues are separate layers. Retrieval must preserve source provenance rather than collapse every layer into one answer."
+    },
+    {
+      "docid": "docs/architecture/analyzer-promotion-gates.md",
+      "text": "Analyzer promotion gates. Public Korean improvements are necessary but not sufficient. Promotion also requires English public regression checks, Snowiki-owned slices, golden query evidence, and latency limits before changing the default tokenizer."
+    },
+    {
+      "docid": "benchmarks/README.md",
+      "text": "Benchmark README describing snowiki benchmark, benchmark-fetch, and benchmark-gate support commands. Example command: snowiki benchmark --target bm25_regex_v1 --report report.json. The benchmark-gate command evaluates existing reports without changing runtime defaults."
+    },
+    {
+      "docid": "src/snowiki/search/bm25_index.py",
+      "text": "BM25SearchIndex implementation for lexical retrieval. The module handles document indexing, tokenizer selection, cache serialization, and search results. It is code-heavy and must remain discoverable through API and symbol-oriented queries."
+    },
+    {
+      "docid": "src/snowiki/search/corpus.py",
+      "text": "RuntimeCorpusDocument definitions and corpus conversion helpers. The to_bm25_document path converts runtime documents into BM25 searchable documents while preserving id, path, title, kind, source_type, and content."
+    },
+    {
+      "docid": "src/snowiki/search/workspace.py",
+      "text": "Workspace retrieval helpers including build_retrieval_snapshot. The module assembles runtime search snapshots from workspace records and pages. Path-heavy queries often mention src/snowiki/search/workspace.py or build_retrieval_snapshot."
+    },
+    {
+      "docid": "benchmarks/judgments.json",
+      "text": "Gold judgments dataset for benchmark queries. This canonical labels file maps query IDs to relevant document IDs. It is different from the OpenCode diff session that edited benchmark judgments."
+    },
+    {
+      "docid": "benchmarks/queries.json",
+      "text": "Benchmark queries dataset with Korean, English, and mixed-language query inventory. It stores group, kind, and tags such as hard-negative, no-answer, ambiguous, and identifier-path-code-heavy."
+    },
+    {
+      "docid": "fixtures/secrets/test_api_keys.jsonl",
+      "text": "Fake API key fixture under fixtures/secrets. This is a privacy-test distractor for secret redaction work and should not be confused with source provenance, analyzer promotion, or benchmark gate documentation."
+    }
+  ]
+}

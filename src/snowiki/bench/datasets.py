@@ -260,6 +260,8 @@ def _load_dataset_sources(
     payload: dict[str, Any],
     source_path: Path,
 ) -> dict[str, DatasetSourceLocator]:
+    if "source" not in payload:
+        return {}
     source_payload = _require_mapping(payload, "source", source_path)
     required_keys = ("corpus", "queries", "judgments")
     return {

@@ -875,3 +875,45 @@ def test_benchmark_gate_malformed_gate_uses_click_error(tmp_path: Path) -> None:
     assert result.exit_code == 1
     assert "Error:" in result.output
     assert "Traceback" not in result.output
+
+
+def test_benchmark_runs_snowiki_regression_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SNOWIKI_ROOT", (tmp_path / "runtime").as_posix())
+    report_path = tmp_path / "snowiki-regression.json"
+
+    result = _invoke_benchmark(
+        "--matrix",
+        "benchmarks/contracts/snowiki_regression_matrix.yaml",
+        "--level",
+        "regression",
+        "--target",
+        "bm25_regex_v1",
+        "--report",
+        str(report_path),
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "matrix=snowiki_regression cells=1 failures=0" in result.output
+    payload = _read_json(report_path)
+    cell = payload["cells"][0]
+    assert isinstance(cell, dict)
+    assert cell["dataset_id"] == "snowiki_retrieval_regression"
+    assert cell["status"] == "success"
+    per_query = cell["per_query"]
+    assert isinstance(per_query, dict)
+    assert len(per_query) == 20
+    slices = cell["slices"]
+    assert isinstance(slices, dict)
+    assert {
+        "group:ko",
+        "group:en",
+        "group:mixed",
+        "kind:known-item",
+        "kind:topical",
+        "kind:temporal",
+        "tag:hard-negative",
+        "tag:identifier-path-code-heavy",
+    } <= set(slices)

@@ -63,6 +63,11 @@ def materialize_dataset(
         )
     output_paths = resolve_dataset_assets(manifest, level_id=level.level_id)
     sidecar_path = output_paths["corpus"].parent / MATERIALIZATION_SIDECAR_NAME
+    if not manifest.source:
+        raise ValueError(
+            f"Dataset {manifest.dataset_id} uses committed local benchmark assets "
+            "and does not support benchmark-fetch materialization."
+        )
     source_locators = _serialize_source_locators(manifest.source)
     field_mappings = _serialize_field_mappings(manifest.field_mappings)
     materialization_config = _serialize_materialization_config(level)
