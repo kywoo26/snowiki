@@ -164,6 +164,11 @@ def _load_materialized_corpus_rows(
                 level_id=level.level_id,
             )
         )
+    if corpus_path.suffix == ".json":
+        corpus_rows = _load_json_corpus_rows(corpus_path)
+        if level.corpus_cap is None or len(corpus_rows) <= level.corpus_cap:
+            return corpus_rows
+        return tuple(corpus_rows[: level.corpus_cap])
 
     from datasets import load_dataset
 
@@ -214,6 +219,23 @@ def _load_materialized_corpus_rows(
         return tuple(buffered_rows)
 
     return tuple(judged_rows.values()) + tuple(sampled_rows)
+
+
+def _load_json_corpus_rows(corpus_path: Path) -> tuple[tuple[str, str], ...]:
+    import json
+
+    payload: object = json.loads(corpus_path.read_text(encoding="utf-8"))
+    rows: object
+    if isinstance(payload, Mapping) and "corpus" in payload:
+        rows = payload["corpus"]
+    else:
+        rows = payload
+    if not isinstance(rows, list):
+        raise ValueError(f"Expected benchmark corpus rows in {corpus_path}")
+    corpus_rows: list[tuple[str, str]] = []
+    for row in rows:
+        corpus_rows.append(_coerce_corpus_row(row, corpus_path=corpus_path))
+    return tuple(corpus_rows)
 
 
 def _coerce_corpus_row(row: object, *, corpus_path: Path) -> tuple[str, str]:

@@ -48,35 +48,40 @@ OFFICIAL_DATASET_IDS: tuple[str, ...] = (
     "trec_dl_2020_passage",
     "miracl_ko",
 )
+SNOWIKI_REGRESSION_DATASET_IDS: tuple[str, ...] = ("snowiki_retrieval_regression",)
+BENCHMARK_DATASET_IDS: tuple[str, ...] = (
+    *OFFICIAL_DATASET_IDS,
+    *SNOWIKI_REGRESSION_DATASET_IDS,
+)
 BM25_REGEX_V1 = BenchmarkTargetSpec(
     target_id="bm25_regex_v1",
     description="BM25 retrieval target using the regex tokenizer.",
-    supported_datasets=OFFICIAL_DATASET_IDS,
+    supported_datasets=BENCHMARK_DATASET_IDS,
 )
 SNOWIKI_QUERY_RUNTIME_V1 = BenchmarkTargetSpec(
     target_id="snowiki_query_runtime_v1",
     description="Snowiki topical query runtime policy over benchmark corpora.",
-    supported_datasets=OFFICIAL_DATASET_IDS,
+    supported_datasets=BENCHMARK_DATASET_IDS,
 )
 BM25_KIWI_MORPHOLOGY_V1 = BenchmarkTargetSpec(
     target_id="bm25_kiwi_morphology_v1",
     description="BM25 retrieval target using Kiwi morphology tokenization.",
-    supported_datasets=OFFICIAL_DATASET_IDS,
+    supported_datasets=BENCHMARK_DATASET_IDS,
 )
 BM25_KIWI_NOUNS_V1 = BenchmarkTargetSpec(
     target_id="bm25_kiwi_nouns_v1",
     description="BM25 retrieval target using Kiwi noun-only tokenization.",
-    supported_datasets=OFFICIAL_DATASET_IDS,
+    supported_datasets=BENCHMARK_DATASET_IDS,
 )
 BM25_MECAB_MORPHOLOGY_V1 = BenchmarkTargetSpec(
     target_id="bm25_mecab_morphology_v1",
     description="BM25 retrieval target using MeCab morphology tokenization.",
-    supported_datasets=OFFICIAL_DATASET_IDS,
+    supported_datasets=BENCHMARK_DATASET_IDS,
 )
 BM25_HF_WORDPIECE_V1 = BenchmarkTargetSpec(
     target_id="bm25_hf_wordpiece_v1",
     description="BM25 retrieval target using Hugging Face WordPiece tokenization.",
-    supported_datasets=OFFICIAL_DATASET_IDS,
+    supported_datasets=BENCHMARK_DATASET_IDS,
 )
 
 
