@@ -79,13 +79,14 @@ python-version = "3.14"
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra --strict-config --strict-markers --import-mode=importlib -m 'not integration and not bench and not perf'"
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib -m 'not integration and not bench and not perf and not smoke'"
 testpaths = ["tests"]
 norecursedirs = [".venv", ".pytest_cache", ".ruff_cache", "dist", "build"]
 markers = [
   "integration: tests that exercise real runtime boundaries and are excluded from the default unit test loop",
   "bench: benchmark-domain tests and heavy dataset-driven evaluation that are excluded from the default unit test loop",
   "perf: performance and latency-sensitive tests that are excluded from the default unit test loop",
+  "smoke: fast end-to-end contract smoke tests that are excluded from the default unit test loop",
 ]
 
 [tool.coverage.run]
