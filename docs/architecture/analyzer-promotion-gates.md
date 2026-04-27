@@ -26,7 +26,7 @@ public and Snowiki-owned gates.
 
 ## Evidence layers
 
-Promotion requires all three evidence layers:
+Promotion requires all four evidence layers:
 
 1. **Public Korean retrieval**: `miracl_ko` at `standard` level, primarily
    `ndcg_at_10` and `recall_at_100`.
@@ -60,7 +60,13 @@ numeric tolerance policy.
 
 The contract is intentionally separate from runtime code. Passing it is a
 precondition for a future runtime-default PR; it does not itself promote an
-analyzer.
+analyzer. Use `snowiki benchmark-gate --report <benchmark.json>` to evaluate an
+existing benchmark report against the contract without rerunning the matrix.
+Gate evaluation is intentionally strict: a public-only report may show Korean
+quality gains, but it still fails promotion when Snowiki-owned slice or golden
+query evidence is absent. A future Snowiki-owned benchmark matrix should produce
+those required slices directly from `benchmarks/queries.json`,
+`benchmarks/judgments.json`, and `fixtures/retrieval/golden_queries.json`.
 
 ## Non-goals
 
