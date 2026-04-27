@@ -390,6 +390,7 @@ def test_bm25_target_hits_persistent_cache_and_skips_rebuild(
     _write_cache_fixture_files(manifest)
     builds: list[float] = []
     loads: list[Path] = []
+    matched_term_flags: list[bool] = []
 
     class _FakeHit:
         def __init__(self, document: object) -> None:
@@ -425,8 +426,15 @@ def test_bm25_target_hits_persistent_cache_and_skips_rebuild(
             instance.tokenizer_name = expected_tokenizer_name or "regex_v1"
             return instance
 
-        def search(self, query: str, limit: int = 10) -> list[_FakeHit]:
+        def search(
+            self,
+            query: str,
+            limit: int = 10,
+            *,
+            include_matched_terms: bool = True,
+        ) -> list[_FakeHit]:
             del query, limit
+            matched_term_flags.append(include_matched_terms)
             return [_FakeHit(self.documents[0])]
 
         def tokenize_query(self, query: str) -> tuple[str, ...]:
@@ -475,6 +483,7 @@ def test_bm25_target_hits_persistent_cache_and_skips_rebuild(
     assert second_cache["index_build_seconds"] == 0.0
     assert builds == [builds[0]]
     assert len(loads) == 1
+    assert matched_term_flags == [False, False]
     # Timing comparison is intentionally loose; CI runners can be very fast.
     # The behavioural assertions above (single build, single load, cache_hit=True)
     # are the real correctness check.
@@ -513,8 +522,14 @@ def test_bm25_target_rebuilds_and_reports_corrupt_cached_load(
             load_attempts.append(path)
             raise ValueError("cached index is corrupt")
 
-        def search(self, query: str, limit: int = 10) -> list[object]:
-            del query, limit
+        def search(
+            self,
+            query: str,
+            limit: int = 10,
+            *,
+            include_matched_terms: bool = True,
+        ) -> list[object]:
+            del query, limit, include_matched_terms
             return []
 
         def tokenize_query(self, query: str) -> tuple[str, ...]:
@@ -768,8 +783,14 @@ def test_bm25_target_uses_level_corpus_cap(
         def to_cache_bytes(self) -> bytes:
             return b"fake-bm25-index"
 
-        def search(self, query: str, limit: int = 10) -> list[object]:
-            del query, limit
+        def search(
+            self,
+            query: str,
+            limit: int = 10,
+            *,
+            include_matched_terms: bool = True,
+        ) -> list[object]:
+            del query, limit, include_matched_terms
             return []
 
         def tokenize_query(self, query: str) -> tuple[str, ...]:
