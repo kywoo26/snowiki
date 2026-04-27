@@ -106,6 +106,55 @@ def test_bm25_cache_identity_covers_ordered_corpus_tokenizer_and_versions() -> N
     assert tokenizer_changed_identity["identity_hash"] != identity["identity_hash"]
 
 
+def test_bm25_wordpiece_cache_identity_includes_training_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from snowiki import benchmark_targets
+
+    monkeypatch.setattr(
+        benchmark_targets,
+        "resolve_dataset_assets",
+        lambda _manifest, *, level_id: {"corpus": Path("fixture/corpus.json")},
+    )
+    monkeypatch.setattr(
+        benchmark_targets,
+        "_sha256_file",
+        lambda _path: "corpus-sha256",
+    )
+    adapter = benchmark_targets._BM25TargetAdapter(
+        "bm25_hf_wordpiece_v1",
+        "hf_wordpiece_v1",
+    )
+    manifest = DatasetManifest(
+        dataset_id="fixture",
+        name="Fixture",
+        language="en",
+        purpose_tags=("unit",),
+        corpus_path="corpus.json",
+        queries_path="queries.json",
+        judgments_path="judgments.json",
+        field_mappings={},
+        supported_levels=("tiny",),
+    )
+    level = LevelConfig(level_id="tiny", query_cap=1)
+
+    identity = adapter._cache_identity(
+        manifest=manifest,
+        level=level,
+        corpus_rows=(("doc-a", "Alpha text"),),
+    )
+
+    tokenizer = cast(Mapping[str, object], identity["tokenizer"])
+    config = cast(Mapping[str, object], tokenizer["config"])
+    assert config == {
+        "family": "subword",
+        "lowercase": True,
+        "min_frequency": 1,
+        "runtime_supported": False,
+        "vocab_size": 2000,
+    }
+
+
 @pytest.mark.parametrize(
     "changed_field",
     ["corpus_cap", "document_content", "tokenizer_name", "tokenizer_config", "bm25_params"],
