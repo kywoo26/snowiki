@@ -241,8 +241,9 @@ def test_single_cell_success(monkeypatch: pytest.MonkeyPatch) -> None:
         level_id: str,
         target_id: str,
         metric_ids: Sequence[str] | None = None,
+        include_diagnostics: bool = False,
     ) -> CellResult:
-        del matrix
+        del matrix, include_diagnostics
         calls.append((dataset_id, level_id, target_id, metric_ids))
         return _success_cell(dataset_id, level_id, target_id)
 
@@ -302,8 +303,9 @@ def test_matrix_with_multiple_cells(monkeypatch: pytest.MonkeyPatch) -> None:
         level_id: str,
         target_id: str,
         metric_ids: Sequence[str] | None = None,
+        include_diagnostics: bool = False,
     ) -> CellResult:
-        del matrix, metric_ids
+        del matrix, metric_ids, include_diagnostics
         calls.append((dataset_id, level_id, target_id))
         return _success_cell(dataset_id, level_id, target_id)
 
@@ -338,8 +340,9 @@ def test_partial_failure_continues_when_fail_fast_is_disabled(
         level_id: str,
         target_id: str,
         metric_ids: Sequence[str] | None = None,
+        include_diagnostics: bool = False,
     ) -> CellResult:
-        del matrix, metric_ids
+        del matrix, metric_ids, include_diagnostics
         if dataset_id == "dataset_a":
             return _failed_cell(
                 dataset_id,
@@ -376,8 +379,9 @@ def test_fail_fast_stops_after_first_failure(monkeypatch: pytest.MonkeyPatch) ->
         level_id: str,
         target_id: str,
         metric_ids: Sequence[str] | None = None,
+        include_diagnostics: bool = False,
     ) -> CellResult:
-        del matrix, metric_ids
+        del matrix, metric_ids, include_diagnostics
         calls.append((dataset_id, level_id, target_id))
         return _failed_cell(
             dataset_id,
@@ -624,6 +628,129 @@ def test_run_cell_reports_slice_metrics_from_query_metadata(
     assert cast(dict[str, object], group_mixed["metrics"])["hit_rate_at_1"] == 0.0
     assert cast(dict[str, object], known_item["metrics"])["mrr_at_10"] == 1.0
     assert identifier_slice["query_count"] == 2
+
+
+def test_run_cell_preserves_query_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=1)},
+    )
+    diagnostics: dict[str, object] = {
+        "retriever": "bm25",
+        "tokenizer": "regex_v1",
+        "query_tokens": ["needle", "alpha"],
+        "top_hits": [
+            {
+                "rank": 1,
+                "doc_id": "doc-b",
+                "score": 1.25,
+                "matched_terms": ["needle", "alpha"],
+            }
+        ],
+    }
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+            include_diagnostics: bool = False,
+        ) -> dict[str, object]:
+            assert include_diagnostics is True
+            del manifest, level, queries
+            return {
+                "results": (
+                    QueryResult(
+                        query_id="q1",
+                        ranked_doc_ids=("doc-b",),
+                        latency_ms=2.5,
+                        diagnostics=diagnostics,
+                    ),
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest, **kwargs: (BenchmarkQuery(query_id="q1", query_text="needle"),),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest, **kwargs: {"q1": {"doc-b"}},
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="test_target",
+        include_diagnostics=True,
+    )
+
+    per_query = cast(dict[str, dict[str, object]], result.details["per_query"])
+    assert per_query["q1"]["diagnostics"] == diagnostics
+
+
+def test_run_cell_omits_query_diagnostics_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _manifest()
+    matrix = EvaluationMatrix(
+        matrix_id="test_matrix",
+        datasets=("beir_nq",),
+        levels={"quick": LevelConfig(level_id="quick", query_cap=1)},
+    )
+
+    class _Adapter:
+        def run(
+            self,
+            *,
+            manifest: DatasetManifest,
+            level: LevelConfig,
+            queries: tuple[BenchmarkQuery, ...],
+        ) -> dict[str, object]:
+            del manifest, level, queries
+            return {
+                "results": (
+                    QueryResult(
+                        query_id="q1",
+                        ranked_doc_ids=("doc-b",),
+                        diagnostics={"query_tokens": ["sensitive"]},
+                    ),
+                )
+            }
+
+    monkeypatch.setattr(
+        "snowiki.bench.runner.load_dataset_manifest", lambda path: manifest
+    )
+    monkeypatch.setattr("snowiki.bench.runner.get_target", lambda target_id: _Adapter())
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_materialized_queries",
+        lambda manifest, **kwargs: (BenchmarkQuery(query_id="q1", query_text="needle"),),
+    )
+    monkeypatch.setattr(
+        "snowiki.bench.runner._load_qrels",
+        lambda manifest, **kwargs: {"q1": {"doc-b"}},
+    )
+
+    result = run_cell(
+        matrix=matrix,
+        dataset_id="beir_nq",
+        level_id="quick",
+        target_id="test_target",
+    )
+
+    per_query = cast(dict[str, dict[str, object]], result.details["per_query"])
+    assert "diagnostics" not in per_query["q1"]
 
 
 def test_run_cell_excludes_latency_metrics_from_slice_metrics(

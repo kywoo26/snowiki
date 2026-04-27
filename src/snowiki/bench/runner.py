@@ -46,6 +46,8 @@ def run_cell(
     level_id: str,
     target_id: str,
     metric_ids: Sequence[str] | None = None,
+    *,
+    include_diagnostics: bool = False,
 ) -> CellResult:
     """Run one matrix cell and compute all registered metrics."""
 
@@ -98,7 +100,20 @@ def run_cell(
             query_cap=level.query_cap,
         )
         selected_query_ids = {query.query_id for query in selected_queries}
-        execution = target.run(manifest=manifest, level=level, queries=selected_queries)
+        execution = (
+            target.run(
+                manifest=manifest,
+                level=level,
+                queries=selected_queries,
+                include_diagnostics=True,
+            )
+            if include_diagnostics
+            else target.run(
+                manifest=manifest,
+                level=level,
+                queries=selected_queries,
+            )
+        )
         cache_metadata = _coerce_cache_metadata(execution.get("cache"))
         query_results = tuple(
             result
@@ -131,7 +146,12 @@ def run_cell(
     details: dict[str, object] = {
         "eligible_query_count": eligible_query_count,
         "effective_query_count": len(selected_queries),
-        "per_query": _build_per_query_evidence(query_results, qrels, metrics),
+        "per_query": _build_per_query_evidence(
+            query_results,
+            qrels,
+            metrics,
+            include_diagnostics=include_diagnostics,
+        ),
         "slices": _build_slice_evidence(selected_queries, metrics),
         "sampling_seed": QUERY_SAMPLING_SEED,
     }
@@ -153,10 +173,16 @@ def run_cell(
 def run_matrix(
     matrix: EvaluationMatrix,
     selection: MatrixSelection = None,
+    *,
+    include_diagnostics: bool = False,
 ) -> BenchmarkRunResult:
     """Run the selected matrix cells through the lean runner skeleton."""
 
-    result, _ = run_matrix_with_exit_code(matrix=matrix, selection=selection)
+    result, _ = run_matrix_with_exit_code(
+        matrix=matrix,
+        selection=selection,
+        include_diagnostics=include_diagnostics,
+    )
     return result
 
 
@@ -165,6 +191,7 @@ def run_matrix_with_exit_code(
     selection: MatrixSelection = None,
     *,
     fail_fast: bool = False,
+    include_diagnostics: bool = False,
 ) -> tuple[BenchmarkRunResult, int]:
     """Run the selected matrix cells and return the result plus exit code."""
 
@@ -190,6 +217,7 @@ def run_matrix_with_exit_code(
                     level_id=level_id,
                     target_id=target_id,
                     metric_ids=normalized_selection["metric_ids"],
+                    include_diagnostics=include_diagnostics,
                 )
                 cells.append(cell)
                 if cell.error_message is None:
@@ -525,6 +553,8 @@ def _build_per_query_evidence(
     query_results: Sequence[QueryResult],
     qrels: Mapping[str, set[str]],
     metrics: Sequence[MetricResult],
+    *,
+    include_diagnostics: bool = False,
 ) -> dict[str, dict[str, object]]:
     metric_lookup: dict[str, Mapping[str, object]] = {}
     for metric in metrics:
@@ -545,6 +575,8 @@ def _build_per_query_evidence(
                 for metric_id, per_query_scores in metric_lookup.items()
             },
         }
+        if include_diagnostics and query_result and query_result.diagnostics:
+            evidence[query_id]["diagnostics"] = query_result.diagnostics
     return evidence
 
 
