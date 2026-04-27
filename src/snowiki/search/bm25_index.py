@@ -16,13 +16,14 @@ from .kiwi_tokenizer import (
     KiwiLexicalCandidateMode,
 )
 from .registry import SearchTokenizer, create, default, get
+from .subword_tokenizer import WordPieceSearchTokenizer
 from .tokenizer_compat import (
     normalize_stored_tokenizer_name,
     require_tokenizer_compatibility,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
     from datetime import datetime
 
 
@@ -70,6 +71,7 @@ class BM25SearchIndex:
     DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE: KiwiLexicalCandidateMode = "morphology"
     _METADATA_SUFFIX = ".snowiki_meta.json"
     _INDEX_FORMAT_VERSION = "bm25s-v1"
+    _WORDPIECE_VOCAB_SUFFIX = ".wordpiece-vocab.txt"
     _SHOW_PROGRESS = False
     _LEAVE_PROGRESS = False
     _TOKENIZER_NAMES: frozenset[str] = frozenset(
@@ -140,7 +142,7 @@ class BM25SearchIndex:
         return Path(f"{path}{cls._METADATA_SUFFIX}")
 
     def _metadata_payload(self) -> dict[str, object]:
-        return {
+        payload: dict[str, object] = {
             "method": self.method,
             "k1": self.k1,
             "b": self.b,
@@ -151,6 +153,23 @@ class BM25SearchIndex:
             "bm25s_version": self._bm25s_version(),
             "index_format_version": self._INDEX_FORMAT_VERSION,
         }
+        if isinstance(self.tokenizer, WordPieceSearchTokenizer) and self.tokenizer.is_fitted:
+            payload["tokenizer_artifact"] = {
+                "type": "bert_wordpiece_vocab",
+                "path": self._wordpiece_vocab_path_name(),
+                "vocab_size": self.tokenizer.vocab_size,
+                "min_frequency": self.tokenizer.min_frequency,
+                "lowercase": self.tokenizer.lowercase,
+            }
+        return payload
+
+    @classmethod
+    def _wordpiece_vocab_path(cls, path: str) -> Path:
+        index_path = Path(path)
+        return index_path.with_name(f"{index_path.name}{cls._WORDPIECE_VOCAB_SUFFIX}")
+
+    def _wordpiece_vocab_path_name(self) -> str:
+        return self._wordpiece_vocab_path("index").name
 
     @staticmethod
     def _bm25s_version() -> str:
@@ -315,6 +334,11 @@ class BM25SearchIndex:
     def save(self, path: str) -> None:
         """Save index to disk."""
         self.bm25.save(path)
+        if isinstance(self.tokenizer, WordPieceSearchTokenizer):
+            _ = self.tokenizer.save_vocab(
+                self._wordpiece_vocab_path(path).parent,
+                prefix="index.wordpiece",
+            )
         _ = self._metadata_path(path).write_text(
             json.dumps(self._metadata_payload(), ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -409,12 +433,65 @@ class BM25SearchIndex:
         instance.use_kiwi_tokenizer, instance.kiwi_lexical_candidate_mode = (
             cls._legacy_tokenizer_flags(instance.tokenizer_name)
         )
-        instance.tokenizer = (
-            create(instance.tokenizer_name)
-            if instance.use_kiwi_tokenizer or instance.tokenizer_name == "regex_v1"
-            else None
+        instance.tokenizer = cls._load_tokenizer(
+            tokenizer_name=instance.tokenizer_name,
+            metadata=metadata,
+            metadata_path=metadata_path,
         )
         instance._separate_field_tokenization = False
         instance.corpus_tokens = []
         instance.bm25 = bm25s.BM25.load(path, load_corpus=True)
         return instance
+
+    @classmethod
+    def _load_tokenizer(
+        cls,
+        *,
+        tokenizer_name: str,
+        metadata: dict[str, object],
+        metadata_path: Path,
+    ) -> SearchTokenizer | None:
+        if tokenizer_name == "hf_wordpiece_v1":
+            artifact = metadata.get("tokenizer_artifact")
+            if isinstance(artifact, dict):
+                artifact_payload = cast("Mapping[str, object]", artifact)
+                artifact_type = artifact_payload.get("type")
+                raw_path = artifact_payload.get("path")
+                vocab_size = artifact_payload.get("vocab_size", 2000)
+                min_frequency = artifact_payload.get("min_frequency", 1)
+                lowercase = artifact_payload.get("lowercase", True)
+            else:
+                artifact_type = None
+                raw_path = None
+                vocab_size = 2000
+                min_frequency = 1
+                lowercase = True
+            if artifact_type == "bert_wordpiece_vocab" and isinstance(raw_path, str) and raw_path:
+                vocab_path = cls._safe_tokenizer_artifact_path(
+                    metadata_path=metadata_path,
+                    artifact_path=raw_path,
+                )
+                if not vocab_path.is_file():
+                    raise ValueError(
+                        f"Missing BM25 tokenizer artifact: {vocab_path.as_posix()}"
+                    )
+                return WordPieceSearchTokenizer.from_vocab_file(
+                    vocab_path,
+                    vocab_size=int(cast(int | str, vocab_size)),
+                    min_frequency=int(cast(int | str, min_frequency)),
+                    lowercase=bool(lowercase),
+                )
+        if tokenizer_name == "regex_v1" or cls._legacy_tokenizer_flags(tokenizer_name)[0]:
+            return create(tokenizer_name)
+        return None
+
+    @staticmethod
+    def _safe_tokenizer_artifact_path(
+        *,
+        metadata_path: Path,
+        artifact_path: str,
+    ) -> Path:
+        member_path = PurePosixPath(artifact_path)
+        if member_path.is_absolute() or ".." in member_path.parts:
+            raise ValueError(f"Unsafe BM25 tokenizer artifact path: {artifact_path}")
+        return metadata_path.parent / member_path
