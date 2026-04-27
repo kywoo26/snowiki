@@ -3,6 +3,7 @@ from __future__ import annotations
 from . import (
     benchmark,
     benchmark_fetch,
+    benchmark_gate,
     export,
     fileback,
     ingest,
@@ -18,6 +19,7 @@ from . import (
 __all__ = [
     "benchmark",
     "benchmark_fetch",
+    "benchmark_gate",
     "export",
     "fileback",
     "ingest",
