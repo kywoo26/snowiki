@@ -82,6 +82,14 @@ def test_lookup_returns_immutable_spec() -> None:
     assert spec.runtime_supported is False
 
 
+def test_mecab_candidate_version_reflects_search_noise_filter() -> None:
+    spec = get("mecab_morphology_v1")
+
+    assert spec.family == "mecab"
+    assert spec.version == 2
+    assert spec.runtime_supported is False
+
+
 def test_create_returns_fresh_regex_instances() -> None:
     first = create("regex_v1")
     second = create("regex_v1")
