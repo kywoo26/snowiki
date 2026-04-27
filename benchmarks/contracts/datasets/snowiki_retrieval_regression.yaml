@@ -1,0 +1,27 @@
+dataset_id: snowiki_retrieval_regression
+name: Snowiki Retrieval Regression
+language: mixed
+purpose_tags:
+  - product-regression
+  - analyzer-promotion
+  - snowiki-owned
+corpus_path: benchmarks/regression/snowiki_retrieval/corpus.json
+queries_path: benchmarks/regression/snowiki_retrieval/queries.json
+judgments_path: benchmarks/regression/snowiki_retrieval/judgments.json
+field_mappings:
+  corpus_id_keys:
+    - docid
+  corpus_text_keys:
+    - text
+  query_id_keys:
+    - id
+  query_text_keys:
+    - text
+  judgment_query_id_keys:
+    - qid
+  judgment_doc_id_keys:
+    - docid
+  judgment_relevance_keys:
+    - relevance
+supported_levels:
+  - regression
