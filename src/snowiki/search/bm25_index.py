@@ -281,6 +281,8 @@ class BM25SearchIndex:
         self,
         query: str,
         limit: int = 10,
+        *,
+        include_matched_terms: bool = True,
     ) -> list[BM25SearchHit]:
         """Search documents using BM25 scoring."""
         if not self.documents:
@@ -311,7 +313,7 @@ class BM25SearchIndex:
                     score=score,
                     matched_terms=(
                         self._matched_query_terms(query_tokens, self.corpus_tokens[doc_idx])
-                        if self.corpus_tokens
+                        if include_matched_terms and self.corpus_tokens
                         else ()
                     ),
                 )

@@ -39,6 +39,10 @@ def _is_hangul_token(token: str) -> bool:
     return bool(token) and all("가" <= char <= "힣" for char in token)
 
 
+def _contains_hangul(text: str) -> bool:
+    return any("가" <= char <= "힣" for char in text)
+
+
 def _ordered_unique(tokens: tuple[str, ...]) -> tuple[str, ...]:
     seen: set[str] = set()
     ordered: list[str] = []
@@ -183,6 +187,8 @@ class BilingualTokenizer:
         if not text or not text.strip():
             return ()
         preserved = _preserve_non_korean_tokens(text)
+        if not _contains_hangul(text):
+            return _ordered_unique(preserved)
         korean = self.korean_tokenizer.tokenize(text)
         return _ordered_unique(preserved + korean)
 

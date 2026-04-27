@@ -177,6 +177,25 @@ class TestBM25SearchIndex:
         assert results[1].matched_terms == ()
         assert len(fake_bm25_backend["retrieve"]) == 1
 
+    def test_search_can_skip_matched_terms(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Python Programming",
+                content="Python is a great language for programming.",
+            )
+        ]
+        index = BM25SearchIndex(docs)
+
+        results = index.search("Python", include_matched_terms=False)
+
+        assert results[0].matched_terms == ()
+        assert len(fake_bm25_backend["retrieve"]) == 1
+
     def test_search_korean_uses_tokenizer_output(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:

@@ -343,7 +343,11 @@ def _run_bm25_query(
     include_diagnostics: bool = False,
 ) -> QueryResult:
     start = time.perf_counter()
-    hits = index.search(query.query_text, limit=BENCHMARK_RETRIEVAL_LIMIT)
+    hits = index.search(
+        query.query_text,
+        limit=BENCHMARK_RETRIEVAL_LIMIT,
+        include_matched_terms=include_diagnostics,
+    )
     latency_ms = (time.perf_counter() - start) * 1000.0
     diagnostics = (
         _bm25_query_diagnostics(index=index, query=query, hits=hits)

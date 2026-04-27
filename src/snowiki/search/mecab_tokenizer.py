@@ -25,9 +25,10 @@ def _ordered_unique(tokens: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(ordered)
 
 
-def _preserve_non_korean_tokens(text: str) -> tuple[str, ...]:
-    normalized = regex_normalize_text(text)
-    return tuple(match.group(0) for match in _NON_KOREAN_TOKEN_RE.finditer(normalized))
+def _preserve_non_korean_tokens(normalized_text: str) -> tuple[str, ...]:
+    return tuple(
+        match.group(0) for match in _NON_KOREAN_TOKEN_RE.finditer(normalized_text)
+    )
 
 
 def _build_mecab_args() -> str:
