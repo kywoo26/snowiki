@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -90,8 +91,8 @@ def test_recall_json_routes_temporal_queries_and_freezes_payload_shape(
         matched_terms=("yesterday", "recall"),
     )
 
-    def fake_from_root(root: Path) -> object:
-        call_log.append({"fn": "from_root", "root": root})
+    def fake_build_retrieval_snapshot(root: Path) -> object:
+        call_log.append({"fn": "build_retrieval_snapshot", "root": root})
         return SimpleNamespace(index=object())
 
     def fail_known_item_lookup(*_args: object, **_kwargs: object) -> list[SearchHit]:
@@ -111,7 +112,8 @@ def test_recall_json_routes_temporal_queries_and_freezes_payload_shape(
         return [hit]
 
     monkeypatch.setattr(
-        "snowiki.search.queries.runtime.RetrievalService.from_root", fake_from_root
+        "snowiki.search.queries.runtime.build_retrieval_snapshot",
+        fake_build_retrieval_snapshot,
     )
     monkeypatch.setattr(
         "snowiki.search.queries.runtime.known_item_lookup", fail_known_item_lookup
@@ -150,7 +152,7 @@ def test_recall_json_routes_temporal_queries_and_freezes_payload_shape(
         },
     }
     assert call_log == [
-        {"fn": "from_root", "root": tmp_path},
+        {"fn": "build_retrieval_snapshot", "root": tmp_path},
         {
             "fn": "temporal_recall",
             "index": call_log[1]["index"],
@@ -201,8 +203,8 @@ def test_run_recall_prefers_known_item_before_topic(
         matched_terms=("known", "item"),
     )
 
-    def fake_from_root(root: Path) -> object:
-        call_log.append({"fn": "from_root", "root": root})
+    def fake_build_retrieval_snapshot(root: Path) -> object:
+        call_log.append({"fn": "build_retrieval_snapshot", "root": root})
         return SimpleNamespace(index=runtime_index)
 
     def fake_known_item_lookup(
@@ -220,7 +222,8 @@ def test_run_recall_prefers_known_item_before_topic(
         raise AssertionError("known-item queries should not use temporal recall")
 
     monkeypatch.setattr(
-        "snowiki.search.queries.runtime.RetrievalService.from_root", fake_from_root
+        "snowiki.search.queries.runtime.build_retrieval_snapshot",
+        fake_build_retrieval_snapshot,
     )
     monkeypatch.setattr(
         "snowiki.search.queries.runtime.known_item_lookup", fake_known_item_lookup
@@ -249,7 +252,7 @@ def test_run_recall_prefers_known_item_before_topic(
         ],
     }
     assert call_log == [
-        {"fn": "from_root", "root": tmp_path},
+        {"fn": "build_retrieval_snapshot", "root": tmp_path},
         {
             "fn": "known_item_lookup",
             "index": runtime_index,
@@ -297,8 +300,8 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
             )
             return [hit]
 
-    def fake_from_root(root: Path) -> object:
-        call_log.append({"fn": "from_root", "root": root})
+    def fake_build_retrieval_snapshot(root: Path) -> object:
+        call_log.append({"fn": "build_retrieval_snapshot", "root": root})
         return SimpleNamespace(index=FakeIndex())
 
     def fail_known_item_lookup(*_args: object, **_kwargs: object) -> list[SearchHit]:
@@ -311,7 +314,8 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
         raise AssertionError("ISO-date recall should use date-window index search")
 
     monkeypatch.setattr(
-        "snowiki.search.queries.runtime.RetrievalService.from_root", fake_from_root
+        "snowiki.search.queries.runtime.build_retrieval_snapshot",
+        fake_build_retrieval_snapshot,
     )
     monkeypatch.setattr(
         "snowiki.search.queries.runtime.known_item_lookup", fail_known_item_lookup
@@ -339,7 +343,7 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
             }
         ],
     }
-    assert call_log[0] == {"fn": "from_root", "root": tmp_path}
+    assert call_log[0] == {"fn": "build_retrieval_snapshot", "root": tmp_path}
     assert call_log[1]["fn"] == "index.search"
     assert call_log[1]["query"] == "2026-04-08"
     assert call_log[1]["limit"] == 10
@@ -508,6 +512,89 @@ def test_query_cache_invalidates_after_runtime_tokenizer_flip(
     assert cast(Any, first).marker == (tmp_path, "regex_v1", 1)
     assert cast(Any, third).marker == (tmp_path, "kiwi_nouns_v1", 2)
     assert build_log == ["regex_v1", "kiwi_nouns_v1"]
+
+
+def test_query_cache_invalidates_after_runtime_tokenizer_version_flip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from snowiki.search import workspace
+
+    tokenizer_version = {"value": 1}
+    build_log: list[int] = []
+
+    def fake_default() -> object:
+        return SimpleNamespace(name="regex_v1")
+
+    def fake_get(name: str) -> object:
+        assert name == "regex_v1"
+        return SimpleNamespace(name="regex_v1", family="regex", version=tokenizer_version["value"])
+
+    def fake_create_tokenizer(name: str) -> object:
+        assert name == "regex_v1"
+        return SimpleNamespace(name=name)
+
+    def fake_from_root(root: Path, *, tokenizer: object | None = None) -> object:
+        assert root == tmp_path
+        tokenizer_name = getattr(tokenizer, "name", None)
+        assert tokenizer_name == "regex_v1"
+        build_log.append(tokenizer_version["value"])
+        return SimpleNamespace(
+            index=SimpleNamespace(size=len(build_log)),
+            records_indexed=1,
+            pages_indexed=1,
+        )
+
+    clear_query_search_index_cache()
+    monkeypatch.setattr(workspace, "default", fake_default)
+    monkeypatch.setattr(workspace, "get", fake_get)
+    monkeypatch.setattr(workspace, "create_tokenizer", fake_create_tokenizer)
+    monkeypatch.setattr(workspace.RetrievalService, "from_root", fake_from_root)
+
+    first = build_retrieval_snapshot(tmp_path)
+    second = build_retrieval_snapshot(tmp_path)
+    tokenizer_version["value"] = 2
+    third = build_retrieval_snapshot(tmp_path)
+
+    assert first is second
+    assert third is not first
+    assert build_log == [1, 2]
+
+
+def test_query_cache_invalidates_when_content_changes_without_mtime_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from snowiki.search import workspace
+
+    normalized_dir = tmp_path / "normalized"
+    normalized_dir.mkdir()
+    record_path = normalized_dir / "record.json"
+    _ = record_path.write_text('{"content":"first"}', encoding="utf-8")
+    fixed_ns = 1_700_000_000_000_000_000
+    os.utime(record_path, ns=(fixed_ns, fixed_ns))
+    build_log: list[int] = []
+
+    def fake_from_root(root: Path, *, tokenizer: object | None = None) -> object:
+        del tokenizer
+        assert root == tmp_path
+        build_log.append(len(build_log) + 1)
+        return SimpleNamespace(
+            index=SimpleNamespace(size=len(build_log)),
+            records_indexed=len(build_log),
+            pages_indexed=0,
+        )
+
+    clear_query_search_index_cache()
+    monkeypatch.setattr(workspace.RetrievalService, "from_root", fake_from_root)
+
+    first = build_retrieval_snapshot(tmp_path)
+    second = build_retrieval_snapshot(tmp_path)
+    _ = record_path.write_text('{"content":"second"}', encoding="utf-8")
+    os.utime(record_path, ns=(fixed_ns, fixed_ns))
+    third = build_retrieval_snapshot(tmp_path)
+
+    assert first is second
+    assert third is not first
+    assert build_log == [1, 2]
 
 
 def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexes(

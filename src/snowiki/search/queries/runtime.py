@@ -8,7 +8,7 @@ from snowiki.search.indexer import SearchHit
 from snowiki.search.queries.known_item import known_item_lookup
 from snowiki.search.queries.temporal import temporal_recall
 from snowiki.search.queries.topical import topical_recall
-from snowiki.search.workspace import RetrievalService, build_retrieval_snapshot
+from snowiki.search.workspace import build_retrieval_snapshot
 
 
 class QueryHitPayload(TypedDict):
@@ -94,7 +94,7 @@ def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
 
 
 def run_recall(root: Path, target: str) -> RecallResult:
-    snapshot = RetrievalService.from_root(root)
+    snapshot = build_retrieval_snapshot(root)
     hits, strategy = run_authoritative_recall(
         snapshot.index,
         target,
