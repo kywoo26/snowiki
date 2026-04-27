@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import pytest
+
 from snowiki.search.mecab_tokenizer import MecabSearchTokenizer
 
 
-def test_mecab_tokenizer_preserves_non_korean_signal(monkeypatch) -> None:
+def test_mecab_tokenizer_preserves_non_korean_signal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeTagger:
         def __init__(self, args: str) -> None:
-            self.args = args
+            self.args: str = args
 
         def parse(self, text: str) -> str:
             fixtures = {
@@ -33,12 +37,43 @@ def test_mecab_tokenizer_preserves_non_korean_signal(monkeypatch) -> None:
     )
 
 
-def test_mecab_tokenizer_normalize_matches_regex_normalizer(monkeypatch) -> None:
+def test_mecab_tokenizer_filters_search_noise_accusative_particles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeTagger:
         def __init__(self, args: str) -> None:
-            self.args = args
+            self.args: str = args
 
         def parse(self, text: str) -> str:
+            fixtures = {
+                "검색을": "검색\tNNG,행위,T,검색,*,*,*,*\n을\tJKO,*,T,을,*,*,*,*\nEOS\n",
+                "찾아줘": "찾\tVV,*,T,찾,*,*,*,*\n아\tEC,*,F,아,*,*,*,*\n줘\tVX+EC,*,F,줘,Inflect,VX,EC,주/VX/*+어/EC/*\nEOS\n",
+            }
+            return fixtures.get(text, "EOS\n")
+
+    monkeypatch.setattr("snowiki.search.mecab_tokenizer.MeCab.Tagger", FakeTagger)
+
+    tokenizer = MecabSearchTokenizer()
+
+    assert tokenizer.tokenize("qmd 검색을 Bash 찾아줘") == (
+        "qmd",
+        "bash",
+        "검색",
+        "찾",
+        "아",
+        "줘",
+    )
+
+
+def test_mecab_tokenizer_normalize_matches_regex_normalizer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeTagger:
+        def __init__(self, args: str) -> None:
+            self.args: str = args
+
+        def parse(self, text: str) -> str:
+            _ = text
             return "EOS\n"
 
     monkeypatch.setattr("snowiki.search.mecab_tokenizer.MeCab.Tagger", FakeTagger)

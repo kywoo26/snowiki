@@ -104,7 +104,7 @@ TOKENIZER_REGISTRY.register(
     TokenizerSpec(
         name="mecab_morphology_v1",
         family="mecab",
-        version=1,
+        version=2,
         runtime_supported=False,
     ),
     build_mecab_tokenizer,

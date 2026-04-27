@@ -10,7 +10,8 @@ from .tokenizer import normalize_text as regex_normalize_text
 
 _NON_KOREAN_TOKEN_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 _KOREAN_SPAN_RE = re.compile(r"[가-힣]+")
-_PUNCTUATION_TAG_PREFIXES = ("S",)
+_SEARCH_NOISE_TAG_PREFIXES = ("S",)
+_SEARCH_NOISE_TAGS = frozenset({"JKO"})
 
 
 def _ordered_unique(tokens: tuple[str, ...]) -> tuple[str, ...]:
@@ -44,7 +45,7 @@ def _parse_surface_rows(parsed: str) -> tuple[str, ...]:
         if not surface:
             continue
         pos = features.split(",", 1)[0] if features else ""
-        if pos.startswith(_PUNCTUATION_TAG_PREFIXES):
+        if pos in _SEARCH_NOISE_TAGS or pos.startswith(_SEARCH_NOISE_TAG_PREFIXES):
             continue
         tokens.append(surface)
     return tuple(tokens)
