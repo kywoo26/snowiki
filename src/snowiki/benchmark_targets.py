@@ -29,6 +29,7 @@ from snowiki.search.protocols import RuntimeSearchIndex
 from snowiki.search.queries.topical import topical_recall
 from snowiki.search.registry import default
 from snowiki.search.registry import get as get_tokenizer_spec
+from snowiki.search.subword_tokenizer import wordpiece_tokenizer_config
 from snowiki.storage.zones import StoragePaths
 
 BENCHMARK_RETRIEVAL_LIMIT = 100
@@ -143,6 +144,11 @@ class _BM25TargetAdapter:
             tokenizer_config={
                 "family": tokenizer_spec.family,
                 "runtime_supported": tokenizer_spec.runtime_supported,
+                **(
+                    wordpiece_tokenizer_config()
+                    if tokenizer_spec.name == "hf_wordpiece_v1"
+                    else {}
+                ),
             },
             tokenizer_version=tokenizer_spec.version,
             bm25_params={"method": "lucene", "k1": 1.5, "b": 0.75, "delta": 0.5},

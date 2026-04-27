@@ -560,6 +560,120 @@ class TestBM25SearchIndex:
         assert index.tokenizer_name == "hf_wordpiece_v1"
         assert index.use_kiwi_tokenizer is True
 
+    def test_save_load_preserves_subword_tokenizer_artifact(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Python README",
+                content="README.md path Snowiki personal wiki qmd search",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+
+        index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
+        expected = index.tokenizer.tokenize("Python README.md") if index.tokenizer else ()
+        index.save(str(path))
+        loaded = BM25SearchIndex.load(str(path), docs)
+
+        metadata = json.loads(
+            path.with_name(f"{path.name}.snowiki_meta.json").read_text(encoding="utf-8")
+        )
+        artifact = cast(dict[str, object], metadata["tokenizer_artifact"])
+        assert artifact["type"] == "bert_wordpiece_vocab"
+        assert (tmp_path / cast(str, artifact["path"])).is_file()
+        assert loaded.tokenizer_name == "hf_wordpiece_v1"
+        assert loaded.tokenizer is not None
+        assert loaded.tokenizer.tokenize("Python README.md") == expected
+
+    def test_cache_artifact_preserves_subword_tokenizer_artifact(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Python README",
+                content="README.md path Snowiki personal wiki qmd search",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
+        expected = index.tokenizer.tokenize("Python README.md") if index.tokenizer else ()
+        artifact_path = tmp_path / "index.bm25cache"
+        artifact_path.write_bytes(index.to_cache_bytes())
+
+        loaded = BM25SearchIndex.load_cache_artifact(
+            artifact_path,
+            docs,
+            expected_tokenizer_name="hf_wordpiece_v1",
+        )
+
+        assert loaded.tokenizer_name == "hf_wordpiece_v1"
+        assert loaded.tokenizer is not None
+        assert loaded.tokenizer.tokenize("Python README.md") == expected
+
+    def test_load_rejects_missing_subword_tokenizer_artifact(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Python README",
+                content="README.md path Snowiki personal wiki qmd search",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+        index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
+        index.save(str(path))
+        artifact_path = path.with_name("index.wordpiece-vocab.txt")
+        artifact_path.unlink()
+
+        with pytest.raises(ValueError, match="Missing BM25 tokenizer artifact"):
+            BM25SearchIndex.load(
+                str(path),
+                docs,
+                expected_tokenizer_name="hf_wordpiece_v1",
+            )
+
+    def test_load_rejects_unsafe_subword_tokenizer_artifact_path(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Python README",
+                content="README.md path Snowiki personal wiki qmd search",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+        index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
+        index.save(str(path))
+        metadata_path = path.with_name(f"{path.name}.snowiki_meta.json")
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        tokenizer_artifact = cast(dict[str, object], metadata["tokenizer_artifact"])
+        tokenizer_artifact["path"] = "../outside-vocab.txt"
+        metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+        with pytest.raises(ValueError, match="Unsafe BM25 tokenizer artifact path"):
+            BM25SearchIndex.load(
+                str(path),
+                docs,
+                expected_tokenizer_name="hf_wordpiece_v1",
+            )
+
     def test_init_accepts_mecab_tokenizer_name(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
