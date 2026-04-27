@@ -124,6 +124,27 @@ is an intentional gate failure, not an implicit pass. Until a dedicated
 Snowiki-owned benchmark matrix is added, keep using `benchmark-gate` to make that
 missing evidence explicit and block default analyzer promotion.
 
+## Snowiki regression evidence
+
+The Snowiki-owned regression matrix is a small product contract, not a public
+benchmark replacement. It exists to catch regressions that public datasets do not
+cover: CLI/tool queries, source provenance, temporal/session recall, mixed
+Korean-English phrasing, path/API-symbol lookup, and hard negatives.
+
+```bash
+uv run snowiki benchmark \
+  --matrix benchmarks/contracts/snowiki_regression_matrix.yaml \
+  --level regression \
+  --target bm25_regex_v1 \
+  --target bm25_kiwi_morphology_v1 \
+  --report reports/snowiki-regression-analyzers.json
+```
+
+The regression assets live under `benchmarks/regression/snowiki_retrieval/` and
+are deliberately reviewable JSON. They are anchored in existing Snowiki fixture
+and architecture contracts, include distractor documents, and avoid using only
+path-title exact matches as evidence.
+
 ## Scope
 
 Bench stays lean and only covers the local evaluation runner.
