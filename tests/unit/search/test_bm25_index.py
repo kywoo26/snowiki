@@ -173,6 +173,8 @@ class TestBM25SearchIndex:
         assert len(results) > 0
         assert isinstance(results[0], BM25SearchHit)
         assert results[0].score > 0
+        assert results[0].matched_terms == ("python",)
+        assert results[1].matched_terms == ()
         assert len(fake_bm25_backend["retrieve"]) == 1
 
     def test_search_korean_uses_tokenizer_output(
@@ -805,7 +807,6 @@ class TestBM25SearchIndex:
         assert normalized_query_terms.issubset(set(results[0].matched_terms))
         assert normalized_query_terms.issubset(set(index.corpus_tokens[0]))
         assert results[0].matched_terms == (
-            "readme md snowiki 자연어 처리 api v2",
             "readme",
             "md",
             "snowiki",

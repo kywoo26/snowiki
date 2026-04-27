@@ -57,6 +57,12 @@ DEFAULT_MATRIX_PATH = Path("benchmarks/contracts/official_matrix.yaml")
     show_default=True,
     help="Stop after the first failed matrix cell.",
 )
+@click.option(
+    "--include-diagnostics/--no-include-diagnostics",
+    default=False,
+    show_default=True,
+    help="Include raw per-query diagnostic evidence in the report.",
+)
 def command(
     matrix: Path,
     report_path: Path,
@@ -65,6 +71,7 @@ def command(
     target_ids: tuple[str, ...],
     metric_ids: tuple[str, ...],
     fail_fast: bool,
+    include_diagnostics: bool,
 ) -> None:
     """Run the lean benchmark skeleton against a matrix contract."""
 
@@ -82,6 +89,7 @@ def command(
         load_matrix(matrix),
         selection=selection,
         fail_fast=fail_fast,
+        include_diagnostics=include_diagnostics,
     )
     if exit_code == 2:
         for failure in result.failures:

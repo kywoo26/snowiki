@@ -71,6 +71,7 @@ class QueryResult:
     query_id: str
     ranked_doc_ids: tuple[str, ...]
     latency_ms: float | None = None
+    diagnostics: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,7 @@ class RetrievalTargetAdapter(Protocol):
         manifest: DatasetManifest,
         level: LevelConfig,
         queries: tuple[BenchmarkQuery, ...],
+        include_diagnostics: bool = False,
     ) -> Mapping[str, Any]: ...
 
 

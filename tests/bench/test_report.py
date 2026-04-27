@@ -42,7 +42,17 @@ def test_render_cell_uses_stable_schema_for_success_and_failure() -> None:
             MetricResult(metric_id="latency_p50_ms", value=11.0),
             MetricResult(metric_id="latency_p95_ms", value=22.0),
         ),
-        details={"per_query": {"q1": {"score": 1.0}}},
+        details={
+            "per_query": {
+                "q1": {
+                    "score": 1.0,
+                    "diagnostics": {
+                        "query_tokens": ["alpha"],
+                        "top_hits": [{"doc_id": "doc-alpha", "score": 2.0}],
+                    },
+                }
+            }
+        },
     )
     failed_cell = CellResult(
         dataset_id="beir_scifact",
@@ -70,7 +80,15 @@ def test_render_cell_uses_stable_schema_for_success_and_failure() -> None:
     assert set(failed_payload) == expected_keys
     assert success_payload["metrics"] == [{"metric_id": "recall_at_100", "value": 0.75}]
     assert success_payload["latency"] == {"p50": 11.0, "p95": 22.0}
-    assert success_payload["per_query"] == {"q1": {"score": 1.0}}
+    assert success_payload["per_query"] == {
+        "q1": {
+            "score": 1.0,
+            "diagnostics": {
+                "query_tokens": ["alpha"],
+                "top_hits": [{"doc_id": "doc-alpha", "score": 2.0}],
+            },
+        }
+    }
     assert success_payload["slices"] == {}
     assert success_payload["error"] is None
     assert failed_payload["metrics"] == []

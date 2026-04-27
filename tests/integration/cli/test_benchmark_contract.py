@@ -17,21 +17,24 @@ EXPECTED_HELP = dedent(
       Run the lean benchmark skeleton against a matrix contract.
 
     Options:
-      --matrix FILE                 Evaluation matrix contract to run.  [default:
-                                    benchmarks/contracts/official_matrix.yaml]
-      --report FILE                 Path to write the benchmark JSON result.
-                                    [required]
-      --dataset TEXT                Dataset ID to run. Repeat to select multiple
-                                    datasets.
-      --level TEXT                  Level ID to run. Repeat to select multiple
-                                    levels.
-      --target TEXT                 Target ID to run. Repeat to select multiple
-                                    targets.
-      --metric TEXT                 Metric ID to compute. Repeat to select multiple
-                                    metrics.
-      --fail-fast / --no-fail-fast  Stop after the first failed matrix cell.
-                                    [default: no-fail-fast]
-      -h, --help                    Show this message and exit.
+      --matrix FILE                   Evaluation matrix contract to run.  [default:
+                                      benchmarks/contracts/official_matrix.yaml]
+      --report FILE                   Path to write the benchmark JSON result.
+                                      [required]
+      --dataset TEXT                  Dataset ID to run. Repeat to select multiple
+                                      datasets.
+      --level TEXT                    Level ID to run. Repeat to select multiple
+                                      levels.
+      --target TEXT                   Target ID to run. Repeat to select multiple
+                                      targets.
+      --metric TEXT                   Metric ID to compute. Repeat to select
+                                      multiple metrics.
+      --fail-fast / --no-fail-fast    Stop after the first failed matrix cell.
+                                      [default: no-fail-fast]
+      --include-diagnostics / --no-include-diagnostics
+                                      Include raw per-query diagnostic evidence in
+                                      the report.  [default: no-include-diagnostics]
+      -h, --help                      Show this message and exit.
     """
 )
 
@@ -204,9 +207,19 @@ def test_benchmark_exit_codes_cover_success_partial_failure_and_invalid_input(
     )
 
     with monkeypatch.context() as context:
+        def _run_matrix_with_exit_code(
+            matrix: object,
+            selection: object,
+            *,
+            fail_fast: bool = False,
+            include_diagnostics: bool = False,
+        ) -> tuple[BenchmarkRunResult, int]:
+            del matrix, selection, fail_fast, include_diagnostics
+            return success_result, 0
+
         context.setattr(
-        "snowiki.cli.commands.benchmark.run_matrix_with_exit_code",
-            lambda matrix, selection, fail_fast=False: (success_result, 0),
+            "snowiki.cli.commands.benchmark.run_matrix_with_exit_code",
+            _run_matrix_with_exit_code,
         )
         success = _invoke_benchmark(
             "--dataset",
