@@ -106,6 +106,24 @@ Analyzer candidates are evaluated with the gate contract at
 `docs/architecture/analyzer-promotion-gates.md`. Benchmark reports include
 slice-level metrics when queries expose `group`, `kind`, or `tags` metadata.
 
+Use `snowiki benchmark-gate` to evaluate an existing benchmark report without
+rerunning the matrix:
+
+```bash
+uv run snowiki benchmark-gate \
+  --report reports/benchmark-lexical-baselines.json \
+  --gate benchmarks/contracts/analyzer_promotion_gates.yaml \
+  --gate-report reports/analyzer-gate.json
+```
+
+This support command is a report post-processor for CI and manual promotion
+checks; it does not change runtime analyzer defaults. A complete analyzer
+promotion report must include both the public matrix cells and the Snowiki-owned
+slice/golden-query evidence named by the gate contract; missing Snowiki evidence
+is an intentional gate failure, not an implicit pass. Until a dedicated
+Snowiki-owned benchmark matrix is added, keep using `benchmark-gate` to make that
+missing evidence explicit and block default analyzer promotion.
+
 ## Scope
 
 Bench stays lean and only covers the local evaluation runner.
