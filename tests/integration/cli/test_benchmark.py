@@ -170,6 +170,7 @@ def test_benchmark_help_shows_lean_option_surface() -> None:
         "--target TEXT",
         "--metric TEXT",
         "--fail-fast / --no-fail-fast",
+        "--include-diagnostics / --no-include-diagnostics",
     ):
         assert option in result.output
 
@@ -309,17 +310,34 @@ def test_benchmark_bm25_reports_cache_metadata_and_hits_on_repeat(
         "bm25_regex_v1",
     )
 
-    first = _invoke_benchmark(*benchmark_args, "--report", str(first_output_path))
-    second = _invoke_benchmark(*benchmark_args, "--report", str(second_output_path))
+    first = _invoke_benchmark(
+        *benchmark_args,
+        "--include-diagnostics",
+        "--report",
+        str(first_output_path),
+    )
+    second = _invoke_benchmark(
+        *benchmark_args,
+        "--include-diagnostics",
+        "--report",
+        str(second_output_path),
+    )
+    default_output_path = tmp_path / "benchmark-default.json"
+    default = _invoke_benchmark(*benchmark_args, "--report", str(default_output_path))
 
     assert first.exit_code == 0, first.output
     assert second.exit_code == 0, second.output
+    assert default.exit_code == 0, default.output
     assert "matrix=official_core cells=1 failures=0" in first.output
     assert "matrix=official_core cells=1 failures=0" in second.output
+    default_cell = _read_json(default_output_path)["cells"][0]
     first_cell = _read_json(first_output_path)["cells"][0]
     second_cell = _read_json(second_output_path)["cells"][0]
     assert isinstance(first_cell, dict)
     assert isinstance(second_cell, dict)
+    default_per_query = default_cell["per_query"]
+    assert isinstance(default_per_query, dict)
+    assert "diagnostics" not in default_per_query["q-alpha"]
 
     first_cache = first_cell["cache"]
     second_cache = second_cell["cache"]
@@ -337,6 +355,23 @@ def test_benchmark_bm25_reports_cache_metadata_and_hits_on_repeat(
     assert second_cache["cache_miss_reason"] is None
     assert second_cache["cache_rebuilt"] is False
     assert second_cache["index_build_seconds"] == 0.0
+
+    per_query = first_cell["per_query"]
+    assert isinstance(per_query, dict)
+    q_alpha = per_query["q-alpha"]
+    assert isinstance(q_alpha, dict)
+    diagnostics = q_alpha["diagnostics"]
+    assert isinstance(diagnostics, dict)
+    assert diagnostics["retriever"] == "bm25"
+    assert diagnostics["tokenizer"] == "regex_v1"
+    assert diagnostics["query_tokens"] == ["alpha"]
+    top_hits = diagnostics["top_hits"]
+    assert isinstance(top_hits, list)
+    assert top_hits[0]["doc_id"] == "doc-alpha"
+    assert top_hits[0]["rank"] == 1
+    assert isinstance(top_hits[0]["score"], float)
+    assert top_hits[0]["matched_terms"] == ["alpha"]
+    assert "alpha" in top_hits[0]["document_tokens"]
 
 
 def test_benchmark_missing_materialized_dataset_reports_fetch_guidance(
