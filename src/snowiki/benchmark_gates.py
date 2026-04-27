@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -82,6 +83,40 @@ def load_benchmark_report(path: str | Path) -> dict[str, object]:
     if not isinstance(raw_payload, dict):
         raise ValueError(f"Expected benchmark report mapping at {source_path}")
     return {str(key): value for key, value in raw_payload.items()}
+
+
+def load_combined_benchmark_report(paths: tuple[str | Path, ...]) -> dict[str, object]:
+    if not paths:
+        raise ValueError("At least one benchmark report is required")
+    reports = [load_benchmark_report(path) for path in paths]
+    if len(reports) == 1:
+        return reports[0]
+    combined_cells: list[object] = []
+    for report in reports:
+        cells = report.get("cells")
+        if not isinstance(cells, list):
+            raise ValueError("Benchmark report missing cells list")
+        combined_cells.extend(cells)
+    successful_cells = [cell for cell in combined_cells if _is_success_cell(cell)]
+    return {
+        "matrix_id": "combined_benchmark_reports",
+        "selection": {
+            "report_paths": [Path(path).as_posix() for path in paths],
+        },
+        "summary": {
+            "total_cells": len(combined_cells),
+            "success_count": len(successful_cells),
+            "failure_count": len(combined_cells) - len(successful_cells),
+        },
+        "cells": combined_cells,
+    }
+
+
+def _is_success_cell(value: object) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    cell = cast(Mapping[str, object], value)
+    return cell.get("status") == "success"
 
 
 def evaluate_analyzer_promotion_gate(

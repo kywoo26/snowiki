@@ -9,7 +9,7 @@ import yaml
 from snowiki.benchmark_gates import (
     evaluate_analyzer_promotion_gate,
     load_analyzer_promotion_gate,
-    load_benchmark_report,
+    load_combined_benchmark_report,
     render_gate_json,
     render_gate_summary,
 )
@@ -28,10 +28,11 @@ DEFAULT_GATE_PATH = Path("benchmarks/contracts/analyzer_promotion_gates.yaml")
 )
 @click.option(
     "--report",
-    "report_path",
+    "report_paths",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    multiple=True,
     required=True,
-    help="Benchmark JSON report to evaluate.",
+    help="Benchmark JSON report to evaluate. Repeat to combine evidence reports.",
 )
 @click.option(
     "--gate-report",
@@ -39,13 +40,17 @@ DEFAULT_GATE_PATH = Path("benchmarks/contracts/analyzer_promotion_gates.yaml")
     type=click.Path(dir_okay=False, path_type=Path),
     help="Optional path to write the gate evaluation JSON result.",
 )
-def command(gate_path: Path, report_path: Path, gate_report_path: Path | None) -> None:
+def command(
+    gate_path: Path,
+    report_paths: tuple[Path, ...],
+    gate_report_path: Path | None,
+) -> None:
     """Evaluate a benchmark report against an analyzer promotion gate."""
 
     try:
         result = evaluate_analyzer_promotion_gate(
             gate=load_analyzer_promotion_gate(gate_path),
-            report=load_benchmark_report(report_path),
+            report=load_combined_benchmark_report(report_paths),
         )
     except (OSError, ValueError, json.JSONDecodeError, yaml.YAMLError) as exc:
         raise click.ClickException(str(exc)) from exc
