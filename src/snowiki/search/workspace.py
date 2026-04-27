@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from functools import lru_cache
@@ -182,12 +183,13 @@ class RetrievalService:
         raise TypeError("pages must be homogeneous compiled pages or mappings")
 
 
-def _tree_signature(root: Path) -> tuple[int, int]:
+def _tree_signature(root: Path) -> tuple[int, int, str]:
     if not root.exists():
-        return (0, 0)
+        return (0, 0, "")
     latest_mtime = root.stat().st_mtime_ns
     file_count = 0
-    for path in root.rglob("*"):
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob("*")):
         try:
             stat = path.stat()
         except FileNotFoundError:
@@ -195,7 +197,15 @@ def _tree_signature(root: Path) -> tuple[int, int]:
         latest_mtime = max(latest_mtime, stat.st_mtime_ns)
         if path.is_file():
             file_count += 1
-    return (latest_mtime, file_count)
+            relative_path = path.relative_to(root).as_posix()
+            digest.update(relative_path.encode("utf-8"))
+            digest.update(b"\0")
+            try:
+                digest.update(path.read_bytes())
+            except FileNotFoundError:
+                continue
+            digest.update(b"\0")
+    return (latest_mtime, file_count, digest.hexdigest())
 
 
 def runtime_tokenizer_identity(
@@ -212,14 +222,19 @@ def runtime_tokenizer_identity(
 
 def _search_index_cache_key(
     root: Path,
-) -> tuple[str, tuple[int, int], tuple[int, int], str]:
+) -> tuple[str, tuple[int, int, str], tuple[int, int, str], tuple[str, str, int]]:
     resolved_root = root.resolve()
     tokenizer_name = current_runtime_tokenizer_name()
+    tokenizer_identity = runtime_tokenizer_identity(tokenizer_name)
     return (
         str(resolved_root),
         _tree_signature(resolved_root / "normalized"),
         _tree_signature(resolved_root / "compiled"),
-        tokenizer_name,
+        (
+            str(tokenizer_identity["name"]),
+            str(tokenizer_identity["family"]),
+            int(tokenizer_identity["version"]),
+        ),
     )
 
 
@@ -231,18 +246,22 @@ def content_freshness_identity(
     """Return the current content-derived freshness identity for retrieval data."""
     resolved_root = root.resolve()
     resolved_tokenizer_name = tokenizer_name or current_runtime_tokenizer_name()
-    normalized_mtime_ns, normalized_file_count = _tree_signature(
+    normalized_mtime_ns, normalized_file_count, normalized_content_hash = _tree_signature(
         resolved_root / "normalized"
     )
-    compiled_mtime_ns, compiled_file_count = _tree_signature(resolved_root / "compiled")
+    compiled_mtime_ns, compiled_file_count, compiled_content_hash = _tree_signature(
+        resolved_root / "compiled"
+    )
     return {
         "normalized": {
             "latest_mtime_ns": normalized_mtime_ns,
             "file_count": normalized_file_count,
+            "content_hash": normalized_content_hash,
         },
         "compiled": {
             "latest_mtime_ns": compiled_mtime_ns,
             "file_count": compiled_file_count,
+            "content_hash": compiled_content_hash,
         },
         "tokenizer": runtime_tokenizer_identity(resolved_tokenizer_name),
     }
@@ -250,11 +269,11 @@ def content_freshness_identity(
 
 @lru_cache(maxsize=8)
 def _build_search_snapshot_cached(
-    cache_key: tuple[str, tuple[int, int], tuple[int, int], str],
+    cache_key: tuple[str, tuple[int, int, str], tuple[int, int, str], tuple[str, str, int]],
 ) -> RetrievalSnapshot:
     return RetrievalService.from_root(
         Path(cache_key[0]),
-        tokenizer=create_tokenizer(cache_key[3]),
+        tokenizer=create_tokenizer(cache_key[3][0]),
     )
 
 
