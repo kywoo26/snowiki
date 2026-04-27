@@ -181,10 +181,11 @@ Dependency rules:
 
 ## Testing Levels
 
-Snowiki uses four test levels:
+Snowiki uses five test levels:
 
 - `tests/unit/`: deterministic, fast, patched boundaries.
 - `tests/integration/`: real CLI/runtime boundaries.
+- `tests/smoke/`: fast end-to-end product contract checks that run in the smoke workflow.
 - `tests/bench/`: actual benchmark validation, dataset-heavy benchmark checks, and benchmark-result guardrails.
 - `tests/perf/`: latency/performance assertions.
 
@@ -194,14 +195,15 @@ test level. For example, pure helpers in `benchmarks/` should have unit tests in
 in `tests/integration/`. Do not put ordinary unit coverage under `tests/bench/`
 just because the code under test is in the `benchmarks/` package.
 
-Smoke tests are useful when they lock a top-level product path with minimal cost. In Snowiki, smoke tests should usually be integration tests that exercise:
+Smoke tests are useful when they lock a top-level product path with minimal cost. In Snowiki, smoke tests should be reserved for committed, fast, end-to-end product contracts that should block PRs independently from broader integration coverage. Examples include:
 
 - `snowiki ingest <markdown> --output json`,
 - `snowiki rebuild --output json`,
 - `snowiki query ... --output json`,
+- `snowiki benchmark --matrix benchmarks/contracts/snowiki_regression_matrix.yaml ...`,
 - status/lint happy paths.
 
-Do not create a separate smoke directory unless the suite grows enough to need separate CI selection. Prefer markers or small integration tests first.
+Use `tests/smoke/` only for smoke contracts selected by `pytest -m smoke`; keep ordinary CLI/runtime integration coverage under `tests/integration/`.
 
 Refactors should preserve or improve tests at the same level as the changed seam. If a refactor extracts a pure function, add or move unit tests to that pure seam.
 
