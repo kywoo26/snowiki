@@ -238,17 +238,24 @@ class BM25SearchIndex:
             self.bm25 = bm25s.BM25(method=self.method)
             return
 
-        corpus: list[str] = []
-        for doc in self.documents:
-            text = f"{doc.title}\n{doc.content}\n{doc.summary}"
-            corpus.append(text)
+        self.corpus_tokens = self._tokenize_documents(fit_tokenizer=True)
+        self.bm25 = bm25s.BM25(method=self.method, k1=self.k1, b=self.b)
+        self.bm25.index(
+            self.corpus_tokens,
+            show_progress=self._SHOW_PROGRESS,
+            leave_progress=self._LEAVE_PROGRESS,
+        )
 
+    def _tokenize_documents(self, *, fit_tokenizer: bool) -> list[list[str]]:
+        corpus = [
+            f"{doc.title}\n{doc.content}\n{doc.summary}" for doc in self.documents
+        ]
         if self.tokenizer is not None:
             fit = getattr(self.tokenizer, "fit_corpus", None)
-            if callable(fit):
+            if fit_tokenizer and callable(fit):
                 fit(corpus)
             if self._separate_field_tokenization:
-                corpus_tokens = [
+                return [
                     list(
                         self.tokenizer.tokenize(doc.title)
                         + self.tokenizer.tokenize(doc.path)
@@ -258,26 +265,16 @@ class BM25SearchIndex:
                     )
                     for doc in self.documents
                 ]
-            else:
-                corpus_tokens = [list(self.tokenizer.tokenize(text)) for text in corpus]
-        else:
-            corpus_tokens = cast(
-                list[list[str]],
-                bm25s.tokenize(
-                    corpus,
-                    stopwords="en",
-                    return_ids=False,
-                    show_progress=self._SHOW_PROGRESS,
-                    leave=self._LEAVE_PROGRESS,
-                ),
-            )
-
-        self.corpus_tokens = corpus_tokens
-        self.bm25 = bm25s.BM25(method=self.method, k1=self.k1, b=self.b)
-        self.bm25.index(
-            corpus_tokens,
-            show_progress=self._SHOW_PROGRESS,
-            leave_progress=self._LEAVE_PROGRESS,
+            return [list(self.tokenizer.tokenize(text)) for text in corpus]
+        return cast(
+            list[list[str]],
+            bm25s.tokenize(
+                corpus,
+                stopwords="en",
+                return_ids=False,
+                show_progress=self._SHOW_PROGRESS,
+                leave=self._LEAVE_PROGRESS,
+            ),
         )
 
     def search(
@@ -289,26 +286,13 @@ class BM25SearchIndex:
         if not self.documents:
             return []
 
-        if self.tokenizer is not None:
-            query_tokens_nested: list[list[str]] = [list(self.tokenizer.tokenize(query))]
-        else:
-            tokenized = cast(
-                list[list[str]],
-                bm25s.tokenize(
-                    query,
-                    stopwords="en",
-                    return_ids=False,
-                    show_progress=self._SHOW_PROGRESS,
-                    leave=self._LEAVE_PROGRESS,
-                ),
-            )
-            query_tokens_nested = [list(tokenized[0])]
+        query_tokens = self.tokenize_query(query)
 
-        if not query_tokens_nested[0]:
+        if not query_tokens:
             return []
 
         results = self.bm25.retrieve(
-            query_tokens_nested,
+            [list(query_tokens)],
             k=min(limit, len(self.documents)),
             show_progress=self._SHOW_PROGRESS,
             leave_progress=self._LEAVE_PROGRESS,
@@ -325,11 +309,54 @@ class BM25SearchIndex:
                 BM25SearchHit(
                     document=doc,
                     score=score,
-                    matched_terms=tuple(query_tokens_nested[0]),
+                    matched_terms=(
+                        self._matched_query_terms(query_tokens, self.corpus_tokens[doc_idx])
+                        if self.corpus_tokens
+                        else ()
+                    ),
                 )
             )
 
         return hits
+
+    def tokenize_query(self, query: str) -> tuple[str, ...]:
+        """Tokenize a query with the index tokenizer for diagnostics and search."""
+        if self.tokenizer is not None:
+            return tuple(self.tokenizer.tokenize(query))
+        tokenized = cast(
+            list[list[str]],
+            bm25s.tokenize(
+                query,
+                stopwords="en",
+                return_ids=False,
+                show_progress=self._SHOW_PROGRESS,
+                leave=self._LEAVE_PROGRESS,
+            ),
+        )
+        return tuple(tokenized[0])
+
+    def tokens_for_document(self, document_id: str) -> tuple[str, ...]:
+        """Return indexed tokens for one document ID for diagnostics."""
+        if not self.corpus_tokens:
+            raise RuntimeError("BM25 document tokens are not loaded for diagnostics.")
+        for index, document in enumerate(self.documents):
+            if document.id == document_id:
+                return tuple(self.corpus_tokens[index])
+        raise KeyError(f"Unknown BM25 document ID: {document_id}")
+
+    @staticmethod
+    def _matched_query_terms(
+        query_tokens: tuple[str, ...],
+        document_tokens: list[str],
+    ) -> tuple[str, ...]:
+        document_token_set = set(document_tokens)
+        matched_terms: list[str] = []
+        seen: set[str] = set()
+        for token in query_tokens:
+            if token in document_token_set and token not in seen:
+                matched_terms.append(token)
+                seen.add(token)
+        return tuple(matched_terms)
 
     def save(self, path: str) -> None:
         """Save index to disk."""
@@ -369,6 +396,7 @@ class BM25SearchIndex:
         documents: Iterable[BM25SearchDocument],
         *,
         expected_tokenizer_name: str | None = None,
+        load_corpus_tokens: bool = False,
     ) -> BM25SearchIndex:
         """Load a single-file benchmark cache artifact produced by to_cache_bytes."""
 
@@ -380,6 +408,7 @@ class BM25SearchIndex:
                 (temp_root / "index").as_posix(),
                 documents,
                 expected_tokenizer_name=expected_tokenizer_name,
+                load_corpus_tokens=load_corpus_tokens,
             )
 
     @staticmethod
@@ -405,6 +434,7 @@ class BM25SearchIndex:
         documents: Iterable[BM25SearchDocument],
         *,
         expected_tokenizer_name: str | None = None,
+        load_corpus_tokens: bool = True,
     ) -> BM25SearchIndex:
         """Load index from disk."""
         metadata_path = cls._metadata_path(path)
@@ -439,7 +469,11 @@ class BM25SearchIndex:
             metadata_path=metadata_path,
         )
         instance._separate_field_tokenization = False
-        instance.corpus_tokens = []
+        instance.corpus_tokens = (
+            instance._tokenize_documents(fit_tokenizer=False)
+            if load_corpus_tokens
+            else []
+        )
         instance.bm25 = bm25s.BM25.load(path, load_corpus=True)
         return instance
 
