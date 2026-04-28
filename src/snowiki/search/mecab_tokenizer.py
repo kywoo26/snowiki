@@ -7,6 +7,7 @@ import MeCab
 import mecab_ko_dic
 
 from .tokenizer import normalize_text as regex_normalize_text
+from .tokenizer import tokenize_text as regex_tokenize_text
 
 _NON_KOREAN_TOKEN_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 _KOREAN_SPAN_RE = re.compile(r"[가-힣]+")
@@ -71,6 +72,9 @@ class MecabSearchTokenizer:
         normalized = regex_normalize_text(text)
         if not normalized:
             return ()
+
+        if not _KOREAN_SPAN_RE.search(normalized):
+            return regex_tokenize_text(normalized)
 
         preserved = _preserve_non_korean_tokens(normalized)
         korean_tokens: list[str] = []

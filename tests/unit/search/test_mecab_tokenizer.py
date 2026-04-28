@@ -81,3 +81,29 @@ def test_mecab_tokenizer_normalize_matches_regex_normalizer(
     tokenizer = MecabSearchTokenizer()
 
     assert tokenizer.normalize(" Hello\tSnowiki ") == "hello snowiki"
+
+
+def test_mecab_tokenizer_uses_regex_tokens_for_english_only_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeTagger:
+        def __init__(self, args: str) -> None:
+            self.args: str = args
+
+        def parse(self, text: str) -> str:
+            msg = f"MeCab should not analyze English-only text: {text}"
+            raise AssertionError(msg)
+
+    monkeypatch.setattr("snowiki.search.mecab_tokenizer.MeCab.Tagger", FakeTagger)
+
+    tokenizer = MecabSearchTokenizer()
+
+    assert tokenizer.tokenize("Therapeutic use of Dapsone treats pyoderma.") == (
+        "therapeutic use of dapsone treats pyoderma",
+        "therapeutic",
+        "use",
+        "of",
+        "dapsone",
+        "treats",
+        "pyoderma",
+    )
