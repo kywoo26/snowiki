@@ -25,8 +25,16 @@ def fake_kiwi(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, object]]:
         def __init__(self, num_workers: int | None = None) -> None:
             calls.append({"init_num_workers": num_workers})
 
-        def tokenize(self, text: str, **kwargs: object) -> list[SimpleNamespace]:
+        def tokenize(
+            self, text: str | list[str], **kwargs: object
+        ) -> list[SimpleNamespace] | list[list[SimpleNamespace]]:
+            if isinstance(text, list):
+                calls.append({"texts": text, **kwargs})
+                return [self._tokenize_one(item) for item in text]
             calls.append({"text": text, **kwargs})
+            return self._tokenize_one(text)
+
+        def _tokenize_one(self, text: str) -> list[SimpleNamespace]:
             fixtures: dict[str, list[SimpleNamespace]] = {
                 "자연어 처리는 재미있습니다": [
                     _token("자연어", "NNG"),
@@ -115,6 +123,25 @@ class TestKoreanTokenizer:
         assert result == ["자연어", "처리"]
         assert fake_kiwi[1]["text"] == "자연어 처리"
 
+    def test_tokenize_many_uses_kiwi_iterable_api(
+        self, fake_kiwi: list[dict[str, object]]
+    ) -> None:
+        tokenizer = KoreanTokenizer()
+
+        result = tokenizer.tokenize_many(
+            ["자연어 처리", "", "자연어 처리는 재미있습니다"]
+        )
+
+        assert result == (
+            ("자연어", "처리"),
+            (),
+            ("자연어", "처리", "재미있"),
+        )
+        assert fake_kiwi[1]["texts"] == [
+            "자연어 처리",
+            "자연어 처리는 재미있습니다",
+        ]
+
     def test_normalize(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = KoreanTokenizer()
         result = tokenizer.normalize("될까욬ㅋㅋ")
@@ -168,3 +195,28 @@ class TestBilingualTokenizer:
         result = tokenizer.tokenize("자연어 Python 처리 README.md /src/app.py")
         assert result == ("python", "readme", "md", "src", "app", "py", "자연어", "처리")
         assert fake_kiwi[1]["text"] == "자연어 Python 처리 README.md /src/app.py"
+
+    def test_tokenize_many_batches_only_korean_texts(
+        self, fake_kiwi: list[dict[str, object]]
+    ) -> None:
+        tokenizer = BilingualTokenizer()
+
+        result = tokenizer.tokenize_many(
+            [
+                "Hello world",
+                "자연어 Python 처리 README.md /src/app.py",
+                "   ",
+                "자연어 처리",
+            ]
+        )
+
+        assert result == (
+            ("hello world", "hello", "world"),
+            ("python", "readme", "md", "src", "app", "py", "자연어", "처리"),
+            (),
+            ("자연어", "처리"),
+        )
+        assert fake_kiwi[1]["texts"] == [
+            "자연어 Python 처리 README.md /src/app.py",
+            "자연어 처리",
+        ]
