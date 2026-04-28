@@ -78,7 +78,7 @@ def test_lookup_returns_immutable_spec() -> None:
     spec = get("kiwi_morphology_v1")
 
     assert spec.family == "kiwi"
-    assert spec.version == 1
+    assert spec.version == 2
     assert spec.runtime_supported is False
 
 
@@ -86,7 +86,7 @@ def test_mecab_candidate_version_reflects_search_noise_filter() -> None:
     spec = get("mecab_morphology_v1")
 
     assert spec.family == "mecab"
-    assert spec.version == 2
+    assert spec.version == 3
     assert spec.runtime_supported is False
 
 

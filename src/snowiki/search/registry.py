@@ -86,7 +86,7 @@ TOKENIZER_REGISTRY.register(
     TokenizerSpec(
         name="kiwi_morphology_v1",
         family="kiwi",
-        version=1,
+        version=2,
         runtime_supported=False,
     ),
     lambda: build_bilingual_tokenizer("morphology"),
@@ -95,7 +95,7 @@ TOKENIZER_REGISTRY.register(
     TokenizerSpec(
         name="kiwi_nouns_v1",
         family="kiwi",
-        version=1,
+        version=2,
         runtime_supported=False,
     ),
     lambda: build_bilingual_tokenizer("nouns"),
@@ -104,7 +104,7 @@ TOKENIZER_REGISTRY.register(
     TokenizerSpec(
         name="mecab_morphology_v1",
         family="mecab",
-        version=2,
+        version=3,
         runtime_supported=False,
     ),
     build_mecab_tokenizer,
