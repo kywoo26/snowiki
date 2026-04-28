@@ -11,7 +11,7 @@ from .tokenizer import normalize_text as regex_normalize_text
 
 _SPECIAL_TOKENS = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
 _FALLBACK_TOKEN_RE = re.compile(r"[가-힣]+|[a-z0-9]+", re.IGNORECASE)
-DEFAULT_WORDPIECE_VOCAB_SIZE = 2000
+DEFAULT_WORDPIECE_VOCAB_SIZE = 30000
 DEFAULT_WORDPIECE_MIN_FREQUENCY = 1
 DEFAULT_WORDPIECE_LOWERCASE = True
 

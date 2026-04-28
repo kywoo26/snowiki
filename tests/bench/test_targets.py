@@ -152,7 +152,7 @@ def test_bm25_wordpiece_cache_identity_includes_training_config(
         "lowercase": True,
         "min_frequency": 1,
         "runtime_supported": False,
-        "vocab_size": 2000,
+        "vocab_size": 30000,
     }
 
 
