@@ -9,6 +9,7 @@ from kiwipiepy import Kiwi
 from kiwipiepy.utils import Stopwords
 
 from .tokenizer import normalize_text as regex_normalize_text
+from .tokenizer import tokenize_text as regex_tokenize_text
 
 KiwiLexicalCandidateMode = Literal["morphology", "nouns"]
 KIWI_LEXICAL_CANDIDATE_MODES: frozenset[KiwiLexicalCandidateMode] = frozenset(
@@ -188,7 +189,7 @@ class BilingualTokenizer:
             return ()
         preserved = _preserve_non_korean_tokens(text)
         if not _contains_hangul(text):
-            return _ordered_unique(preserved)
+            return regex_tokenize_text(text)
         korean = self.korean_tokenizer.tokenize(text)
         return _ordered_unique(preserved + korean)
 

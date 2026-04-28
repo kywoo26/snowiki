@@ -140,7 +140,7 @@ class TestBilingualTokenizer:
     def test_callable(self, fake_kiwi: list[dict[str, object]]) -> None:
         tokenizer = BilingualTokenizer()
         result = tokenizer("Hello world")
-        assert result == ["hello", "world"]
+        assert result == ["hello world", "hello", "world"]
         assert fake_kiwi == [{"init_num_workers": None}]
 
     def test_english_only_text_skips_kiwi_analysis(
@@ -150,7 +150,15 @@ class TestBilingualTokenizer:
 
         result = tokenizer.tokenize("Therapeutic use of Dapsone treats pyoderma.")
 
-        assert result == ("therapeutic", "use", "of", "dapsone", "treats", "pyoderma")
+        assert result == (
+            "therapeutic use of dapsone treats pyoderma",
+            "therapeutic",
+            "use",
+            "of",
+            "dapsone",
+            "treats",
+            "pyoderma",
+        )
         assert fake_kiwi == [{"init_num_workers": None}]
 
     def test_tokenize_true_mixed_text_preserves_english_and_paths(
