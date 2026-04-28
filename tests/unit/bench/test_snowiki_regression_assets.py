@@ -10,7 +10,7 @@ from snowiki.config import resolve_repo_asset_path
 def test_snowiki_regression_queries_are_reviewable_and_balanced() -> None:
     queries = _load_queries()
 
-    assert len(queries) == 20
+    assert len(queries) == 23
     assert len({query["id"] for query in queries}) == len(queries)
     assert {query["group"] for query in queries} == {"ko", "en", "mixed"}
     assert {query["kind"] for query in queries} == {"known-item", "topical", "temporal"}
@@ -23,6 +23,9 @@ def test_snowiki_regression_queries_are_reviewable_and_balanced() -> None:
     }
     assert _tagged_query_ids(queries, "hard-negative") >= {
         "ko_privacy_reasoning",
+        "ko_analyzer_inflection_quality",
+        "ko_privacy_redaction_inflection",
+        "ko_source_provenance_inflection",
         "en_judgments_not_diff_session",
         "hard_negative_secret_fixture",
     }
