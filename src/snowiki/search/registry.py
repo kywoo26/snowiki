@@ -113,7 +113,7 @@ TOKENIZER_REGISTRY.register(
     TokenizerSpec(
         name="hf_wordpiece_v1",
         family="subword",
-        version=1,
+        version=2,
         runtime_supported=False,
     ),
     build_wordpiece_tokenizer,
