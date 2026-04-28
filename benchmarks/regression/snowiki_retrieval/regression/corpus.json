@@ -38,6 +38,90 @@
       "text": "OpenCode reasoning fixture covering privacy gate reasoning, secret redaction, and rejection behavior. It explains why synthetic secrets should be blocked from durable memory and benchmark evidence."
     },
     {
+      "docid": "docs/reference/korean-analyzer-quality.md",
+      "text": "한국어 analyzer 품질 근거 문서. 형태소 analyzer는 검색 품질을 높인다. 높이는 방식은 조사와 어미가 붙은 활용형을 원형 단위로 분석하는 것이며, 높이 원형 토큰을 통해 analyzer promotion에서 한국어 검색 품질 개선 근거로 사용된다."
+    },
+    {
+      "docid": "docs/reference/korean-analyzer-quality-distractor-1.md",
+      "text": "높였던 회고 문서. 사용자가 품질을 높였던 개인 작업 일지를 적었지만 analyzer 품질 근거나 한국어 검색 promotion 판단은 다루지 않는다."
+    },
+    {
+      "docid": "docs/reference/korean-analyzer-quality-distractor-2.md",
+      "text": "품질 근거 일반 문서. 높였던 표현을 예시로 들지만 형태소 analyzer나 한국어 retrieval 개선 근거는 설명하지 않는다."
+    },
+    {
+      "docid": "docs/reference/korean-analyzer-quality-distractor-3.md",
+      "text": "analyzer glossary. analyzer라는 용어와 품질이라는 단어를 나열하지만 Snowiki 한국어 검색 품질 개선 근거는 없다."
+    },
+    {
+      "docid": "docs/reference/korean-analyzer-quality-distractor-4.md",
+      "text": "높였던 품질 체크리스트. 검색 analyzer promotion 근거가 아니라 임시 실험 회고와 작업 메모만 포함한다."
+    },
+    {
+      "docid": "docs/reference/korean-analyzer-quality-distractor-5.md",
+      "text": "근거 모음. 높였던 analyzer라는 제목만 있고 한국어 analyzer 품질을 높이는 형태소 분석 설명은 없다."
+    },
+    {
+      "docid": "docs/reference/korean-analyzer-quality-distractor-6.md",
+      "text": "품질 회고. 높였던 사례를 나열하지만 analyzer promotion이나 Snowiki retrieval contract와 무관하다."
+    },
+    {
+      "docid": "docs/reference/korean-privacy-redaction.md",
+      "text": "privacy redaction 정책 문서. Snowiki는 synthetic secret을 거부하고 민감정보를 차단하는 판단 근거를 기록한다. 거부 판단과 secret redaction 판단은 durable memory와 benchmark evidence에 민감정보가 남지 않도록 보호한다."
+    },
+    {
+      "docid": "docs/reference/korean-privacy-redaction-distractor-1.md",
+      "text": "거부했던 요청 로그. secret redaction 정책이 아니라 임시 요청이 실패한 운영 기록이다."
+    },
+    {
+      "docid": "docs/reference/korean-privacy-redaction-distractor-2.md",
+      "text": "secret sample list. secret 예시 문자열만 나열하고 거부했던 판단이나 privacy redaction 근거는 없다."
+    },
+    {
+      "docid": "docs/reference/korean-privacy-redaction-distractor-3.md",
+      "text": "redaction checklist. 판단 근거 없이 redaction 용어만 정리한 체크리스트이며 Snowiki privacy 정책 문서가 아니다."
+    },
+    {
+      "docid": "docs/reference/korean-privacy-redaction-distractor-4.md",
+      "text": "거부했던 secret 메모. 사용자가 secret이라는 단어를 적은 메모지만 durable memory privacy 정책과 무관하다."
+    },
+    {
+      "docid": "docs/reference/korean-privacy-redaction-distractor-5.md",
+      "text": "판단 기록. 거부했던 요청 제목만 보관하고 secret redaction 정책이나 민감정보 차단 근거는 설명하지 않는다."
+    },
+    {
+      "docid": "docs/reference/korean-privacy-redaction-distractor-6.md",
+      "text": "secret redaction glossary. 용어 설명만 포함하며 거부했던 synthetic secret 판단 사례는 없다."
+    },
+    {
+      "docid": "docs/reference/korean-source-provenance.md",
+      "text": "출처 provenance 계층 근거 문서. Snowiki는 source root, raw snapshot, normalized record, compiled page 계층을 무너뜨리지 않고 보존한다. provenance 계층 보존은 source taxonomy와 retrieval evidence의 핵심이다."
+    },
+    {
+      "docid": "docs/reference/korean-source-provenance-distractor-1.md",
+      "text": "무너 사례 메모. provenance라는 단어는 언급하지 않고 임시 계층 오류만 적은 운영 기록이다."
+    },
+    {
+      "docid": "docs/reference/korean-source-provenance-distractor-2.md",
+      "text": "너뜨 조각 테스트. 계층과 무관한 문자열 fixture이며 source provenance 근거가 아니다."
+    },
+    {
+      "docid": "docs/reference/korean-source-provenance-distractor-3.md",
+      "text": "뜨린 문자열 fixture. 근거가 아니라 analyzer hard-negative를 위한 표면형 distractor이다."
+    },
+    {
+      "docid": "docs/reference/korean-source-provenance-distractor-4.md",
+      "text": "무너뜨린 사고 보고서. provenance 계층 정책이 아니라 실패 사례 회고를 설명한다."
+    },
+    {
+      "docid": "docs/reference/korean-source-provenance-distractor-5.md",
+      "text": "계층 근거 일반 문서. 무너뜨린 표현만 있고 Snowiki source provenance 보존 원칙은 없다."
+    },
+    {
+      "docid": "docs/reference/korean-source-provenance-distractor-6.md",
+      "text": "provenance glossary. provenance 용어만 설명하며 무너뜨린 계층 보존과 source taxonomy 판단은 다루지 않는다."
+    },
+    {
       "docid": "fixtures/opencode/with_compaction.db",
       "text": "OpenCode compaction fixture. It records compaction timing, carry-over context, continuation flow, and resumed work on 2026-04-05. The document is a session-history fixture, not a search index cache."
     },
