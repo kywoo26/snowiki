@@ -42,6 +42,27 @@
       "text": "source root, raw snapshot, normalized record, compiled page를 구분하는 근거 문서를 찾아줘"
     },
     {
+      "id": "ko_analyzer_inflection_quality",
+      "group": "ko",
+      "kind": "topical",
+      "text": "높였던 analyzer 품질 근거",
+      "tags": ["hard-negative"]
+    },
+    {
+      "id": "ko_privacy_redaction_inflection",
+      "group": "ko",
+      "kind": "topical",
+      "text": "거부했던 secret redaction 판단",
+      "tags": ["hard-negative"]
+    },
+    {
+      "id": "ko_source_provenance_inflection",
+      "group": "ko",
+      "kind": "topical",
+      "text": "무너뜨린 provenance 계층 근거",
+      "tags": ["hard-negative"]
+    },
+    {
       "id": "en_gate_default_promotion",
       "group": "en",
       "kind": "topical",

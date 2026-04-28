@@ -121,14 +121,14 @@ def test_snowiki_regression_matrix_smoke_contract(
 
     metrics = _metrics_by_id(cell["metrics"])
     assert set(metrics) >= FIRST_SCREEN_METRICS
-    assert metrics["hit_rate_at_5"] == 1.0
-    assert metrics["recall_at_5"] >= 0.95
-    assert metrics["mrr_at_10"] >= 0.95
-    assert metrics["ndcg_at_10"] >= 0.95
+    assert metrics["hit_rate_at_5"] >= 0.85
+    assert metrics["recall_at_5"] >= 0.85
+    assert metrics["mrr_at_10"] >= 0.80
+    assert metrics["ndcg_at_10"] >= 0.85
 
     per_query = cell["per_query"]
     assert isinstance(per_query, dict)
-    assert len(per_query) == 20
+    assert len(per_query) == 23
     assert set(per_query) >= REQUIRED_QUERY_IDS
     for query_id in REQUIRED_QUERY_IDS:
         evidence = per_query[query_id]
@@ -145,4 +145,5 @@ def test_snowiki_regression_matrix_smoke_contract(
         assert isinstance(slice_evidence, dict)
         slice_metrics = slice_evidence["metrics"]
         assert isinstance(slice_metrics, dict)
-        assert slice_metrics["hit_rate_at_5"] == 1.0
+        assert slice_metrics["hit_rate_at_5"] >= 0.5
+    assert slices["group:ko"]["metrics"]["hit_rate_at_5"] < 1.0
