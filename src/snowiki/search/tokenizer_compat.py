@@ -60,7 +60,7 @@ def normalize_stored_tokenizer_name(metadata: Mapping[str, object]) -> str | Non
     else:
         use_kiwi_tokenizer = None
     if use_kiwi_tokenizer is False:
-        return default().name
+        return "regex_v1"
     if use_kiwi_tokenizer is True:
         if raw_kiwi_lexical_candidate_mode == "nouns":
             return "kiwi_nouns_v1"

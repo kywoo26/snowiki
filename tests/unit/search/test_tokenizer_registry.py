@@ -60,7 +60,9 @@ def test_canonical_names_contract() -> None:
 def test_default_runtime_tokenizer_contract() -> None:
     spec = default()
 
+    assert DEFAULT_TOKENIZER_NAME == "kiwi_morphology_v1"
     assert spec.name == DEFAULT_TOKENIZER_NAME
+    assert spec.family == "kiwi"
     assert spec.runtime_supported is True
 
 
@@ -79,7 +81,14 @@ def test_lookup_returns_immutable_spec() -> None:
 
     assert spec.family == "kiwi"
     assert spec.version == 2
-    assert spec.runtime_supported is False
+    assert spec.runtime_supported is True
+
+
+def test_regex_remains_runtime_supported_for_existing_indexes() -> None:
+    spec = get("regex_v1")
+
+    assert spec.family == "regex"
+    assert spec.runtime_supported is True
 
 
 def test_mecab_candidate_version_reflects_search_noise_filter() -> None:
