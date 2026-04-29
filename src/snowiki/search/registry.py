@@ -89,7 +89,7 @@ TOKENIZER_REGISTRY.register(
         version=2,
         runtime_supported=False,
     ),
-    lambda: build_bilingual_tokenizer("morphology"),
+    lambda: build_bilingual_tokenizer("morphology", num_workers=-1),
 )
 TOKENIZER_REGISTRY.register(
     TokenizerSpec(
@@ -98,7 +98,7 @@ TOKENIZER_REGISTRY.register(
         version=2,
         runtime_supported=False,
     ),
-    lambda: build_bilingual_tokenizer("nouns"),
+    lambda: build_bilingual_tokenizer("nouns", num_workers=-1),
 )
 TOKENIZER_REGISTRY.register(
     TokenizerSpec(

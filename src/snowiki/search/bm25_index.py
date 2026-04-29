@@ -7,7 +7,7 @@ import zipfile
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import bm25s
 
@@ -23,8 +23,12 @@ from .tokenizer_compat import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Iterable, Mapping, Sequence
     from datetime import datetime
+
+
+class _BatchSearchTokenizer(Protocol):
+    def tokenize_many(self, texts: Sequence[str]) -> tuple[tuple[str, ...], ...]: ...
 
 
 @dataclass(frozen=True)
@@ -132,7 +136,7 @@ class BM25SearchIndex:
             if self.use_kiwi_tokenizer or resolved_tokenizer_name == "regex_v1"
             else None
         )
-        self._separate_field_tokenization = tokenizer is not None
+        self._separate_field_tokenization: bool = tokenizer is not None
         self.corpus_tokens: list[list[str]] = []
         self.bm25: Any
         self._build_index()
@@ -247,25 +251,14 @@ class BM25SearchIndex:
         )
 
     def _tokenize_documents(self, *, fit_tokenizer: bool) -> list[list[str]]:
-        corpus = [
-            f"{doc.title}\n{doc.content}\n{doc.summary}" for doc in self.documents
-        ]
+        corpus = [f"{doc.title}\n{doc.content}\n{doc.summary}" for doc in self.documents]
         if self.tokenizer is not None:
             fit = getattr(self.tokenizer, "fit_corpus", None)
             if fit_tokenizer and callable(fit):
-                fit(corpus)
+                _ = fit(corpus)
             if self._separate_field_tokenization:
-                return [
-                    list(
-                        self.tokenizer.tokenize(doc.title)
-                        + self.tokenizer.tokenize(doc.path)
-                        + self.tokenizer.tokenize(doc.content)
-                        + self.tokenizer.tokenize(doc.summary)
-                        + self.tokenizer.tokenize(" ".join(doc.aliases))
-                    )
-                    for doc in self.documents
-                ]
-            return [list(self.tokenizer.tokenize(text)) for text in corpus]
+                return self._tokenize_document_fields()
+            return [list(tokens) for tokens in self._tokenize_texts(tuple(corpus))]
         return cast(
             list[list[str]],
             bm25s.tokenize(
@@ -276,6 +269,39 @@ class BM25SearchIndex:
                 leave=self._LEAVE_PROGRESS,
             ),
         )
+
+    def _tokenize_document_fields(self) -> list[list[str]]:
+        if self.tokenizer is None:
+            return []
+
+        document_fields = [self._document_token_texts(doc) for doc in self.documents]
+        unique_texts = tuple(dict.fromkeys(text for fields in document_fields for text in fields))
+        tokenized_texts = self._tokenize_texts(unique_texts)
+        tokens_by_text = dict(zip(unique_texts, tokenized_texts, strict=True))
+        return [
+            [token for text in fields for token in tokens_by_text[text]]
+            for fields in document_fields
+        ]
+
+    @staticmethod
+    def _document_token_texts(document: BM25SearchDocument) -> tuple[str, ...]:
+        fields = (
+            document.title,
+            document.path,
+            document.content,
+            document.summary,
+            " ".join(document.aliases),
+        )
+        return tuple(field for field in fields if field and field.strip())
+
+    def _tokenize_texts(self, texts: Sequence[str]) -> tuple[tuple[str, ...], ...]:
+        if self.tokenizer is None:
+            return ()
+        tokenize_many = getattr(self.tokenizer, "tokenize_many", None)
+        if callable(tokenize_many):
+            batch_tokenizer = cast(_BatchSearchTokenizer, cast(object, self.tokenizer))
+            return batch_tokenizer.tokenize_many(texts)
+        return tuple(self.tokenizer.tokenize(text) for text in texts)
 
     def search(
         self,

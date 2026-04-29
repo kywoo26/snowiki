@@ -116,6 +116,10 @@ def test_create_uses_kiwi_modes_with_fresh_instances(
         "자연어 처리는 재미있습니다",
         "자연어 처리는 재미있습니다",
     ]
+    assert [call["init_num_workers"] for call in fake_kiwi if "init_num_workers" in call] == [
+        -1,
+        -1,
+    ]
 
 
 def test_kiwi_registry_candidates_preserve_mixed_language_signal(

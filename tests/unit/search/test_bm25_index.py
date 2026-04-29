@@ -254,6 +254,42 @@ class TestBM25SearchIndex:
         ]
         assert first_retrieve_call["query_tokens"] == [["python", "readme", "md"]]
 
+    def test_index_build_batches_and_deduplicates_document_field_tokenization(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        class BatchTokenizer:
+            def __init__(self) -> None:
+                self.batch_calls: list[tuple[str, ...]] = []
+
+            def tokenize(self, text: str) -> tuple[str, ...]:
+                return (text.casefold().replace(" ", "_"),)
+
+            def tokenize_many(self, texts: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+                self.batch_calls.append(texts)
+                return tuple(self.tokenize(text) for text in texts)
+
+            def normalize(self, text: str) -> str:
+                return text.casefold()
+
+        tokenizer = BatchTokenizer()
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="shared/doc.md",
+                kind="summary",
+                title="shared/doc.md",
+                content="Python content",
+            )
+        ]
+
+        _ = BM25SearchIndex(docs, tokenizer_name="regex_v1", tokenizer=tokenizer)
+
+        first_index_call = cast(dict[str, Any], fake_bm25_backend["index"][0])
+        assert tokenizer.batch_calls == [("shared/doc.md", "Python content")]
+        assert first_index_call["corpus_tokens"] == [
+            ["shared/doc.md", "shared/doc.md", "python_content"]
+        ]
+
     def test_kiwi_candidate_mode_changes_index_and_query_tokens(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:

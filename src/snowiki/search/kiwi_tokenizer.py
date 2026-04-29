@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Literal
 
 from kiwipiepy import Kiwi
@@ -152,6 +153,31 @@ class KoreanTokenizer:
 
         return tuple(result)
 
+    def tokenize_many(self, texts: Sequence[str]) -> tuple[tuple[str, ...], ...]:
+        """Tokenize multiple texts using Kiwi's iterable API."""
+
+        non_empty_texts: list[str] = []
+        non_empty_indexes: list[int] = []
+        results: list[tuple[str, ...]] = [()] * len(texts)
+        for index, text in enumerate(texts):
+            if not text or not text.strip():
+                continue
+            non_empty_indexes.append(index)
+            non_empty_texts.append(text)
+
+        if not non_empty_texts:
+            return tuple(results)
+
+        analyses = self.kiwi.tokenize(
+            non_empty_texts,
+            normalize_coda=self.normalize_coda,
+            split_complex=self.split_complex,
+            stopwords=self.stopwords,
+        )
+        for index, tokens in zip(non_empty_indexes, analyses, strict=True):
+            results[index] = tuple(_token_forms(tokens, self.target_tags))
+        return tuple(results)
+
     def __call__(self, text: str) -> list[str]:
         """Make tokenizer callable for bm25s compatibility."""
         return list(self.tokenize(text))
@@ -192,6 +218,31 @@ class BilingualTokenizer:
             return regex_tokenize_text(text)
         korean = self.korean_tokenizer.tokenize(text)
         return _ordered_unique(preserved + korean)
+
+    def tokenize_many(self, texts: Sequence[str]) -> tuple[tuple[str, ...], ...]:
+        """Tokenize multiple mixed-language texts with batched Korean analysis."""
+
+        results: list[tuple[str, ...]] = [()] * len(texts)
+        korean_texts: list[str] = []
+        korean_indexes: list[int] = []
+        preserved_by_index: dict[int, tuple[str, ...]] = {}
+
+        for index, text in enumerate(texts):
+            if not text or not text.strip():
+                continue
+            if not _contains_hangul(text):
+                results[index] = regex_tokenize_text(text)
+                continue
+            preserved_by_index[index] = _preserve_non_korean_tokens(text)
+            korean_indexes.append(index)
+            korean_texts.append(text)
+
+        if korean_texts:
+            tokenized = self.korean_tokenizer.tokenize_many(korean_texts)
+            for index, korean in zip(korean_indexes, tokenized, strict=True):
+                results[index] = _ordered_unique(preserved_by_index[index] + korean)
+
+        return tuple(results)
 
     def __call__(self, text: str) -> list[str]:
         """Make tokenizer callable for bm25s compatibility."""
