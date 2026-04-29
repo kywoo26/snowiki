@@ -10,7 +10,7 @@ MeCab, WordPiece, and future analyzers must improve Korean retrieval while
 preserving Snowiki's English, mixed-language, path, code, CLI/tool, known-item,
 and session-history retrieval behavior.
 
-## Current candidates
+## Current analyzer lanes
 
 The benchmark target registry exposes these comparison lanes:
 
@@ -21,8 +21,10 @@ The benchmark target registry exposes these comparison lanes:
 - `bm25_mecab_morphology_v1`
 - `bm25_hf_wordpiece_v1`
 
-The default runtime tokenizer remains `regex_v1` until a candidate passes the
-public and Snowiki-owned gates.
+`kiwi_morphology_v1` passed the public and Snowiki-owned gate evidence after the
+Korean regression assets and Kiwi index-build optimizations landed. It is now the
+runtime default tokenizer. `regex_v1` remains a supported benchmark and rollback
+lane.
 
 ## Evidence layers
 
@@ -59,9 +61,9 @@ candidate targets, required public datasets, required Snowiki-owned slices, and
 numeric tolerance policy.
 
 The contract is intentionally separate from runtime code. Passing it is a
-precondition for a future runtime-default PR; it does not itself promote an
-analyzer. Use `snowiki benchmark-gate --report <benchmark.json>` to evaluate an
-existing benchmark report against the contract without rerunning the matrix.
+precondition for a runtime-default PR; it does not itself promote an analyzer.
+Use `snowiki benchmark-gate --report <benchmark.json>` to evaluate an existing
+benchmark report against the contract without rerunning the matrix.
 Gate evaluation is intentionally strict: a public-only report may show Korean
 quality gains, but it still fails promotion when Snowiki-owned slice or golden
 query evidence is absent. The Snowiki-owned regression matrix at
