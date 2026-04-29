@@ -10,7 +10,7 @@ def test_mixed_language_analyzer_preserves_real_snowiki_tokens() -> None:
         analyzer.tokenize(
             "## 한국어 Retrieval\n"
             "src/snowiki/search/workspace.py uses build_retrieval_snapshot, "
-            "RuntimeCorpusDocument, kebab-case, package.module.symbol, "
+            "SearchDocument, kebab-case, package.module.symbol, "
             "and snowiki benchmark --top-k 5 --target bm25_regex_v1."
         )
     )
@@ -28,9 +28,7 @@ def test_mixed_language_analyzer_preserves_real_snowiki_tokens() -> None:
         "build_retrieval_snapshot",
         "build",
         "snapshot",
-        "runtimecorpusdocument",
-        "runtime",
-        "corpus",
+        "searchdocument",
         "document",
         "kebab-case",
         "kebab",

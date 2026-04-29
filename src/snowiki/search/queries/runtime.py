@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from snowiki.search.contract import run_authoritative_recall
-from snowiki.search.indexer import SearchHit
+from snowiki.search.models import SearchHit
 from snowiki.search.queries.known_item import known_item_lookup
 from snowiki.search.queries.temporal import temporal_recall
 from snowiki.search.queries.topical import topical_recall

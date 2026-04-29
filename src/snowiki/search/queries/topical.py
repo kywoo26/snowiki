@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ..indexer import SearchHit
+from ..models import SearchHit
 from ..protocols import RuntimeSearchIndex
 from ..rerank import NoOpReranker, Reranker, blend_hits_by_kind
 

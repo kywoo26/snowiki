@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from .corpus import RuntimeCorpusDocument
-from .indexer import SearchDocument, SearchHit
+from .models import SearchDocument, SearchHit
 from .registry import SearchTokenizer, create, default
 
 if TYPE_CHECKING:
@@ -28,25 +27,21 @@ class BM25RuntimeIndex:
 
     def __init__(
         self,
-        documents: Iterable[RuntimeCorpusDocument],
+        documents: Iterable[SearchDocument],
         *,
         tokenizer_name: str | None = None,
         tokenizer: SearchTokenizer | None = None,
         candidate_multiplier: int = DEFAULT_CANDIDATE_MULTIPLIER,
     ) -> None:
-        self._corpus: tuple[RuntimeCorpusDocument, ...] = tuple(documents)
-        self._search_documents: tuple[SearchDocument, ...] = tuple(
-            document.to_search_document() for document in self._corpus
-        )
+        self._corpus: tuple[SearchDocument, ...] = tuple(documents)
         self._document_by_id: dict[str, SearchDocument] = {
-            document.id: document for document in self._search_documents
+            document.id: document for document in self._corpus
         }
         self._tokenizer_name: str = tokenizer_name or default().name
         self._tokenizer: SearchTokenizer = tokenizer or create(self._tokenizer_name)
         self._candidate_multiplier: int = max(candidate_multiplier, 1)
         self._document_tokens: dict[str, Counter[str]] = {
-            document.id: self._tokenize_document(document)
-            for document in self._search_documents
+            document.id: self._tokenize_document(document) for document in self._corpus
         }
         self._bm25: BM25SearchIndex = self._build_bm25(self._corpus)
 
@@ -79,7 +74,11 @@ class BM25RuntimeIndex:
         if not eligible:
             return []
 
-        bm25 = self._bm25 if len(eligible) == len(self._corpus) else self._build_bm25(eligible)
+        bm25 = (
+            self._bm25
+            if len(eligible) == len(self._corpus)
+            else self._build_bm25(eligible)
+        )
         candidate_multiplier = (
             self._candidate_multiplier
             if exact_path_bias or self._has_non_default_kind_weight(kind_weights)
@@ -115,10 +114,10 @@ class BM25RuntimeIndex:
         *,
         recorded_after: datetime | None,
         recorded_before: datetime | None,
-    ) -> tuple[RuntimeCorpusDocument, ...]:
+    ) -> tuple[SearchDocument, ...]:
         if recorded_after is None and recorded_before is None:
             return self._corpus
-        eligible: list[RuntimeCorpusDocument] = []
+        eligible: list[SearchDocument] = []
         for document in self._corpus:
             if recorded_after is not None and (
                 document.recorded_at is None or document.recorded_at < recorded_after
@@ -188,11 +187,11 @@ class BM25RuntimeIndex:
             return False
         return any(weight != 1.0 for weight in kind_weights.values())
 
-    def _build_bm25(self, documents: Iterable[RuntimeCorpusDocument]) -> BM25SearchIndex:
+    def _build_bm25(self, documents: Iterable[SearchDocument]) -> BM25SearchIndex:
         from .bm25_index import BM25SearchIndex
 
         return BM25SearchIndex(
-            [document.to_bm25_document() for document in documents],
+            documents,
             tokenizer_name=self._tokenizer_name,
             tokenizer=self._tokenizer,
         )

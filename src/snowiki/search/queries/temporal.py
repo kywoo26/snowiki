@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from ..indexer import SearchHit
+from ..models import SearchHit
 from ..protocols import RuntimeSearchIndex
 from ..rerank import NoOpReranker, Reranker
 

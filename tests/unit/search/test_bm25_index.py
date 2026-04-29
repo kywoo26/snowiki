@@ -7,7 +7,8 @@ from typing import Any, cast
 
 import pytest
 
-from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
+from snowiki.search.bm25_index import BM25SearchIndex
+from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.tokenizer_compat import StaleTokenizerArtifactError
 
 
@@ -121,14 +122,14 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
                 title="Test Document",
                 content="This is a test document about Python.",
             ),
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc2",
                 path="test/doc2.md",
                 kind="summary",
@@ -153,14 +154,14 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
                 title="Python Programming",
                 content="Python is a great language for programming.",
             ),
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc2",
                 path="test/doc2.md",
                 kind="summary",
@@ -171,7 +172,7 @@ class TestBM25SearchIndex:
         index = BM25SearchIndex(docs)
         results = index.search("Python")
         assert len(results) > 0
-        assert isinstance(results[0], BM25SearchHit)
+        assert isinstance(results[0], SearchHit)
         assert results[0].score > 0
         assert results[0].matched_terms == ("python",)
         assert results[1].matched_terms == ()
@@ -181,7 +182,7 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -200,14 +201,14 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
                 title="자연어 처리",
                 content="자연어 처리는 재미있는 분야입니다.",
             ),
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc2",
                 path="test/doc2.md",
                 kind="summary",
@@ -218,7 +219,7 @@ class TestBM25SearchIndex:
         index = BM25SearchIndex(docs)
         results = index.search("자연어")
         assert len(results) > 0
-        assert isinstance(results[0], BM25SearchHit)
+        assert isinstance(results[0], SearchHit)
         assert any(
             call.get("text") == "자연어" for call in fake_bm25_backend["registry"]
         )
@@ -227,7 +228,7 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -264,7 +265,9 @@ class TestBM25SearchIndex:
             def tokenize(self, text: str) -> tuple[str, ...]:
                 return (text.casefold().replace(" ", "_"),)
 
-            def tokenize_many(self, texts: tuple[str, ...]) -> tuple[tuple[str, ...], ...]:
+            def tokenize_many(
+                self, texts: tuple[str, ...]
+            ) -> tuple[tuple[str, ...], ...]:
                 self.batch_calls.append(texts)
                 return tuple(self.tokenize(text) for text in texts)
 
@@ -273,7 +276,7 @@ class TestBM25SearchIndex:
 
         tokenizer = BatchTokenizer()
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="shared/doc.md",
                 kind="summary",
@@ -290,11 +293,72 @@ class TestBM25SearchIndex:
             ["shared/doc.md", "shared/doc.md", "python_content"]
         ]
 
+    def test_index_tokenizes_searchable_fields_without_metadata(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        class BatchTokenizer:
+            def __init__(self) -> None:
+                self.batch_calls: list[tuple[str, ...]] = []
+
+            def tokenize(self, text: str) -> tuple[str, ...]:
+                return tuple(text.casefold().split())
+
+            def tokenize_many(
+                self, texts: tuple[str, ...]
+            ) -> tuple[tuple[str, ...], ...]:
+                self.batch_calls.append(texts)
+                return tuple(self.tokenize(text) for text in texts)
+
+            def normalize(self, text: str) -> str:
+                return text.casefold()
+
+        tokenizer = BatchTokenizer()
+        docs = [
+            SearchDocument(
+                id="doc1",
+                path="docs/path-field.md",
+                kind="summary",
+                title="Title Field",
+                content="Content Field",
+                summary="Summary Field",
+                aliases=("Alias One", "Alias Two"),
+                metadata={"hidden": "Metadata Field"},
+            )
+        ]
+
+        _ = BM25SearchIndex(docs, tokenizer_name="regex_v1", tokenizer=tokenizer)
+
+        first_index_call = cast(dict[str, Any], fake_bm25_backend["index"][0])
+        assert tokenizer.batch_calls == [
+            (
+                "Title Field",
+                "docs/path-field.md",
+                "Content Field",
+                "Summary Field",
+                "Alias One Alias Two",
+            )
+        ]
+        assert first_index_call["corpus_tokens"] == [
+            [
+                "title",
+                "field",
+                "docs/path-field.md",
+                "content",
+                "field",
+                "summary",
+                "field",
+                "alias",
+                "one",
+                "alias",
+                "two",
+            ]
+        ]
+
     def test_kiwi_candidate_mode_changes_index_and_query_tokens(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -332,7 +396,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -362,7 +426,7 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -381,7 +445,7 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -403,7 +467,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -436,7 +500,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -463,7 +527,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -502,7 +566,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -534,7 +598,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -584,7 +648,7 @@ class TestBM25SearchIndex:
         fake_bm25_backend: dict[str, list[dict[str, object]]],
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -605,7 +669,7 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id=f"doc{i}",
                 path=f"test/doc{i}.md",
                 kind="summary",
@@ -656,7 +720,7 @@ class TestBM25SearchIndex:
         )
 
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -689,7 +753,7 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -708,7 +772,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -719,7 +783,9 @@ class TestBM25SearchIndex:
         path = tmp_path / "bm25-index"
 
         index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
-        expected = index.tokenizer.tokenize("Python README.md") if index.tokenizer else ()
+        expected = (
+            index.tokenizer.tokenize("Python README.md") if index.tokenizer else ()
+        )
         index.save(str(path))
         loaded = BM25SearchIndex.load(str(path), docs)
 
@@ -738,7 +804,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -748,7 +814,9 @@ class TestBM25SearchIndex:
         ]
 
         index = BM25SearchIndex(docs, tokenizer_name="hf_wordpiece_v1")
-        expected = index.tokenizer.tokenize("Python README.md") if index.tokenizer else ()
+        expected = (
+            index.tokenizer.tokenize("Python README.md") if index.tokenizer else ()
+        )
         artifact_path = tmp_path / "index.bm25cache"
         artifact_path.write_bytes(index.to_cache_bytes())
 
@@ -767,7 +835,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -793,7 +861,7 @@ class TestBM25SearchIndex:
         tmp_path: Path,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -821,7 +889,7 @@ class TestBM25SearchIndex:
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -841,7 +909,9 @@ class TestBM25SearchIndex:
     ) -> None:
         bm25s_tokenize_calls: list[dict[str, object]] = []
 
-        def capturing_tokenize(texts: str | list[str], **kwargs: object) -> list[list[str]]:
+        def capturing_tokenize(
+            texts: str | list[str], **kwargs: object
+        ) -> list[list[str]]:
             bm25s_tokenize_calls.append({"texts": texts, **kwargs})
             return [["dummy"]]
 
@@ -867,7 +937,7 @@ class TestBM25SearchIndex:
         )
 
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -885,7 +955,7 @@ class TestBM25SearchIndex:
 
     def test_regex_v1_preserves_english_stopwords(self) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -901,7 +971,7 @@ class TestBM25SearchIndex:
 
     def test_regex_v1_query_tokenization_matches_index(self) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="test/doc1.md",
                 kind="summary",
@@ -921,7 +991,7 @@ class TestBM25SearchIndex:
         self,
     ) -> None:
         docs = [
-            BM25SearchDocument(
+            SearchDocument(
                 id="doc1",
                 path="docs/README.md",
                 kind="summary",

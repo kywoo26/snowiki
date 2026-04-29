@@ -16,7 +16,7 @@ from snowiki.search import (
     topical_recall,
 )
 from snowiki.search.contract import RecallMode
-from snowiki.search.indexer import SearchHit
+from snowiki.search.models import SearchHit
 from snowiki.search.workspace import RetrievalService
 
 from .types import MCPMapping, MCPObject, ResourceSpec

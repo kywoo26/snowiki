@@ -4,7 +4,6 @@ import io
 import json
 import tempfile
 import zipfile
-from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any, Protocol, cast
@@ -15,6 +14,7 @@ from .kiwi_tokenizer import (
     KIWI_LEXICAL_CANDIDATE_MODES,
     KiwiLexicalCandidateMode,
 )
+from .models import SearchDocument, SearchHit
 from .registry import SearchTokenizer, create, default, get
 from .subword_tokenizer import WordPieceSearchTokenizer
 from .tokenizer_compat import (
@@ -24,31 +24,10 @@ from .tokenizer_compat import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
-    from datetime import datetime
 
 
 class _BatchSearchTokenizer(Protocol):
     def tokenize_many(self, texts: Sequence[str]) -> tuple[tuple[str, ...], ...]: ...
-
-
-@dataclass(frozen=True)
-class BM25SearchDocument:
-    id: str
-    path: str
-    kind: str
-    title: str
-    content: str
-    summary: str = ""
-    aliases: tuple[str, ...] = ()
-    recorded_at: datetime | None = None
-    source_type: str = ""
-
-
-@dataclass(frozen=True)
-class BM25SearchHit:
-    document: BM25SearchDocument
-    score: float
-    matched_terms: tuple[str, ...]
 
 
 class BM25SearchIndex:
@@ -90,7 +69,7 @@ class BM25SearchIndex:
 
     def __init__(
         self,
-        documents: Iterable[BM25SearchDocument],
+        documents: Iterable[SearchDocument],
         method: str = "lucene",
         k1: float = 1.5,
         b: float = 0.75,
@@ -122,7 +101,7 @@ class BM25SearchIndex:
         )
         legacy_flags = self._legacy_tokenizer_flags(resolved_tokenizer_name)
 
-        self.documents: list[BM25SearchDocument] = list(documents)
+        self.documents: list[SearchDocument] = list(documents)
         self.method: str = method
         self.k1: float = k1
         self.b: float = b
@@ -157,7 +136,10 @@ class BM25SearchIndex:
             "bm25s_version": self._bm25s_version(),
             "index_format_version": self._INDEX_FORMAT_VERSION,
         }
-        if isinstance(self.tokenizer, WordPieceSearchTokenizer) and self.tokenizer.is_fitted:
+        if (
+            isinstance(self.tokenizer, WordPieceSearchTokenizer)
+            and self.tokenizer.is_fitted
+        ):
             payload["tokenizer_artifact"] = {
                 "type": "bert_wordpiece_vocab",
                 "path": self._wordpiece_vocab_path_name(),
@@ -275,7 +257,9 @@ class BM25SearchIndex:
             return []
 
         document_fields = [self._document_token_texts(doc) for doc in self.documents]
-        unique_texts = tuple(dict.fromkeys(text for fields in document_fields for text in fields))
+        unique_texts = tuple(
+            dict.fromkeys(text for fields in document_fields for text in fields)
+        )
         tokenized_texts = self._tokenize_texts(unique_texts)
         tokens_by_text = dict(zip(unique_texts, tokenized_texts, strict=True))
         return [
@@ -284,7 +268,7 @@ class BM25SearchIndex:
         ]
 
     @staticmethod
-    def _document_token_texts(document: BM25SearchDocument) -> tuple[str, ...]:
+    def _document_token_texts(document: SearchDocument) -> tuple[str, ...]:
         fields = (
             document.title,
             document.path,
@@ -309,7 +293,7 @@ class BM25SearchIndex:
         limit: int = 10,
         *,
         include_matched_terms: bool = True,
-    ) -> list[BM25SearchHit]:
+    ) -> list[SearchHit]:
         """Search documents using BM25 scoring."""
         if not self.documents:
             return []
@@ -334,11 +318,13 @@ class BM25SearchIndex:
             score = float(scores[i])
             doc = self.documents[doc_idx]
             hits.append(
-                BM25SearchHit(
+                SearchHit(
                     document=doc,
                     score=score,
                     matched_terms=(
-                        self._matched_query_terms(query_tokens, self.corpus_tokens[doc_idx])
+                        self._matched_query_terms(
+                            query_tokens, self.corpus_tokens[doc_idx]
+                        )
                         if include_matched_terms and self.corpus_tokens
                         else ()
                     ),
@@ -421,7 +407,7 @@ class BM25SearchIndex:
     def load_cache_artifact(
         cls,
         path: Path,
-        documents: Iterable[BM25SearchDocument],
+        documents: Iterable[SearchDocument],
         *,
         expected_tokenizer_name: str | None = None,
         load_corpus_tokens: bool = False,
@@ -448,7 +434,9 @@ class BM25SearchIndex:
         for member in archive.infolist():
             member_path = PurePosixPath(member.filename)
             if member_path.is_absolute() or ".." in member_path.parts:
-                raise ValueError(f"Unsafe BM25 cache artifact member: {member.filename}")
+                raise ValueError(
+                    f"Unsafe BM25 cache artifact member: {member.filename}"
+                )
             if member.is_dir():
                 continue
             target_path = destination / member_path
@@ -459,7 +447,7 @@ class BM25SearchIndex:
     def load(
         cls,
         path: str,
-        documents: Iterable[BM25SearchDocument],
+        documents: Iterable[SearchDocument],
         *,
         expected_tokenizer_name: str | None = None,
         load_corpus_tokens: bool = True,
@@ -528,7 +516,11 @@ class BM25SearchIndex:
                 vocab_size = 2000
                 min_frequency = 1
                 lowercase = True
-            if artifact_type == "bert_wordpiece_vocab" and isinstance(raw_path, str) and raw_path:
+            if (
+                artifact_type == "bert_wordpiece_vocab"
+                and isinstance(raw_path, str)
+                and raw_path
+            ):
                 vocab_path = cls._safe_tokenizer_artifact_path(
                     metadata_path=metadata_path,
                     artifact_path=raw_path,
@@ -543,7 +535,10 @@ class BM25SearchIndex:
                     min_frequency=int(cast(int | str, min_frequency)),
                     lowercase=bool(lowercase),
                 )
-        if tokenizer_name == "regex_v1" or cls._legacy_tokenizer_flags(tokenizer_name)[0]:
+        if (
+            tokenizer_name == "regex_v1"
+            or cls._legacy_tokenizer_flags(tokenizer_name)[0]
+        ):
             return create(tokenizer_name)
         return None
 

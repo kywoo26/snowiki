@@ -22,9 +22,9 @@ from snowiki.bench.specs import (
     QueryResult,
 )
 from snowiki.config import get_snowiki_root
-from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
-from snowiki.search.corpus import RuntimeCorpusDocument
+from snowiki.search.bm25_index import BM25SearchIndex
 from snowiki.search.engine import BM25RuntimeIndex
+from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.protocols import RuntimeSearchIndex
 from snowiki.search.queries.topical import topical_recall
 from snowiki.search.registry import default
@@ -50,7 +50,7 @@ class _SnowikiQueryRuntimeTargetAdapter:
     ) -> Mapping[str, object]:
         del include_diagnostics
         documents = tuple(
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id=doc_id,
                 path=doc_id,
                 title=doc_id,
@@ -93,7 +93,7 @@ class _BM25TargetAdapter:
             level=level,
         )
         documents = tuple(
-            BM25SearchDocument(
+            SearchDocument(
                 id=doc_id,
                 path=doc_id,
                 title=doc_id,
@@ -145,7 +145,9 @@ class _BM25TargetAdapter:
         corpus_rows: tuple[tuple[str, str], ...],
     ) -> dict[str, object]:
         tokenizer_spec = get_tokenizer_spec(self._tokenizer_name)
-        corpus_path = resolve_dataset_assets(manifest, level_id=level.level_id)["corpus"]
+        corpus_path = resolve_dataset_assets(manifest, level_id=level.level_id)[
+            "corpus"
+        ]
         return build_bm25_cache_identity(
             target_name=self._target_name,
             corpus_identity=corpus_path.as_posix(),
@@ -274,7 +276,9 @@ def _coerce_corpus_row(row: object, *, corpus_path: Path) -> tuple[str, str]:
     )
 
 
-def _load_judged_doc_ids(manifest: DatasetManifest, *, level_id: str | None = None) -> set[str]:
+def _load_judged_doc_ids(
+    manifest: DatasetManifest, *, level_id: str | None = None
+) -> set[str]:
     judgments_path = resolve_dataset_assets(manifest, level_id=level_id)["judgments"]
     if not judgments_path.is_file():
         raise FileNotFoundError(
@@ -296,7 +300,9 @@ def _load_judged_doc_ids(manifest: DatasetManifest, *, level_id: str | None = No
                 continue
             parts = line.split("\t")
             if len(parts) < 2:
-                raise ValueError(f"Malformed judgment row in {judgments_path}: {line!r}")
+                raise ValueError(
+                    f"Malformed judgment row in {judgments_path}: {line!r}"
+                )
             judged_doc_ids.add(parts[1])
     return judged_doc_ids
 
@@ -366,7 +372,7 @@ def _bm25_query_diagnostics(
     *,
     index: BM25SearchIndex,
     query: BenchmarkQuery,
-    hits: Sequence[BM25SearchHit],
+    hits: Sequence[SearchHit],
 ) -> dict[str, object]:
     query_tokens = index.tokenize_query(query.query_text)
     top_hits: list[dict[str, object]] = []

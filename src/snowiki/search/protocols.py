@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Protocol
 
-from .indexer import SearchHit
+from .models import SearchHit
 from .registry import SearchTokenizer
 
 

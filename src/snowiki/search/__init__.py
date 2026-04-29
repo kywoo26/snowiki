@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .analyzer import MixedLanguageAnalyzer, build_mixed_language_analyzer
-from .bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
+from .bm25_index import BM25SearchIndex
 from .contract import (
     TEMPORAL_KEYWORDS,
     is_temporal_query,
@@ -14,15 +14,14 @@ from .contract import (
     run_authoritative_recall,
 )
 from .corpus import (
-    RuntimeCorpusDocument,
     runtime_corpus_from_mappings,
     runtime_document_from_compiled_page,
     runtime_document_from_normalized_mapping,
 )
 from .engine import BM25RuntimeIndex
-from .indexer import SearchDocument, SearchHit
 from .kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
 from .mecab_tokenizer import MecabSearchTokenizer
+from .models import SearchDocument, SearchHit
 from .protocols import RuntimeSearchIndex
 from .queries.known_item import known_item_lookup
 from .queries.temporal import temporal_recall
@@ -45,8 +44,6 @@ from .tokenizer import tokenize_text
 from .workspace import RetrievalService, RetrievalSnapshot
 
 __all__ = [
-    "BM25SearchDocument",
-    "BM25SearchHit",
     "BM25RuntimeIndex",
     "BM25SearchIndex",
     "BilingualTokenizer",
@@ -59,7 +56,6 @@ __all__ = [
     "DEFAULT_TOKENIZER_NAME",
     "RetrievalService",
     "RetrievalSnapshot",
-    "RuntimeCorpusDocument",
     "RuntimeSearchIndex",
     "SearchTokenizer",
     "SearchDocument",
