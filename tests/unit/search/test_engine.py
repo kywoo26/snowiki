@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from snowiki.search.corpus import RuntimeCorpusDocument
 from snowiki.search.engine import BM25RuntimeIndex
+from snowiki.search.models import SearchDocument
 
 
 class SynonymTokenizer:
@@ -23,7 +23,7 @@ class SynonymTokenizer:
 def test_bm25_runtime_index_returns_search_hits_with_metadata() -> None:
     index = BM25RuntimeIndex(
         [
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id="session-1",
                 path="sessions/session-1.json",
                 kind="session",
@@ -49,7 +49,7 @@ def test_bm25_runtime_index_returns_search_hits_with_metadata() -> None:
 def test_bm25_runtime_index_applies_recorded_at_filters() -> None:
     index = BM25RuntimeIndex(
         [
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id="old",
                 path="sessions/old.json",
                 kind="session",
@@ -57,7 +57,7 @@ def test_bm25_runtime_index_applies_recorded_at_filters() -> None:
                 content="retrieval implementation",
                 recorded_at=datetime(2026, 4, 1, tzinfo=UTC),
             ),
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id="new",
                 path="sessions/new.json",
                 kind="session",
@@ -80,14 +80,14 @@ def test_bm25_runtime_index_applies_recorded_at_filters() -> None:
 def test_bm25_runtime_index_applies_kind_weights_and_path_bias() -> None:
     index = BM25RuntimeIndex(
         [
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id="session",
                 path="sessions/search-plan.json",
                 kind="session",
                 title="Search plan",
                 content="alpha beta",
             ),
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id="page",
                 path="compiled/search-plan.md",
                 kind="page",
@@ -111,7 +111,7 @@ def test_bm25_runtime_index_applies_kind_weights_and_path_bias() -> None:
 def test_bm25_runtime_index_uses_injected_tokenizer_for_runtime_queries() -> None:
     index = BM25RuntimeIndex(
         [
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id="ko-page",
                 path="compiled/ko-page.md",
                 kind="page",
@@ -132,7 +132,7 @@ def test_bm25_runtime_index_uses_injected_tokenizer_for_runtime_queries() -> Non
 def test_bm25_runtime_index_indexes_paths_for_known_item_queries() -> None:
     index = BM25RuntimeIndex(
         [
-            RuntimeCorpusDocument(
+            SearchDocument(
                 id="path-doc",
                 path="compiled/special-path.md",
                 kind="page",

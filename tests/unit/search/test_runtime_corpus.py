@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from snowiki.search.corpus import (
-    RuntimeCorpusDocument,
     runtime_corpus_from_mappings,
     runtime_document_from_compiled_page,
     runtime_document_from_normalized_mapping,
 )
+from snowiki.search.models import SearchDocument
 
 
 def test_runtime_document_from_normalized_mapping_preserves_identity() -> None:
@@ -24,7 +24,7 @@ def test_runtime_document_from_normalized_mapping_preserves_identity() -> None:
 
     document = runtime_document_from_normalized_mapping(record)
 
-    assert document == RuntimeCorpusDocument(
+    assert document == SearchDocument(
         id="session-1",
         path="sessions/2026/session-1.json",
         kind="session",
@@ -46,7 +46,7 @@ def test_runtime_document_from_compiled_page_preserves_page_fields() -> None:
         "path": "compiled/wiki/search/runtime.md",
         "title": "Runtime retrieval architecture",
         "summary": "BM25 runtime corpus",
-        "body": "RuntimeCorpusDocument keeps path and source_type fields.",
+        "body": "SearchDocument keeps path and source_type fields.",
         "tags": ["retrieval", "bm25"],
         "updated_at": "2026-04-08T09:00:00Z",
         "record_ids": ["session-1"],
@@ -58,28 +58,29 @@ def test_runtime_document_from_compiled_page_preserves_page_fields() -> None:
     assert document.source_type == "compiled"
     assert document.aliases == ("retrieval", "bm25")
     assert document.metadata["record_ids"] == ["session-1"]
-    assert "RuntimeCorpusDocument keeps path" in document.content
+    assert "SearchDocument keeps path" in document.content
 
 
-def test_runtime_corpus_converts_to_search_and_bm25_documents() -> None:
+def test_runtime_corpus_returns_search_documents_directly() -> None:
     corpus = runtime_corpus_from_mappings(
         records=[{"id": "record-1", "path": "normalized/record-1.json"}],
         pages=[{"id": "page-1", "path": "compiled/page-1.md"}],
     )
 
     assert len(corpus) == 2
+    assert all(isinstance(document, SearchDocument) for document in corpus)
     assert [document.kind for document in corpus] == ["session", "page"]
-    assert corpus[0].to_search_document().metadata["id"] == "record-1"
-    assert corpus[1].to_bm25_document().source_type == "compiled"
+    assert corpus[0].metadata["id"] == "record-1"
+    assert corpus[1].source_type == "compiled"
 
 
 def test_runtime_corpus_search_documents_preserve_source_identity() -> None:
     record_doc = runtime_document_from_normalized_mapping(
         {"id": "record-1", "path": "normalized/record-1.json", "text": "hello"}
-    ).to_search_document()
+    )
     page_doc = runtime_document_from_compiled_page(
         {"id": "page-1", "path": "compiled/page-1.md", "body": "world"}
-    ).to_search_document()
+    )
 
     assert record_doc.kind == "session"
     assert record_doc.source_type == "normalized"
@@ -92,10 +93,10 @@ def test_runtime_corpus_search_documents_preserve_source_identity() -> None:
 def test_runtime_corpus_metadata_includes_synthesized_defaults() -> None:
     record_doc = runtime_document_from_normalized_mapping(
         {"id": "record-1", "path": "normalized/record-1.json"}
-    ).to_search_document()
+    )
     page_doc = runtime_document_from_compiled_page(
         {"id": "page-1", "path": "compiled/page-1.md"}
-    ).to_search_document()
+    )
 
     assert record_doc.title == "record-1"
     assert record_doc.summary == "normalized record"

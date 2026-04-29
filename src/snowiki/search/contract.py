@@ -6,7 +6,7 @@ from typing import Literal, Protocol, TypedDict, cast
 
 from snowiki.storage.zones import ensure_utc_datetime
 
-from .indexer import SearchHit
+from .models import SearchHit
 from .protocols import RuntimeSearchIndex
 
 RecallStrategy = Literal["date", "temporal", "known_item", "topic"]

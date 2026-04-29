@@ -1,61 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from snowiki.storage.zones import ensure_utc_datetime
 
-from .indexer import SearchDocument, SearchValue
-
-if TYPE_CHECKING:
-    from .bm25_index import BM25SearchDocument
-
-
-@dataclass(frozen=True)
-class RuntimeCorpusDocument:
-    """Typed retrieval corpus document used by the BM25 runtime."""
-
-    id: str
-    path: str
-    kind: str
-    title: str
-    content: str
-    summary: str = ""
-    aliases: tuple[str, ...] = ()
-    recorded_at: datetime | None = None
-    source_type: str = ""
-    metadata: dict[str, SearchValue] = field(default_factory=dict)
-
-    def to_search_document(self) -> SearchDocument:
-        return SearchDocument(
-            id=self.id,
-            path=self.path,
-            kind=self.kind,
-            title=self.title,
-            content=self.content,
-            summary=self.summary,
-            aliases=self.aliases,
-            recorded_at=self.recorded_at,
-            source_type=self.source_type,
-            metadata=dict(self.metadata),
-        )
-
-    def to_bm25_document(self) -> BM25SearchDocument:
-        from .bm25_index import BM25SearchDocument
-
-        return BM25SearchDocument(
-            id=self.id,
-            path=self.path,
-            kind=self.kind,
-            title=self.title,
-            content=self.content,
-            summary=self.summary,
-            aliases=self.aliases,
-            recorded_at=self.recorded_at,
-            source_type=self.source_type,
-        )
+from .models import SearchDocument, SearchValue
 
 
 def _stringify(value: object) -> str:
@@ -114,7 +65,7 @@ def _recorded_at(payload: Mapping[str, object], keys: Iterable[str]) -> datetime
 
 def runtime_document_from_normalized_mapping(
     record: Mapping[str, object],
-) -> RuntimeCorpusDocument:
+) -> SearchDocument:
     title = _stringify(record.get("title") or record.get("id") or record.get("path"))
     title = title or "record"
     summary = _stringify(
@@ -135,7 +86,7 @@ def runtime_document_from_normalized_mapping(
         "title": title,
         "summary": summary,
     }
-    return RuntimeCorpusDocument(
+    return SearchDocument(
         id=_stringify(record.get("id") or path),
         path=path,
         kind="session",
@@ -154,7 +105,7 @@ def runtime_document_from_normalized_mapping(
 
 def runtime_document_from_compiled_page(
     page: Mapping[str, object],
-) -> RuntimeCorpusDocument:
+) -> SearchDocument:
     title = _stringify(page.get("title") or page.get("path") or page.get("id"))
     title = title or "page"
     summary = _stringify(page.get("summary") or page.get("kind") or "compiled wiki page")
@@ -173,7 +124,7 @@ def runtime_document_from_compiled_page(
         "title": title,
         "summary": summary,
     }
-    return RuntimeCorpusDocument(
+    return SearchDocument(
         id=_stringify(page.get("id") or path),
         path=path,
         kind="page",
@@ -191,7 +142,7 @@ def runtime_corpus_from_mappings(
     *,
     records: Iterable[Mapping[str, object]],
     pages: Iterable[Mapping[str, object]],
-) -> tuple[RuntimeCorpusDocument, ...]:
+) -> tuple[SearchDocument, ...]:
     return tuple(
         [runtime_document_from_normalized_mapping(record) for record in records]
         + [runtime_document_from_compiled_page(page) for page in pages]

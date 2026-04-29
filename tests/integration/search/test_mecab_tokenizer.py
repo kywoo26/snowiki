@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchIndex
+from snowiki.search.bm25_index import BM25SearchIndex
 from snowiki.search.mecab_tokenizer import MecabSearchTokenizer
+from snowiki.search.models import SearchDocument
 
 pytestmark = pytest.mark.integration
 
@@ -21,7 +22,7 @@ def test_mecab_tokenizer_runs_with_packaged_korean_dictionary() -> None:
 
 def test_mecab_identifier_heavy_tool_session_query_ranks_identifier_evidence() -> None:
     documents = [
-        BM25SearchDocument(
+        SearchDocument(
             id="fixtures/claude/with_tools.jsonl",
             path="fixtures/claude/with_tools.jsonl",
             kind="benchmark_doc",
@@ -33,7 +34,7 @@ def test_mecab_identifier_heavy_tool_session_query_ranks_identifier_evidence() -
                 "evidence, not about benchmark scores."
             ),
         ),
-        BM25SearchDocument(
+        SearchDocument(
             id="sessions/2026/04/07/mixed-retrieval-session.json",
             path="sessions/2026/04/07/mixed-retrieval-session.json",
             kind="benchmark_doc",
@@ -52,7 +53,9 @@ def test_mecab_identifier_heavy_tool_session_query_ranks_identifier_evidence() -
         tokenizer=MecabSearchTokenizer(),
     )
 
-    hits = index.search("qmd 검색을 Bash 도구 호출로 실행한 세션 증거를 찾아줘", limit=2)
+    hits = index.search(
+        "qmd 검색을 Bash 도구 호출로 실행한 세션 증거를 찾아줘", limit=2
+    )
 
     assert hits[0].document.id == "fixtures/claude/with_tools.jsonl"
     assert hits[0].matched_terms == ("qmd", "bash")

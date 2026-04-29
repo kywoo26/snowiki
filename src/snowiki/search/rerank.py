@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Protocol
 
-from .indexer import SearchHit
+from .models import SearchHit
 
 
 class Reranker(Protocol):

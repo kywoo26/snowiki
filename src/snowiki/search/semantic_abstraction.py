@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from .indexer import SearchDocument, SearchHit
+from .models import SearchDocument, SearchHit
 
 
 class SemanticBackend(Protocol):
