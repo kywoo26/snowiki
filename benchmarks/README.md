@@ -55,7 +55,7 @@ Materialize datasets before benchmarking:
 uv run snowiki benchmark-fetch --level quick
 ```
 
-For CI smoke runs, `bm25_regex_v1` is the only target executed on pull requests and `main`. Keep tokenizer-variant BM25 targets plus `snowiki_query_runtime_v1` in the manual or local comparison lane before semantic or hybrid work.
+For CI smoke runs, `bm25_regex_v1` is the only target executed on pull requests and `main`. The shipped runtime default tokenizer is `kiwi_morphology_v1`; `bm25_regex_v1` remains a benchmark smoke target and explicit rollback lane. Keep tokenizer-variant BM25 targets plus `snowiki_query_runtime_v1` in the manual or local comparison lane before semantic or hybrid work.
 
 Useful top-k metrics for CLI query baselines are available as `recall_at_1`, `recall_at_3`, `recall_at_5`, `recall_at_10`, `hit_rate_at_1`, `hit_rate_at_3`, `hit_rate_at_5`, and `hit_rate_at_10`. `recall_at_5` and `hit_rate_at_5` are the most relevant defaults when evaluating whether a human or agent can find a useful candidate from the first screen of results.
 

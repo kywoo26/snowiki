@@ -57,14 +57,14 @@ for date, temporal, known-item, and topical strategies.
 
 ## Analyzer status
 
-The default runtime tokenizer remains the regex tokenizer. Kiwi, MeCab, and
-other analyzers remain benchmarkable BM25 candidate lanes until they pass Korean,
-mixed-language, path, code, CLI/tool, known-item, session/history, latency, and
-packaging gates.
+The default runtime tokenizer is `kiwi_morphology_v1`. It became the default
+after passing Korean, mixed-language, path, code, CLI/tool, known-item,
+session/history, latency, and packaging gates while preserving regex as a
+supported benchmark and rollback lane.
 
 ## Deferred work
 
 - Deterministic graph/taxonomy prefilters.
 - Optional vector recall and Reciprocal Rank Fusion.
-- Analyzer promotion after the gates in
+- Optional analyzer follow-ups for non-default lanes described in
   [`analyzer-promotion-gates.md`](analyzer-promotion-gates.md).

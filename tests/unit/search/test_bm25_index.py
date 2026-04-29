@@ -8,7 +8,7 @@ from typing import Any, cast
 import pytest
 
 from snowiki.search.bm25_index import BM25SearchDocument, BM25SearchHit, BM25SearchIndex
-from snowiki.search.workspace import StaleTokenizerArtifactError
+from snowiki.search.tokenizer_compat import StaleTokenizerArtifactError
 
 
 class _Flattenable:
@@ -377,6 +377,26 @@ class TestBM25SearchIndex:
         assert index.use_kiwi_tokenizer is True
         assert index.kiwi_lexical_candidate_mode == "nouns"
 
+    def test_init_legacy_false_flag_still_selects_regex(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Test",
+                content="Test content.",
+            )
+        ]
+
+        index = BM25SearchIndex(docs, use_kiwi_tokenizer=False)
+
+        assert index.tokenizer_name == "regex_v1"
+        assert index.use_kiwi_tokenizer is False
+        assert index.kiwi_lexical_candidate_mode == "morphology"
+        assert {"create": "regex_v1"} in fake_bm25_backend["registry"]
+
     def test_load_accepts_legacy_metadata_without_canonical_tokenizer_name(
         self,
         fake_bm25_backend: dict[str, list[dict[str, object]]],
@@ -410,6 +430,72 @@ class TestBM25SearchIndex:
         assert loaded.kiwi_lexical_candidate_mode == "nouns"
         assert fake_bm25_backend["load"] == [{"path": str(path), "load_corpus": True}]
 
+    def test_load_maps_legacy_false_metadata_to_regex_identity(
+        self,
+        fake_bm25_backend: dict[str, list[dict[str, object]]],
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Test",
+                content="Test content.",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+        path.with_name(f"{path.name}.snowiki_meta.json").write_text(
+            json.dumps({"method": "lucene", "use_kiwi_tokenizer": False}),
+            encoding="utf-8",
+        )
+
+        loaded = BM25SearchIndex.load(str(path), docs)
+
+        assert loaded.tokenizer_name == "regex_v1"
+        assert loaded.use_kiwi_tokenizer is False
+        assert loaded.kiwi_lexical_candidate_mode == "morphology"
+        assert fake_bm25_backend["load"] == [{"path": str(path), "load_corpus": True}]
+
+    def test_load_fails_when_legacy_false_metadata_expected_as_current_kiwi(
+        self,
+        fake_bm25_backend: dict[str, list[dict[str, object]]],
+        tmp_path: Path,
+    ) -> None:
+        docs = [
+            BM25SearchDocument(
+                id="doc1",
+                path="test/doc1.md",
+                kind="summary",
+                title="Test",
+                content="Test content.",
+            )
+        ]
+        path = tmp_path / "bm25-index"
+        metadata_path = path.with_name(f"{path.name}.snowiki_meta.json")
+        metadata_path.write_text(
+            json.dumps({"method": "lucene", "use_kiwi_tokenizer": False}),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+            StaleTokenizerArtifactError, match="rebuild required"
+        ) as excinfo:
+            BM25SearchIndex.load(
+                str(path),
+                docs,
+                expected_tokenizer_name="kiwi_morphology_v1",
+            )
+
+        assert excinfo.value.details == {
+            "artifact_path": metadata_path.as_posix(),
+            "requested_tokenizer_name": "kiwi_morphology_v1",
+            "stored_tokenizer_name": "regex_v1",
+            "rebuild_required": True,
+            "reason": "tokenizer identity mismatch",
+        }
+        assert fake_bm25_backend["load"] == []
+
     def test_load_fails_closed_when_metadata_tokenizer_identity_missing(
         self,
         fake_bm25_backend: dict[str, list[dict[str, object]]],
@@ -435,7 +521,7 @@ class TestBM25SearchIndex:
 
         assert excinfo.value.details == {
             "artifact_path": metadata_path.as_posix(),
-            "requested_tokenizer_name": "regex_v1",
+            "requested_tokenizer_name": "kiwi_morphology_v1",
             "stored_tokenizer_name": None,
             "rebuild_required": True,
             "reason": "missing tokenizer identity",

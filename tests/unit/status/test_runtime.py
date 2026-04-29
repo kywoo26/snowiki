@@ -75,7 +75,7 @@ def test_status_lint_summary_excludes_full_lint_coverage(tmp_path: Path) -> None
     _write_json(
         tmp_path / "index" / "manifest.json",
         {
-            "tokenizer_name": "regex_v1",
+            "tokenizer_name": "kiwi_morphology_v1",
             "records_indexed": 1,
             "pages_indexed": 2,
             "search_documents": 2,

@@ -211,7 +211,7 @@ class BM25SearchIndex:
         kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode,
     ) -> str:
         if use_kiwi_tokenizer is False:
-            return default().name
+            return "regex_v1"
         if kiwi_lexical_candidate_mode == "nouns":
             return "kiwi_nouns_v1"
         return "kiwi_morphology_v1"

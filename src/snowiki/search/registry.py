@@ -9,7 +9,7 @@ from .mecab_tokenizer import build_mecab_tokenizer
 from .subword_tokenizer import build_wordpiece_tokenizer
 from .tokenizer import build_regex_tokenizer
 
-DEFAULT_TOKENIZER_NAME = "regex_v1"
+DEFAULT_TOKENIZER_NAME = "kiwi_morphology_v1"
 
 
 class SearchTokenizer(Protocol):
@@ -87,7 +87,7 @@ TOKENIZER_REGISTRY.register(
         name="kiwi_morphology_v1",
         family="kiwi",
         version=2,
-        runtime_supported=False,
+        runtime_supported=True,
     ),
     lambda: build_bilingual_tokenizer("morphology", num_workers=-1),
 )
