@@ -307,6 +307,8 @@ These boundaries are current architecture guidance, not historical phase plans.
 ### Retrieval and evaluation
 
 - Retrieval surfaces should preserve parity across CLI query/recall, MCP read-only retrieval, and benchmark runs.
+- `src/snowiki/storage/index_manifest.py` owns typed retrieval identity, manifest freshness, and legacy compatibility parsing. `search/workspace.py` should stay a thin facade over that storage contract, while `status`, `lint`, and `rebuild` consume freshness explanations instead of parsing manifests themselves.
+- Phase 3 completed the workspace split and the typed index manifest groundwork needed for future semantic, vector, and fusion identity work. It does not ship hybrid or vector retrieval, and it does not turn semantic reranking into a current runtime layer.
 - Semantic/vector/rerank work should stay behind explicit extension seams until benchmark evidence justifies promotion.
 - Benchmark commands inform retrieval quality gates, but benchmark behavior is not the shipped wiki memory contract.
 

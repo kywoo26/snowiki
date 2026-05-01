@@ -52,11 +52,18 @@ The active implementation lives in:
 - `src/snowiki/search/queries/policies.py`
 - `src/snowiki/search/scoring.py`
 - `src/snowiki/search/workspace.py`
+- `src/snowiki/storage/index_manifest.py`
 
 `BM25SearchIndex` is the raw backend. It handles persistence, cache artifacts,
 and tokenizer diagnostics. It does not own scoring constants, query multipliers,
 kind weights, or request routing. Those responsibilities sit in the policy and
 scoring layers above it.
+
+`storage/index_manifest.py` owns the typed manifest and freshness explanation
+domain for retrieval identities. BM25 runtime code may consume those explanations,
+but it should not parse legacy manifest shapes or infer identity from cache
+artifacts. That compatibility boundary stays in storage, where legacy manifests
+can be normalized once and explained consistently.
 
 ## Query and recall split
 
@@ -77,6 +84,11 @@ The default runtime tokenizer is `kiwi_morphology_v1`. It became the default
 after passing Korean, mixed-language, path, code, CLI/tool, known-item,
 session/history, latency, and packaging gates while preserving regex as a
 supported benchmark and rollback lane.
+
+Tokenizer identity is guarded at the manifest boundary, not by ad hoc runtime
+checks. New tokenizer behavior should flow through the shared tokenizer helpers
+and registry driven validation in `search/token_util.py`, so the stored index
+identity and the active runtime tokenizer stay aligned.
 
 ## Deferred work
 
