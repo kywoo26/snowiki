@@ -5,16 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from snowiki.search.cache import snapshot_cache_key, validate_runtime_manifest_tokenizer
-from snowiki.search.registry import get
+from snowiki.search.cache import snapshot_cache_key
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.tokenizer_compat import StaleTokenizerArtifactError
+from snowiki.search.workspace import validate_runtime_manifest_tokenizer
 
 
 def test_snapshot_cache_key_uses_stringified_tokenizer_version(tmp_path: Path) -> None:
     cache_key = snapshot_cache_key(
         tmp_path,
-        tokenizer_name="kiwi_morphology_v1",
-        tokenizer_spec_getter=get,
+        retrieval_identity=retrieval_identity_for_tokenizer("kiwi_morphology_v1"),
     )
 
     assert cache_key[3] == ("kiwi_morphology_v1", "kiwi", "2")
@@ -51,7 +51,4 @@ def test_validate_runtime_manifest_tokenizer_rejects_same_name_wrong_version(
     )
 
     with pytest.raises(StaleTokenizerArtifactError, match="rebuild required"):
-        _ = validate_runtime_manifest_tokenizer(
-            tmp_path,
-            tokenizer_name="kiwi_morphology_v1",
-        )
+        _ = validate_runtime_manifest_tokenizer(tmp_path)
