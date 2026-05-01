@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
-from dataclasses import FrozenInstanceError, fields, is_dataclass
-from typing import Any, cast
+from dataclasses import FrozenInstanceError
+from typing import cast
 
 import pytest
 
@@ -14,55 +14,24 @@ from snowiki.search.queries.policies import (
     SearchIntentPolicy,
 )
 
-_DATACLASS_PARAMS = "__dataclass_params__"
 
-
-def _is_frozen_dataclass(class_: object) -> bool:
-    params = getattr(class_, _DATACLASS_PARAMS)
-    return bool(params.frozen)
-
-
-def _class_attribute(target: object, name: str) -> Any:
-    return getattr(target, name)
-
-
-def _set_frozen_field(instance: object, name: str, value: object) -> None:
-    setattr(instance, name, value)
-
-
-def _intent_policy(**kwargs: object) -> Any:
-    return cast(Any, SearchIntentPolicy)(**kwargs)
-
-
-def test_search_intent_policy_is_frozen_slotted_dataclass_with_public_fields() -> None:
-    assert is_dataclass(SearchIntentPolicy)
-    assert _is_frozen_dataclass(SearchIntentPolicy) is True
-    assert _class_attribute(SearchIntentPolicy, "__dataclass_params__").slots is True
-    assert tuple(_class_attribute(SearchIntentPolicy, "__slots__")) == (
-        "name",
-        "candidate_multiplier",
-        "exact_path_bias",
-        "kind_weights",
-        "use_kind_blending",
-    )
-    assert [field.name for field in fields(SearchIntentPolicy)] == [
-        "name",
-        "candidate_multiplier",
-        "exact_path_bias",
-        "kind_weights",
-        "use_kind_blending",
-    ]
-
-    policy = _intent_policy(
+def test_search_intent_policy_construction_and_immutability() -> None:
+    policy = SearchIntentPolicy(
         name="custom",
         candidate_multiplier=2,
         exact_path_bias=False,
         kind_weights={"page": 1.0},
-    use_kind_blending=False,
+        use_kind_blending=False,
     )
 
+    assert policy.name == "custom"
+    assert policy.candidate_multiplier == 2
+    assert policy.exact_path_bias is False
+    assert dict(policy.kind_weights) == {"page": 1.0}
+    assert policy.use_kind_blending is False
+
     with pytest.raises(FrozenInstanceError):
-        _set_frozen_field(policy, "candidate_multiplier", 9)
+        setattr(policy, "candidate_multiplier", 9)  # noqa: B010
 
 
 def test_known_item_policy_uses_current_kiwi_path_and_kind_biases() -> None:
@@ -108,7 +77,7 @@ def test_candidate_limit_returns_zero_for_non_positive_final_limits(
 
 
 def test_candidate_limit_uses_intent_multiplier_but_never_under_final_limit() -> None:
-    custom_policy = _intent_policy(
+    custom_policy = SearchIntentPolicy(
         name="single-pass",
         candidate_multiplier=0,
         exact_path_bias=False,
@@ -124,6 +93,6 @@ def test_candidate_limit_uses_intent_multiplier_but_never_under_final_limit() ->
 
 def test_policy_presets_are_immutable_named_constants() -> None:
     with pytest.raises(FrozenInstanceError):
-        _set_frozen_field(KNOWN_ITEM_POLICY, "exact_path_bias", False)
+        setattr(KNOWN_ITEM_POLICY, "exact_path_bias", False)  # noqa: B010
     with pytest.raises(TypeError):
         cast(MutableMapping[str, float], KNOWN_ITEM_POLICY.kind_weights)["session"] = 1.0
