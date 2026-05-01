@@ -87,9 +87,11 @@ def build_retrieval_snapshot(root: Path) -> RetrievalSnapshot:
 
 
 def build_search_index(root: Path) -> tuple[RuntimeSearchIndex, int, int]:
+    retrieval_identity = current_runtime_retrieval_identity()
+    _ = _validate_runtime_manifest_retrieval_identity(root, retrieval_identity)
     return _build_search_index(
         root,
-        retrieval_identity=current_runtime_retrieval_identity(),
+        retrieval_identity=retrieval_identity,
         snapshot_builder=RetrievalService.from_root,
         tokenizer_factory=create_tokenizer,
     )
