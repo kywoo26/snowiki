@@ -53,6 +53,8 @@ def _manifest_payload() -> dict[str, object]:
                 "family": "kiwi",
                 "version": "1",
             },
+            "search_document_format": "1",
+            "lexical_index_format": "1",
         },
     }
 
@@ -340,6 +342,8 @@ def test_current_index_identity_uses_storage_paths_and_explicit_retrieval_identi
     assert identity.normalized == current_layer_identity(paths, "normalized")
     assert identity.compiled == current_layer_identity(paths, "compiled")
     assert identity.retrieval == retrieval_identity
+    assert identity.search_document_format == "1"
+    assert identity.lexical_index_format == "1"
 
 
 def test_compare_index_identity_reports_current() -> None:
@@ -376,6 +380,26 @@ def test_compare_index_identity_reports_stale_field_paths() -> None:
     assert "identity.normalized.content_hash" in field_paths
     assert "identity.retrieval.name" in field_paths
     assert "identity.retrieval.family" in field_paths
+
+
+def test_compare_index_identity_reports_format_mismatch() -> None:
+    manifest = _manifest()
+    current = IndexIdentity(
+        normalized=manifest.identity.normalized,
+        compiled=manifest.identity.compiled,
+        retrieval=manifest.identity.retrieval,
+        search_document_format="2",
+        lexical_index_format="3",
+    )
+
+    explanation = compare_index_identity(manifest, current)
+
+    assert explanation.status == "stale"
+    assert explanation.rebuild_required is True
+    assert {reason.field_path for reason in explanation.reasons} == {
+        "identity.search_document_format",
+        "identity.lexical_index_format",
+    }
 
 
 def test_compare_index_identity_reports_missing_manifest() -> None:

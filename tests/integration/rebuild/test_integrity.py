@@ -12,6 +12,7 @@ from snowiki.rebuild.integrity import RebuildFreshnessError, verify_rebuild_inte
 from snowiki.search.workspace import (
     StaleTokenizerArtifactError,
     build_retrieval_snapshot,
+    current_runtime_index_formats,
     current_runtime_tokenizer_name,
 )
 from snowiki.storage.index_manifest import (
@@ -22,6 +23,7 @@ from snowiki.storage.index_manifest import (
 
 
 def _identity(latest_mtime_ns: int, file_count: int) -> IndexIdentity:
+    search_document_format, lexical_index_format = current_runtime_index_formats()
     return IndexIdentity(
         normalized=LayerIdentity(
             latest_mtime_ns=latest_mtime_ns,
@@ -38,6 +40,8 @@ def _identity(latest_mtime_ns: int, file_count: int) -> IndexIdentity:
             family="kiwi",
             version="2",
         ),
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
     )
 
 
@@ -94,7 +98,7 @@ def test_verify_rebuild_integrity_fails_closed_on_post_rebuild_freshness_mismatc
     monkeypatch.setattr(
         integrity,
         "current_index_identity",
-        lambda _paths, _tokenizer_name: next(mismatch_values),
+        lambda _paths, _tokenizer_name, **_kwargs: next(mismatch_values),
     )
     monkeypatch.setattr(
         integrity.CompilerEngine,
@@ -140,7 +144,7 @@ def test_run_rebuild_with_integrity_does_not_overwrite_existing_manifest_on_mism
     monkeypatch.setattr(
         integrity,
         "current_index_identity",
-        lambda _paths, _tokenizer_name: next(mismatch_values),
+        lambda _paths, _tokenizer_name, **_kwargs: next(mismatch_values),
     )
     monkeypatch.setattr(
         integrity.CompilerEngine,

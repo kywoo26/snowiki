@@ -362,23 +362,31 @@ class IndexIdentity:
     normalized: LayerIdentity
     compiled: LayerIdentity
     retrieval: RetrievalIdentity
+    search_document_format: str = "1"
+    lexical_index_format: str = "1"
 
     def __post_init__(self) -> None:
         normalized = cast(object, self.normalized)
         compiled = cast(object, self.compiled)
         retrieval = cast(object, self.retrieval)
+        search_document_format = cast(object, self.search_document_format)
+        lexical_index_format = cast(object, self.lexical_index_format)
         if not isinstance(normalized, LayerIdentity):
             raise TypeError("normalized must be a LayerIdentity")
         if not isinstance(compiled, LayerIdentity):
             raise TypeError("compiled must be a LayerIdentity")
         if not isinstance(retrieval, RetrievalIdentity):
             raise TypeError("retrieval must be a RetrievalIdentity")
+        _validate_non_empty_str(search_document_format, "search_document_format")
+        _validate_non_empty_str(lexical_index_format, "lexical_index_format")
 
     def to_payload(self) -> dict[str, object]:
         return {
             "normalized": self.normalized.to_payload(),
             "compiled": self.compiled.to_payload(),
             "retrieval": self.retrieval.to_payload(),
+            "search_document_format": self.search_document_format,
+            "lexical_index_format": self.lexical_index_format,
         }
 
     @classmethod
@@ -400,6 +408,14 @@ class IndexIdentity:
             retrieval=RetrievalIdentity.from_payload_at(
                 _require_key(data, "retrieval", field_path),
                 _join_path(field_path, "retrieval"),
+            ),
+            search_document_format=cast(
+                str,
+                data.get("search_document_format", "1"),
+            ),
+            lexical_index_format=cast(
+                str,
+                data.get("lexical_index_format", "1"),
             ),
         )
 
@@ -572,11 +588,16 @@ def current_layer_identity(paths: StoragePaths, layer: str) -> LayerIdentity:
 def current_index_identity(
     paths: StoragePaths,
     retrieval_identity: RetrievalIdentity,
+    *,
+    search_document_format: str = "1",
+    lexical_index_format: str = "1",
 ) -> IndexIdentity:
     return IndexIdentity(
         normalized=current_layer_identity(paths, "normalized"),
         compiled=current_layer_identity(paths, "compiled"),
         retrieval=retrieval_identity,
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
     )
 
 
@@ -597,8 +618,18 @@ def explain_index_freshness(
 def current_content_identity_payload(
     paths: StoragePaths,
     retrieval_identity: RetrievalIdentity,
+    *,
+    search_document_format: str = "1",
+    lexical_index_format: str = "1",
 ) -> dict[str, object]:
-    return status_identity_payload(current_index_identity(paths, retrieval_identity))
+    return status_identity_payload(
+        current_index_identity(
+            paths,
+            retrieval_identity,
+            search_document_format=search_document_format,
+            lexical_index_format=lexical_index_format,
+        )
+    )
 
 
 def load_manifest_retrieval_identity(paths: StoragePaths) -> RetrievalIdentity | None:
@@ -680,6 +711,22 @@ def compare_index_identity(
         manifest.identity.retrieval,
         current.retrieval,
     )
+    if manifest.identity.search_document_format != current.search_document_format:
+        reasons.append(
+            _freshness_reason(
+                "identity.search_document_format",
+                manifest.identity.search_document_format,
+                current.search_document_format,
+            )
+        )
+    if manifest.identity.lexical_index_format != current.lexical_index_format:
+        reasons.append(
+            _freshness_reason(
+                "identity.lexical_index_format",
+                manifest.identity.lexical_index_format,
+                current.lexical_index_format,
+            )
+        )
     if not reasons:
         return FreshnessExplanation(
             status="current",

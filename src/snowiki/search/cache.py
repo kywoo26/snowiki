@@ -8,13 +8,21 @@ from typing import Protocol
 from snowiki.storage.index_manifest import RetrievalIdentity, current_index_identity
 from snowiki.storage.zones import StoragePaths
 
+from .models import LEXICAL_INDEX_FORMAT_VERSION, SEARCH_DOCUMENT_FORMAT_VERSION
 from .protocols import RuntimeSearchIndex
 from .registry import SearchTokenizer
 from .runtime_service import RetrievalSnapshot
 
 type LayerCacheKey = tuple[int, int, str]
 type RetrievalCacheKey = tuple[str, str, str]
-type SnapshotCacheKey = tuple[str, LayerCacheKey, LayerCacheKey, RetrievalCacheKey]
+type FormatCacheKey = tuple[str, str]
+type SnapshotCacheKey = tuple[
+    str,
+    LayerCacheKey,
+    LayerCacheKey,
+    RetrievalCacheKey,
+    FormatCacheKey,
+]
 
 
 class SnapshotBuilder(Protocol):
@@ -24,6 +32,8 @@ class SnapshotBuilder(Protocol):
         *,
         tokenizer: SearchTokenizer | None = None,
     ) -> RetrievalSnapshot: ...
+
+
 def _layer_cache_key(
     latest_mtime_ns: int,
     file_count: int,
@@ -42,7 +52,12 @@ def snapshot_cache_key(
     retrieval_identity: RetrievalIdentity,
 ) -> SnapshotCacheKey:
     resolved_root = root.resolve()
-    identity = current_index_identity(StoragePaths(resolved_root), retrieval_identity)
+    identity = current_index_identity(
+        StoragePaths(resolved_root),
+        retrieval_identity,
+        search_document_format=SEARCH_DOCUMENT_FORMAT_VERSION,
+        lexical_index_format=LEXICAL_INDEX_FORMAT_VERSION,
+    )
     return (
         str(resolved_root),
         _layer_cache_key(
@@ -59,6 +74,10 @@ def snapshot_cache_key(
             retrieval_identity.name,
             retrieval_identity.family,
             retrieval_identity.version,
+        ),
+        (
+            identity.search_document_format,
+            identity.lexical_index_format,
         ),
     )
 
