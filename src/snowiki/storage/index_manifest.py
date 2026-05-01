@@ -198,20 +198,31 @@ def _layer_identity_from_signature(root: Path) -> LayerIdentity:
     )
 
 
-def _retrieval_identity_from_name(tokenizer_name: str) -> RetrievalIdentity:
-    from snowiki.search.registry import get as get_tokenizer_spec
+_LEGACY_MANIFEST_RETRIEVAL_SPECS: dict[str, tuple[str, str]] = {
+    "regex_v1": ("regex", "1"),
+    "kiwi_morphology_v1": ("kiwi", "2"),
+    "kiwi_nouns_v1": ("kiwi", "2"),
+    "mecab_morphology_v1": ("mecab", "3"),
+    "hf_wordpiece_v1": ("subword", "2"),
+}
 
-    spec = get_tokenizer_spec(tokenizer_name)
-    return RetrievalIdentity(
-        name=spec.name,
-        family=spec.family,
-        version=str(spec.version),
-    )
+
+def _normalize_legacy_manifest_tokenizer_name(name: str) -> str:
+    normalized = name.strip()
+    if not normalized:
+        raise ValueError("legacy tokenizer identity is required")
+    return normalized
+
+
+def _legacy_manifest_retrieval_identity(name: str) -> RetrievalIdentity:
+    try:
+        family, version = _LEGACY_MANIFEST_RETRIEVAL_SPECS[name]
+    except KeyError as error:
+        raise ValueError(f"unknown legacy tokenizer identity: {name}") from error
+    return RetrievalIdentity(name=name, family=family, version=version)
 
 
 def _legacy_retrieval_identity(payload: Mapping[str, object]) -> RetrievalIdentity:
-    from snowiki.search.tokenizer_compat import normalize_stored_tokenizer_name
-
     content_identity = payload.get("content_identity")
     if isinstance(content_identity, Mapping):
         identity_payload = cast(Mapping[str, object], content_identity)
@@ -224,10 +235,33 @@ def _legacy_retrieval_identity(payload: Mapping[str, object]) -> RetrievalIdenti
                 tokenizer_payload,
                 "content_identity.tokenizer",
             )
-    tokenizer_name = normalize_stored_tokenizer_name(payload)
-    if tokenizer_name is None:
+
+    raw_tokenizer_name = payload.get("tokenizer_name")
+    if isinstance(raw_tokenizer_name, str) and raw_tokenizer_name.strip():
+        normalized_name = _normalize_legacy_manifest_tokenizer_name(raw_tokenizer_name)
+        return _legacy_manifest_retrieval_identity(normalized_name)
+
+    has_legacy_flags = (
+        "use_kiwi_tokenizer" in payload or "kiwi_lexical_candidate_mode" in payload
+    )
+    if not has_legacy_flags:
         raise ValueError("legacy tokenizer identity is required")
-    return _retrieval_identity_from_name(tokenizer_name)
+
+    raw_use_kiwi_tokenizer = payload.get("use_kiwi_tokenizer")
+    raw_kiwi_lexical_candidate_mode = payload.get("kiwi_lexical_candidate_mode")
+    use_kiwi_tokenizer: bool | None
+    if isinstance(raw_use_kiwi_tokenizer, bool):
+        use_kiwi_tokenizer = raw_use_kiwi_tokenizer
+    elif isinstance(raw_kiwi_lexical_candidate_mode, str):
+        use_kiwi_tokenizer = True
+    else:
+        use_kiwi_tokenizer = None
+
+    if use_kiwi_tokenizer is False:
+        return _legacy_manifest_retrieval_identity("regex_v1")
+    if raw_kiwi_lexical_candidate_mode == "nouns":
+        return _legacy_manifest_retrieval_identity("kiwi_nouns_v1")
+    return _legacy_manifest_retrieval_identity("kiwi_morphology_v1")
 
 
 def _freshness_reason(
@@ -306,6 +340,21 @@ class RetrievalIdentity:
             family=_require_non_empty_str(data, "family", field_path),
             version=_require_non_empty_str(data, "version", field_path),
         )
+
+
+class ManifestRetrievalIdentityMismatchError(ValueError):
+    def __init__(
+        self,
+        *,
+        expected: RetrievalIdentity,
+        actual: RetrievalIdentity,
+    ) -> None:
+        super().__init__(
+            "retrieval identity mismatch: "
+            f"expected {expected.to_payload()}, found {actual.to_payload()}"
+        )
+        self.expected = expected
+        self.actual = actual
 
 
 @dataclass(frozen=True, slots=True)
@@ -520,19 +569,36 @@ def current_layer_identity(paths: StoragePaths, layer: str) -> LayerIdentity:
     raise ValueError("layer must be normalized or compiled")
 
 
-def current_index_identity(paths: StoragePaths, tokenizer_name: str) -> IndexIdentity:
+def current_index_identity(
+    paths: StoragePaths,
+    retrieval_identity: RetrievalIdentity,
+) -> IndexIdentity:
     return IndexIdentity(
         normalized=current_layer_identity(paths, "normalized"),
         compiled=current_layer_identity(paths, "compiled"),
-        retrieval=_retrieval_identity_from_name(tokenizer_name),
+        retrieval=retrieval_identity,
     )
+
+
+def explain_index_freshness(
+    paths: StoragePaths,
+    current: IndexIdentity,
+) -> tuple[IndexManifest | None, FreshnessExplanation]:
+    try:
+        manifest = load_index_manifest(paths)
+        manifest_for_comparison = manifest
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        manifest = None
+        manifest_for_comparison = "invalid"
+    explanation = compare_index_identity(manifest_for_comparison, current)
+    return manifest, explanation
 
 
 def current_content_identity_payload(
     paths: StoragePaths,
-    tokenizer_name: str,
+    retrieval_identity: RetrievalIdentity,
 ) -> dict[str, object]:
-    return status_identity_payload(current_index_identity(paths, tokenizer_name))
+    return status_identity_payload(current_index_identity(paths, retrieval_identity))
 
 
 def load_manifest_retrieval_identity(paths: StoragePaths) -> RetrievalIdentity | None:
@@ -554,14 +620,15 @@ def load_manifest_retrieval_identity(paths: StoragePaths) -> RetrievalIdentity |
 
 def validate_manifest_retrieval_identity(
     paths: StoragePaths,
-    expected_name: str,
+    expected: RetrievalIdentity,
 ) -> RetrievalIdentity | None:
     retrieval_identity = load_manifest_retrieval_identity(paths)
     if retrieval_identity is None:
         return None
-    if retrieval_identity.name != expected_name:
-        raise ValueError(
-            f"retrieval identity mismatch: expected {expected_name}, found {retrieval_identity.name}"
+    if retrieval_identity != expected:
+        raise ManifestRetrievalIdentityMismatchError(
+            expected=expected,
+            actual=retrieval_identity,
         )
     return retrieval_identity
 
@@ -700,11 +767,37 @@ def _legacy_reason_value_payload(value: object) -> object:
     return dict(payload)
 
 
+def _public_reason_field_path(field_path: str) -> str:
+    if field_path == "identity":
+        return "content_identity"
+    if field_path.startswith("identity.normalized"):
+        return field_path.replace("identity.normalized", "content_identity.normalized", 1)
+    if field_path.startswith("identity.compiled"):
+        return field_path.replace("identity.compiled", "content_identity.compiled", 1)
+    if field_path.startswith("identity.retrieval"):
+        return field_path.replace("identity.retrieval", "content_identity.tokenizer", 1)
+    return field_path
+
+
+def _public_reason_current_value(field_path: str, value: object) -> object:
+    if (
+        field_path == "content_identity.tokenizer.version"
+        and isinstance(value, str)
+        and value.isdecimal()
+    ):
+        return int(value)
+    return _legacy_reason_value_payload(value)
+
+
 def _reason_payload(reason: FreshnessReason) -> dict[str, object]:
+    public_field_path = _public_reason_field_path(reason.field_path)
     return {
-        "field_path": reason.field_path,
+        "field_path": public_field_path,
         "manifest_value": _legacy_reason_value_payload(reason.manifest_value),
-        "current_value": _legacy_reason_value_payload(reason.current_value),
+        "current_value": _public_reason_current_value(
+            public_field_path,
+            reason.current_value,
+        ),
     }
 
 
@@ -822,6 +915,7 @@ __all__ = [
     "IndexIdentity",
     "IndexManifest",
     "LayerIdentity",
+    "ManifestRetrievalIdentityMismatchError",
     "RetrievalIdentity",
     "compare_index_identity",
     "current_content_identity_payload",

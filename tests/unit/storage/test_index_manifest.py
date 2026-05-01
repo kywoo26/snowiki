@@ -5,19 +5,25 @@ from pathlib import Path
 
 import pytest
 
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.storage.index_manifest import (
     FreshnessExplanation,
     FreshnessReason,
     IndexIdentity,
     IndexManifest,
     LayerIdentity,
+    ManifestRetrievalIdentityMismatchError,
     RetrievalIdentity,
     compare_index_identity,
     current_index_identity,
     current_layer_identity,
+    explain_index_freshness,
     index_manifest_path,
     load_index_manifest,
+    load_manifest_retrieval_identity,
     normalize_legacy_index_manifest,
+    to_status_payload,
+    validate_manifest_retrieval_identity,
     validate_retrieval_identity,
     write_index_manifest,
 )
@@ -58,6 +64,19 @@ def _manifest() -> IndexManifest:
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     _ = path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_storage_has_no_search_imports() -> None:
+    source = (
+        Path(__file__).resolve().parents[3]
+        / "src"
+        / "snowiki"
+        / "storage"
+        / "index_manifest.py"
+    ).read_text(encoding="utf-8")
+
+    assert "from snowiki.search" not in source
+    assert "import snowiki.search" not in source
 
 
 def test_index_manifest_roundtrips_through_explicit_payload() -> None:
@@ -200,6 +219,62 @@ def test_load_index_manifest_normalizes_legacy_manifest(tmp_path: Path) -> None:
     )
 
 
+def test_load_manifest_retrieval_identity_reads_legacy_content_identity(
+    tmp_path: Path,
+) -> None:
+    paths = StoragePaths(tmp_path)
+    payload: dict[str, object] = {
+        "content_identity": {
+            "normalized": _layer_payload("normalized-sha256"),
+            "compiled": _layer_payload("compiled-sha256"),
+            "tokenizer": {
+                "name": "kiwi_morphology_v1",
+                "family": "kiwi",
+                "version": "2",
+            },
+        }
+    }
+    _write_json(index_manifest_path(paths), payload)
+
+    assert load_manifest_retrieval_identity(paths) == RetrievalIdentity(
+        name="kiwi_morphology_v1",
+        family="kiwi",
+        version="2",
+    )
+
+
+def test_validate_manifest_retrieval_identity_returns_stored_identity_when_matching(
+    tmp_path: Path,
+) -> None:
+    paths = StoragePaths(tmp_path)
+    manifest = _manifest()
+    _write_json(index_manifest_path(paths), manifest.to_payload())
+
+    assert validate_manifest_retrieval_identity(paths, manifest.identity.retrieval) == (
+        manifest.identity.retrieval
+    )
+
+
+def test_validate_manifest_retrieval_identity_raises_for_family_or_version_mismatch(
+    tmp_path: Path,
+) -> None:
+    paths = StoragePaths(tmp_path)
+    manifest = _manifest()
+    _write_json(index_manifest_path(paths), manifest.to_payload())
+
+    with pytest.raises(ManifestRetrievalIdentityMismatchError) as excinfo:
+        validate_manifest_retrieval_identity(
+            paths,
+            RetrievalIdentity(
+                name=manifest.identity.retrieval.name,
+                family=manifest.identity.retrieval.family,
+                version="999",
+            ),
+        )
+
+    assert excinfo.value.actual == manifest.identity.retrieval
+
+
 def test_normalize_legacy_index_manifest_handles_kiwi_flags() -> None:
     payload: dict[str, object] = {
         "records_indexed": 1,
@@ -252,22 +327,19 @@ def test_current_layer_identity_rejects_unknown_layer(tmp_path: Path) -> None:
         _ = current_layer_identity(StoragePaths(tmp_path), "raw")
 
 
-def test_current_index_identity_uses_storage_paths_and_tokenizer_registry(
+def test_current_index_identity_uses_storage_paths_and_explicit_retrieval_identity(
     tmp_path: Path,
 ) -> None:
     paths = StoragePaths(tmp_path)
     paths.normalized.mkdir(parents=True)
     paths.compiled.mkdir(parents=True)
+    retrieval_identity = retrieval_identity_for_tokenizer("regex_v1")
 
-    identity = current_index_identity(paths, "regex_v1")
+    identity = current_index_identity(paths, retrieval_identity)
 
     assert identity.normalized == current_layer_identity(paths, "normalized")
     assert identity.compiled == current_layer_identity(paths, "compiled")
-    assert identity.retrieval == RetrievalIdentity(
-        name="regex_v1",
-        family="regex",
-        version="1",
-    )
+    assert identity.retrieval == retrieval_identity
 
 
 def test_compare_index_identity_reports_current() -> None:
@@ -320,6 +392,65 @@ def test_compare_index_identity_reports_invalid_manifest() -> None:
     assert explanation.status == "invalid"
     assert explanation.rebuild_required is True
     assert explanation.reasons[0].field_path == "identity"
+
+
+def test_explain_index_freshness_returns_invalid_for_bad_manifest_json(
+    tmp_path: Path,
+) -> None:
+    paths = StoragePaths(tmp_path)
+    paths.index.mkdir(parents=True, exist_ok=True)
+    _ = index_manifest_path(paths).write_text("{", encoding="utf-8")
+
+    manifest, explanation = explain_index_freshness(paths, _manifest().identity)
+
+    assert manifest is None
+    assert explanation.status == "invalid"
+    assert explanation.rebuild_required is True
+
+
+def test_tokenizer_version_mismatch_reports_public_path() -> None:
+    current = _manifest().identity
+    manifest = IndexManifest(
+        schema_version=1,
+        records_indexed=3,
+        pages_indexed=2,
+        search_documents=5,
+        compiled_paths=("compiled/a.md", "compiled/b.md"),
+        identity=IndexIdentity(
+            normalized=current.normalized,
+            compiled=current.compiled,
+            retrieval=RetrievalIdentity(
+                name=current.retrieval.name,
+                family=current.retrieval.family,
+                version="999",
+            ),
+        ),
+    )
+
+    payload = to_status_payload(
+        manifest=manifest,
+        current=current,
+        explanation=compare_index_identity(manifest, current),
+        latest_normalized_recorded_at=None,
+        latest_compiled_update=None,
+    )
+
+    assert set(payload) == {
+        "status",
+        "manifest_content_identity",
+        "current_content_identity",
+        "latest_normalized_recorded_at",
+        "latest_compiled_update",
+        "reasons",
+    }
+    assert payload["status"] == "stale"
+    assert payload["reasons"] == [
+        {
+            "field_path": "content_identity.tokenizer.version",
+            "manifest_value": "999",
+            "current_value": 1,
+        }
+    ]
 
 
 def test_validate_retrieval_identity_passes_for_expected_name() -> None:
