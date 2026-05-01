@@ -5,14 +5,21 @@ import re
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict, cast
 
 from snowiki.compiler.paths import summary_path_for_record
 from snowiki.compiler.taxonomy import NormalizedRecord
 from snowiki.gardening.sources import collect_source_gardening_proposals
 from snowiki.markdown.source_state import collect_markdown_source_state
+from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.storage.index_manifest import (
+    compare_index_identity,
+    current_index_identity,
+    load_index_manifest,
+    to_lint_issue_payload,
+)
 from snowiki.storage.provenance import raw_refs_from_record
-from snowiki.storage.zones import ensure_utc_datetime
+from snowiki.storage.zones import StoragePaths, ensure_utc_datetime
 
 from .integrity import check_layer_integrity
 
@@ -172,6 +179,18 @@ def _load_normalized_record(path: Path, root: Path) -> NormalizedRecord | None:
 def collect_freshness_issues(root: str | Path) -> list[LintIssue]:
     base = Path(root)
     issues: list[LintIssue] = []
+    paths = StoragePaths(base)
+    try:
+        manifest = load_index_manifest(paths)
+        manifest_for_comparison = manifest
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        manifest_for_comparison = "invalid"
+    explanation = compare_index_identity(
+        manifest_for_comparison,
+        current_index_identity(paths, current_runtime_tokenizer_name()),
+    )
+    if explanation.status == "stale":
+        issues.extend(cast(list[LintIssue], to_lint_issue_payload(explanation)))
     cutoff = datetime.now(tz=UTC) - _STALE_PAGE_MAX_AGE
     for path in sorted(
         (base / "compiled").rglob("*.md"), key=lambda item: item.as_posix()

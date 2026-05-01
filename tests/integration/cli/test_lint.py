@@ -7,6 +7,13 @@ from click.testing import CliRunner
 from tests.helpers.projection import compiler_projection
 
 from snowiki.cli.main import app
+from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.storage.index_manifest import (
+    IndexManifest,
+    current_index_identity,
+    write_index_manifest,
+)
+from snowiki.storage.zones import StoragePaths
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -37,6 +44,26 @@ def _frontmatter_page(*, title: str, body: str = "# Page\n") -> str:
             "---",
             body,
         ]
+    )
+
+
+def _write_current_manifest(root: Path) -> None:
+    paths = StoragePaths(root)
+    paths.ensure_all()
+    compiled_paths = tuple(
+        path.relative_to(root).as_posix()
+        for path in sorted(paths.compiled.rglob("*.md"), key=lambda item: item.as_posix())
+    )
+    write_index_manifest(
+        paths,
+        IndexManifest(
+            schema_version=1,
+            records_indexed=len(list(paths.normalized.rglob("*.json"))),
+            pages_indexed=len(compiled_paths),
+            search_documents=len(compiled_paths),
+            compiled_paths=compiled_paths,
+            identity=current_index_identity(paths, current_runtime_tokenizer_name()),
+        ),
     )
 
 
@@ -96,7 +123,7 @@ def test_lint_human_output_groups_warning_only_findings(tmp_path: Path) -> None:
         tmp_path / "compiled" / "topics" / "orphaned.md",
         _frontmatter_page(title="Orphaned"),
     )
-    _write_json(tmp_path / "index" / "manifest.json", {"pages": ["overview.md"]})
+    _write_current_manifest(tmp_path)
 
     result = runner.invoke(
         app,
@@ -129,7 +156,6 @@ def test_lint_json_output_reports_info_level_stale_and_summary_coverage_checks(
             "provenance": {"raw_refs": [{"path": "raw/claude/source.jsonl"}]},
         },
     )
-    _write_json(tmp_path / "index" / "manifest.json", {"pages": ["overview.md"]})
     _write_json(tmp_path / "raw" / "claude" / "source.jsonl", {"ok": True})
     _write_compiled_page(
         tmp_path / "compiled" / "topics" / "stale.md",
@@ -150,6 +176,7 @@ def test_lint_json_output_reports_info_level_stale_and_summary_coverage_checks(
             ]
         ),
     )
+    _write_current_manifest(tmp_path)
 
     result = runner.invoke(
         app,
@@ -345,7 +372,7 @@ def test_lint_exit_code_depends_only_on_error_findings(tmp_path: Path) -> None:
         warning_root / "compiled" / "topics" / "orphaned.md",
         _frontmatter_page(title="Orphaned"),
     )
-    _write_json(warning_root / "index" / "manifest.json", {"pages": ["overview.md"]})
+    _write_current_manifest(warning_root)
 
     warning_result = runner.invoke(
         app,

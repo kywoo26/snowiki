@@ -11,6 +11,13 @@ from snowiki.lint.runtime import (
     collect_summary_coverage_issues,
     run_lint,
 )
+from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.storage.index_manifest import (
+    IndexManifest,
+    current_index_identity,
+    write_index_manifest,
+)
+from snowiki.storage.zones import StoragePaths
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -256,6 +263,46 @@ def test_collect_freshness_issues_skips_missing_invalid_and_current_dates(
     )
 
     assert collect_freshness_issues(tmp_path) == []
+
+
+def test_collect_freshness_issues_reports_stale_index_manifest(tmp_path: Path) -> None:
+    _write_compiled_page(tmp_path / "compiled" / "topic.md", "# Topic\n")
+    paths = StoragePaths(tmp_path)
+    current = current_index_identity(paths, current_runtime_tokenizer_name())
+    write_index_manifest(
+        paths,
+        IndexManifest(
+            schema_version=1,
+            records_indexed=0,
+            pages_indexed=1,
+            search_documents=1,
+            compiled_paths=("compiled/topic.md",),
+            identity=type(current)(
+                normalized=current.normalized,
+                compiled=type(current.compiled)(
+                    latest_mtime_ns=current.compiled.latest_mtime_ns,
+                    file_count=current.compiled.file_count,
+                    content_hash="stale",
+                ),
+                retrieval=current.retrieval,
+            ),
+        ),
+    )
+
+    assert collect_freshness_issues(tmp_path)[0] == {
+        "code": "L104",
+        "check": "integrity.index_manifest",
+        "severity": "error",
+        "path": "index/manifest.json",
+        "message": "index manifest is stale; rebuild required",
+        "reasons": [
+            {
+                "field_path": "identity.compiled.content_hash",
+                "manifest_value": "stale",
+                "current_value": current.compiled.content_hash,
+            }
+        ],
+    }
 
 
 def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(

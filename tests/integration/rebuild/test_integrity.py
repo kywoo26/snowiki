@@ -12,9 +12,33 @@ from snowiki.rebuild.integrity import RebuildFreshnessError, verify_rebuild_inte
 from snowiki.search.workspace import (
     StaleTokenizerArtifactError,
     build_retrieval_snapshot,
-    content_freshness_identity,
     current_runtime_tokenizer_name,
 )
+from snowiki.storage.index_manifest import (
+    IndexIdentity,
+    LayerIdentity,
+    RetrievalIdentity,
+)
+
+
+def _identity(latest_mtime_ns: int, file_count: int) -> IndexIdentity:
+    return IndexIdentity(
+        normalized=LayerIdentity(
+            latest_mtime_ns=latest_mtime_ns,
+            file_count=file_count,
+            content_hash=f"normalized-{latest_mtime_ns}",
+        ),
+        compiled=LayerIdentity(
+            latest_mtime_ns=latest_mtime_ns + 100,
+            file_count=file_count,
+            content_hash=f"compiled-{latest_mtime_ns}",
+        ),
+        retrieval=RetrievalIdentity(
+            name=current_runtime_tokenizer_name(),
+            family="kiwi",
+            version="2",
+        ),
+    )
 
 
 def test_verify_rebuild_integrity_restores_compiled_and_index_layers(
@@ -56,7 +80,7 @@ def test_verify_rebuild_integrity_restores_compiled_and_index_layers(
     manifest = json.loads(
         (tmp_path / "index" / "manifest.json").read_text(encoding="utf-8")
     )
-    assert manifest["tokenizer_name"] == current_runtime_tokenizer_name()
+    assert manifest["identity"]["retrieval"]["name"] == current_runtime_tokenizer_name()
 
 
 def test_verify_rebuild_integrity_fails_closed_on_post_rebuild_freshness_mismatch(
@@ -65,23 +89,12 @@ def test_verify_rebuild_integrity_fails_closed_on_post_rebuild_freshness_mismatc
 ) -> None:
     from snowiki.rebuild import integrity
 
-    mismatch_values = iter(
-        [
-            {
-                "normalized": {"latest_mtime_ns": 100, "file_count": 1},
-                "compiled": {"latest_mtime_ns": 200, "file_count": 1},
-            },
-            {
-                "normalized": {"latest_mtime_ns": 101, "file_count": 2},
-                "compiled": {"latest_mtime_ns": 201, "file_count": 2},
-            },
-        ]
-    )
+    mismatch_values = iter([_identity(100, 1), _identity(101, 2)])
 
     monkeypatch.setattr(
         integrity,
-        "content_freshness_identity",
-        lambda _root: next(mismatch_values),
+        "current_index_identity",
+        lambda _paths, _tokenizer_name: next(mismatch_values),
     )
     monkeypatch.setattr(
         integrity.CompilerEngine,
@@ -122,23 +135,12 @@ def test_run_rebuild_with_integrity_does_not_overwrite_existing_manifest_on_mism
     manifest_path = tmp_path / "index" / "manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text('{"published": "previous"}', encoding="utf-8")
-    mismatch_values = iter(
-        [
-            {
-                "normalized": {"latest_mtime_ns": 100, "file_count": 1},
-                "compiled": {"latest_mtime_ns": 200, "file_count": 1},
-            },
-            {
-                "normalized": {"latest_mtime_ns": 101, "file_count": 2},
-                "compiled": {"latest_mtime_ns": 201, "file_count": 2},
-            },
-        ]
-    )
+    mismatch_values = iter([_identity(100, 1), _identity(101, 2)])
 
     monkeypatch.setattr(
         integrity,
-        "content_freshness_identity",
-        lambda _root: next(mismatch_values),
+        "current_index_identity",
+        lambda _paths, _tokenizer_name: next(mismatch_values),
     )
     monkeypatch.setattr(
         integrity.CompilerEngine,
@@ -171,7 +173,22 @@ def test_build_retrieval_snapshot_fails_closed_when_manifest_tokenizer_identity_
     manifest_path = tmp_path / "index" / "manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(
-        json.dumps({"content_identity": content_freshness_identity(tmp_path)}),
+        json.dumps(
+            {
+                "content_identity": {
+                    "normalized": {
+                        "latest_mtime_ns": 0,
+                        "file_count": 0,
+                        "content_hash": "",
+                    },
+                    "compiled": {
+                        "latest_mtime_ns": 0,
+                        "file_count": 0,
+                        "content_hash": "",
+                    },
+                }
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -197,8 +214,23 @@ def test_build_retrieval_snapshot_fails_closed_when_manifest_tokenizer_identity_
     manifest_path.write_text(
         json.dumps(
             {
-                "content_identity": content_freshness_identity(tmp_path),
-                "tokenizer_name": "kiwi_nouns_v1",
+                "content_identity": {
+                    "normalized": {
+                        "latest_mtime_ns": 0,
+                        "file_count": 0,
+                        "content_hash": "",
+                    },
+                    "compiled": {
+                        "latest_mtime_ns": 0,
+                        "file_count": 0,
+                        "content_hash": "",
+                    },
+                    "tokenizer": {
+                        "name": "kiwi_nouns_v1",
+                        "family": "kiwi",
+                        "version": "1",
+                    },
+                }
             }
         ),
         encoding="utf-8",

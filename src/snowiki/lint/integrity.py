@@ -5,7 +5,16 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
+from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.storage.index_manifest import (
+    compare_index_identity,
+    current_index_identity,
+    index_manifest_path,
+    load_index_manifest,
+    to_lint_issue_payload,
+)
 from snowiki.storage.provenance import raw_refs_from_record
+from snowiki.storage.zones import StoragePaths
 
 from .orphaned import find_orphaned_compiled_pages
 from .stale_links import find_stale_wikilinks
@@ -13,7 +22,7 @@ from .stale_links import find_stale_wikilinks
 
 def check_layer_integrity(root: str | Path) -> dict[str, Any]:
     base = Path(root)
-    issues: list[dict[str, str]] = []
+    issues: list[dict[str, Any]] = []
 
     normalized_paths = sorted(
         (base / "normalized").rglob("*.json"), key=lambda item: item.as_posix()
@@ -64,17 +73,8 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
             }
         )
 
-    manifest_path = base / "index" / "manifest.json"
-    if compiled_paths and not manifest_path.exists():
-        issues.append(
-            {
-                "code": "L104",
-                "check": "integrity.index_manifest",
-                "severity": "error",
-                "path": "index/manifest.json",
-                "message": "index manifest missing for compiled layer",
-            }
-        )
+    if compiled_paths:
+        issues.extend(_collect_index_manifest_issues(base))
 
     issues.extend(find_stale_wikilinks(base))
     issues.extend(find_orphaned_compiled_pages(base))
@@ -84,3 +84,27 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
         "issues": issues,
         "error_count": sum(1 for issue in issues if issue["severity"] == "error"),
     }
+
+
+def _collect_index_manifest_issues(root: Path) -> list[dict[str, Any]]:
+    paths = StoragePaths(root)
+    manifest_path = index_manifest_path(paths)
+    try:
+        manifest = load_index_manifest(paths)
+        manifest_for_comparison = manifest
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        manifest_for_comparison = "invalid"
+    current_identity = current_index_identity(paths, current_runtime_tokenizer_name())
+    explanation = compare_index_identity(
+        manifest_for_comparison,
+        current_identity,
+    )
+    if explanation.status not in ("missing", "invalid"):
+        return []
+    return [
+        cast(dict[str, Any], issue)
+        for issue in to_lint_issue_payload(
+            explanation,
+            path=manifest_path.relative_to(root).as_posix(),
+        )
+    ]

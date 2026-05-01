@@ -6,8 +6,10 @@ from pathlib import Path
 from tests.helpers.projection import compiler_projection
 
 from snowiki.lint import run_lint
-from snowiki.search.workspace import content_freshness_identity
+from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.status import run_status
+from snowiki.storage.index_manifest import current_content_identity_payload
+from snowiki.storage.zones import StoragePaths
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -83,7 +85,9 @@ def test_status_lint_summary_excludes_full_lint_coverage(tmp_path: Path) -> None
                 "compiled/overview.md",
                 "compiled/topics/record-one.md",
             ],
-            "content_identity": content_freshness_identity(tmp_path),
+            "content_identity": current_content_identity_payload(
+                StoragePaths(tmp_path), current_runtime_tokenizer_name()
+            ),
         },
     )
 
@@ -98,3 +102,25 @@ def test_status_lint_summary_excludes_full_lint_coverage(tmp_path: Path) -> None
         issue["check"] == "coverage.source_without_summary"
         for issue in lint_result["issues"]
     )
+
+
+def test_status_reports_invalid_index_manifest_without_crashing(tmp_path: Path) -> None:
+    _write_text(
+        tmp_path / "compiled" / "overview.md",
+        _compiled_page(title="Overview", page_type="overview", body="# Overview\n"),
+    )
+    _write_text(tmp_path / "index" / "manifest.json", "[]")
+
+    result = run_status(tmp_path)
+
+    assert result["freshness"]["status"] == "invalid"
+    assert result["freshness"]["manifest_content_identity"] is None
+    assert result["manifest"] == {
+        "path": "index/manifest.json",
+        "present": True,
+        "tokenizer_name": None,
+        "records_indexed": None,
+        "pages_indexed": None,
+        "search_documents": None,
+        "compiled_path_count": None,
+    }

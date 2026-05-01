@@ -7,7 +7,9 @@ from click.testing import CliRunner
 from tests.helpers.projection import compiler_projection
 
 from snowiki.cli.main import app
-from snowiki.search.workspace import content_freshness_identity
+from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.storage.index_manifest import current_content_identity_payload
+from snowiki.storage.zones import StoragePaths
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -117,7 +119,9 @@ def _build_status_workspace(root: Path) -> None:
                 "compiled/questions/what-is-status.md",
                 "compiled/topics/wiki-dashboard.md",
             ],
-            "content_identity": content_freshness_identity(root),
+            "content_identity": current_content_identity_payload(
+                StoragePaths(root), current_runtime_tokenizer_name()
+            ),
         },
     )
 
@@ -178,8 +182,12 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
             },
             "freshness": {
                 "status": "current",
-                "manifest_content_identity": content_freshness_identity(tmp_path),
-                "current_content_identity": content_freshness_identity(tmp_path),
+                "manifest_content_identity": current_content_identity_payload(
+                    StoragePaths(tmp_path), current_runtime_tokenizer_name()
+                ),
+                "current_content_identity": current_content_identity_payload(
+                    StoragePaths(tmp_path), current_runtime_tokenizer_name()
+                ),
                 "latest_normalized_recorded_at": "2026-04-16T08:30:00Z",
                 "latest_compiled_update": "2026-04-16",
             },
@@ -217,6 +225,64 @@ def test_status_reports_projection_lint_errors_without_failing(
     assert payload["ok"] is True
     assert payload["result"]["lint"]["error_count"] == 1
     assert payload["result"]["lint"]["summary"]["error"] == 1
+
+
+def test_status_reports_missing_manifest_without_crashing(tmp_path: Path) -> None:
+    runner = CliRunner()
+    _build_status_workspace(tmp_path)
+    (tmp_path / "index" / "manifest.json").unlink()
+
+    result = runner.invoke(
+        app,
+        ["status", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["result"]["freshness"]["status"] == "missing"
+    assert payload["result"]["freshness"]["manifest_content_identity"] is None
+    assert payload["result"]["manifest"]["present"] is False
+
+
+def test_status_reports_stale_manifest_without_crashing(tmp_path: Path) -> None:
+    runner = CliRunner()
+    _build_status_workspace(tmp_path)
+    manifest_path = tmp_path / "index" / "manifest.json"
+    manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest_payload["content_identity"]["compiled"]["content_hash"] = "stale"
+    _write_json(manifest_path, manifest_payload)
+
+    result = runner.invoke(
+        app,
+        ["status", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["result"]["freshness"]["status"] == "stale"
+    assert payload["result"]["manifest"]["present"] is True
+    assert payload["result"]["manifest"]["tokenizer_name"] == "kiwi_morphology_v1"
+
+
+def test_status_reports_invalid_manifest_without_crashing(tmp_path: Path) -> None:
+    runner = CliRunner()
+    _build_status_workspace(tmp_path)
+    _write_json(tmp_path / "index" / "manifest.json", [])
+
+    result = runner.invoke(
+        app,
+        ["status", "--output", "json"],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["result"]["freshness"]["status"] == "invalid"
+    assert payload["result"]["freshness"]["manifest_content_identity"] is None
+    assert payload["result"]["manifest"]["present"] is True
+    assert payload["result"]["manifest"]["tokenizer_name"] is None
 
 
 def test_status_human_output_renders_dashboard_summary(tmp_path: Path) -> None:
