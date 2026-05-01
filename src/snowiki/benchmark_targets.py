@@ -26,9 +26,11 @@ from snowiki.search.bm25_index import BM25SearchIndex
 from snowiki.search.engine import BM25RuntimeIndex
 from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.protocols import RuntimeSearchIndex
-from snowiki.search.queries.topical import topical_recall
+from snowiki.search.queries.policies import TOPICAL_POLICY
 from snowiki.search.registry import default
 from snowiki.search.registry import get as get_tokenizer_spec
+from snowiki.search.requests import RuntimeSearchRequest
+from snowiki.search.rerank import blend_hits_by_kind
 from snowiki.search.subword_tokenizer import wordpiece_tokenizer_config
 from snowiki.storage.zones import StoragePaths
 
@@ -333,7 +335,16 @@ def _run_snowiki_query_runtime(
     query: BenchmarkQuery,
 ) -> QueryResult:
     start = time.perf_counter()
-    hits = topical_recall(index, query.query_text, limit=BENCHMARK_RETRIEVAL_LIMIT)
+    request = RuntimeSearchRequest(
+        query=query.query_text,
+        candidate_limit=TOPICAL_POLICY.candidate_limit(BENCHMARK_RETRIEVAL_LIMIT),
+        exact_path_bias=TOPICAL_POLICY.exact_path_bias,
+        kind_weights=TOPICAL_POLICY.kind_weights,
+    )
+    hits = list(index.search(request))
+    if TOPICAL_POLICY.use_kind_blending:
+        hits = blend_hits_by_kind(hits, limit=BENCHMARK_RETRIEVAL_LIMIT)
+    hits = hits[:BENCHMARK_RETRIEVAL_LIMIT]
     latency_ms = (time.perf_counter() - start) * 1000.0
     return QueryResult(
         query_id=query.query_id,

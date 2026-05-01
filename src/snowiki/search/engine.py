@@ -1,25 +1,17 @@
 from __future__ import annotations
 
-from collections import Counter
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
-from datetime import datetime
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
 from .models import SearchDocument, SearchHit
 from .registry import SearchTokenizer, create, default
+from .requests import RuntimeSearchRequest
+from .scoring import RuntimeScoringPolicy
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from .bm25_index import BM25SearchIndex
-
-DEFAULT_CANDIDATE_MULTIPLIER = 8
-
-
-@dataclass(frozen=True)
-class _RuntimeCandidate:
-    document: SearchDocument
-    score: float
-    matched_terms: tuple[str, ...]
 
 
 class BM25RuntimeIndex:
@@ -31,18 +23,10 @@ class BM25RuntimeIndex:
         *,
         tokenizer_name: str | None = None,
         tokenizer: SearchTokenizer | None = None,
-        candidate_multiplier: int = DEFAULT_CANDIDATE_MULTIPLIER,
     ) -> None:
         self._corpus: tuple[SearchDocument, ...] = tuple(documents)
-        self._document_by_id: dict[str, SearchDocument] = {
-            document.id: document for document in self._corpus
-        }
         self._tokenizer_name: str = tokenizer_name or default().name
         self._tokenizer: SearchTokenizer = tokenizer or create(self._tokenizer_name)
-        self._candidate_multiplier: int = max(candidate_multiplier, 1)
-        self._document_tokens: dict[str, Counter[str]] = {
-            document.id: self._tokenize_document(document) for document in self._corpus
-        }
         self._bm25: BM25SearchIndex = self._build_bm25(self._corpus)
 
     @property
@@ -53,23 +37,14 @@ class BM25RuntimeIndex:
     def size(self) -> int:
         return len(self._corpus)
 
-    def search(
-        self,
-        query: str,
-        *,
-        limit: int = 10,
-        kind_weights: Mapping[str, float] | None = None,
-        recorded_after: datetime | None = None,
-        recorded_before: datetime | None = None,
-        exact_path_bias: bool = False,
-    ) -> list[SearchHit]:
-        query_terms = self._tokenizer.tokenize(query)
-        if limit <= 0 or not query_terms:
+    def search(self, request: RuntimeSearchRequest) -> Sequence[SearchHit]:
+        query_tokens = self._tokenizer.tokenize(request.query)
+        if request.candidate_limit == 0 or not query_tokens:
             return []
 
         eligible = self._eligible_corpus(
-            recorded_after=recorded_after,
-            recorded_before=recorded_before,
+            recorded_after=request.recorded_after,
+            recorded_before=request.recorded_before,
         )
         if not eligible:
             return []
@@ -79,35 +54,28 @@ class BM25RuntimeIndex:
             if len(eligible) == len(self._corpus)
             else self._build_bm25(eligible)
         )
-        candidate_multiplier = (
-            self._candidate_multiplier
-            if exact_path_bias or self._has_non_default_kind_weight(kind_weights)
-            else 1
-        )
-        requested = min(len(eligible), max(limit * candidate_multiplier, limit))
-        candidates = bm25.search(query, limit=requested)
-        normalized_query = self._tokenizer.normalize(query)
-        runtime_candidates = [
-            self._adapt_hit(
-                hit_document_id=hit.document.id,
-                raw_score=hit.score,
+        requested = min(len(eligible), request.candidate_limit)
+        candidates = bm25.search(request.query, limit=requested)
+        query_terms = set(query_tokens)
+        normalized_query = self._tokenizer.normalize(request.query)
+        scoring_policy = self._scoring_policy(request)
+        hits: list[SearchHit] = []
+        for candidate in candidates:
+            document = candidate.document
+            hit = scoring_policy.score_candidate(
+                document=document,
+                raw_score=candidate.score,
                 query_terms=query_terms,
+                document_terms=set(bm25.tokens_for_document(document.id)),
                 normalized_query=normalized_query,
-                kind_weights=kind_weights,
-                exact_path_bias=exact_path_bias,
+                normalized_path=self._tokenizer.normalize(document.path),
+                exact_path_bias=request.exact_path_bias,
+                kind_weights=request.kind_weights,
             )
-            for hit in candidates
-        ]
-        hits = [candidate for candidate in runtime_candidates if candidate is not None]
-        hits.sort(key=lambda hit: (-hit.score, hit.document.path, hit.document.id))
-        return [
-            SearchHit(
-                document=hit.document,
-                score=hit.score,
-                matched_terms=hit.matched_terms,
-            )
-            for hit in hits[:limit]
-        ]
+            if hit is not None:
+                hits.append(hit)
+        hits.sort(key=scoring_policy.sort_key)
+        return hits[: request.candidate_limit]
 
     def _eligible_corpus(
         self,
@@ -130,62 +98,11 @@ class BM25RuntimeIndex:
             eligible.append(document)
         return tuple(eligible)
 
-    def _adapt_hit(
-        self,
-        *,
-        hit_document_id: str,
-        raw_score: float,
-        query_terms: tuple[str, ...],
-        normalized_query: str,
-        kind_weights: Mapping[str, float] | None,
-        exact_path_bias: bool,
-    ) -> _RuntimeCandidate | None:
-        document = self._document_by_id.get(hit_document_id)
-        if document is None:
-            return None
-
-        document_tokens = self._document_tokens[document.id]
-        matched_terms = tuple(
-            sorted(token for token in set(query_terms) if token in document_tokens)
-        )
-        normalized_path = self._tokenizer.normalize(document.path)
-        path_match = bool(normalized_query and normalized_query in normalized_path)
-        if raw_score <= 0.0 and not matched_terms and not path_match:
-            return None
-
-        score = raw_score
-        if exact_path_bias and any(token in normalized_path for token in query_terms):
-            score += 2.0
-        if path_match:
-            score += 2.5
-        if kind_weights is not None:
-            score *= kind_weights.get(document.kind, 1.0)
-        if document.recorded_at is not None:
-            score += document.recorded_at.timestamp() / 10_000_000_000.0
-
-        return _RuntimeCandidate(
-            document=document,
-            score=score,
-            matched_terms=matched_terms,
-        )
-
-    def _tokenize_document(self, document: SearchDocument) -> Counter[str]:
-        tokens: list[str] = []
-        for text in (
-            document.title,
-            document.path,
-            document.summary,
-            document.content,
-            " ".join(document.aliases),
-        ):
-            tokens.extend(self._tokenizer.tokenize(text))
-        return Counter(tokens)
-
     @staticmethod
-    def _has_non_default_kind_weight(kind_weights: Mapping[str, float] | None) -> bool:
-        if kind_weights is None:
-            return False
-        return any(weight != 1.0 for weight in kind_weights.values())
+    def _scoring_policy(request: RuntimeSearchRequest) -> RuntimeScoringPolicy:
+        if request.scoring_policy is None:
+            return RuntimeScoringPolicy()
+        return request.scoring_policy
 
     def _build_bm25(self, documents: Iterable[SearchDocument]) -> BM25SearchIndex:
         from .bm25_index import BM25SearchIndex

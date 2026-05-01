@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import inspect
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
+from typing import TypedDict, cast, get_type_hints
 
 from snowiki.search.engine import BM25RuntimeIndex
-from snowiki.search.models import SearchDocument
+from snowiki.search.models import SearchDocument, SearchHit
+from snowiki.search.requests import RuntimeSearchRequest
+from snowiki.search.scoring import RuntimeScoringPolicy
 
 
 class SynonymTokenizer:
@@ -18,6 +23,67 @@ class SynonymTokenizer:
 
     def normalize(self, text: str) -> str:
         return " ".join(self.tokenize(text))
+
+
+class _PolicyCall(TypedDict):
+    document_id: str
+    query_terms: set[str]
+    document_terms: set[str]
+    normalized_query: str
+    normalized_path: str
+    exact_path_bias: bool
+    kind_weights: Mapping[str, float] | None
+
+
+class RecordingScoringPolicy:
+    def __init__(self) -> None:
+        self.calls: list[_PolicyCall] = []
+
+    def score_candidate(
+        self,
+        *,
+        document: SearchDocument,
+        raw_score: float,
+        query_terms: set[str],
+        document_terms: set[str],
+        normalized_query: str,
+        normalized_path: str,
+        exact_path_bias: bool = False,
+        kind_weights: Mapping[str, float] | None = None,
+    ) -> SearchHit | None:
+        self.calls.append(
+            {
+                "document_id": document.id,
+                "query_terms": query_terms,
+                "document_terms": document_terms,
+                "normalized_query": normalized_query,
+                "normalized_path": normalized_path,
+                "exact_path_bias": exact_path_bias,
+                "kind_weights": kind_weights,
+            }
+        )
+        return SearchHit(
+            document=document,
+            score=raw_score,
+            matched_terms=tuple(sorted(query_terms & document_terms)),
+        )
+
+    def sort_key(self, hit: SearchHit) -> tuple[float, str, str]:
+        return (-hit.score, hit.document.path, hit.document.id)
+
+
+def test_bm25_runtime_index_search_accepts_runtime_request_contract() -> None:
+    signature = inspect.signature(BM25RuntimeIndex.search)
+    parameters = list(signature.parameters.values())
+
+    assert [(parameter.name, parameter.kind) for parameter in parameters] == [
+        ("self", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+        ("request", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+    ]
+
+    hints = get_type_hints(BM25RuntimeIndex.search)
+    assert hints["request"] is RuntimeSearchRequest
+    assert hints["return"] == Sequence[SearchHit]
 
 
 def test_bm25_runtime_index_returns_search_hits_with_metadata() -> None:
@@ -37,13 +103,32 @@ def test_bm25_runtime_index_returns_search_hits_with_metadata() -> None:
         tokenizer_name="regex_v1",
     )
 
-    hits = index.search("bm25 runtime", limit=3)
+    hits = index.search(RuntimeSearchRequest(query="bm25 runtime", candidate_limit=3))
 
     assert len(hits) == 1
     assert hits[0].document.id == "session-1"
     assert hits[0].document.metadata == {"raw_ref": "raw/session-1.json"}
     assert hits[0].document.source_type == "normalized"
     assert set(hits[0].matched_terms) >= {"bm25", "runtime"}
+
+
+def test_bm25_runtime_index_returns_empty_for_blank_query_or_zero_limit() -> None:
+    index = BM25RuntimeIndex(
+        [
+            SearchDocument(
+                id="doc",
+                path="pages/doc.md",
+                kind="page",
+                title="BM25 runtime",
+                content="retrieval implementation",
+            )
+        ],
+        tokenizer_name="regex_v1",
+    )
+
+    assert index.search(RuntimeSearchRequest(query="bm25", candidate_limit=0)) == []
+    assert index.search(RuntimeSearchRequest(query="", candidate_limit=3)) == []
+    assert index.search(RuntimeSearchRequest(query="   ", candidate_limit=3)) == []
 
 
 def test_bm25_runtime_index_applies_recorded_at_filters() -> None:
@@ -65,19 +150,38 @@ def test_bm25_runtime_index_applies_recorded_at_filters() -> None:
                 content="retrieval implementation",
                 recorded_at=datetime(2026, 4, 8, tzinfo=UTC),
             ),
+            SearchDocument(
+                id="future",
+                path="sessions/future.json",
+                kind="session",
+                title="BM25 work",
+                content="retrieval implementation",
+                recorded_at=datetime(2026, 5, 1, tzinfo=UTC),
+            ),
+            SearchDocument(
+                id="undated",
+                path="sessions/undated.json",
+                kind="session",
+                title="BM25 work",
+                content="retrieval implementation",
+            ),
         ],
         tokenizer_name="regex_v1",
     )
 
     hits = index.search(
-        "bm25 retrieval",
-        recorded_after=datetime(2026, 4, 7, tzinfo=UTC),
+        RuntimeSearchRequest(
+            query="bm25 retrieval",
+            candidate_limit=4,
+            recorded_after=datetime(2026, 4, 7, tzinfo=UTC),
+            recorded_before=datetime(2026, 4, 30, tzinfo=UTC),
+        )
     )
 
     assert [hit.document.id for hit in hits] == ["new"]
 
 
-def test_bm25_runtime_index_applies_kind_weights_and_path_bias() -> None:
+def test_bm25_runtime_index_applies_policy_sorting_and_scoring() -> None:
     index = BM25RuntimeIndex(
         [
             SearchDocument(
@@ -99,13 +203,53 @@ def test_bm25_runtime_index_applies_kind_weights_and_path_bias() -> None:
     )
 
     hits = index.search(
-        "search plan",
-        kind_weights={"session": 0.5, "page": 2.0},
-        exact_path_bias=True,
-        limit=2,
+        RuntimeSearchRequest(
+            query="search plan",
+            candidate_limit=2,
+            kind_weights={"session": 0.5, "page": 2.0},
+            exact_path_bias=True,
+        )
     )
 
     assert [hit.document.id for hit in hits] == ["page", "session"]
+
+
+def test_bm25_runtime_index_provides_token_evidence_to_scoring_policy() -> None:
+    policy = RecordingScoringPolicy()
+    index = BM25RuntimeIndex(
+        [
+            SearchDocument(
+                id="path-doc",
+                path="compiled/special.md",
+                kind="page",
+                title="Unrelated title",
+                content="Unrelated content",
+            )
+        ],
+        tokenizer_name="regex_v1",
+    )
+
+    hits = index.search(
+        RuntimeSearchRequest(
+            query="special",
+            candidate_limit=1,
+            exact_path_bias=True,
+            kind_weights={"page": 1.25},
+            scoring_policy=cast(RuntimeScoringPolicy, policy),
+        )
+    )
+
+    assert [hit.document.id for hit in hits] == ["path-doc"]
+    assert hits[0].matched_terms == ("special",)
+    assert len(policy.calls) == 1
+    call = policy.calls[0]
+    assert call["document_id"] == "path-doc"
+    assert call["query_terms"] == {"special"}
+    assert "special" in call["document_terms"]
+    assert call["normalized_query"] == "special"
+    assert call["normalized_path"] == "compiled/special.md"
+    assert call["exact_path_bias"] is True
+    assert call["kind_weights"] == {"page": 1.25}
 
 
 def test_bm25_runtime_index_uses_injected_tokenizer_for_runtime_queries() -> None:
@@ -123,26 +267,7 @@ def test_bm25_runtime_index_uses_injected_tokenizer_for_runtime_queries() -> Non
         tokenizer_name="regex_v1",
     )
 
-    hits = index.search("프로시저", limit=1)
+    hits = index.search(RuntimeSearchRequest(query="프로시저", candidate_limit=1))
 
     assert [hit.document.id for hit in hits] == ["ko-page"]
     assert hits[0].matched_terms == ("procedure",)
-
-
-def test_bm25_runtime_index_indexes_paths_for_known_item_queries() -> None:
-    index = BM25RuntimeIndex(
-        [
-            SearchDocument(
-                id="path-doc",
-                path="compiled/special-path.md",
-                kind="page",
-                title="Unrelated title",
-                content="Unrelated content",
-            )
-        ],
-        tokenizer_name="regex_v1",
-    )
-
-    hits = index.search("special-path.md", exact_path_bias=True, limit=1)
-
-    assert [hit.document.id for hit in hits] == ["path-doc"]

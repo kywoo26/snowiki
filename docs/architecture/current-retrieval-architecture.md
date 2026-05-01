@@ -2,13 +2,13 @@
 
 ## Purpose
 
-This document describes Snowiki’s current retrieval architecture.
+This document describes Snowiki's current retrieval architecture.
 
 The goal is to keep CLI, MCP, and bench aligned without turning any one of them into a separate contract universe.
 
 ## Active retrieval surfaces
 
-Snowiki’s retrieval stack shows up through three surfaces:
+Snowiki's retrieval stack shows up through three surfaces:
 
 1. CLI query and recall
 2. Read only MCP retrieval
@@ -24,9 +24,12 @@ Primary modules:
 - `src/snowiki/search/protocols.py`
 - `src/snowiki/search/bm25_index.py`
 - `src/snowiki/search/corpus.py`
-- `src/snowiki/search/indexer.py`
+- `src/snowiki/search/requests.py`
+- `src/snowiki/search/scoring.py`
 - `src/snowiki/search/tokenizer.py`
 - `src/snowiki/search/queries/*`
+
+The legacy `src/snowiki/search/indexer.py` and its `InvertedIndex` implementation were removed during the runtime retrieval policy consolidation. All production callers now route through the request/policy boundary described below.
 
 ## Canonical retrieval seam
 
@@ -41,6 +44,42 @@ Its role is to:
 
 `RetrievalSnapshot.index` is the primary runtime search surface and implements
 `RuntimeSearchIndex` through `BM25RuntimeIndex`.
+
+## Runtime retrieval policy boundary
+
+The canonical retrieval flow now moves through an explicit request and policy boundary:
+
+```text
+query intent (known-item / topical / temporal / date)
+  -> SearchIntentPolicy (candidate multiplier, kind weights, exact-path bias, blending flag)
+    -> RuntimeSearchRequest (query, candidate_limit, filters, policy fields)
+      -> BM25RuntimeIndex.search(request)
+        -> BM25SearchIndex raw candidate generation (policy-free)
+          -> RuntimeScoringPolicy (exact-path boost, path-phrase boost, kind-weight multiplication, recency tie-break)
+            -> optional post-scoring blend (topical policy only)
+              -> final truncation to user-facing limit
+                -> serializer (CLI JSON / MCP payload / benchmark hit)
+```
+
+Boundary responsibilities:
+
+| Layer | Module | Responsibility |
+| :--- | :--- | :--- |
+| Intent policy | `src/snowiki/search/queries/policies.py` | Named presets (`KNOWN_ITEM_POLICY`, `TOPICAL_POLICY`, `TEMPORAL_POLICY`), candidate-limit expansion, kind-weight defaults, exact-path bias, blending flags. |
+| Request object | `src/snowiki/search/requests.py` | Frozen `RuntimeSearchRequest` with `query`, `candidate_limit`, temporal filters, `exact_path_bias`, `kind_weights`, and optional `scoring_policy`. |
+| Protocol | `src/snowiki/search/protocols.py` | `RuntimeSearchIndex.search(request: RuntimeSearchRequest) -> Sequence[SearchHit]`. |
+| Raw candidate generation | `src/snowiki/search/bm25_index.py` | Policy-free BM25 candidate retrieval. No scoring constants, multipliers, or blending logic lives here. |
+| Runtime scoring | `src/snowiki/search/scoring.py` | `RuntimeScoringPolicy` owns matched-term derivation, zero-score rejection, exact-path/token boosts, kind-weight multiplication, recency tie-break, and deterministic sort key. |
+| Runtime orchestration | `src/snowiki/search/engine.py` | `BM25RuntimeIndex` translates `RuntimeSearchRequest` into raw BM25 calls, applies `RuntimeScoringPolicy`, and returns scored `SearchHit`s. |
+| Post-scoring blend | `src/snowiki/search/rerank.py` | `blend_hits_by_kind` is a query-policy-controlled topical behavior, not a numeric scoring layer. |
+| Strategy wrappers | `src/snowiki/search/queries/known_item.py`, `topical.py`, `temporal.py` | Own final truncation, optional reranking, and routing to the runtime index via `RuntimeSearchRequest`. |
+
+Key invariants:
+
+- `candidate_limit` is the pre-truncation candidate count requested from the runtime index. Final display limits stay in query-policy functions.
+- `BM25SearchIndex` remains policy-free. It does not know about request objects, intent multipliers, kind weights, or scoring profiles.
+- Scoring constants and policy literals live only in `scoring.py` and `queries/policies.py`, not in `engine.py` or individual query modules.
+- CLI, MCP, and benchmark payloads remain stable; only internal routing changed.
 
 ## Canonical retrieval contract
 
@@ -73,11 +112,12 @@ These seams keep bench flexible without widening the runner model.
 
 The retrieval policy wrappers currently live in:
 
+- `src/snowiki/search/queries/policies.py`
 - `src/snowiki/search/queries/known_item.py`
 - `src/snowiki/search/queries/topical.py`
 - `src/snowiki/search/queries/temporal.py`
 
-These are strategy layers over the same BM25 runtime search substrate, not separate engines.
+These are strategy layers over the same BM25 runtime search substrate, not separate engines. `queries/policies.py` centralizes the intent-specific constants that were previously embedded as literals in each query module.
 
 ## Semantic and rerank status
 
@@ -85,6 +125,8 @@ These remain extension seams, not active runtime layers.
 
 - `src/snowiki/search/semantic_abstraction.py`
 - `src/snowiki/search/rerank.py`
+
+Hybrid/vector search and semantic reranking are deferred non-goals for the current runtime. See `bm25-retrieval-engine.md` for the deferred work list.
 
 ## Main current risk
 
