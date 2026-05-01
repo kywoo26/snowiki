@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from snowiki.compiler.engine import CompilerEngine
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import (
     build_retrieval_snapshot,
     clear_query_search_index_cache,
@@ -34,9 +35,10 @@ def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
     clear_query_search_index_cache()
     storage_paths = StoragePaths(root)
     tokenizer_name = current_runtime_tokenizer_name()
-    snapshot_identity = current_index_identity(storage_paths, tokenizer_name)
+    retrieval_identity = retrieval_identity_for_tokenizer(tokenizer_name)
+    snapshot_identity = current_index_identity(storage_paths, retrieval_identity)
     snapshot = build_retrieval_snapshot(root)
-    current_identity = current_index_identity(storage_paths, tokenizer_name)
+    current_identity = current_index_identity(storage_paths, retrieval_identity)
     manifest_path = index_manifest_path(storage_paths)
     manifest = IndexManifest(
         schema_version=1,
