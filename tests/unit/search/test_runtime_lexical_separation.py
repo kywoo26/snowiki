@@ -2,14 +2,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
 from pytest_mock import MockerFixture
 
 from snowiki.mcp.server import SnowikiReadOnlyFacade
 from snowiki.search.engine import BM25RuntimeIndex
-from snowiki.search.indexer import InvertedIndex, SearchDocument
-from snowiki.search.registry import SearchTokenizer
-from snowiki.search.tokenizer import build_regex_tokenizer
+from snowiki.search.models import SearchDocument
+from snowiki.search.requests import RuntimeSearchRequest
 from snowiki.search.workspace import RetrievalService
 
 
@@ -150,7 +148,8 @@ def test_retrieval_service_threads_explicit_tokenizer_through_runtime_indexes() 
         pages=pages,
         tokenizer=tokenizer,
     )
-    hits = snapshot.index.search("alpha")
+    request = RuntimeSearchRequest(query="alpha", candidate_limit=10)
+    hits = snapshot.index.search(request)
 
     assert snapshot.index.tokenizer is tokenizer
     assert {hit.document.id for hit in hits} == {"page-1", "session-1"}
@@ -187,163 +186,9 @@ def test_runtime_index_uses_injected_tokenizer_for_indexing_and_query_time() -> 
         tokenizer=tokenizer,
     )
 
-    hits = snapshot.index.search("special query")
+    request = RuntimeSearchRequest(query="special query", candidate_limit=10)
+    hits = snapshot.index.search(request)
 
     assert [hit.document.id for hit in hits] == ["session-special"]
     assert tokenizer.calls.count(("tokenize", "special query")) >= 1
     assert ("normalize", "special query") in tokenizer.calls
-
-
-@pytest.mark.parametrize("query", ["", "!!! ... ---"])
-def test_inverted_index_returns_no_hits_for_empty_or_zero_term_queries(
-    query: str,
-) -> None:
-    index = InvertedIndex(
-        [
-            _search_document(
-                "doc",
-                path="notes/runtime.md",
-                title="Runtime lexical document",
-                content="searchable content",
-            )
-        ]
-    )
-
-    assert index.search(query) == []
-
-
-def test_inverted_index_returns_no_hits_when_no_postings_match() -> None:
-    index = InvertedIndex(
-        [
-            _search_document(
-                "doc",
-                path="notes/runtime.md",
-                title="Runtime lexical document",
-                content="searchable content",
-            )
-        ]
-    )
-
-    assert index.search("absent term") == []
-
-
-def test_inverted_index_preserves_phrase_and_path_boost_scores() -> None:
-    phrase_index = InvertedIndex(
-        [
-            _search_document(
-                "phrase",
-                path="notes/phrase.md",
-                title="Alpha Beta",
-            )
-        ]
-    )
-    phrase_hit = phrase_index.search("alpha beta")[0]
-
-    assert phrase_hit.document.id == "phrase"
-    assert phrase_hit.score == 16.0
-    assert phrase_hit.matched_terms == ("alpha", "alpha beta", "beta")
-
-    path_index = InvertedIndex(
-        [
-            _search_document(
-                "path",
-                path="notes/alpha-beta.md",
-                title="Path only",
-            )
-        ]
-    )
-    path_hit = path_index.search("alpha beta", exact_path_bias=True)[0]
-
-    assert path_hit.document.id == "path"
-    assert path_hit.score == 5.0 + (2 / 3 * 4.0) + 2.0
-    assert path_hit.matched_terms == ("alpha", "beta")
-
-
-def test_inverted_index_preserves_duplicate_query_term_scoring() -> None:
-    class DuplicateTokenizer:
-        def tokenize(self, text: str) -> tuple[str, ...]:
-            if text == "alpha alpha":
-                return ("alpha", "alpha")
-            return tuple(part.casefold() for part in text.split() if part)
-
-        def normalize(self, text: str) -> str:
-            return text.casefold()
-
-    index = InvertedIndex(
-        [_search_document("doc", path="notes/doc.md", title="alpha")],
-        tokenizer=DuplicateTokenizer(),
-    )
-
-    hit = index.search("alpha alpha")[0]
-
-    assert hit.document.id == "doc"
-    assert hit.score == 8.0
-    assert hit.matched_terms == ("alpha",)
-
-
-def test_inverted_index_preserves_zero_weight_ties_by_path_then_id() -> None:
-    index = InvertedIndex(
-        [
-            _search_document("z-doc", path="notes/zeta.md", title="alpha"),
-            _search_document("a-doc", path="notes/alpha.md", title="alpha"),
-        ]
-    )
-
-    hits = index.search("alpha", kind_weights={"note": 0.0})
-
-    assert [hit.document.id for hit in hits] == ["a-doc", "z-doc"]
-    assert [hit.score for hit in hits] == [0.0, 0.0]
-
-
-def test_inverted_index_handles_punctuation_mixed_case_unicode_and_mixed_language() -> None:
-    index = InvertedIndex(
-        [
-            _search_document(
-                "mixed",
-                path="notes/Mixed-Language.md",
-                title="Snowiki CAFÉ Retrieval",
-                content="Runtime search handles 한국어 and English punctuation-heavy text.",
-            )
-        ]
-    )
-
-    hits = index.search("SNOWIKI!!! 한국어 café")
-
-    assert [hit.document.id for hit in hits] == ["mixed"]
-    assert "snowiki" in hits[0].matched_terms
-    assert "한국어" in hits[0].matched_terms
-    assert "caf" in hits[0].matched_terms
-
-
-def test_inverted_index_search_does_not_normalize_candidate_documents_per_query() -> None:
-    class CountingTokenizer:
-        def __init__(self) -> None:
-            self._inner: SearchTokenizer = build_regex_tokenizer()
-            self.normalize_calls: list[str] = []
-
-        def tokenize(self, text: str) -> tuple[str, ...]:
-            return self._inner.tokenize(text)
-
-        def normalize(self, text: str) -> str:
-            self.normalize_calls.append(text)
-            return self._inner.normalize(text)
-
-    tokenizer = CountingTokenizer()
-    index = InvertedIndex(
-        [
-            _search_document(
-                f"doc-{index}",
-                path=f"notes/common-{index}.md",
-                title=f"Common title {index}",
-                content="shared common body",
-            )
-            for index in range(6)
-        ],
-        tokenizer=tokenizer,
-    )
-    tokenizer.normalize_calls.clear()
-
-    hits = index.search("common", limit=3)
-
-    assert [hit.document.id for hit in hits] == ["doc-0", "doc-1", "doc-2"]
-    assert tokenizer.normalize_calls == ["common"]
