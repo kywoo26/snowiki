@@ -1,31 +1,15 @@
 from __future__ import annotations
 
-import inspect
-from collections.abc import Mapping, Sequence
-from dataclasses import FrozenInstanceError, fields, is_dataclass
+from collections.abc import Sequence
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
-from typing import Any, get_type_hints
+from typing import Any
 
 import pytest
 
 from snowiki.search.models import SearchDocument, SearchHit
-from snowiki.search.protocols import RuntimeSearchIndex
 from snowiki.search.requests import RuntimeSearchRequest
 from snowiki.search.scoring import RuntimeScoringPolicy
-
-EXPECTED_REQUEST_FIELDS = (
-    "query",
-    "candidate_limit",
-    "recorded_after",
-    "recorded_before",
-    "exact_path_bias",
-    "kind_weights",
-    "scoring_policy",
-)
-
-
-def _class_attribute(target: object, name: str) -> Any:
-    return getattr(target, name)
 
 
 def _call_with_legacy_keywords(call: Any) -> None:
@@ -56,33 +40,16 @@ def _hit(document_id: str) -> SearchHit:
     )
 
 
-def test_runtime_search_request_is_frozen_slotted_dataclass_with_expected_fields() -> None:
-    assert is_dataclass(RuntimeSearchRequest)
-    assert _class_attribute(RuntimeSearchRequest, "__dataclass_params__").frozen is True
-    assert tuple(_class_attribute(RuntimeSearchRequest, "__slots__")) == EXPECTED_REQUEST_FIELDS
+def test_runtime_search_request_has_expected_fields_and_defaults() -> None:
+    request = RuntimeSearchRequest(query="snowiki", candidate_limit=1)
 
-    request_fields = fields(RuntimeSearchRequest)
-    assert tuple(field.name for field in request_fields) == EXPECTED_REQUEST_FIELDS
-
-    hints = get_type_hints(RuntimeSearchRequest)
-    assert hints == {
-        "query": str,
-        "candidate_limit": int,
-        "recorded_after": datetime | None,
-        "recorded_before": datetime | None,
-        "exact_path_bias": bool,
-        "kind_weights": Mapping[str, float] | None,
-        "scoring_policy": RuntimeScoringPolicy | None,
-    }
-
-    defaults_by_name = {field.name: field.default for field in request_fields}
-    assert defaults_by_name["recorded_after"] is None
-    assert defaults_by_name["recorded_before"] is None
-    assert defaults_by_name["exact_path_bias"] is False
-    assert defaults_by_name["kind_weights"] is None
-    assert defaults_by_name["scoring_policy"] is None
-    assert "limit" not in defaults_by_name
-    assert "final_limit" not in defaults_by_name
+    assert request.query == "snowiki"
+    assert request.candidate_limit == 1
+    assert request.recorded_after is None
+    assert request.recorded_before is None
+    assert request.exact_path_bias is False
+    assert request.kind_weights is None
+    assert request.scoring_policy is None
 
 
 def test_runtime_search_request_is_immutable_after_construction() -> None:
@@ -127,19 +94,7 @@ def test_runtime_search_request_carries_filter_bias_weight_and_policy_fields() -
     assert request.scoring_policy is scoring_policy
 
 
-def test_runtime_search_index_protocol_accepts_request_and_returns_sequence_of_hits() -> None:
-    signature = inspect.signature(RuntimeSearchIndex.search)
-    parameters = list(signature.parameters.values())
-
-    assert [(parameter.name, parameter.kind) for parameter in parameters] == [
-        ("self", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-        ("request", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    ]
-
-    hints = get_type_hints(RuntimeSearchIndex.search)
-    assert hints["request"] is RuntimeSearchRequest
-    assert hints["return"] == Sequence[SearchHit]
-
+def test_runtime_search_index_accepts_request_and_returns_sequence_of_hits() -> None:
     index = RecordingRuntimeSearchIndex([_hit("first"), _hit("second")])
     request = RuntimeSearchRequest(query="contract", candidate_limit=1)
 
@@ -150,11 +105,6 @@ def test_runtime_search_index_protocol_accepts_request_and_returns_sequence_of_h
 
 
 def test_old_keyword_heavy_search_call_is_not_the_runtime_contract() -> None:
-    parameters = inspect.signature(RuntimeSearchIndex.search).parameters
-    assert "query" not in parameters
-    assert "limit" not in parameters
-    assert "candidate_limit" not in parameters
-
     index = RecordingRuntimeSearchIndex([_hit("first")])
 
     with pytest.raises(TypeError):

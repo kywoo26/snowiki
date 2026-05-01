@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from .models import SearchDocument, SearchHit
 from .registry import SearchTokenizer, create, default
 from .requests import RuntimeSearchRequest
-from .scoring import RuntimeScoringPolicy
+from .scoring import HitScorer, RuntimeScoringPolicy
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -99,7 +99,7 @@ class BM25RuntimeIndex:
         return tuple(eligible)
 
     @staticmethod
-    def _scoring_policy(request: RuntimeSearchRequest) -> RuntimeScoringPolicy:
+    def _scoring_policy(request: RuntimeSearchRequest) -> HitScorer:
         if request.scoring_policy is None:
             return RuntimeScoringPolicy()
         return request.scoring_policy
