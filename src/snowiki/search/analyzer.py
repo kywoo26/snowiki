@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .token_util import _is_hangul_token
 from .tokenizer import normalize_text
 
 _COMPOUND_RE = re.compile(
@@ -70,7 +71,7 @@ class MixedLanguageAnalyzer:
                 tokens.append(token[2:])
             elif token.startswith("-"):
                 tokens.append(token[1:])
-            if all("가" <= char <= "힣" for char in token) and len(token) > 1:
+            if _is_hangul_token(token) and len(token) > 1:
                 tokens.extend(token[index : index + 2] for index in range(len(token) - 1))
 
         return _ordered_unique(tokens)

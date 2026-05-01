@@ -44,6 +44,20 @@ def normalize_stored_tokenizer_name(metadata: Mapping[str, object]) -> str | Non
         except KeyError:
             return None
 
+    raw_identity = metadata.get("identity")
+    if isinstance(raw_identity, Mapping):
+        identity = cast(Mapping[str, object], raw_identity)
+        retrieval = identity.get("retrieval")
+        if isinstance(retrieval, Mapping):
+            retrieval_identity = cast(Mapping[str, object], retrieval)
+            raw_name = retrieval_identity.get("name")
+            if isinstance(raw_name, str) and raw_name.strip():
+                name = raw_name.strip()
+                try:
+                    return get(name).name
+                except KeyError:
+                    return None
+
     has_legacy_flags = (
         "use_kiwi_tokenizer" in metadata or "kiwi_lexical_candidate_mode" in metadata
     )

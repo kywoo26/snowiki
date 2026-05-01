@@ -15,7 +15,7 @@ from .kiwi_tokenizer import (
     KiwiLexicalCandidateMode,
 )
 from .models import SearchDocument, SearchHit
-from .registry import SearchTokenizer, create, default, get
+from .registry import SearchTokenizer, all_candidates, create, default, get
 from .subword_tokenizer import WordPieceSearchTokenizer
 from .tokenizer_compat import (
     normalize_stored_tokenizer_name,
@@ -58,13 +58,7 @@ class BM25SearchIndex:
     _SHOW_PROGRESS = False
     _LEAVE_PROGRESS = False
     _TOKENIZER_NAMES: frozenset[str] = frozenset(
-        [
-            "regex_v1",
-            "kiwi_morphology_v1",
-            "kiwi_nouns_v1",
-            "mecab_morphology_v1",
-            "hf_wordpiece_v1",
-        ]
+        spec.name for spec in all_candidates()
     )
 
     def __init__(

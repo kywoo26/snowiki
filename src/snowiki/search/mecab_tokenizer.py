@@ -6,30 +6,13 @@ from dataclasses import dataclass, field
 import MeCab
 import mecab_ko_dic
 
+from .token_util import _ordered_unique, _preserve_non_korean_tokens
 from .tokenizer import normalize_text as regex_normalize_text
 from .tokenizer import tokenize_text as regex_tokenize_text
 
-_NON_KOREAN_TOKEN_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 _KOREAN_SPAN_RE = re.compile(r"[가-힣]+")
 _SEARCH_NOISE_TAG_PREFIXES = ("S",)
 _SEARCH_NOISE_TAGS = frozenset({"JKO"})
-
-
-def _ordered_unique(tokens: tuple[str, ...]) -> tuple[str, ...]:
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for token in tokens:
-        if not token or token in seen:
-            continue
-        seen.add(token)
-        ordered.append(token)
-    return tuple(ordered)
-
-
-def _preserve_non_korean_tokens(normalized_text: str) -> tuple[str, ...]:
-    return tuple(
-        match.group(0) for match in _NON_KOREAN_TOKEN_RE.finditer(normalized_text)
-    )
 
 
 def _build_mecab_args() -> str:

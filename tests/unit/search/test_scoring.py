@@ -13,7 +13,7 @@ _DATACLASS_PARAMS = "__dataclass_params__"
 
 
 def _is_frozen_dataclass(class_: object) -> bool:
-    params = cast(Any, getattr(class_, _DATACLASS_PARAMS))
+    params = getattr(class_, _DATACLASS_PARAMS)
     return bool(params.frozen)
 
 
