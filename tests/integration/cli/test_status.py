@@ -7,6 +7,7 @@ from click.testing import CliRunner
 from tests.helpers.projection import compiler_projection
 
 from snowiki.cli.main import app
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.storage.index_manifest import current_content_identity_payload
 from snowiki.storage.zones import StoragePaths
@@ -120,7 +121,8 @@ def _build_status_workspace(root: Path) -> None:
                 "compiled/topics/wiki-dashboard.md",
             ],
             "content_identity": current_content_identity_payload(
-                StoragePaths(root), current_runtime_tokenizer_name()
+                StoragePaths(root),
+                retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
             ),
         },
     )
@@ -183,10 +185,12 @@ def test_status_json_output_reports_wiki_native_dashboard_sections(
             "freshness": {
                 "status": "current",
                 "manifest_content_identity": current_content_identity_payload(
-                    StoragePaths(tmp_path), current_runtime_tokenizer_name()
+                    StoragePaths(tmp_path),
+                    retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
                 ),
                 "current_content_identity": current_content_identity_payload(
-                    StoragePaths(tmp_path), current_runtime_tokenizer_name()
+                    StoragePaths(tmp_path),
+                    retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
                 ),
                 "latest_normalized_recorded_at": "2026-04-16T08:30:00Z",
                 "latest_compiled_update": "2026-04-16",

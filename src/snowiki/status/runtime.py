@@ -10,11 +10,11 @@ from snowiki.compiler.taxonomy import PageType
 from snowiki.lint.integrity import check_layer_integrity
 from snowiki.lint.runtime import collect_structural_issues
 from snowiki.markdown.source_state import collect_markdown_source_state
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.storage.index_manifest import (
-    compare_index_identity,
     current_index_identity,
-    load_index_manifest,
+    explain_index_freshness,
     to_manifest_stats_payload,
     to_status_payload,
 )
@@ -139,18 +139,15 @@ def _status_lint_summary(root: Path) -> dict[str, Any]:
 def run_status(root: Path) -> StatusResult:
     paths = StoragePaths(root)
     manifest_present = (paths.index / "manifest.json").exists()
-    try:
-        manifest = load_index_manifest(paths)
-        manifest_for_comparison = manifest
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        manifest = None
-        manifest_for_comparison = "invalid"
     page_counts, latest_compiled_update = _page_type_counts(root / "compiled")
     source_counts, latest_normalized_recorded_at = _source_type_counts(root / "normalized")
     lint_result = _status_lint_summary(root)
-    current_identity = current_index_identity(paths, current_runtime_tokenizer_name())
-    freshness_explanation = compare_index_identity(
-        manifest_for_comparison,
+    current_identity = current_index_identity(
+        paths,
+        retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+    )
+    manifest, freshness_explanation = explain_index_freshness(
+        paths,
         current_identity,
     )
     return {
