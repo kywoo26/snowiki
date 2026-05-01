@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 from tests.helpers.projection import compiler_projection
 
@@ -11,6 +12,7 @@ from snowiki.lint.runtime import (
     collect_summary_coverage_issues,
     run_lint,
 )
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.storage.index_manifest import (
     IndexManifest,
@@ -265,10 +267,13 @@ def test_collect_freshness_issues_skips_missing_invalid_and_current_dates(
     assert collect_freshness_issues(tmp_path) == []
 
 
-def test_collect_freshness_issues_reports_stale_index_manifest(tmp_path: Path) -> None:
+def test_lint_reason_field_paths_are_public(tmp_path: Path) -> None:
     _write_compiled_page(tmp_path / "compiled" / "topic.md", "# Topic\n")
     paths = StoragePaths(tmp_path)
-    current = current_index_identity(paths, current_runtime_tokenizer_name())
+    current = current_index_identity(
+        paths,
+        retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+    )
     write_index_manifest(
         paths,
         IndexManifest(
@@ -289,20 +294,32 @@ def test_collect_freshness_issues_reports_stale_index_manifest(tmp_path: Path) -
         ),
     )
 
-    assert collect_freshness_issues(tmp_path)[0] == {
-        "code": "L104",
-        "check": "integrity.index_manifest",
-        "severity": "error",
-        "path": "index/manifest.json",
-        "message": "index manifest is stale; rebuild required",
-        "reasons": [
-            {
-                "field_path": "identity.compiled.content_hash",
-                "manifest_value": "stale",
-                "current_value": current.compiled.content_hash,
-            }
-        ],
+    issue = cast(dict[str, object], collect_freshness_issues(tmp_path)[0])
+
+    assert set(issue) == {
+        "code",
+        "check",
+        "severity",
+        "path",
+        "message",
+        "reasons",
     }
+    assert issue["code"] == "L104"
+    assert issue["check"] == "integrity.index_manifest"
+    assert issue["severity"] == "error"
+    assert issue["path"] == "index/manifest.json"
+    assert issue["message"] == "index manifest is stale; rebuild required"
+    assert all(
+        set(reason) == {"field_path", "manifest_value", "current_value"}
+        for reason in cast(list[dict[str, object]], issue["reasons"])
+    )
+    assert cast(list[dict[str, object]], issue["reasons"]) == [
+        {
+            "field_path": "content_identity.compiled.content_hash",
+            "manifest_value": "stale",
+            "current_value": current.compiled.content_hash,
+        }
+    ]
 
 
 def test_collect_summary_coverage_issues_reports_missing_compiled_summary_page(

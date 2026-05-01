@@ -7,6 +7,7 @@ from click.testing import CliRunner
 from tests.helpers.projection import compiler_projection
 
 from snowiki.cli.main import app
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.storage.index_manifest import (
     IndexManifest,
@@ -62,7 +63,10 @@ def _write_current_manifest(root: Path) -> None:
             pages_indexed=len(compiled_paths),
             search_documents=len(compiled_paths),
             compiled_paths=compiled_paths,
-            identity=current_index_identity(paths, current_runtime_tokenizer_name()),
+            identity=current_index_identity(
+                paths,
+                retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+            ),
         ),
     )
 

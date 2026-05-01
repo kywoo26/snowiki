@@ -5,12 +5,12 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.storage.index_manifest import (
-    compare_index_identity,
     current_index_identity,
+    explain_index_freshness,
     index_manifest_path,
-    load_index_manifest,
     to_lint_issue_payload,
 )
 from snowiki.storage.provenance import raw_refs_from_record
@@ -89,14 +89,12 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
 def _collect_index_manifest_issues(root: Path) -> list[dict[str, Any]]:
     paths = StoragePaths(root)
     manifest_path = index_manifest_path(paths)
-    try:
-        manifest = load_index_manifest(paths)
-        manifest_for_comparison = manifest
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        manifest_for_comparison = "invalid"
-    current_identity = current_index_identity(paths, current_runtime_tokenizer_name())
-    explanation = compare_index_identity(
-        manifest_for_comparison,
+    current_identity = current_index_identity(
+        paths,
+        retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+    )
+    _, explanation = explain_index_freshness(
+        paths,
         current_identity,
     )
     if explanation.status not in ("missing", "invalid"):

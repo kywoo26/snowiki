@@ -11,11 +11,11 @@ from snowiki.compiler.paths import summary_path_for_record
 from snowiki.compiler.taxonomy import NormalizedRecord
 from snowiki.gardening.sources import collect_source_gardening_proposals
 from snowiki.markdown.source_state import collect_markdown_source_state
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.storage.index_manifest import (
-    compare_index_identity,
     current_index_identity,
-    load_index_manifest,
+    explain_index_freshness,
     to_lint_issue_payload,
 )
 from snowiki.storage.provenance import raw_refs_from_record
@@ -180,14 +180,12 @@ def collect_freshness_issues(root: str | Path) -> list[LintIssue]:
     base = Path(root)
     issues: list[LintIssue] = []
     paths = StoragePaths(base)
-    try:
-        manifest = load_index_manifest(paths)
-        manifest_for_comparison = manifest
-    except (OSError, ValueError, TypeError, json.JSONDecodeError):
-        manifest_for_comparison = "invalid"
-    explanation = compare_index_identity(
-        manifest_for_comparison,
-        current_index_identity(paths, current_runtime_tokenizer_name()),
+    _, explanation = explain_index_freshness(
+        paths,
+        current_index_identity(
+            paths,
+            retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+        ),
     )
     if explanation.status == "stale":
         issues.extend(cast(list[LintIssue], to_lint_issue_payload(explanation)))

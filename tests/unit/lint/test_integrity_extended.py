@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from snowiki.lint import integrity
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.workspace import current_runtime_tokenizer_name
 from snowiki.storage.index_manifest import (
     IndexManifest,
@@ -142,7 +143,7 @@ def test_check_layer_integrity_reports_invalid_index_manifest(
     assert issue["severity"] == "error"
     assert issue["path"] == "index/manifest.json"
     assert issue["message"] == "index manifest is invalid; rebuild required"
-    assert issue["reasons"][0]["field_path"] == "identity"
+    assert issue["reasons"][0]["field_path"] == "content_identity"
     assert issue["reasons"][0]["manifest_value"] == "invalid"
     assert set(issue["reasons"][0]["current_value"]) == {
         "normalized",
@@ -159,14 +160,15 @@ def test_check_layer_integrity_reports_stale_index_manifest(
     compiled_path.parent.mkdir(parents=True, exist_ok=True)
     compiled_path.write_text("# Topic\n", encoding="utf-8")
     paths = StoragePaths(tmp_path)
-    current = current_index_identity(paths, current_runtime_tokenizer_name())
+    retrieval_identity = retrieval_identity_for_tokenizer(current_runtime_tokenizer_name())
+    current = current_index_identity(paths, retrieval_identity)
     stale_manifest = IndexManifest(
         schema_version=1,
         records_indexed=0,
         pages_indexed=1,
         search_documents=1,
         compiled_paths=("compiled/topic.md",),
-        identity=current_index_identity(paths, current_runtime_tokenizer_name()),
+        identity=current_index_identity(paths, retrieval_identity),
     )
     stale_manifest = IndexManifest(
         schema_version=stale_manifest.schema_version,
@@ -227,7 +229,10 @@ def test_check_layer_integrity_returns_clean_result_for_healthy_layers(
     compiled_path.parent.mkdir(parents=True, exist_ok=True)
     compiled_path.write_text("# Topic\n", encoding="utf-8")
     paths = StoragePaths(tmp_path)
-    current = current_index_identity(paths, current_runtime_tokenizer_name())
+    current = current_index_identity(
+        paths,
+        retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+    )
     write_index_manifest(
         paths,
         IndexManifest(
