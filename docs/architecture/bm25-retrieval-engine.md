@@ -27,13 +27,19 @@ engine path. CLI and MCP payloads continue to expose stable result fields:
 ## Runtime architecture
 
 ```text
-CLI / MCP
+CLI / MCP / benchmark
   -> query and recall orchestration
-  -> RuntimeSearchIndex
-       -> RuntimeCorpusDocument records/pages
-       -> BM25RuntimeIndex
-       -> BM25SearchIndex candidate generation
-       -> SearchHit / SearchDocument result adapter
+  -> query intent policy (SearchIntentPolicy preset)
+    -> RuntimeSearchRequest
+      -> RuntimeSearchIndex.search(request)
+        -> BM25RuntimeIndex
+          -> RuntimeCorpusDocument records/pages
+          -> BM25SearchIndex candidate generation (policy-free raw BM25)
+          -> RuntimeScoringPolicy (numeric scoring / ranking)
+          -> SearchHit / SearchDocument result adapter
+      -> optional post-scoring blend (topical policy, blend_hits_by_kind)
+      -> final truncation to user-facing limit
+  -> serializer (CLI JSON / MCP payload / benchmark hit)
 ```
 
 The active implementation lives in:
@@ -42,7 +48,15 @@ The active implementation lives in:
 - `src/snowiki/search/protocols.py`
 - `src/snowiki/search/bm25_index.py`
 - `src/snowiki/search/corpus.py`
+- `src/snowiki/search/requests.py`
+- `src/snowiki/search/queries/policies.py`
+- `src/snowiki/search/scoring.py`
 - `src/snowiki/search/workspace.py`
+
+`BM25SearchIndex` is the raw backend. It handles persistence, cache artifacts,
+and tokenizer diagnostics. It does not own scoring constants, query multipliers,
+kind weights, or request routing. Those responsibilities sit in the policy and
+scoring layers above it.
 
 ## Query and recall split
 
@@ -53,7 +67,9 @@ The active implementation lives in:
   clues.
 
 Both use BM25 for candidate generation, while recall keeps first-class routing
-for date, temporal, known-item, and topical strategies.
+for date, temporal, known-item, and topical strategies. All strategies now
+construct a `RuntimeSearchRequest` through a `SearchIntentPolicy` preset before
+calling the runtime index.
 
 ## Analyzer status
 
@@ -68,3 +84,6 @@ supported benchmark and rollback lane.
 - Optional vector recall and Reciprocal Rank Fusion.
 - Optional analyzer follow-ups for non-default lanes described in
   [`analyzer-promotion-gates.md`](analyzer-promotion-gates.md).
+
+Hybrid/vector search and semantic reranking remain deferred non-goals for the
+current shipped runtime.
