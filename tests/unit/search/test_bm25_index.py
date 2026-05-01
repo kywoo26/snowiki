@@ -333,8 +333,8 @@ class TestBM25SearchIndex:
             (
                 "Title Field",
                 "docs/path-field.md",
-                "Content Field",
                 "Summary Field",
+                "Content Field",
                 "Alias One Alias Two",
             )
         ]
@@ -343,9 +343,9 @@ class TestBM25SearchIndex:
                 "title",
                 "field",
                 "docs/path-field.md",
-                "content",
-                "field",
                 "summary",
+                "field",
+                "content",
                 "field",
                 "alias",
                 "one",
@@ -353,6 +353,119 @@ class TestBM25SearchIndex:
                 "two",
             ]
         ]
+
+    def test_combined_corpus_uses_canonical_searchable_texts_only(
+        self,
+        fake_bm25_backend: dict[str, list[dict[str, object]]],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        class CombinedCorpusTokenizer:
+            def __init__(self) -> None:
+                self.batch_calls: list[tuple[str, ...]] = []
+
+            def tokenize(self, text: str) -> tuple[str, ...]:
+                normalized = text.casefold().replace("\n", " ")
+                tokens: list[str] = []
+                if "docs/path-field.md" in normalized:
+                    tokens.extend(["docs", "path", "field", "md"])
+                if "alias one alias two" in normalized:
+                    tokens.extend(["alias", "one", "alias", "two"])
+                if "metadata field" in normalized:
+                    tokens.extend(["metadata", "field"])
+                if "title field" in normalized:
+                    tokens.extend(["title", "field"])
+                if "summary field" in normalized:
+                    tokens.extend(["summary", "field"])
+                if "content field" in normalized:
+                    tokens.extend(["content", "field"])
+                return tuple(tokens)
+
+            def tokenize_many(
+                self, texts: tuple[str, ...]
+            ) -> tuple[tuple[str, ...], ...]:
+                self.batch_calls.append(texts)
+                return tuple(self.tokenize(text) for text in texts)
+
+            def normalize(self, text: str) -> str:
+                return text.casefold()
+
+        tokenizer = CombinedCorpusTokenizer()
+        monkeypatch.setattr(
+            "snowiki.search.bm25_index.get",
+            lambda name: SimpleNamespace(name=name),
+        )
+        monkeypatch.setattr(
+            "snowiki.search.bm25_index.create",
+            lambda name: tokenizer,
+        )
+
+        docs = [
+            SearchDocument(
+                id="doc1",
+                path="docs/path-field.md",
+                kind="summary",
+                title="Title Field",
+                content="Content Field",
+                summary="Summary Field",
+                aliases=("Alias One", "Alias Two"),
+                metadata={"hidden": "Metadata Field"},
+            )
+        ]
+
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
+        results = index.search(
+            "Alias One Alias Two docs/path-field.md Metadata Field"
+        )
+
+        first_index_call = cast(dict[str, Any], fake_bm25_backend["index"][0])
+        assert tokenizer.batch_calls == [
+            (
+                "Title Field\ndocs/path-field.md\nSummary Field\nContent Field\nAlias One Alias Two",
+            )
+        ]
+        assert first_index_call["corpus_tokens"] == [
+            [
+                "docs",
+                "path",
+                "field",
+                "md",
+                "alias",
+                "one",
+                "alias",
+                "two",
+                "title",
+                "field",
+                "summary",
+                "field",
+                "content",
+                "field",
+            ]
+        ]
+        assert results[0].matched_terms == (
+            "docs",
+            "path",
+            "field",
+            "md",
+            "alias",
+            "one",
+            "two",
+        )
+
+    def test_document_token_texts_delegate_to_canonical_searchable_texts(
+        self, fake_bm25_backend: dict[str, list[dict[str, object]]]
+    ) -> None:
+        document = SearchDocument(
+            id="doc1",
+            path="docs/path-field.md",
+            kind="summary",
+            title="Title Field",
+            content="Content Field",
+            summary="Summary Field",
+            aliases=("Alias One", "Alias Two"),
+            metadata={"hidden": "Metadata Field"},
+        )
+
+        assert BM25SearchIndex._document_token_texts(document) == document.searchable_texts()
 
     def test_kiwi_candidate_mode_changes_index_and_query_tokens(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]

@@ -14,7 +14,7 @@ from .kiwi_tokenizer import (
     KIWI_LEXICAL_CANDIDATE_MODES,
     KiwiLexicalCandidateMode,
 )
-from .models import SearchDocument, SearchHit
+from .models import LEXICAL_INDEX_FORMAT_VERSION, SearchDocument, SearchHit
 from .registry import SearchTokenizer, all_candidates, create, default, get
 from .subword_tokenizer import WordPieceSearchTokenizer
 from .tokenizer_compat import (
@@ -53,7 +53,7 @@ class BM25SearchIndex:
     )
     DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE: KiwiLexicalCandidateMode = "morphology"
     _METADATA_SUFFIX = ".snowiki_meta.json"
-    _INDEX_FORMAT_VERSION = "bm25s-v1"
+    _INDEX_FORMAT_VERSION = f"bm25s-v{LEXICAL_INDEX_FORMAT_VERSION}"
     _WORDPIECE_VOCAB_SUFFIX = ".wordpiece-vocab.txt"
     _SHOW_PROGRESS = False
     _LEAVE_PROGRESS = False
@@ -227,7 +227,7 @@ class BM25SearchIndex:
         )
 
     def _tokenize_documents(self, *, fit_tokenizer: bool) -> list[list[str]]:
-        corpus = [f"{doc.title}\n{doc.content}\n{doc.summary}" for doc in self.documents]
+        corpus = ["\n".join(doc.searchable_texts()) for doc in self.documents]
         if self.tokenizer is not None:
             fit = getattr(self.tokenizer, "fit_corpus", None)
             if fit_tokenizer and callable(fit):
@@ -263,14 +263,7 @@ class BM25SearchIndex:
 
     @staticmethod
     def _document_token_texts(document: SearchDocument) -> tuple[str, ...]:
-        fields = (
-            document.title,
-            document.path,
-            document.content,
-            document.summary,
-            " ".join(document.aliases),
-        )
-        return tuple(field for field in fields if field and field.strip())
+        return document.searchable_texts()
 
     def _tokenize_texts(self, texts: Sequence[str]) -> tuple[tuple[str, ...], ...]:
         if self.tokenizer is None:
