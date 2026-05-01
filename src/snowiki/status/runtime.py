@@ -11,7 +11,10 @@ from snowiki.lint.integrity import check_layer_integrity
 from snowiki.lint.runtime import collect_structural_issues
 from snowiki.markdown.source_state import collect_markdown_source_state
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
-from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.search.runtime_identity import (
+    current_runtime_index_formats,
+    current_runtime_tokenizer_name,
+)
 from snowiki.storage.index_manifest import (
     current_index_identity,
     explain_index_freshness,
@@ -142,9 +145,12 @@ def run_status(root: Path) -> StatusResult:
     page_counts, latest_compiled_update = _page_type_counts(root / "compiled")
     source_counts, latest_normalized_recorded_at = _source_type_counts(root / "normalized")
     lint_result = _status_lint_summary(root)
+    search_document_format, lexical_index_format = current_runtime_index_formats()
     current_identity = current_index_identity(
         paths,
         retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
     )
     manifest, freshness_explanation = explain_index_freshness(
         paths,

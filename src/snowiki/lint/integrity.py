@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Any, cast
 
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
-from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.search.runtime_identity import (
+    current_runtime_index_formats,
+    current_runtime_tokenizer_name,
+)
 from snowiki.storage.index_manifest import (
     current_index_identity,
     explain_index_freshness,
@@ -89,9 +92,12 @@ def check_layer_integrity(root: str | Path) -> dict[str, Any]:
 def _collect_index_manifest_issues(root: Path) -> list[dict[str, Any]]:
     paths = StoragePaths(root)
     manifest_path = index_manifest_path(paths)
+    search_document_format, lexical_index_format = current_runtime_index_formats()
     current_identity = current_index_identity(
         paths,
         retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
     )
     _, explanation = explain_index_freshness(
         paths,

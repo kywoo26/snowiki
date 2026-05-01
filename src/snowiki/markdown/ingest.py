@@ -11,7 +11,7 @@ from snowiki.compiler.projection import (
 from snowiki.markdown.source_state import count_stale_markdown_sources
 from snowiki.privacy import PrivacyGate
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
-from snowiki.search.workspace import clear_query_search_index_cache
+from snowiki.search.runtime_retrieval import clear_query_search_index_cache
 from snowiki.storage.normalized import NormalizedStorage
 from snowiki.storage.provenance import RawRef
 from snowiki.storage.raw import RawStorage

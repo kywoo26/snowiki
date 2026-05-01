@@ -38,10 +38,10 @@ from .registry import (
     register,
 )
 from .rerank import NoOpReranker
+from .runtime_service import RetrievalService, RetrievalSnapshot
 from .semantic_abstraction import DisabledSemanticBackend, SemanticBackend
 from .subword_tokenizer import WordPieceSearchTokenizer
 from .tokenizer import tokenize_text
-from .workspace import RetrievalService, RetrievalSnapshot
 
 __all__ = [
     "BM25RuntimeIndex",

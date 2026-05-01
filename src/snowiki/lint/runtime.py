@@ -12,7 +12,10 @@ from snowiki.compiler.taxonomy import NormalizedRecord
 from snowiki.gardening.sources import collect_source_gardening_proposals
 from snowiki.markdown.source_state import collect_markdown_source_state
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
-from snowiki.search.workspace import current_runtime_tokenizer_name
+from snowiki.search.runtime_identity import (
+    current_runtime_index_formats,
+    current_runtime_tokenizer_name,
+)
 from snowiki.storage.index_manifest import (
     current_index_identity,
     explain_index_freshness,
@@ -180,11 +183,14 @@ def collect_freshness_issues(root: str | Path) -> list[LintIssue]:
     base = Path(root)
     issues: list[LintIssue] = []
     paths = StoragePaths(base)
+    search_document_format, lexical_index_format = current_runtime_index_formats()
     _, explanation = explain_index_freshness(
         paths,
         current_index_identity(
             paths,
             retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+            search_document_format=search_document_format,
+            lexical_index_format=lexical_index_format,
         ),
     )
     if explanation.status == "stale":

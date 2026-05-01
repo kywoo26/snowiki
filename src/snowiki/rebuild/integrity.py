@@ -6,10 +6,13 @@ from typing import Any
 
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
-from snowiki.search.workspace import (
+from snowiki.search.runtime_identity import (
+    current_runtime_index_formats,
+    current_runtime_tokenizer_name,
+)
+from snowiki.search.runtime_retrieval import (
     build_retrieval_snapshot,
     clear_query_search_index_cache,
-    current_runtime_tokenizer_name,
 )
 from snowiki.storage.index_manifest import (
     IndexManifest,
@@ -36,9 +39,20 @@ def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
     storage_paths = StoragePaths(root)
     tokenizer_name = current_runtime_tokenizer_name()
     retrieval_identity = retrieval_identity_for_tokenizer(tokenizer_name)
-    snapshot_identity = current_index_identity(storage_paths, retrieval_identity)
+    search_document_format, lexical_index_format = current_runtime_index_formats()
+    snapshot_identity = current_index_identity(
+        storage_paths,
+        retrieval_identity,
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
+    )
     snapshot = build_retrieval_snapshot(root)
-    current_identity = current_index_identity(storage_paths, retrieval_identity)
+    current_identity = current_index_identity(
+        storage_paths,
+        retrieval_identity,
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
+    )
     manifest_path = index_manifest_path(storage_paths)
     manifest = IndexManifest(
         schema_version=1,
