@@ -7,7 +7,8 @@ from typing import Any, cast
 
 from snowiki.cli.commands.mcp import serve_stdio_command
 from snowiki.mcp.server import SnowikiReadOnlyFacade
-from snowiki.search.indexer import SearchDocument, SearchHit
+from snowiki.search.models import SearchDocument, SearchHit
+from snowiki.search.requests import RuntimeSearchRequest
 
 
 def encode_message(payload: dict[str, object]) -> bytes:
@@ -185,7 +186,11 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
     )
     expected_search_paths = [
         hit.document.path
-        for hit in runtime_snapshot.index.search("basic Claude fixture 위치 알려줘.", limit=3)
+        for hit in runtime_snapshot.index.search(
+            RuntimeSearchRequest(
+                query="basic Claude fixture 위치 알려줘.", candidate_limit=3
+            )
+        )
     ]
     returned_search_paths = [
         hit["path"] for hit in responses[3]["result"]["structuredContent"]["hits"]
@@ -451,20 +456,13 @@ def test_mcp_recall_auto_routes_iso_dates_to_date_strategy() -> None:
     )
 
     class FakeIndex:
-        def search(
-            self,
-            query: str,
-            *,
-            limit: int,
-            recorded_after: object,
-            recorded_before: object,
-        ) -> list[SearchHit]:
+        def search(self, request: RuntimeSearchRequest) -> list[SearchHit]:
             call_log.append(
                 {
-                    "query": query,
-                    "limit": limit,
-                    "recorded_after": recorded_after,
-                    "recorded_before": recorded_before,
+                    "query": request.query,
+                    "candidate_limit": request.candidate_limit,
+                    "recorded_after": request.recorded_after,
+                    "recorded_before": request.recorded_before,
                 }
             )
             return [hit]
@@ -482,7 +480,7 @@ def test_mcp_recall_auto_routes_iso_dates_to_date_strategy() -> None:
         "normalized/session-date-window.json"
     ]
     assert call_log[0]["query"] == "2026-04-08"
-    assert call_log[0]["limit"] == 2
+    assert call_log[0]["candidate_limit"] == 6
 
 
 def test_mcp_search_stays_direct_and_does_not_apply_recall_auto_routing(
@@ -514,8 +512,10 @@ def test_mcp_search_stays_direct_and_does_not_apply_recall_auto_routing(
         raise AssertionError("MCP search should not reuse topic recall")
 
     class FakeIndex:
-        def search(self, query: str, *, limit: int) -> list[SearchHit]:
-            call_log.append({"query": query, "limit": limit})
+        def search(self, request: RuntimeSearchRequest) -> list[SearchHit]:
+            call_log.append(
+                {"query": request.query, "candidate_limit": request.candidate_limit}
+            )
             return [hit]
 
     facade.index = FakeIndex()
@@ -543,4 +543,4 @@ def test_mcp_search_stays_direct_and_does_not_apply_recall_auto_routing(
         "limit": 3,
         "query": "yesterday",
     }
-    assert call_log == [{"query": "yesterday", "limit": 3}]
+    assert call_log == [{"query": "yesterday", "candidate_limit": 3}]

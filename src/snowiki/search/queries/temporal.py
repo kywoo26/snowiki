@@ -5,7 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 from ..models import SearchHit
 from ..protocols import RuntimeSearchIndex
+from ..requests import RuntimeSearchRequest
 from ..rerank import NoOpReranker, Reranker
+from .policies import TEMPORAL_POLICY
 
 
 @dataclass(frozen=True)
@@ -47,10 +49,13 @@ def temporal_recall(
     reranker = reranker or NoOpReranker()
     reference_time = reference_time or datetime.now(tz=UTC)
     window = _detect_temporal_window(query, reference_time=reference_time)
-    hits = index.search(
-        query,
-        limit=limit * 3,
+    request = RuntimeSearchRequest(
+        query=query,
+        candidate_limit=TEMPORAL_POLICY.candidate_limit(limit),
         recorded_after=window.start,
         recorded_before=window.end,
+        exact_path_bias=TEMPORAL_POLICY.exact_path_bias,
+        kind_weights=TEMPORAL_POLICY.kind_weights,
     )
-    return reranker.rerank(query, hits)[:limit]
+    hits = index.search(request)
+    return reranker.rerank(query, list(hits))[:limit]

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from datetime import datetime
+from collections.abc import Sequence
 from typing import Protocol
 
 from .models import SearchHit
 from .registry import SearchTokenizer
+from .requests import (  # pyright: ignore[reportMissingImports]
+    RuntimeSearchRequest,  # pyright: ignore[reportUnknownVariableType]
+)
 
 
 class RuntimeSearchIndex(Protocol):
@@ -19,11 +21,5 @@ class RuntimeSearchIndex(Protocol):
 
     def search(
         self,
-        query: str,
-        *,
-        limit: int = 10,
-        kind_weights: Mapping[str, float] | None = None,
-        recorded_after: datetime | None = None,
-        recorded_before: datetime | None = None,
-        exact_path_bias: bool = False,
-    ) -> list[SearchHit]: ...
+        request: RuntimeSearchRequest,  # pyright: ignore[reportUnknownParameterType]
+    ) -> Sequence[SearchHit]: ...

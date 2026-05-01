@@ -12,8 +12,9 @@ from tests.helpers.markdown_ingest import ingest_markdown_fixture
 
 from snowiki.cli.main import app
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
-from snowiki.search.indexer import SearchDocument, SearchHit
+from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.queries import run_query, run_recall
+from snowiki.search.requests import RuntimeSearchRequest
 from snowiki.search.workspace import (
     build_retrieval_snapshot,
     clear_query_search_index_cache,
@@ -283,19 +284,15 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
     class FakeIndex:
         def search(
             self,
-            query: str,
-            *,
-            limit: int,
-            recorded_after: object,
-            recorded_before: object,
+            request: RuntimeSearchRequest,
         ) -> list[SearchHit]:
             call_log.append(
                 {
                     "fn": "index.search",
-                    "query": query,
-                    "limit": limit,
-                    "recorded_after": recorded_after,
-                    "recorded_before": recorded_before,
+                    "query": request.query,
+                    "limit": request.candidate_limit,
+                    "recorded_after": request.recorded_after,
+                    "recorded_before": request.recorded_before,
                 }
             )
             return [hit]
@@ -346,7 +343,7 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
     assert call_log[0] == {"fn": "build_retrieval_snapshot", "root": tmp_path}
     assert call_log[1]["fn"] == "index.search"
     assert call_log[1]["query"] == "2026-04-08"
-    assert call_log[1]["limit"] == 10
+    assert call_log[1]["limit"] == 30
 
 
 def test_query_lexical_mode_uses_topical_recall(

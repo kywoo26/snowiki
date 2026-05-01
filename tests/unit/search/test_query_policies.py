@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
 from datetime import UTC, datetime
 
-from snowiki.search.indexer import SearchDocument, SearchHit
+from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.queries.known_item import known_item_lookup
 from snowiki.search.queries.temporal import temporal_recall
 from snowiki.search.queries.topical import topical_recall
 from snowiki.search.registry import SearchTokenizer, create
+from snowiki.search.requests import RuntimeSearchRequest
 
 
 class RecordingIndex:
     def __init__(self, hits: list[SearchHit]) -> None:
         self._hits: list[SearchHit] = hits
-        self.calls: list[dict[str, object]] = []
+        self.calls: list[RuntimeSearchRequest] = []
         self._tokenizer: SearchTokenizer = create("regex_v1")
 
     @property
@@ -24,27 +24,9 @@ class RecordingIndex:
     def tokenizer(self) -> SearchTokenizer:
         return self._tokenizer
 
-    def search(
-        self,
-        query: str,
-        *,
-        limit: int = 10,
-        kind_weights: Mapping[str, float] | None = None,
-        recorded_after: datetime | None = None,
-        recorded_before: datetime | None = None,
-        exact_path_bias: bool = False,
-    ) -> list[SearchHit]:
-        self.calls.append(
-            {
-                "query": query,
-                "limit": limit,
-                "kind_weights": kind_weights,
-                "recorded_after": recorded_after,
-                "recorded_before": recorded_before,
-                "exact_path_bias": exact_path_bias,
-            }
-        )
-        return self._hits[:limit]
+    def search(self, request: RuntimeSearchRequest) -> list[SearchHit]:
+        self.calls.append(request)
+        return self._hits[: request.candidate_limit]
 
 
 class ReversingReranker:
@@ -77,16 +59,14 @@ def test_known_item_lookup_uses_path_bias_session_weight_and_limit_multiplier() 
     hits = known_item_lookup(index, "config path", limit=2, reranker=reranker)
 
     assert [hit.document.id for hit in hits] == ["third", "second"]
-    assert index.calls == [
-        {
-            "query": "config path",
-            "limit": 6,
-            "kind_weights": {"session": 1.15, "page": 0.85},
-            "recorded_after": None,
-            "recorded_before": None,
-            "exact_path_bias": True,
-        }
-    ]
+    assert len(index.calls) == 1
+    request = index.calls[0]
+    assert request.query == "config path"
+    assert request.candidate_limit == 6
+    assert request.kind_weights == {"session": 1.15, "page": 0.85}
+    assert request.recorded_after is None
+    assert request.recorded_before is None
+    assert request.exact_path_bias is True
     assert reranker.calls == [("config path", ["first", "second", "third"])]
 
 
@@ -104,16 +84,14 @@ def test_topical_recall_uses_neutral_kind_weights_reranker_and_kind_blending() -
     hits = topical_recall(index, "retrieval plan", limit=3, reranker=reranker)
 
     assert [hit.document.id for hit in hits] == ["page-2", "session-2", "page-1"]
-    assert index.calls == [
-        {
-            "query": "retrieval plan",
-            "limit": 12,
-            "kind_weights": {"session": 1.0, "page": 1.0},
-            "recorded_after": None,
-            "recorded_before": None,
-            "exact_path_bias": False,
-        }
-    ]
+    assert len(index.calls) == 1
+    request = index.calls[0]
+    assert request.query == "retrieval plan"
+    assert request.candidate_limit == 12
+    assert request.kind_weights == {"session": 1.0, "page": 1.0}
+    assert request.recorded_after is None
+    assert request.recorded_before is None
+    assert request.exact_path_bias is False
     assert reranker.calls == [
         ("retrieval plan", ["session-1", "session-2", "page-1", "page-2"])
     ]
@@ -148,16 +126,14 @@ def test_temporal_recall_detects_yesterday_window_and_applies_limit_multiplier()
     )
 
     assert [hit.document.id for hit in hits] == ["new"]
-    assert index.calls == [
-        {
-            "query": "What did we do yesterday?",
-            "limit": 3,
-            "kind_weights": None,
-            "recorded_after": datetime(2026, 4, 7, tzinfo=UTC),
-            "recorded_before": datetime(2026, 4, 8, tzinfo=UTC),
-            "exact_path_bias": False,
-        }
-    ]
+    assert len(index.calls) == 1
+    request = index.calls[0]
+    assert request.query == "What did we do yesterday?"
+    assert request.candidate_limit == 3
+    assert request.kind_weights == {"session": 1.0, "page": 1.0}
+    assert request.recorded_after == datetime(2026, 4, 7, tzinfo=UTC)
+    assert request.recorded_before == datetime(2026, 4, 8, tzinfo=UTC)
+    assert request.exact_path_bias is False
     assert reranker.calls == [("What did we do yesterday?", ["old", "new"])]
 
 
@@ -172,8 +148,8 @@ def test_temporal_recall_detects_this_week_window_from_week_start() -> None:
     )
 
     assert [hit.document.id for hit in hits] == ["week"]
-    assert index.calls[0]["recorded_after"] == datetime(2026, 4, 6, tzinfo=UTC)
-    assert index.calls[0]["recorded_before"] == datetime(
+    assert index.calls[0].recorded_after == datetime(2026, 4, 6, tzinfo=UTC)
+    assert index.calls[0].recorded_before == datetime(
         2026, 4, 8, 12, 30, 1, tzinfo=UTC
     )
 
@@ -188,5 +164,5 @@ def test_temporal_recall_without_temporal_terms_searches_without_window() -> Non
     )
 
     assert [hit.document.id for hit in hits] == ["topic"]
-    assert index.calls[0]["recorded_after"] is None
-    assert index.calls[0]["recorded_before"] is None
+    assert index.calls[0].recorded_after is None
+    assert index.calls[0].recorded_before is None

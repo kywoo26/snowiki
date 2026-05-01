@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from snowiki.search.indexer import SearchDocument, SearchHit
+from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.rerank import NoOpReranker, blend_hits_by_kind
 
 

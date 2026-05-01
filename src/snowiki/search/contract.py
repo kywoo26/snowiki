@@ -8,6 +8,7 @@ from snowiki.storage.zones import ensure_utc_datetime
 
 from .models import SearchHit
 from .protocols import RuntimeSearchIndex
+from .requests import RuntimeSearchRequest
 
 RecallStrategy = Literal["date", "temporal", "known_item", "topic"]
 RecallMode = Literal["auto", "date", "temporal", "known_item", "topic"]
@@ -102,16 +103,7 @@ def run_authoritative_recall(
         window = iso_date_window(query)
         if window is None:
             raise ValueError("date recall requires an ISO-8601 calendar date query.")
-        start, end = window
-        return (
-            index.search(
-                query,
-                limit=limit,
-                recorded_after=start,
-                recorded_before=end,
-            ),
-            "date",
-        )
+        return _run_date_recall(index, query, limit=limit, window=window)
     if mode == "temporal":
         return _run_temporal_recall(
             temporal_recall,
@@ -127,16 +119,7 @@ def run_authoritative_recall(
 
     window = iso_date_window(query)
     if window is not None:
-        start, end = window
-        return (
-            index.search(
-                query,
-                limit=limit,
-                recorded_after=start,
-                recorded_before=end,
-            ),
-            "date",
-        )
+        return _run_date_recall(index, query, limit=limit, window=window)
     if is_temporal_query(query):
         return _run_temporal_recall(
             temporal_recall,
@@ -171,6 +154,28 @@ def _run_temporal_recall(
         ),
         "temporal",
     )
+
+
+def _run_date_recall(
+    index: RuntimeSearchIndex,
+    query: str,
+    *,
+    limit: int,
+    window: tuple[datetime, datetime],
+) -> tuple[list[SearchHit], Literal["date"]]:
+    """Run ISO-date recall through the temporal candidate policy."""
+    from .queries.policies import DATE_POLICY
+
+    start, end = window
+    request = RuntimeSearchRequest(
+        query=query,
+        candidate_limit=DATE_POLICY.candidate_limit(limit),
+        recorded_after=start,
+        recorded_before=end,
+        exact_path_bias=DATE_POLICY.exact_path_bias,
+        kind_weights=DATE_POLICY.kind_weights,
+    )
+    return list(index.search(request))[:limit], "date"
 
 
 def normalize_lexical_hit(hit: Mapping[str, object]) -> NormalizedLexicalHit:

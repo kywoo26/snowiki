@@ -17,6 +17,7 @@ from snowiki.search import (
 )
 from snowiki.search.contract import RecallMode
 from snowiki.search.models import SearchHit
+from snowiki.search.requests import RuntimeSearchRequest
 from snowiki.search.workspace import RetrievalService
 
 from .types import MCPMapping, MCPObject, ResourceSpec
@@ -91,7 +92,9 @@ class SnowikiReadOnlyFacade:
 
     def search(self, query: str, *, limit: int = 5) -> MCPObject:
         """Search normalized sessions and compiled pages."""
-        hits = self.index.search(query, limit=limit)
+        hits = self.index.search(
+            RuntimeSearchRequest(query=query, candidate_limit=limit)
+        )
         return {
             "hits": [serialize_hit(hit) for hit in hits],
             "limit": limit,
