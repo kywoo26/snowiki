@@ -5,8 +5,14 @@ from typing import Any
 
 from snowiki.schema.compiled import (
     CompiledPage as _CompiledPage,
+)
+from snowiki.schema.compiled import (
     PageSection as _PageSection,
+)
+from snowiki.schema.compiled import (
     PageType as _PageType,
+)
+from snowiki.schema.compiled import (
     compiled_page_path as _compiled_page_path,
 )
 from snowiki.schema.normalized import NormalizedRecord as _NormalizedRecord
