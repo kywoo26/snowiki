@@ -3,28 +3,17 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Self, cast
+from typing import TYPE_CHECKING, Self, cast
 
 from snowiki.config import resolve_snowiki_root
-from snowiki.fileback.apply import validate_apply_plan
-from snowiki.fileback.evidence import dedupe_supporting_raw_refs, resolve_evidence
 from snowiki.fileback.models import FILEBACK_RECORD_TYPE, FILEBACK_SOURCE_TYPE
-from snowiki.fileback.payload import build_proposed_write_set, normalized_store_payload
-from snowiki.fileback.proposal import (
-    build_proposal_id,
-    build_target,
-    extract_fileback_proposal,
-    validate_proposal_root,
-    validate_proposal_schema,
-)
-from snowiki.markdown.discovery import MarkdownSource, discover_markdown_sources
-from snowiki.markdown.frontmatter import parse_markdown_document
-from snowiki.markdown.ingest import build_markdown_payload
-from snowiki.markdown.source_prune import SourcePruneCandidate
-from snowiki.markdown.source_state import count_stale_markdown_sources
 from snowiki.privacy import PrivacyGate
 from snowiki.storage.provenance import RawRef
 from snowiki.storage.zones import isoformat_utc
+
+if TYPE_CHECKING:
+    from snowiki.markdown.discovery import MarkdownSource
+    from snowiki.markdown.source_prune import SourcePruneCandidate
 
 from .adapters import MutationStorage
 from .domain import (
@@ -76,7 +65,10 @@ class MutationService:
 
     def apply_ingest(self, mutation: IngestMutation) -> MutationOutcome:
         """Parse, validate, and persist ingest mutations through storage adapters."""
-        root = mutation.root.expanduser().resolve()
+        from snowiki.markdown.discovery import discover_markdown_sources
+        from snowiki.markdown.source_state import count_stale_markdown_sources
+
+        root = self._validated_root(mutation.root)
         gate = PrivacyGate()
         gate.ensure_allowed_source(mutation.source_path)
         sources = discover_markdown_sources(
@@ -133,7 +125,24 @@ class MutationService:
         self, mutation: ReviewedFilebackMutation
     ) -> MutationOutcome:
         """Apply reviewed fileback payloads without queue cleanup before success."""
-        root = resolve_snowiki_root(mutation.root)
+        from snowiki.fileback.apply import validate_apply_plan
+        from snowiki.fileback.evidence import (
+            dedupe_supporting_raw_refs,
+            resolve_evidence,
+        )
+        from snowiki.fileback.payload import (
+            build_proposed_write_set,
+            normalized_store_payload,
+        )
+        from snowiki.fileback.proposal import (
+            build_proposal_id,
+            build_target,
+            extract_fileback_proposal,
+            validate_proposal_root,
+            validate_proposal_schema,
+        )
+
+        root = self._validated_root(resolve_snowiki_root(mutation.root))
         proposal = extract_fileback_proposal(mutation.reviewed_payload)
         validate_proposal_root(mutation.reviewed_payload, root)
         validate_proposal_schema(proposal)
@@ -218,7 +227,7 @@ class MutationService:
 
     def apply_source_prune(self, mutation: SourcePruneMutation) -> MutationOutcome:
         """Apply confirmed source pruning while preserving dry-run-first behavior."""
-        root = mutation.root.expanduser().resolve()
+        root = self._validated_root(mutation.root)
         candidates = self.storage.plan_missing_source_prune()
         selected_candidates = _select_source_prune_candidates(
             candidates,
@@ -316,10 +325,11 @@ class MutationService:
 
     def apply_rebuild(self, mutation: RebuildMutation) -> MutationOutcome:
         """Delegate rebuild finalization to the rebuild finalizer boundary."""
+        root = self._validated_root(mutation.root)
         rebuild = self.finalizer.finalize(mutation)
         return MutationOutcome(
             kind=mutation.kind,
-            root=mutation.root,
+            root=root,
             accepted=True,
             mutation_id=mutation.mutation_id,
             rebuild_required=False,
@@ -327,10 +337,21 @@ class MutationService:
             detail={"reason": mutation.reason},
         )
 
+
+    def _validated_root(self, root: Path) -> Path:
+        resolved_root = root.expanduser().resolve()
+        storage_root = self.storage.root.expanduser().resolve()
+        if resolved_root != storage_root:
+            raise ValueError("mutation root must match service root")
+        return resolved_root
+
     def _store_markdown_source(
         self, source: MarkdownSource, *, gate: PrivacyGate
     ) -> dict[str, object]:
         gate.ensure_allowed_source(source.path)
+        from snowiki.markdown.frontmatter import parse_markdown_document
+        from snowiki.markdown.ingest import build_markdown_payload
+
         raw_ref = self.storage.store_raw_file("markdown", source.path)
         content = source.path.read_text(encoding="utf-8")
         parsed = parse_markdown_document(content)

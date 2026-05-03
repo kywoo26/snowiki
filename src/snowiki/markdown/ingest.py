@@ -1,22 +1,19 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import NotRequired, Protocol, TypedDict
+from typing import NotRequired, Protocol, TypedDict, cast
 
-from snowiki.markdown.source_state import count_stale_markdown_sources
 from snowiki.privacy import PrivacyGate
-from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.schema.projection import (
     ProjectionSection,
     SourceIdentity,
     make_compiler_projection,
 )
-from snowiki.search.runtime_retrieval import clear_query_search_index_cache
 from snowiki.storage.normalized import NormalizedStorage
 from snowiki.storage.provenance import RawRef
 from snowiki.storage.raw import RawStorage
 
-from .discovery import MarkdownSource, discover_markdown_sources
+from .discovery import MarkdownSource
 from .frontmatter import FrontmatterValue, MarkdownDocument, parse_markdown_document
 
 
@@ -156,40 +153,39 @@ def run_markdown_ingest(
     privacy_gate: SourcePrivacyGate | None = None,
 ) -> MarkdownIngestResult:
     """Ingest a Markdown file or directory into Snowiki storage."""
-    gate = privacy_gate or PrivacyGate()
-    gate.ensure_allowed_source(path)
-    sources = discover_markdown_sources(path, source_root=source_root)
-    raw_storage = RawStorage(root)
-    normalized_storage = NormalizedStorage(root)
-    documents = [
-        ingest_markdown_source(
-            source,
-            raw_storage=raw_storage,
-            normalized_storage=normalized_storage,
-            privacy_gate=gate,
+    if privacy_gate is not None:
+        privacy_gate.ensure_allowed_source(path)
+
+    from importlib import import_module
+
+    domain = import_module("snowiki.mutation.domain")
+    service = import_module("snowiki.mutation.service")
+
+    outcome = service.MutationService.from_root(root).apply_ingest(
+        domain.IngestMutation(
+            root=root,
+            source_path=path,
+            source_root=source_root,
+            finalize=rebuild,
         )
-        for source in sources
-    ]
-    source_root_value = (
-        sources[0].source_root.as_posix() if sources else path.resolve().as_posix()
     )
+    if outcome.detail is None:
+        raise RuntimeError("ingest mutation completed without result detail")
+
+    detail = outcome.detail
     result: MarkdownIngestResult = {
-        "root": root.as_posix(),
-        "source_root": source_root_value,
-        "documents_seen": len(documents),
-        "documents_inserted": _count_documents_by_status(documents, "inserted"),
-        "documents_updated": _count_documents_by_status(documents, "updated"),
-        "documents_unchanged": _count_documents_by_status(documents, "unchanged"),
-        "documents_stale": count_stale_markdown_sources(
-            root, source_root=source_root_value, include_untracked=False
-        ),
-        "rebuild_required": bool(documents),
-        "documents": documents,
+        "root": cast("str", detail["root"]),
+        "source_root": cast("str", detail["source_root"]),
+        "documents_seen": cast("int", detail["documents_seen"]),
+        "documents_inserted": cast("int", detail["documents_inserted"]),
+        "documents_updated": cast("int", detail["documents_updated"]),
+        "documents_unchanged": cast("int", detail["documents_unchanged"]),
+        "documents_stale": cast("int", detail["documents_stale"]),
+        "rebuild_required": outcome.rebuild_required,
+        "documents": cast("list[MarkdownIngestDocumentResult]", detail["documents"]),
     }
-    if rebuild:
-        result["rebuild"] = _run_rebuild(root)
-        result["rebuild_required"] = False
-    clear_query_search_index_cache()
+    if outcome.rebuild is not None:
+        result["rebuild"] = service.rebuild_outcome_payload(outcome.rebuild)
     return result
 
 
@@ -198,10 +194,6 @@ def _count_documents_by_status(
     status: str,
 ) -> int:
     return sum(1 for document in documents if document["status"] == status)
-
-
-def _run_rebuild(root: Path) -> dict[str, object]:
-    return {"root": root.as_posix(), **run_rebuild_with_integrity(root)}
 
 
 def _promoted_tags(promoted: dict[str, FrontmatterValue]) -> list[str]:

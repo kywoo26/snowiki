@@ -5,14 +5,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from snowiki.compiler.engine import CompilerEngine
-from snowiki.markdown.source_prune import (
-    SourcePruneCandidate,
-    _delete_candidates,
-    _write_tombstone,
-    plan_missing_source_prune,
-)
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.runtime_identity import (
     current_runtime_index_formats,
@@ -44,6 +39,9 @@ from snowiki.storage.zones import (
     ensure_utc_datetime,
     relative_to_root,
 )
+
+if TYPE_CHECKING:
+    from snowiki.markdown.source_prune import SourcePruneCandidate
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,16 +135,22 @@ class MutationStorage:
         return relative_to_root(root, target)
 
     def plan_missing_source_prune(self) -> list[SourcePruneCandidate]:
+        from snowiki.markdown.source_prune import plan_missing_source_prune
+
         return plan_missing_source_prune(self.root)
 
     def delete_source_prune_candidates(
         self, candidates: list[SourcePruneCandidate]
     ) -> list[str]:
+        from snowiki.markdown.source_prune import _delete_candidates
+
         return _delete_candidates(self.root.expanduser().resolve(), candidates)
 
     def write_source_prune_tombstone(
         self, candidates: list[SourcePruneCandidate], deleted: list[str]
     ) -> str:
+        from snowiki.markdown.source_prune import _write_tombstone
+
         root = self.root.expanduser().resolve()
         tombstone_path = _write_tombstone(root, candidates, deleted)
         return relative_to_root(root, tombstone_path)

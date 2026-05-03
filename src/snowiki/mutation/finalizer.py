@@ -51,6 +51,10 @@ class RebuildFinalizer:
         write is intentionally last so failed cache, snapshot, or identity checks
         cannot bless stale compiled/index state.
         """
+        root = self._validated_root(mutation)
+        if not mutation.verify_freshness:
+            raise ValueError("rebuild finalization requires freshness verification")
+
         compiled_paths = self.compiled_pages.rebuild_compiled_pages()
         self.retrieval.clear_query_cache()
 
@@ -78,7 +82,7 @@ class RebuildFinalizer:
             identity=snapshot_identity,
         )
         outcome = RebuildOutcome(
-            root=mutation.root,
+            root=root,
             compiled_paths=compiled_paths,
             index_manifest=self.manifest.manifest_relative_path(),
             pages_indexed=snapshot.pages_indexed,
@@ -92,6 +96,18 @@ class RebuildFinalizer:
             raise RebuildFinalizationFreshnessError(outcome)
         self.write_manifest_last(manifest)
         return outcome
+
+
+    def _validated_root(self, mutation: RebuildMutation) -> Path:
+        root = mutation.root.expanduser().resolve()
+        adapter_roots = (
+            self.compiled_pages.root.expanduser().resolve(),
+            self.retrieval.root.expanduser().resolve(),
+            self.manifest.root.expanduser().resolve(),
+        )
+        if any(adapter_root != root for adapter_root in adapter_roots):
+            raise ValueError("rebuild mutation root must match finalizer root")
+        return root
 
     def write_manifest_last(self, manifest: IndexManifest) -> None:
         """Persist the index manifest as the final rebuild step."""
