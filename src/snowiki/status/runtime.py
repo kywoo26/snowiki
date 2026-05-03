@@ -10,8 +10,18 @@ from snowiki.compiler.taxonomy import PageType
 from snowiki.lint.integrity import check_layer_integrity
 from snowiki.lint.runtime import collect_structural_issues
 from snowiki.markdown.source_state import collect_markdown_source_state
-from snowiki.search.tokenizer_compat import normalize_stored_tokenizer_name
-from snowiki.search.workspace import content_freshness_identity
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
+from snowiki.search.runtime_identity import (
+    current_runtime_index_formats,
+    current_runtime_tokenizer_name,
+)
+from snowiki.storage.index_manifest import (
+    current_index_identity,
+    explain_index_freshness,
+    to_manifest_stats_payload,
+    to_status_payload,
+)
+from snowiki.storage.zones import StoragePaths
 
 
 class StatusResult(TypedDict):
@@ -48,13 +58,6 @@ def _frontmatter_scalars(text: str) -> dict[str, str | None]:
         key, _, value = line.partition(":")
         fields[key.strip()] = _parse_scalar(value)
     return fields
-
-
-def _load_manifest(path: Path) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return payload if isinstance(payload, dict) else None
 
 
 def _page_type_counts(compiled_root: Path) -> tuple[dict[str, int], str | None]:
@@ -106,47 +109,6 @@ def _source_type_counts(normalized_root: Path) -> tuple[dict[str, int], str | No
     return dict(sorted(counts.items())), latest_recorded_at
 
 
-def _manifest_stats(
-    manifest: dict[str, Any] | None,
-) -> dict[str, str | int | bool | None]:
-    compiled_paths = manifest.get("compiled_paths") if manifest is not None else None
-    compiled_path_count = (
-        len(compiled_paths) if isinstance(compiled_paths, list) else None
-    )
-    return {
-        "path": "index/manifest.json",
-        "present": manifest is not None,
-        "tokenizer_name": (
-            normalize_stored_tokenizer_name(manifest) if manifest else None
-        ),
-        "records_indexed": manifest.get("records_indexed") if manifest else None,
-        "pages_indexed": manifest.get("pages_indexed") if manifest else None,
-        "search_documents": manifest.get("search_documents") if manifest else None,
-        "compiled_path_count": compiled_path_count,
-    }
-
-
-def _freshness_status(
-    *,
-    manifest: dict[str, Any] | None,
-    current_identity: dict[str, dict[str, int]],
-    latest_normalized_recorded_at: str | None,
-    latest_compiled_update: str | None,
-) -> dict[str, Any]:
-    manifest_identity = manifest.get("content_identity") if manifest else None
-    if isinstance(manifest_identity, dict):
-        status = "current" if manifest_identity == current_identity else "stale"
-    else:
-        status = "missing"
-    return {
-        "status": status,
-        "manifest_content_identity": manifest_identity,
-        "current_content_identity": current_identity,
-        "latest_normalized_recorded_at": latest_normalized_recorded_at,
-        "latest_compiled_update": latest_compiled_update,
-    }
-
-
 def _source_freshness_status(root: Path) -> dict[str, Any]:
     report = collect_markdown_source_state(root)
     return {
@@ -178,11 +140,22 @@ def _status_lint_summary(root: Path) -> dict[str, Any]:
 
 
 def run_status(root: Path) -> StatusResult:
-    manifest = _load_manifest(root / "index" / "manifest.json")
+    paths = StoragePaths(root)
+    manifest_present = (paths.index / "manifest.json").exists()
     page_counts, latest_compiled_update = _page_type_counts(root / "compiled")
     source_counts, latest_normalized_recorded_at = _source_type_counts(root / "normalized")
     lint_result = _status_lint_summary(root)
-    current_identity = content_freshness_identity(root)
+    search_document_format, lexical_index_format = current_runtime_index_formats()
+    current_identity = current_index_identity(
+        paths,
+        retrieval_identity_for_tokenizer(current_runtime_tokenizer_name()),
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
+    )
+    manifest, freshness_explanation = explain_index_freshness(
+        paths,
+        current_identity,
+    )
     return {
         "root": root.as_posix(),
         "pages": {
@@ -198,11 +171,12 @@ def run_status(root: Path) -> StatusResult:
             "summary": lint_result["summary"],
             "error_count": lint_result["error_count"],
         },
-        "freshness": _freshness_status(
+        "freshness": to_status_payload(
             manifest=manifest,
-            current_identity=current_identity,
+            current=current_identity,
+            explanation=freshness_explanation,
             latest_normalized_recorded_at=latest_normalized_recorded_at,
             latest_compiled_update=latest_compiled_update,
         ),
-        "manifest": _manifest_stats(manifest),
+        "manifest": to_manifest_stats_payload(manifest, present=manifest_present),
     }

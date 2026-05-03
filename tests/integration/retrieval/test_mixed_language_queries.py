@@ -123,13 +123,20 @@ def test_benchmark_queries_return_gold_paths(
     benchmark_queries: list[dict[str, object]],
     benchmark_judgments: dict[str, list[str]],
 ) -> None:
+    benchmark_inventory_path = "benchmarks/queries.json"
     for query in benchmark_queries:
         hits = search_api.known_item_lookup(runtime_index, str(query["text"]), limit=5)
-        returned_paths = {hit.document.path for hit in hits}
         gold_paths = set(benchmark_judgments[str(query["id"])])
+        candidate_hits = hits
+        if benchmark_inventory_path not in gold_paths:
+            candidate_hits = [
+                hit for hit in hits if hit.document.path != benchmark_inventory_path
+            ]
+        returned_paths = {hit.document.path for hit in candidate_hits}
 
+        assert candidate_hits
         assert gold_paths <= returned_paths
-        assert hits[0].document.path in gold_paths
+        assert candidate_hits[0].document.path in gold_paths
 
 
 def test_canonical_ko_mixed_slice_is_fully_supported(

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import inspect
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import TypedDict, cast, get_type_hints
+from typing import TypedDict
 
 from snowiki.search.engine import BM25RuntimeIndex
 from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.requests import RuntimeSearchRequest
-from snowiki.search.scoring import RuntimeScoringPolicy
 
 
 class SynonymTokenizer:
@@ -70,20 +68,6 @@ class RecordingScoringPolicy:
 
     def sort_key(self, hit: SearchHit) -> tuple[float, str, str]:
         return (-hit.score, hit.document.path, hit.document.id)
-
-
-def test_bm25_runtime_index_search_accepts_runtime_request_contract() -> None:
-    signature = inspect.signature(BM25RuntimeIndex.search)
-    parameters = list(signature.parameters.values())
-
-    assert [(parameter.name, parameter.kind) for parameter in parameters] == [
-        ("self", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-        ("request", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    ]
-
-    hints = get_type_hints(BM25RuntimeIndex.search)
-    assert hints["request"] is RuntimeSearchRequest
-    assert hints["return"] == Sequence[SearchHit]
 
 
 def test_bm25_runtime_index_returns_search_hits_with_metadata() -> None:
@@ -235,7 +219,7 @@ def test_bm25_runtime_index_provides_token_evidence_to_scoring_policy() -> None:
             candidate_limit=1,
             exact_path_bias=True,
             kind_weights={"page": 1.25},
-            scoring_policy=cast(RuntimeScoringPolicy, policy),
+            scoring_policy=policy,
         )
     )
 

@@ -5,13 +5,23 @@ from pathlib import Path
 from typing import Any
 
 from snowiki.compiler.engine import CompilerEngine
-from snowiki.search.workspace import (
-    build_retrieval_snapshot,
-    clear_query_search_index_cache,
-    content_freshness_identity,
+from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
+from snowiki.search.runtime_identity import (
+    current_runtime_index_formats,
     current_runtime_tokenizer_name,
 )
-from snowiki.storage.zones import StoragePaths, atomic_write_json
+from snowiki.search.runtime_retrieval import (
+    build_retrieval_snapshot,
+    clear_query_search_index_cache,
+)
+from snowiki.storage.index_manifest import (
+    IndexManifest,
+    current_index_identity,
+    index_manifest_path,
+    status_identity_payload,
+    write_index_manifest,
+)
+from snowiki.storage.zones import StoragePaths
 
 
 class RebuildFreshnessError(RuntimeError):
@@ -26,19 +36,34 @@ def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
     engine = CompilerEngine(root)
     compiled_paths = engine.rebuild()
     clear_query_search_index_cache()
-    snapshot_content_identity = content_freshness_identity(root)
-    snapshot = build_retrieval_snapshot(root)
-    current_content_identity = content_freshness_identity(root)
     storage_paths = StoragePaths(root)
-    manifest_path = storage_paths.index / "manifest.json"
-    manifest_payload = {
-        "records_indexed": snapshot.records_indexed,
-        "pages_indexed": snapshot.pages_indexed,
-        "search_documents": snapshot.index.size,
-        "compiled_paths": compiled_paths,
-        "content_identity": snapshot_content_identity,
-        "tokenizer_name": current_runtime_tokenizer_name(),
-    }
+    tokenizer_name = current_runtime_tokenizer_name()
+    retrieval_identity = retrieval_identity_for_tokenizer(tokenizer_name)
+    search_document_format, lexical_index_format = current_runtime_index_formats()
+    snapshot_identity = current_index_identity(
+        storage_paths,
+        retrieval_identity,
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
+    )
+    snapshot = build_retrieval_snapshot(root)
+    current_identity = current_index_identity(
+        storage_paths,
+        retrieval_identity,
+        search_document_format=search_document_format,
+        lexical_index_format=lexical_index_format,
+    )
+    manifest_path = index_manifest_path(storage_paths)
+    manifest = IndexManifest(
+        schema_version=1,
+        records_indexed=snapshot.records_indexed,
+        pages_indexed=snapshot.pages_indexed,
+        search_documents=snapshot.index.size,
+        compiled_paths=tuple(compiled_paths),
+        identity=snapshot_identity,
+    )
+    snapshot_content_identity = status_identity_payload(snapshot_identity)
+    current_content_identity = status_identity_payload(current_identity)
     result = {
         "compiled_count": len(compiled_paths),
         "compiled_paths": compiled_paths,
@@ -47,11 +72,11 @@ def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
         "records_indexed": snapshot.records_indexed,
         "content_identity": snapshot_content_identity,
         "current_content_identity": current_content_identity,
-        "tokenizer_name": current_runtime_tokenizer_name(),
+        "tokenizer_name": tokenizer_name,
     }
-    if snapshot_content_identity != current_content_identity:
+    if snapshot_identity != current_identity:
         raise RebuildFreshnessError(result)
-    atomic_write_json(manifest_path, manifest_payload)
+    write_index_manifest(storage_paths, manifest)
     return result
 
 

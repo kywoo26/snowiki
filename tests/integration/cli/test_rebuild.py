@@ -44,7 +44,7 @@ def test_rebuild_generates_compiled_outputs_and_index_manifest(
         == payload["result"]["current_content_identity"]
     )
     assert payload["result"]["tokenizer_name"] == current_runtime_tokenizer_name()
-    assert manifest["tokenizer_name"] == current_runtime_tokenizer_name()
+    assert manifest["identity"]["retrieval"]["name"] == current_runtime_tokenizer_name()
 
 
 def test_rebuild_fails_closed_when_integrity_freshness_changes(

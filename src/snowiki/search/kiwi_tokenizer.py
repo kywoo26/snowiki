@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from typing import Literal
 
 from kiwipiepy import Kiwi
 from kiwipiepy.utils import Stopwords
 
+from .token_util import (
+    _contains_hangul,
+    _ordered_unique,
+    _preserve_non_korean_tokens,
+)
 from .tokenizer import normalize_text as regex_normalize_text
 from .tokenizer import tokenize_text as regex_tokenize_text
 
@@ -16,9 +20,6 @@ KiwiLexicalCandidateMode = Literal["morphology", "nouns"]
 KIWI_LEXICAL_CANDIDATE_MODES: frozenset[KiwiLexicalCandidateMode] = frozenset(
     ["morphology", "nouns"]
 )
-
-
-_NON_KOREAN_TOKEN_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 
 def _token_forms(
@@ -35,30 +36,6 @@ def _token_forms(
             continue
         result.append(form)
     return result
-
-
-def _is_hangul_token(token: str) -> bool:
-    return bool(token) and all("가" <= char <= "힣" for char in token)
-
-
-def _contains_hangul(text: str) -> bool:
-    return any("가" <= char <= "힣" for char in text)
-
-
-def _ordered_unique(tokens: tuple[str, ...]) -> tuple[str, ...]:
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for token in tokens:
-        if not token or token in seen:
-            continue
-        seen.add(token)
-        ordered.append(token)
-    return tuple(ordered)
-
-
-def _preserve_non_korean_tokens(text: str) -> tuple[str, ...]:
-    normalized = regex_normalize_text(text)
-    return tuple(match.group(0) for match in _NON_KOREAN_TOKEN_RE.finditer(normalized))
 
 
 def build_korean_tokenizer(
@@ -213,7 +190,7 @@ class BilingualTokenizer:
         """Tokenize mixed Korean-English text."""
         if not text or not text.strip():
             return ()
-        preserved = _preserve_non_korean_tokens(text)
+        preserved = _preserve_non_korean_tokens(text, normalize=True)
         if not _contains_hangul(text):
             return regex_tokenize_text(text)
         korean = self.korean_tokenizer.tokenize(text)
@@ -233,7 +210,7 @@ class BilingualTokenizer:
             if not _contains_hangul(text):
                 results[index] = regex_tokenize_text(text)
                 continue
-            preserved_by_index[index] = _preserve_non_korean_tokens(text)
+            preserved_by_index[index] = _preserve_non_korean_tokens(text, normalize=True)
             korean_indexes.append(index)
             korean_texts.append(text)
 

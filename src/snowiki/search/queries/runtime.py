@@ -8,7 +8,7 @@ from snowiki.search.models import SearchHit
 from snowiki.search.queries.known_item import known_item_lookup
 from snowiki.search.queries.temporal import temporal_recall
 from snowiki.search.queries.topical import topical_recall
-from snowiki.search.workspace import build_retrieval_snapshot
+from snowiki.search.runtime_retrieval import build_retrieval_snapshot
 
 
 class QueryHitPayload(TypedDict):

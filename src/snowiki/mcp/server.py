@@ -18,7 +18,7 @@ from snowiki.search import (
 from snowiki.search.contract import RecallMode
 from snowiki.search.models import SearchHit
 from snowiki.search.requests import RuntimeSearchRequest
-from snowiki.search.workspace import RetrievalService
+from snowiki.search.runtime_service import RetrievalService
 
 from .types import MCPMapping, MCPObject, ResourceSpec
 

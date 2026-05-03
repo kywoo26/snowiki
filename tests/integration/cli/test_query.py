@@ -182,7 +182,7 @@ def test_recall_json_accepts_iso_date_input_against_runtime_fixture(
     assert payload["result"]["target"] == "2026-04-01"
     assert payload["result"]["strategy"] == "date"
     assert payload["result"]["hits"]
-    assert any("normalized/markdown/documents/" in hit["path"] for hit in payload["result"]["hits"])
+    assert any(hit["path"] == "compiled/log.md" for hit in payload["result"]["hits"])
 
 
 def test_run_recall_prefers_known_item_before_topic(
@@ -471,7 +471,7 @@ def test_query_cache_invalidates_after_rebuild(
 def test_query_cache_invalidates_after_runtime_tokenizer_flip(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from snowiki.search import workspace
+    from snowiki.search import runtime_identity, runtime_retrieval
 
     tokenizer_holder = {"name": "regex_v1"}
     build_log: list[str] = []
@@ -495,9 +495,9 @@ def test_query_cache_invalidates_after_runtime_tokenizer_flip(
         )
 
     clear_query_search_index_cache()
-    monkeypatch.setattr(workspace, "default", fake_default)
-    monkeypatch.setattr(workspace, "create_tokenizer", fake_create_tokenizer)
-    monkeypatch.setattr(workspace.RetrievalService, "from_root", fake_from_root)
+    monkeypatch.setattr(runtime_identity, "default", fake_default)
+    monkeypatch.setattr(runtime_retrieval, "create_tokenizer", fake_create_tokenizer)
+    monkeypatch.setattr(runtime_retrieval.RetrievalService, "from_root", fake_from_root)
 
     first = build_retrieval_snapshot(tmp_path)
     second = build_retrieval_snapshot(tmp_path)
@@ -514,7 +514,7 @@ def test_query_cache_invalidates_after_runtime_tokenizer_flip(
 def test_query_cache_invalidates_after_runtime_tokenizer_version_flip(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from snowiki.search import workspace
+    from snowiki.search import runtime_identity, runtime_retrieval
 
     tokenizer_version = {"value": 1}
     build_log: list[int] = []
@@ -542,10 +542,10 @@ def test_query_cache_invalidates_after_runtime_tokenizer_version_flip(
         )
 
     clear_query_search_index_cache()
-    monkeypatch.setattr(workspace, "default", fake_default)
-    monkeypatch.setattr(workspace, "get", fake_get)
-    monkeypatch.setattr(workspace, "create_tokenizer", fake_create_tokenizer)
-    monkeypatch.setattr(workspace.RetrievalService, "from_root", fake_from_root)
+    monkeypatch.setattr(runtime_identity, "default", fake_default)
+    monkeypatch.setattr(runtime_identity, "get", fake_get)
+    monkeypatch.setattr(runtime_retrieval, "create_tokenizer", fake_create_tokenizer)
+    monkeypatch.setattr(runtime_retrieval.RetrievalService, "from_root", fake_from_root)
 
     first = build_retrieval_snapshot(tmp_path)
     second = build_retrieval_snapshot(tmp_path)

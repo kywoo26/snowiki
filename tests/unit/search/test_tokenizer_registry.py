@@ -160,6 +160,47 @@ def test_missing_identity_fail_closed() -> None:
     assert is_tokenizer_compatible("regex_v1", "regex_v1") is True
 
 
+def test_tokenizer_spec_fields_are_frozen_and_complete() -> None:
+    spec = get("kiwi_morphology_v1")
+
+    assert hasattr(spec, "name")
+    assert hasattr(spec, "family")
+    assert hasattr(spec, "version")
+    assert hasattr(spec, "runtime_supported")
+
+    with pytest.raises(AttributeError):
+        spec.name = "other"  # type: ignore
+
+
+def test_all_canonical_specs_have_expected_fields() -> None:
+    expected = {
+        "regex_v1": ("regex", 1, True),
+        "kiwi_morphology_v1": ("kiwi", 2, True),
+        "kiwi_nouns_v1": ("kiwi", 2, False),
+        "mecab_morphology_v1": ("mecab", 3, False),
+        "hf_wordpiece_v1": ("subword", 2, False),
+    }
+    for spec in all_candidates():
+        family, version, runtime_supported = expected[spec.name]
+        assert spec.family == family
+        assert spec.version == version
+        assert spec.runtime_supported == runtime_supported
+
+
+def test_strict_equality_compatibility_rejects_any_mismatch() -> None:
+    names = [spec.name for spec in all_candidates()]
+    for stored in names:
+        for requested in names:
+            if stored == requested:
+                assert is_tokenizer_compatible(stored, requested) is True
+            else:
+                assert is_tokenizer_compatible(stored, requested) is False
+
+    assert is_tokenizer_compatible("regex_v1", "regex_v2") is False
+    assert is_tokenizer_compatible("kiwi_morphology_v2", "kiwi_morphology_v1") is False
+    assert is_tokenizer_compatible("", "regex_v1") is False
+
+
 def test_create_uses_wordpiece_tokenizer_for_benchmark_candidate() -> None:
     tokenizer = create("hf_wordpiece_v1")
 

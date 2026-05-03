@@ -2,8 +2,28 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Protocol
 
 from .models import SearchDocument, SearchHit
+
+
+class HitScorer(Protocol):
+    """Protocol for scoring policy implementations used by the runtime engine."""
+
+    def score_candidate(
+        self,
+        *,
+        document: SearchDocument,
+        raw_score: float,
+        query_terms: set[str],
+        document_terms: set[str],
+        normalized_query: str,
+        normalized_path: str,
+        exact_path_bias: bool = False,
+        kind_weights: Mapping[str, float] | None = None,
+    ) -> SearchHit | None: ...
+
+    def sort_key(self, hit: SearchHit) -> tuple[float, str, str]: ...
 
 
 @dataclass(frozen=True, slots=True)
