@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from collections import Counter
 
+from snowiki.schema.compiled import CompiledPage, PageType
+from snowiki.schema.normalized import NormalizedRecord
+
 from ..taxonomy import (
-    CompiledPage,
-    NormalizedRecord,
-    PageType,
     append_section,
     merge_raw_refs,
     merge_string_list,

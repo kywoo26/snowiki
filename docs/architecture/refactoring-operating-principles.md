@@ -270,7 +270,7 @@ These boundaries are current architecture guidance, not historical phase plans.
 
 ### Compiler and projection
 
-- `src/snowiki/compiler/projection.py` owns the source-agnostic compiler projection contract.
+- `src/snowiki/schema/projection.py` owns the source-agnostic compiler projection contract; `src/snowiki/compiler/projection.py` retains projection reader helpers for compiler generators.
 - Compiler generators should consume projection helpers for title, summary, sections, source identity, and taxonomy buckets.
 - Missing projection is a lint/status diagnostic for old records, not an invitation to reintroduce hidden fallback chains.
 - Projection backfill, if needed, should be an explicit operator workflow with tests and docs.

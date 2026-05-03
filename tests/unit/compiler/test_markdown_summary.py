@@ -6,7 +6,7 @@ from tests.helpers.projection import compiler_projection
 
 from snowiki.compiler.engine import CompilerEngine
 from snowiki.compiler.paths import MAX_SUMMARY_SLUG_LENGTH, summary_slug_for_record
-from snowiki.compiler.taxonomy import NormalizedRecord
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.storage.normalized import NormalizedStorage
 
 

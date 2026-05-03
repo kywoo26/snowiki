@@ -6,7 +6,9 @@ import pytest
 from tests.helpers.projection import compiler_projection
 
 from snowiki.compiler.generators import summary as summary_generator
-from snowiki.compiler.projection import (
+from snowiki.schema.compiled import PageType
+from snowiki.schema.normalized import NormalizedRecord
+from snowiki.schema.projection import (
     projected_sections,
     projected_source_identity,
     projected_summary,
@@ -14,7 +16,6 @@ from snowiki.compiler.projection import (
     projected_taxonomy_items,
     projected_title,
 )
-from snowiki.compiler.taxonomy import NormalizedRecord, PageType
 
 
 def test_projection_helpers_prefer_projection_fields() -> None:

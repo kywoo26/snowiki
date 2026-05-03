@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from snowiki.compiler.engine import CompilerEngine
-from snowiki.compiler.taxonomy import CompiledPage, NormalizedRecord
+from snowiki.schema.compiled import CompiledPage
+from snowiki.schema.normalized import NormalizedRecord
 
 from .corpus import (
     page_body,

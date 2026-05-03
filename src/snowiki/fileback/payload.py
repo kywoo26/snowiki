@@ -4,7 +4,7 @@ import hashlib
 from collections.abc import Mapping
 from typing import Any
 
-from snowiki.compiler.projection import make_compiler_projection
+from snowiki.schema.projection import make_compiler_projection
 from snowiki.storage.zones import ensure_utc_datetime, sanitize_segment
 
 from .evidence import dedupe_supporting_raw_refs

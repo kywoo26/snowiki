@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from snowiki.compiler.taxonomy import (
+from snowiki.schema.compiled import (
     CompiledPage,
-    NormalizedRecord,
     PageSection,
     PageType,
 )
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search.corpus import (
     runtime_corpus_from_mappings,
     runtime_corpus_from_records_and_pages,

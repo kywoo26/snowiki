@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from snowiki.schema.compiled import CompiledPage, PageType
+from snowiki.schema.normalized import NormalizedRecord
+
 from ..projection import projected_title
 from ..taxonomy import (
-    CompiledPage,
-    NormalizedRecord,
-    PageType,
     append_section,
     iso_to_date,
     merge_raw_refs,

@@ -6,10 +6,10 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, TypedDict
 
-from snowiki.compiler.taxonomy import PageType
 from snowiki.lint.integrity import check_layer_integrity
 from snowiki.lint.runtime import collect_structural_issues
 from snowiki.markdown.source_state import collect_markdown_source_state
+from snowiki.schema.compiled import PageType
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.runtime_identity import (
     current_runtime_index_formats,

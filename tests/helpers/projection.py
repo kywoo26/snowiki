@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from snowiki.compiler.projection import (
+from snowiki.schema.projection import (
     CompilerProjection,
     ProjectionSection,
     SourceIdentity,
