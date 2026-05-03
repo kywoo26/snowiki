@@ -1,102 +1,54 @@
 from __future__ import annotations
 
+import importlib
 import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from snowiki.config import resolve_snowiki_root
-from snowiki.rebuild.integrity import run_rebuild_with_integrity
-from snowiki.storage.normalized import NormalizedStorage
 from snowiki.storage.zones import (
     StoragePaths,
     atomic_write_bytes,
     ensure_utc_datetime,
-    isoformat_utc,
     relative_to_root,
 )
 
-from .evidence import dedupe_supporting_raw_refs, resolve_evidence
 from .models import (
     FILEBACK_RECORD_TYPE,
     FILEBACK_SOURCE_TYPE,
     ProposedWriteSet,
 )
-from .payload import build_proposed_write_set, normalized_store_payload
-from .proposal import (
-    build_proposal_id,
-    build_target,
-    extract_fileback_proposal,
-    validate_proposal_root,
-    validate_proposal_schema,
-)
 
 
 def apply_fileback_proposal(root: Path, reviewed_payload: object) -> dict[str, Any]:
-    """Persist a reviewed fileback proposal and rebuild compiled output."""
-    resolved_root = resolve_snowiki_root(root)
-    proposal = extract_fileback_proposal(reviewed_payload)
-    validate_proposal_root(reviewed_payload, resolved_root)
-    validate_proposal_schema(proposal)
+    """Persist a reviewed fileback proposal through the mutation domain."""
+    domain_module = importlib.import_module("snowiki.operations.domain")
+    service_module = importlib.import_module("snowiki.operations.service")
 
-    draft = proposal["draft"]
-    requested_paths = proposal["evidence"]["requested_paths"]
-    expected_proposal_id = build_proposal_id(
-        question=draft["question"],
-        answer_markdown=draft["answer_markdown"],
-        summary=draft["summary"],
-        requested_paths=requested_paths,
+    outcome = service_module.OperationPipeline.from_root(root).apply_reviewed_fileback(
+        domain_module.ReviewedFilebackOperation(
+            root=root,
+            reviewed_payload=reviewed_payload,
+        )
     )
-    if proposal["proposal_id"] != expected_proposal_id:
-        raise ValueError("reviewed proposal id no longer matches its draft and evidence")
+    if not outcome.accepted:
+        if outcome.failure is not None:
+            raise ValueError(outcome.failure.message)
+        raise ValueError("reviewed fileback mutation was not accepted")
+    if outcome.rebuild is None:
+        raise ValueError("reviewed fileback mutation did not produce rebuild output")
 
-    target = build_target(draft["question"])
-    if proposal["target"] != target:
-        raise ValueError("proposal target no longer matches the reviewed question")
-
-    evidence = resolve_evidence(resolved_root, requested_paths)
-    proposed_write = build_proposed_write_set(
-        proposal_id=proposal["proposal_id"],
-        created_at=proposal["created_at"],
-        draft=draft,
-        target=target,
-        evidence=evidence,
-    )
-    validate_apply_plan(proposal["apply_plan"], proposed_write)
-    applied_at = isoformat_utc(None)
-
-    write_manual_raw_note(
-        resolved_root,
-        relative_path=proposed_write["raw_note_path"],
-        content=proposed_write["raw_note_body"],
-        mtime=proposal["created_at"],
-    )
-    raw_ref = proposed_write["raw_ref"]
-
-    normalized_storage = NormalizedStorage(resolved_root)
-    provenance_refs = [
-        raw_ref,
-        *dedupe_supporting_raw_refs(evidence["supporting_raw_refs"], raw_ref["path"]),
-    ]
-    store_result = normalized_storage.store_record(
-        source_type=FILEBACK_SOURCE_TYPE,
-        record_type=FILEBACK_RECORD_TYPE,
-        record_id=str(proposed_write["normalized_record"]["id"]),
-        payload=normalized_store_payload(proposed_write["normalized_record"]),
-        raw_ref=provenance_refs,
-        recorded_at=str(proposed_write["normalized_record"]["recorded_at"]),
-    )
-    rebuild_result = run_rebuild_with_integrity(resolved_root)
+    detail = dict(outcome.detail or {})
     return {
-        "root": resolved_root.as_posix(),
-        "applied_at": applied_at,
-        "proposal_id": proposal["proposal_id"],
-        "proposal_version": proposal["proposal_version"],
-        "raw_ref": raw_ref,
-        "supporting_raw_ref_count": len(evidence["supporting_raw_refs"]),
-        "normalized_path": store_result["path"],
-        "compiled_path": target["compiled_path"],
-        "rebuild": rebuild_result,
+        "root": outcome.root.as_posix(),
+        "applied_at": detail["applied_at"],
+        "proposal_id": detail["proposal_id"],
+        "proposal_version": detail["proposal_version"],
+        "raw_ref": detail["raw_ref"],
+        "supporting_raw_ref_count": detail["supporting_raw_ref_count"],
+        "normalized_path": detail["normalized_path"],
+        "compiled_path": detail["compiled_path"],
+        "rebuild": service_module.materialization_outcome_payload(outcome.rebuild),
     }
 
 

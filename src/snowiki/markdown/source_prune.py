@@ -9,7 +9,6 @@ from snowiki.markdown.source_state import (
     raw_reference_counts,
     zone_file_path,
 )
-from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.storage.zones import atomic_write_json, isoformat_utc, relative_to_root
 
 
@@ -33,31 +32,45 @@ class SourcePruneResult(TypedDict):
 
 
 def prune_missing_markdown_sources(
-    root: str | Path, *, dry_run: bool = True
+    root: str | Path, *, dry_run: bool = True, confirmed: bool = False
 ) -> SourcePruneResult:
     """Prune normalized Markdown records whose source files are missing."""
+    import importlib
+
+    domain_module = importlib.import_module("snowiki.operations.domain")
+    service_module = importlib.import_module("snowiki.operations.service")
+
     resolved_root = Path(root).expanduser().resolve()
-    candidates = plan_missing_source_prune(resolved_root)
-    if dry_run:
-        return _prune_result(
+    outcome = service_module.OperationPipeline.from_root(
+        resolved_root
+    ).apply_source_prune(
+        domain_module.SourcePruneOperation(
             root=resolved_root,
-            dry_run=True,
-            candidates=candidates,
-            deleted=[],
-            tombstone_path=None,
-            rebuild=None,
+            dry_run=dry_run,
+            confirmed=confirmed,
+            materialize=not dry_run,
         )
-    deleted = _delete_candidates(resolved_root, candidates)
-    tombstone_path = _write_tombstone(resolved_root, candidates, deleted)
-    rebuild = run_rebuild_with_integrity(resolved_root) if deleted else None
-    return _prune_result(
-        root=resolved_root,
-        dry_run=False,
-        candidates=candidates,
-        deleted=deleted,
-        tombstone_path=tombstone_path,
-        rebuild=rebuild,
     )
+    if not outcome.accepted:
+        if outcome.failure is not None:
+            raise ValueError(outcome.failure.message)
+        raise ValueError("source prune mutation was not accepted")
+
+    detail = dict(outcome.detail or {})
+    rebuild = None
+    if outcome.rebuild is not None:
+        rebuild = service_module.materialization_outcome_payload(outcome.rebuild)
+
+    return {
+        "root": outcome.root.as_posix(),
+        "dry_run": detail.get("dry_run", dry_run),
+        "candidate_count": detail.get("candidate_count", 0),
+        "deleted_count": detail.get("deleted_count", 0),
+        "candidates": list(detail.get("candidates", [])),
+        "deleted": list(detail.get("deleted", [])),
+        "tombstone_path": detail.get("tombstone_path"),
+        "rebuild": rebuild,
+    }
 
 
 def plan_missing_source_prune(root: str | Path) -> list[SourcePruneCandidate]:

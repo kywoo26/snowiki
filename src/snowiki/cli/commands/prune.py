@@ -84,6 +84,7 @@ def sources_command(
         result = prune_missing_markdown_sources(
             initialize_cli_root(cli_context),
             dry_run=not delete_artifacts,
+            confirmed=delete_artifacts,
         )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="prune_failed")
