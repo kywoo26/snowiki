@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 from tests.helpers.projection import compiler_projection
 
-import snowiki.markdown.ingest as ingest_module
 from snowiki.markdown.discovery import MarkdownSource
 from snowiki.markdown.frontmatter import parse_markdown_document
 from snowiki.markdown.ingest import (
@@ -148,35 +148,38 @@ def test_run_markdown_ingest_aggregates_document_counts(tmp_path: Path) -> None:
 
 def test_run_markdown_ingest_rebuilds_and_clears_cache(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     note = tmp_path / "note.md"
     _ = note.write_text("# Note", encoding="utf-8")
-    calls: list[str] = []
+    root = tmp_path / "snowiki"
 
-    def fake_rebuild(root: Path) -> dict[str, object]:
-        calls.append(f"rebuild:{root.as_posix()}")
-        return {
-            "compiled_count": 1,
-            "compiled_paths": ["compiled/summaries/markdown-note.md"],
-        }
-
-    def fake_clear_cache() -> None:
-        calls.append("clear_cache")
-
-    monkeypatch.setattr(ingest_module, "run_rebuild_with_integrity", fake_rebuild)
-    monkeypatch.setattr(ingest_module, "clear_query_search_index_cache", fake_clear_cache)
-
-    result = run_markdown_ingest(note, root=tmp_path / "snowiki", rebuild=True)
+    result = run_markdown_ingest(note, root=root, rebuild=True)
 
     assert result["rebuild_required"] is False
     assert "rebuild" in result
-    assert result["rebuild"] == {
-        "root": (tmp_path / "snowiki").as_posix(),
-        "compiled_count": 1,
-        "compiled_paths": ["compiled/summaries/markdown-note.md"],
-    }
-    assert calls == [f"rebuild:{(tmp_path / 'snowiki').as_posix()}", "clear_cache"]
+    rebuild_result = result["rebuild"]
+    assert rebuild_result["root"] == root.resolve().as_posix()
+    assert cast("int", rebuild_result["compiled_count"]) >= 1
+    assert cast("int", rebuild_result["search_documents"]) >= 1
+
+
+def test_run_markdown_ingest_uses_injected_privacy_gate_for_sources(
+    tmp_path: Path,
+) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    blocked = docs / "private.md"
+    _ = blocked.write_text("# Private", encoding="utf-8")
+    gate = PathBlockingPrivacyGate(blocked)
+
+    with pytest.raises(ValueError, match="blocked by test gate"):
+        _ = run_markdown_ingest(
+            docs,
+            root=tmp_path / "snowiki",
+            privacy_gate=gate,
+        )
+
+    assert gate.checked_paths == [docs, blocked]
 
 
 class BlockingPrivacyGate:
@@ -187,6 +190,18 @@ class BlockingPrivacyGate:
         path = Path(source_path)
         self.checked_paths.append(path)
         raise ValueError("blocked by test gate")
+
+
+class PathBlockingPrivacyGate:
+    def __init__(self, blocked_path: Path) -> None:
+        self.blocked_path = blocked_path
+        self.checked_paths: list[Path] = []
+
+    def ensure_allowed_source(self, source_path: str | Path) -> None:
+        path = Path(source_path)
+        self.checked_paths.append(path)
+        if path == self.blocked_path:
+            raise ValueError("blocked by test gate")
 
 
 def _markdown_source(root: Path, relative_path: str) -> MarkdownSource:

@@ -4,6 +4,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import Protocol
+
+
+class SourcePrivacyGate(Protocol):
+    """Source-path privacy boundary for ingest mutations."""
+
+    def ensure_allowed_source(self, source_path: str | Path) -> None:
+        """Raise when a source path must not be ingested."""
 
 
 class MutationKind(StrEnum):
@@ -23,6 +31,7 @@ class IngestMutation:
     source_path: Path
     source_root: Path | None = None
     finalize: bool = False
+    source_privacy_gate: SourcePrivacyGate | None = None
     mutation_id: str | None = None
     kind: MutationKind = field(default=MutationKind.INGEST, init=False)
 

@@ -24,6 +24,7 @@ from .domain import (
     RebuildMutation,
     RebuildOutcome,
     ReviewedFilebackMutation,
+    SourcePrivacyGate,
     SourcePruneMutation,
 )
 from .finalizer import RebuildFinalizer
@@ -69,7 +70,7 @@ class MutationService:
         from snowiki.markdown.source_state import count_stale_markdown_sources
 
         root = self._validated_root(mutation.root)
-        gate = PrivacyGate()
+        gate = mutation.source_privacy_gate or PrivacyGate()
         gate.ensure_allowed_source(mutation.source_path)
         sources = discover_markdown_sources(
             mutation.source_path,
@@ -346,7 +347,7 @@ class MutationService:
         return resolved_root
 
     def _store_markdown_source(
-        self, source: MarkdownSource, *, gate: PrivacyGate
+        self, source: MarkdownSource, *, gate: SourcePrivacyGate
     ) -> dict[str, object]:
         gate.ensure_allowed_source(source.path)
         from snowiki.markdown.frontmatter import parse_markdown_document

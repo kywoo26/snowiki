@@ -153,9 +153,6 @@ def run_markdown_ingest(
     privacy_gate: SourcePrivacyGate | None = None,
 ) -> MarkdownIngestResult:
     """Ingest a Markdown file or directory into Snowiki storage."""
-    if privacy_gate is not None:
-        privacy_gate.ensure_allowed_source(path)
-
     from importlib import import_module
 
     domain = import_module("snowiki.mutation.domain")
@@ -167,6 +164,7 @@ def run_markdown_ingest(
             source_path=path,
             source_root=source_root,
             finalize=rebuild,
+            source_privacy_gate=privacy_gate,
         )
     )
     if outcome.detail is None:
