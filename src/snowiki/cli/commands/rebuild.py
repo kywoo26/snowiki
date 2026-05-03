@@ -13,7 +13,9 @@ from snowiki.cli.context import (
 )
 from snowiki.cli.decorators import output_option, root_option
 from snowiki.cli.output import emit_command_result, emit_error
-from snowiki.rebuild.integrity import RebuildFreshnessError, run_rebuild_with_integrity
+from snowiki.mutation.domain import RebuildMutation
+from snowiki.mutation.finalizer import RebuildFinalizationFreshnessError
+from snowiki.mutation.service import MutationService, rebuild_outcome_payload
 
 
 def _render_rebuild_human(payload: dict[str, Any]) -> str:
@@ -37,16 +39,22 @@ def command(cli_context: SnowikiCliContext, root: Path | None, output: str) -> N
     output_mode = cli_context.output
     try:
         storage_root = initialize_cli_root(cli_context)
+        outcome = MutationService.from_root(storage_root).apply_rebuild(
+            RebuildMutation(root=storage_root, reason="operator")
+        )
+        rebuild = outcome.rebuild
+        if rebuild is None:
+            raise RuntimeError("rebuild mutation did not produce rebuild output")
         result = {
             "root": storage_root.as_posix(),
-            **run_rebuild_with_integrity(storage_root),
+            **rebuild_outcome_payload(rebuild),
         }
-    except RebuildFreshnessError as exc:
+    except RebuildFinalizationFreshnessError as exc:
         emit_error(
             str(exc),
             output=output_mode,
             code="rebuild_failed",
-            details=exc.result,
+            details=rebuild_outcome_payload(exc.outcome),
         )
     except Exception as exc:
         emit_error(str(exc), output=output_mode, code="rebuild_failed")

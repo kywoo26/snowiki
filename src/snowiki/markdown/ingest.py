@@ -187,13 +187,6 @@ def run_markdown_ingest(
     return result
 
 
-def _count_documents_by_status(
-    documents: list[MarkdownIngestDocumentResult],
-    status: str,
-) -> int:
-    return sum(1 for document in documents if document["status"] == status)
-
-
 def _promoted_tags(promoted: dict[str, FrontmatterValue]) -> list[str]:
     tags = promoted.get("tags")
     if not isinstance(tags, list):

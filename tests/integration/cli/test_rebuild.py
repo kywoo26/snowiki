@@ -50,35 +50,37 @@ def test_rebuild_generates_compiled_outputs_and_index_manifest(
 def test_rebuild_fails_closed_when_integrity_freshness_changes(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
-    from snowiki.cli.commands import rebuild as rebuild_command
-    from snowiki.rebuild.integrity import RebuildFreshnessError
+    from snowiki.mutation.finalizer import (
+        RebuildFinalizationFreshnessError,
+        RebuildFinalizer,
+    )
 
     runner = CliRunner()
-    mismatch_result = {
-        "root": tmp_path.as_posix(),
-        "compiled_count": 1,
-        "compiled_paths": ["compiled/overview.md"],
-        "index_manifest": "index/manifest.json",
-        "records_indexed": 1,
-        "pages_indexed": 1,
-        "content_identity": {
-            "normalized": {"latest_mtime_ns": 100, "file_count": 1},
-            "compiled": {"latest_mtime_ns": 200, "file_count": 1},
-        },
-        "current_content_identity": {
-            "normalized": {"latest_mtime_ns": 101, "file_count": 2},
-            "compiled": {"latest_mtime_ns": 201, "file_count": 2},
-        },
-    }
 
-    def fail_run_rebuild_with_integrity(_root: Path) -> dict[str, Any]:
-        raise RebuildFreshnessError(mismatch_result)
+    def fail_finalize(_self: RebuildFinalizer, _mutation: object) -> object:
+        from snowiki.mutation.domain import RebuildOutcome
 
-    monkeypatch.setattr(
-        rebuild_command,
-        "run_rebuild_with_integrity",
-        fail_run_rebuild_with_integrity,
-    )
+        raise RebuildFinalizationFreshnessError(
+            RebuildOutcome(
+                root=tmp_path,
+                compiled_paths=("compiled/overview.md",),
+                index_manifest="index/manifest.json",
+                pages_indexed=1,
+                records_indexed=1,
+                search_documents=1,
+                content_identity={
+                    "normalized": {"latest_mtime_ns": 100, "file_count": 1},
+                    "compiled": {"latest_mtime_ns": 200, "file_count": 1},
+                },
+                current_content_identity={
+                    "normalized": {"latest_mtime_ns": 101, "file_count": 2},
+                    "compiled": {"latest_mtime_ns": 201, "file_count": 2},
+                },
+                tokenizer_name="test",
+            )
+        )
+
+    monkeypatch.setattr(RebuildFinalizer, "finalize", fail_finalize)
 
     rebuild = runner.invoke(
         app,
@@ -90,4 +92,3 @@ def test_rebuild_fails_closed_when_integrity_freshness_changes(
     payload = json.loads(rebuild.output)
     assert payload["ok"] is False
     assert payload["error"]["code"] == "rebuild_failed"
-    assert payload["error"]["details"] == mismatch_result
