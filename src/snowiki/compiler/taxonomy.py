@@ -13,7 +13,7 @@ from snowiki.schema.compiled import (
     PageType as _PageType,
 )
 from snowiki.schema.compiled import (
-    compiled_page_path,
+    compiled_page_path as _compiled_page_path,
 )
 from snowiki.schema.normalized import NormalizedRecord as _NormalizedRecord
 from snowiki.storage.provenance import dedupe_raw_refs
@@ -67,7 +67,7 @@ def upsert_page(
     updated: str,
     summary: str = "",
 ) -> _CompiledPage:
-    path = compiled_page_path(page_type, slug)
+    path = _compiled_page_path(page_type, slug)
     page = pages.get(path)
     if page is None:
         page = _CompiledPage(
