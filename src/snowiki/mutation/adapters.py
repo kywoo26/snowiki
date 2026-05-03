@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from snowiki.compiler.engine import CompilerEngine
+from snowiki.markdown.source_prune import (
+    SourcePruneCandidate,
+    _delete_candidates,
+    _write_tombstone,
+    plan_missing_source_prune,
+)
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.runtime_identity import (
     current_runtime_index_formats,
@@ -34,6 +41,7 @@ from snowiki.storage.zones import (
     StoragePaths,
     atomic_write_bytes,
     atomic_write_json,
+    ensure_utc_datetime,
     relative_to_root,
 )
 
@@ -98,11 +106,20 @@ class MutationStorage:
             recorded_at=recorded_at,
         )
 
-    def write_bytes(self, relative_path: str, content: bytes) -> str:
+    def write_bytes(
+        self,
+        relative_path: str,
+        content: bytes,
+        *,
+        mtime: datetime | str | float | int | None = None,
+    ) -> str:
         root = self.root.expanduser().resolve()
         target = (root / relative_path).resolve()
         _ = relative_to_root(root, target)
         written = atomic_write_bytes(target, content)
+        if mtime is not None:
+            timestamp = self._mtime_to_timestamp(mtime)
+            os.utime(written, (timestamp, timestamp))
         return relative_to_root(root, written)
 
     def write_json(self, relative_path: str, payload: object) -> str:
@@ -118,6 +135,31 @@ class MutationStorage:
         _ = relative_to_root(root, target)
         target.unlink()
         return relative_to_root(root, target)
+
+    def plan_missing_source_prune(self) -> list[SourcePruneCandidate]:
+        return plan_missing_source_prune(self.root)
+
+    def delete_source_prune_candidates(
+        self, candidates: list[SourcePruneCandidate]
+    ) -> list[str]:
+        return _delete_candidates(self.root.expanduser().resolve(), candidates)
+
+    def write_source_prune_tombstone(
+        self, candidates: list[SourcePruneCandidate], deleted: list[str]
+    ) -> str:
+        root = self.root.expanduser().resolve()
+        tombstone_path = _write_tombstone(root, candidates, deleted)
+        return relative_to_root(root, tombstone_path)
+
+    @staticmethod
+    def _mtime_to_timestamp(value: datetime | str | float | int) -> float:
+        if isinstance(value, datetime):
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=UTC)
+            return value.astimezone(UTC).timestamp()
+        if isinstance(value, str):
+            return ensure_utc_datetime(value).timestamp()
+        return float(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +224,7 @@ class IndexManifestAdapter:
     def manifest_relative_path(self) -> str:
         path = index_manifest_path(self.paths)
         return path.relative_to(self.paths.root).as_posix()
+
 
 type ContentIdentity = Mapping[str, object]
 

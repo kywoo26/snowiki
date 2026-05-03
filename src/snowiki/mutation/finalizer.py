@@ -51,8 +51,47 @@ class RebuildFinalizer:
         write is intentionally last so failed cache, snapshot, or identity checks
         cannot bless stale compiled/index state.
         """
-        _ = mutation
-        raise NotImplementedError("Phase 6 finalizer skeleton only")
+        compiled_paths = self.compiled_pages.rebuild_compiled_pages()
+        self.retrieval.clear_query_cache()
+
+        tokenizer_name = self.manifest.current_tokenizer_name()
+        retrieval_identity = self.manifest.retrieval_identity(tokenizer_name)
+        search_document_format, lexical_index_format = self.manifest.current_index_formats()
+        snapshot_identity = self.manifest.current_identity(
+            retrieval_identity,
+            search_document_format=search_document_format,
+            lexical_index_format=lexical_index_format,
+        )
+
+        snapshot = self.retrieval.build_snapshot()
+        current_identity = self.manifest.current_identity(
+            retrieval_identity,
+            search_document_format=search_document_format,
+            lexical_index_format=lexical_index_format,
+        )
+        manifest = IndexManifest(
+            schema_version=1,
+            records_indexed=snapshot.records_indexed,
+            pages_indexed=snapshot.pages_indexed,
+            search_documents=snapshot.index.size,
+            compiled_paths=compiled_paths,
+            identity=snapshot_identity,
+        )
+        outcome = RebuildOutcome(
+            root=mutation.root,
+            compiled_paths=compiled_paths,
+            index_manifest=self.manifest.manifest_relative_path(),
+            pages_indexed=snapshot.pages_indexed,
+            records_indexed=snapshot.records_indexed,
+            search_documents=snapshot.index.size,
+            content_identity=self.manifest.status_identity_payload(snapshot_identity),
+            current_content_identity=self.manifest.status_identity_payload(current_identity),
+            tokenizer_name=tokenizer_name,
+        )
+        if snapshot_identity != current_identity:
+            raise RebuildFinalizationFreshnessError(outcome)
+        self.write_manifest_last(manifest)
+        return outcome
 
     def write_manifest_last(self, manifest: IndexManifest) -> None:
         """Persist the index manifest as the final rebuild step."""
