@@ -44,16 +44,21 @@ def test_compiled_page_path_property_returns_canonical_path() -> None:
     assert page.path == "compiled/topics/hello.md"
 
 
-def test_normalized_record_can_be_constructed_with_required_fields() -> None:
+def test_normalized_record_preserves_identity_and_payload_shape() -> None:
     record = NormalizedRecord(
         id="record-1",
         path="normalized/markdown/documents/record-1.json",
         source_type="markdown",
         record_type="document",
         recorded_at="2026-04-08T12:00:00Z",
-        payload={"title": "Hello"},
-        raw_refs=[],
+        payload={"title": "Hello", "summary": "Test summary"},
+        raw_refs=[{"path": "raw/markdown/ab/c123", "sha256": "abc123"}],
     )
 
     assert record.id == "record-1"
     assert record.path == "normalized/markdown/documents/record-1.json"
+    assert record.source_type == "markdown"
+    assert record.record_type == "document"
+    assert record.recorded_at == "2026-04-08T12:00:00Z"
+    assert record.payload == {"title": "Hello", "summary": "Test summary"}
+    assert record.raw_refs == [{"path": "raw/markdown/ab/c123", "sha256": "abc123"}]

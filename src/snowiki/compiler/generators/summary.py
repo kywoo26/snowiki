@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from snowiki.schema.compiled import CompiledPage, PageType, compiled_page_path, slugify
+from snowiki.schema.compiled import (
+    CompiledPage,
+    PageType,
+    TaxonomyItem,
+    compiled_page_path,
+    slugify,
+)
 from snowiki.schema.normalized import NormalizedRecord
 
 from ..paths import (
@@ -16,7 +22,6 @@ from ..projection import (
     projected_title,
 )
 from ..taxonomy import (
-    TaxonomyItem,
     append_section,
     iso_to_date,
     merge_raw_refs,

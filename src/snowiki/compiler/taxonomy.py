@@ -13,26 +13,17 @@ from snowiki.schema.compiled import (
     PageType as _PageType,
 )
 from snowiki.schema.compiled import (
-    TaxonomyItem,
     compiled_page_path,
-    normalize_string_values,
-    normalize_taxonomy_items,
-    page_directory,
 )
 from snowiki.schema.normalized import NormalizedRecord as _NormalizedRecord
 from snowiki.storage.provenance import dedupe_raw_refs
 from snowiki.storage.zones import ensure_utc_datetime
 
 __all__ = [
-    "TaxonomyItem",
     "append_section",
-    "compiled_page_path",
     "iso_to_date",
     "merge_raw_refs",
     "merge_string_list",
-    "normalize_string_values",
-    "normalize_taxonomy_items",
-    "page_directory",
     "record_session_id",
     "sorted_unique",
     "upsert_page",
