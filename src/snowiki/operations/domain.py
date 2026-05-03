@@ -14,8 +14,8 @@ class SourcePrivacyGate(Protocol):
         """Raise when a source path must not be ingested."""
 
 
-class MutationKind(StrEnum):
-    """Mutation variants accepted by the application mutation boundary."""
+class OperationKind(StrEnum):
+    """Operation variants accepted by the application mutation boundary."""
 
     INGEST = "ingest"
     REVIEWED_FILEBACK = "reviewed_fileback"
@@ -24,62 +24,62 @@ class MutationKind(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class IngestMutation:
+class IngestOperation:
     """Request to ingest Markdown source material into raw and normalized storage."""
 
     root: Path
     source_path: Path
     source_root: Path | None = None
-    finalize: bool = False
+    materialize: bool = False
     source_privacy_gate: SourcePrivacyGate | None = None
-    mutation_id: str | None = None
-    kind: MutationKind = field(default=MutationKind.INGEST, init=False)
+    operation_id: str | None = None
+    kind: OperationKind = field(default=OperationKind.INGEST, init=False)
 
 
 @dataclass(frozen=True, slots=True)
-class ReviewedFilebackMutation:
+class ReviewedFilebackOperation:
     """Request to apply a reviewed fileback proposal as accepted knowledge."""
 
     root: Path
     reviewed_payload: object
     proposal_id: str | None = None
     queue_path: Path | None = None
-    finalize: bool = True
-    mutation_id: str | None = None
-    kind: MutationKind = field(default=MutationKind.REVIEWED_FILEBACK, init=False)
+    materialize: bool = True
+    operation_id: str | None = None
+    kind: OperationKind = field(default=OperationKind.REVIEWED_FILEBACK, init=False)
 
 
 @dataclass(frozen=True, slots=True)
-class SourcePruneMutation:
+class SourcePruneOperation:
     """Request to prune missing-source artifacts after explicit safety checks."""
 
     root: Path
     dry_run: bool = True
     confirmed: bool = False
     candidate_paths: tuple[str, ...] = ()
-    finalize: bool = True
-    mutation_id: str | None = None
-    kind: MutationKind = field(default=MutationKind.SOURCE_PRUNE, init=False)
+    materialize: bool = True
+    operation_id: str | None = None
+    kind: OperationKind = field(default=OperationKind.SOURCE_PRUNE, init=False)
 
 
 @dataclass(frozen=True, slots=True)
-class RebuildMutation:
+class RebuildOperation:
     """Request to rebuild derived compiled and index artifacts from normalized state."""
 
     root: Path
     reason: str = "operator"
     verify_freshness: bool = True
-    mutation_id: str | None = None
-    kind: MutationKind = field(default=MutationKind.REBUILD, init=False)
+    operation_id: str | None = None
+    kind: OperationKind = field(default=OperationKind.REBUILD, init=False)
 
 
-type Mutation = (
-    IngestMutation | ReviewedFilebackMutation | SourcePruneMutation | RebuildMutation
+type Operation = (
+    IngestOperation | ReviewedFilebackOperation | SourcePruneOperation | RebuildOperation
 )
 
 
 @dataclass(frozen=True, slots=True)
-class MutationFailure:
+class OperationFailure:
     """Machine-readable failure for a rejected or failed mutation."""
 
     code: str
@@ -89,7 +89,7 @@ class MutationFailure:
 
 
 @dataclass(frozen=True, slots=True)
-class RebuildOutcome:
+class MaterializationOutcome:
     """Result of rebuild finalization after manifest-last integrity checks."""
 
     root: Path
@@ -104,30 +104,30 @@ class RebuildOutcome:
 
 
 @dataclass(frozen=True, slots=True)
-class MutationOutcome:
+class OperationOutcome:
     """Result model returned by the mutation application service."""
 
-    kind: MutationKind
+    kind: OperationKind
     root: Path
     accepted: bool
-    mutation_id: str | None = None
+    operation_id: str | None = None
     raw_paths: tuple[str, ...] = ()
     normalized_paths: tuple[str, ...] = ()
     deleted_paths: tuple[str, ...] = ()
     rebuild_required: bool = False
-    rebuild: RebuildOutcome | None = None
-    failure: MutationFailure | None = None
+    rebuild: MaterializationOutcome | None = None
+    failure: OperationFailure | None = None
     detail: Mapping[str, object] | None = None
 
 
 __all__ = [
-    "IngestMutation",
-    "Mutation",
-    "MutationFailure",
-    "MutationKind",
-    "MutationOutcome",
-    "RebuildMutation",
-    "RebuildOutcome",
-    "ReviewedFilebackMutation",
-    "SourcePruneMutation",
+    "IngestOperation",
+    "Operation",
+    "OperationFailure",
+    "OperationKind",
+    "OperationOutcome",
+    "RebuildOperation",
+    "MaterializationOutcome",
+    "ReviewedFilebackOperation",
+    "SourcePruneOperation",
 ]

@@ -15,21 +15,21 @@ if TYPE_CHECKING:
     from snowiki.markdown.discovery import MarkdownSource
     from snowiki.markdown.source_prune import SourcePruneCandidate
 
-from .adapters import MutationStorage
+from .adapters import OperationStorage
 from .domain import (
-    IngestMutation,
-    Mutation,
-    MutationFailure,
-    MutationOutcome,
-    RebuildMutation,
-    RebuildOutcome,
-    ReviewedFilebackMutation,
+    IngestOperation,
+    MaterializationOutcome,
+    Operation,
+    OperationFailure,
+    OperationOutcome,
+    RebuildOperation,
+    ReviewedFilebackOperation,
     SourcePrivacyGate,
-    SourcePruneMutation,
+    SourcePruneOperation,
 )
-from .finalizer import RebuildFinalizer
+from .finalizer import RebuildMaterializer
 
-MUTATION_LIFECYCLE_ORDER: tuple[str, ...] = (
+OPERATION_LIFECYCLE_ORDER: tuple[str, ...] = (
     "parse",
     "validate",
     "write_raw",
@@ -41,30 +41,30 @@ MUTATION_LIFECYCLE_ORDER: tuple[str, ...] = (
 
 
 @dataclass(frozen=True, slots=True)
-class MutationService:
+class OperationPipeline:
     """Application service that owns mutation lifecycle ordering."""
 
-    storage: MutationStorage
-    finalizer: RebuildFinalizer
+    storage: OperationStorage
+    finalizer: RebuildMaterializer
 
     @classmethod
     def from_root(cls, root: Path) -> Self:
         return cls(
-            storage=MutationStorage(root),
-            finalizer=RebuildFinalizer.from_root(root),
+            storage=OperationStorage(root),
+            finalizer=RebuildMaterializer.from_root(root),
         )
 
-    def apply(self, mutation: Mutation) -> MutationOutcome:
+    def apply(self, mutation: Operation) -> OperationOutcome:
         """Dispatch a mutation through the target Phase 6 lifecycle."""
-        if isinstance(mutation, IngestMutation):
+        if isinstance(mutation, IngestOperation):
             return self.apply_ingest(mutation)
-        if isinstance(mutation, ReviewedFilebackMutation):
+        if isinstance(mutation, ReviewedFilebackOperation):
             return self.apply_reviewed_fileback(mutation)
-        if isinstance(mutation, SourcePruneMutation):
+        if isinstance(mutation, SourcePruneOperation):
             return self.apply_source_prune(mutation)
         return self.apply_rebuild(mutation)
 
-    def apply_ingest(self, mutation: IngestMutation) -> MutationOutcome:
+    def apply_ingest(self, mutation: IngestOperation) -> OperationOutcome:
         """Parse, validate, and persist ingest mutations through storage adapters."""
         from snowiki.markdown.discovery import discover_markdown_sources
         from snowiki.markdown.source_state import count_stale_markdown_sources
@@ -83,25 +83,25 @@ class MutationService:
             else mutation.source_path.resolve().as_posix()
         )
         rebuild = (
-            self.finalizer.finalize(
-                RebuildMutation(
+            self.finalizer.materialize(
+                RebuildOperation(
                     root=root,
                     reason="ingest",
-                    mutation_id=mutation.mutation_id,
+                    operation_id=mutation.operation_id,
                 )
             )
-            if mutation.finalize
+            if mutation.materialize
             else None
         )
         raw_paths = tuple(str(document["raw_path"]) for document in documents)
         normalized_paths = tuple(
             str(document["normalized_path"]) for document in documents
         )
-        return MutationOutcome(
+        return OperationOutcome(
             kind=mutation.kind,
             root=root,
             accepted=True,
-            mutation_id=mutation.mutation_id,
+            operation_id=mutation.operation_id,
             raw_paths=raw_paths,
             normalized_paths=normalized_paths,
             rebuild_required=bool(documents) and rebuild is None,
@@ -123,8 +123,8 @@ class MutationService:
         )
 
     def apply_reviewed_fileback(
-        self, mutation: ReviewedFilebackMutation
-    ) -> MutationOutcome:
+        self, mutation: ReviewedFilebackOperation
+    ) -> OperationOutcome:
         """Apply reviewed fileback payloads without queue cleanup before success."""
         from snowiki.fileback.apply import validate_apply_plan
         from snowiki.fileback.evidence import (
@@ -195,21 +195,21 @@ class MutationService:
             recorded_at=str(normalized_record["recorded_at"]),
         )
         rebuild = (
-            self.finalizer.finalize(
-                RebuildMutation(
+            self.finalizer.materialize(
+                RebuildOperation(
                     root=root,
                     reason="reviewed_fileback",
-                    mutation_id=mutation.mutation_id,
+                    operation_id=mutation.operation_id,
                 )
             )
-            if mutation.finalize
+            if mutation.materialize
             else None
         )
-        return MutationOutcome(
+        return OperationOutcome(
             kind=mutation.kind,
             root=root,
             accepted=True,
-            mutation_id=mutation.mutation_id,
+            operation_id=mutation.operation_id,
             raw_paths=(raw_ref["path"],),
             normalized_paths=(store_result["path"],),
             rebuild_required=rebuild is None,
@@ -226,7 +226,7 @@ class MutationService:
             },
         )
 
-    def apply_source_prune(self, mutation: SourcePruneMutation) -> MutationOutcome:
+    def apply_source_prune(self, mutation: SourcePruneOperation) -> OperationOutcome:
         """Apply confirmed source pruning while preserving dry-run-first behavior."""
         root = self._validated_root(mutation.root)
         candidates = self.storage.plan_missing_source_prune()
@@ -236,12 +236,12 @@ class MutationService:
         )
         if selected_candidates is None:
             missing = sorted(set(mutation.candidate_paths) - _candidate_path_set(candidates))
-            return MutationOutcome(
+            return OperationOutcome(
                 kind=mutation.kind,
                 root=root,
                 accepted=False,
-                mutation_id=mutation.mutation_id,
-                failure=MutationFailure(
+                operation_id=mutation.operation_id,
+                failure=OperationFailure(
                     code="unknown_source_prune_candidate",
                     message="source prune candidate path was not found",
                     phase="validate",
@@ -256,11 +256,11 @@ class MutationService:
                 ),
             )
         if mutation.dry_run:
-            return MutationOutcome(
+            return OperationOutcome(
                 kind=mutation.kind,
                 root=root,
                 accepted=True,
-                mutation_id=mutation.mutation_id,
+                operation_id=mutation.operation_id,
                 rebuild_required=bool(selected_candidates),
                 detail=_source_prune_detail(
                     root=root,
@@ -271,12 +271,12 @@ class MutationService:
                 ),
             )
         if not mutation.confirmed:
-            return MutationOutcome(
+            return OperationOutcome(
                 kind=mutation.kind,
                 root=root,
                 accepted=False,
-                mutation_id=mutation.mutation_id,
-                failure=MutationFailure(
+                operation_id=mutation.operation_id,
+                failure=OperationFailure(
                     code="source_prune_confirmation_required",
                     message="source prune deletion requires confirmation",
                     phase="validate",
@@ -297,21 +297,21 @@ class MutationService:
             deleted,
         )
         rebuild = (
-            self.finalizer.finalize(
-                RebuildMutation(
+            self.finalizer.materialize(
+                RebuildOperation(
                     root=root,
                     reason="source_prune",
-                    mutation_id=mutation.mutation_id,
+                    operation_id=mutation.operation_id,
                 )
             )
-            if deleted and mutation.finalize
+            if deleted and mutation.materialize
             else None
         )
-        return MutationOutcome(
+        return OperationOutcome(
             kind=mutation.kind,
             root=root,
             accepted=True,
-            mutation_id=mutation.mutation_id,
+            operation_id=mutation.operation_id,
             deleted_paths=tuple(deleted),
             rebuild_required=bool(deleted) and rebuild is None,
             rebuild=rebuild,
@@ -324,15 +324,15 @@ class MutationService:
             ),
         )
 
-    def apply_rebuild(self, mutation: RebuildMutation) -> MutationOutcome:
+    def apply_rebuild(self, mutation: RebuildOperation) -> OperationOutcome:
         """Delegate rebuild finalization to the rebuild finalizer boundary."""
         root = self._validated_root(mutation.root)
-        rebuild = self.finalizer.finalize(mutation)
-        return MutationOutcome(
+        rebuild = self.finalizer.materialize(mutation)
+        return OperationOutcome(
             kind=mutation.kind,
             root=root,
             accepted=True,
-            mutation_id=mutation.mutation_id,
+            operation_id=mutation.operation_id,
             rebuild_required=False,
             rebuild=rebuild,
             detail={"reason": mutation.reason},
@@ -415,7 +415,7 @@ def _source_prune_detail(
     }
 
 
-def rebuild_outcome_payload(outcome: RebuildOutcome) -> dict[str, object]:
+def materialization_outcome_payload(outcome: MaterializationOutcome) -> dict[str, object]:
     """Return the legacy rebuild payload shape for adapter callers."""
     return {
         "root": outcome.root.as_posix(),
@@ -431,4 +431,4 @@ def rebuild_outcome_payload(outcome: RebuildOutcome) -> dict[str, object]:
     }
 
 
-__all__ = ["MUTATION_LIFECYCLE_ORDER", "MutationService", "rebuild_outcome_payload"]
+__all__ = ["OPERATION_LIFECYCLE_ORDER", "OperationPipeline", "materialization_outcome_payload"]

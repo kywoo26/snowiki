@@ -22,11 +22,11 @@ from .models import (
 
 def apply_fileback_proposal(root: Path, reviewed_payload: object) -> dict[str, Any]:
     """Persist a reviewed fileback proposal through the mutation domain."""
-    domain_module = importlib.import_module("snowiki.mutation.domain")
-    service_module = importlib.import_module("snowiki.mutation.service")
+    domain_module = importlib.import_module("snowiki.operations.domain")
+    service_module = importlib.import_module("snowiki.operations.service")
 
-    outcome = service_module.MutationService.from_root(root).apply_reviewed_fileback(
-        domain_module.ReviewedFilebackMutation(
+    outcome = service_module.OperationPipeline.from_root(root).apply_reviewed_fileback(
+        domain_module.ReviewedFilebackOperation(
             root=root,
             reviewed_payload=reviewed_payload,
         )
@@ -48,7 +48,7 @@ def apply_fileback_proposal(root: Path, reviewed_payload: object) -> dict[str, A
         "supporting_raw_ref_count": detail["supporting_raw_ref_count"],
         "normalized_path": detail["normalized_path"],
         "compiled_path": detail["compiled_path"],
-        "rebuild": service_module.rebuild_outcome_payload(outcome.rebuild),
+        "rebuild": service_module.materialization_outcome_payload(outcome.rebuild),
     }
 
 

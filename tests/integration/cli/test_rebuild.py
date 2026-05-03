@@ -50,18 +50,18 @@ def test_rebuild_generates_compiled_outputs_and_index_manifest(
 def test_rebuild_fails_closed_when_integrity_freshness_changes(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
-    from snowiki.mutation.finalizer import (
-        RebuildFinalizationFreshnessError,
-        RebuildFinalizer,
+    from snowiki.operations.finalizer import (
+        MaterializationFreshnessError,
+        RebuildMaterializer,
     )
 
     runner = CliRunner()
 
-    def fail_finalize(_self: RebuildFinalizer, _mutation: object) -> object:
-        from snowiki.mutation.domain import RebuildOutcome
+    def fail_finalize(_self: RebuildMaterializer, _mutation: object) -> object:
+        from snowiki.operations.domain import MaterializationOutcome
 
-        raise RebuildFinalizationFreshnessError(
-            RebuildOutcome(
+        raise MaterializationFreshnessError(
+            MaterializationOutcome(
                 root=tmp_path,
                 compiled_paths=("compiled/overview.md",),
                 index_manifest="index/manifest.json",
@@ -80,7 +80,7 @@ def test_rebuild_fails_closed_when_integrity_freshness_changes(
             )
         )
 
-    monkeypatch.setattr(RebuildFinalizer, "finalize", fail_finalize)
+    monkeypatch.setattr(RebuildMaterializer, "materialize", fail_finalize)
 
     rebuild = runner.invoke(
         app,

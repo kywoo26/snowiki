@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, slots=True)
-class MutationStorage:
+class OperationStorage:
     """Concrete raw, normalized, and filesystem operations used by mutations."""
 
     root: Path
@@ -237,6 +237,6 @@ __all__ = [
     "CompiledPageAdapter",
     "ContentIdentity",
     "IndexManifestAdapter",
-    "MutationStorage",
+    "OperationStorage",
     "RetrievalAdapter",
 ]

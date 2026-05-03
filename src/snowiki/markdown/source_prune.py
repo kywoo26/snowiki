@@ -37,18 +37,18 @@ def prune_missing_markdown_sources(
     """Prune normalized Markdown records whose source files are missing."""
     import importlib
 
-    domain_module = importlib.import_module("snowiki.mutation.domain")
-    service_module = importlib.import_module("snowiki.mutation.service")
+    domain_module = importlib.import_module("snowiki.operations.domain")
+    service_module = importlib.import_module("snowiki.operations.service")
 
     resolved_root = Path(root).expanduser().resolve()
-    outcome = service_module.MutationService.from_root(
+    outcome = service_module.OperationPipeline.from_root(
         resolved_root
     ).apply_source_prune(
-        domain_module.SourcePruneMutation(
+        domain_module.SourcePruneOperation(
             root=resolved_root,
             dry_run=dry_run,
             confirmed=confirmed,
-            finalize=not dry_run,
+            materialize=not dry_run,
         )
     )
     if not outcome.accepted:
@@ -59,7 +59,7 @@ def prune_missing_markdown_sources(
     detail = dict(outcome.detail or {})
     rebuild = None
     if outcome.rebuild is not None:
-        rebuild = service_module.rebuild_outcome_payload(outcome.rebuild)
+        rebuild = service_module.materialization_outcome_payload(outcome.rebuild)
 
     return {
         "root": outcome.root.as_posix(),

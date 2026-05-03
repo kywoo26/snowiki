@@ -155,15 +155,15 @@ def run_markdown_ingest(
     """Ingest a Markdown file or directory into Snowiki storage."""
     from importlib import import_module
 
-    domain = import_module("snowiki.mutation.domain")
-    service = import_module("snowiki.mutation.service")
+    domain = import_module("snowiki.operations.domain")
+    service = import_module("snowiki.operations.service")
 
-    outcome = service.MutationService.from_root(root).apply_ingest(
-        domain.IngestMutation(
+    outcome = service.OperationPipeline.from_root(root).apply_ingest(
+        domain.IngestOperation(
             root=root,
             source_path=path,
             source_root=source_root,
-            finalize=rebuild,
+            materialize=rebuild,
             source_privacy_gate=privacy_gate,
         )
     )
@@ -183,7 +183,7 @@ def run_markdown_ingest(
         "documents": cast("list[MarkdownIngestDocumentResult]", detail["documents"]),
     }
     if outcome.rebuild is not None:
-        result["rebuild"] = service.rebuild_outcome_payload(outcome.rebuild)
+        result["rebuild"] = service.materialization_outcome_payload(outcome.rebuild)
     return result
 
 

@@ -22,22 +22,22 @@ class RebuildFreshnessError(RuntimeError):
 
 
 def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
-    from snowiki.mutation import RebuildMutation
-    from snowiki.mutation.finalizer import (
-        RebuildFinalizationFreshnessError,
-        RebuildFinalizer,
+    from snowiki.operations import RebuildOperation
+    from snowiki.operations.finalizer import (
+        MaterializationFreshnessError,
+        RebuildMaterializer,
     )
-    from snowiki.mutation.service import rebuild_outcome_payload
+    from snowiki.operations.service import materialization_outcome_payload
 
-    finalizer = RebuildFinalizer.from_root(root)
-    mutation = RebuildMutation(root=root, reason="legacy")
+    finalizer = RebuildMaterializer.from_root(root)
+    mutation = RebuildOperation(root=root, reason="legacy")
     with _LegacyMonkeypatchBridge():
         try:
-            outcome = finalizer.finalize(mutation)
-        except RebuildFinalizationFreshnessError as exc:
-            result = cast("dict[str, Any]", rebuild_outcome_payload(exc.outcome))
+            outcome = finalizer.materialize(mutation)
+        except MaterializationFreshnessError as exc:
+            result = cast("dict[str, Any]", materialization_outcome_payload(exc.outcome))
             raise RebuildFreshnessError(result) from exc
-    return cast("dict[str, Any]", rebuild_outcome_payload(outcome))
+    return cast("dict[str, Any]", materialization_outcome_payload(outcome))
 
 
 def verify_rebuild_integrity(root: str | Path) -> dict[str, Any]:
@@ -79,7 +79,7 @@ class _LegacyMonkeypatchBridge:
         self._originals: dict[str, object] = {}
 
     def __enter__(self) -> None:
-        from snowiki.mutation import adapters
+        from snowiki.operations import adapters
 
         for name in _LEGACY_PATCHABLE_NAMES:
             if name in globals():
@@ -87,7 +87,7 @@ class _LegacyMonkeypatchBridge:
                 setattr(adapters, name, globals()[name])
 
     def __exit__(self, *_exc_info: object) -> None:
-        from snowiki.mutation import adapters
+        from snowiki.operations import adapters
 
         for name, value in self._originals.items():
             setattr(adapters, name, value)

@@ -7,9 +7,9 @@ from typing import Self
 from snowiki.storage.index_manifest import IndexManifest, write_index_manifest
 
 from .adapters import CompiledPageAdapter, IndexManifestAdapter, RetrievalAdapter
-from .domain import RebuildMutation, RebuildOutcome
+from .domain import MaterializationOutcome, RebuildOperation
 
-REBUILD_FINALIZATION_ORDER: tuple[str, ...] = (
+REBUILD_MATERIALIZATION_ORDER: tuple[str, ...] = (
     "compile_pages",
     "clear_query_cache",
     "build_retrieval_snapshot",
@@ -18,18 +18,18 @@ REBUILD_FINALIZATION_ORDER: tuple[str, ...] = (
 )
 
 
-class RebuildFinalizationFreshnessError(RuntimeError):
+class MaterializationFreshnessError(RuntimeError):
     """Raised when content identity changes before manifest persistence."""
 
-    def __init__(self, outcome: RebuildOutcome) -> None:
+    def __init__(self, outcome: MaterializationOutcome) -> None:
         super().__init__(
             "rebuild snapshot freshness changed before manifest finalization"
         )
-        self.outcome: RebuildOutcome = outcome
+        self.outcome: MaterializationOutcome = outcome
 
 
 @dataclass(frozen=True, slots=True)
-class RebuildFinalizer:
+class RebuildMaterializer:
     """Own rebuild finalization after mutation writes are complete."""
 
     compiled_pages: CompiledPageAdapter
@@ -44,10 +44,10 @@ class RebuildFinalizer:
             manifest=IndexManifestAdapter(root),
         )
 
-    def finalize(self, mutation: RebuildMutation) -> RebuildOutcome:
+    def materialize(self, mutation: RebuildOperation) -> MaterializationOutcome:
         """Finalize compiled and index state for a rebuild mutation.
 
-        Target order is defined by ``REBUILD_FINALIZATION_ORDER``. The manifest
+        Target order is defined by ``REBUILD_MATERIALIZATION_ORDER``. The manifest
         write is intentionally last so failed cache, snapshot, or identity checks
         cannot bless stale compiled/index state.
         """
@@ -81,7 +81,7 @@ class RebuildFinalizer:
             compiled_paths=compiled_paths,
             identity=snapshot_identity,
         )
-        outcome = RebuildOutcome(
+        outcome = MaterializationOutcome(
             root=root,
             compiled_paths=compiled_paths,
             index_manifest=self.manifest.manifest_relative_path(),
@@ -93,12 +93,12 @@ class RebuildFinalizer:
             tokenizer_name=tokenizer_name,
         )
         if snapshot_identity != current_identity:
-            raise RebuildFinalizationFreshnessError(outcome)
+            raise MaterializationFreshnessError(outcome)
         self.write_manifest_last(manifest)
         return outcome
 
 
-    def _validated_root(self, mutation: RebuildMutation) -> Path:
+    def _validated_root(self, mutation: RebuildOperation) -> Path:
         root = mutation.root.expanduser().resolve()
         adapter_roots = (
             self.compiled_pages.root.expanduser().resolve(),
@@ -115,7 +115,7 @@ class RebuildFinalizer:
 
 
 __all__ = [
-    "REBUILD_FINALIZATION_ORDER",
-    "RebuildFinalizationFreshnessError",
-    "RebuildFinalizer",
+    "REBUILD_MATERIALIZATION_ORDER",
+    "MaterializationFreshnessError",
+    "RebuildMaterializer",
 ]
