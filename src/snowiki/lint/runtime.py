@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Literal, NotRequired, TypedDict, cast
 
 from snowiki.compiler.paths import summary_path_for_record
-from snowiki.compiler.taxonomy import NormalizedRecord
 from snowiki.gardening.sources import collect_source_gardening_proposals
 from snowiki.markdown.source_state import collect_markdown_source_state
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
 from snowiki.search.runtime_identity import (
     current_runtime_index_formats,

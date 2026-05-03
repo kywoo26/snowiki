@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import hashlib
 
+from snowiki.schema.compiled import PageType, compiled_page_path, slugify
+from snowiki.schema.normalized import NormalizedRecord
+
 from .projection import projected_title
-from .taxonomy import (
-    NormalizedRecord,
-    PageType,
-    compiled_page_path,
-    slugify,
-)
 
 MAX_SUMMARY_SLUG_LENGTH = 120
 

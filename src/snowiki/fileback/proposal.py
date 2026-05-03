@@ -6,8 +6,8 @@ import os
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-from snowiki.compiler.taxonomy import PageType, compiled_page_path, slugify
 from snowiki.config import DEFAULT_SNOWIKI_ROOT, SNOWIKI_ROOT_ENV_VAR
+from snowiki.schema.compiled import PageType, compiled_page_path, slugify
 from snowiki.storage.zones import isoformat_utc
 
 from .evidence import normalize_requested_paths, resolve_evidence

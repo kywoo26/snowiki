@@ -5,6 +5,8 @@ import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
+from snowiki.schema.compiled import CompiledPage
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.storage.provenance import ProvenanceTracker
 from snowiki.storage.zones import StoragePaths, atomic_write_bytes, relative_to_root
 
@@ -18,7 +20,7 @@ from .provenance_links import (
     raw_source_paths,
     render_provenance_section,
 )
-from .taxonomy import CompiledPage, NormalizedRecord, sorted_unique
+from .taxonomy import sorted_unique
 from .wikilinks import apply_backlinks, render_related_section
 
 type FrontmatterScalar = None | bool | int | float | str

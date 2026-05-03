@@ -4,7 +4,8 @@ from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import cast
 
-from snowiki.compiler.taxonomy import CompiledPage, NormalizedRecord, PageSection
+from snowiki.schema.compiled import CompiledPage, PageSection
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.storage.zones import ensure_utc_datetime
 
 from .models import SearchDocument, SearchValue

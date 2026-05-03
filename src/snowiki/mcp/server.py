@@ -8,7 +8,7 @@ from pathlib import PurePosixPath
 from typing import cast
 from urllib.parse import unquote, urlparse
 
-from snowiki.compiler.taxonomy import slugify
+from snowiki.schema.compiled import slugify
 from snowiki.search import (
     known_item_lookup,
     run_authoritative_recall,

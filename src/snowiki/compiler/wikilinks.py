@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from .taxonomy import CompiledPage, sorted_unique
+from snowiki.schema.compiled import CompiledPage
+
+from .taxonomy import sorted_unique
 
 
 def wikilink(path: str) -> str:
