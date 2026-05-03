@@ -2,26 +2,15 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from snowiki.compiler.engine import CompilerEngine
-from snowiki.search.retrieval_identity import retrieval_identity_for_tokenizer
-from snowiki.search.runtime_identity import (
-    current_runtime_index_formats,
-    current_runtime_tokenizer_name,
-)
-from snowiki.search.runtime_retrieval import (
-    build_retrieval_snapshot,
-    clear_query_search_index_cache,
-)
-from snowiki.storage.index_manifest import (
-    IndexManifest,
-    current_index_identity,
-    index_manifest_path,
-    status_identity_payload,
-    write_index_manifest,
-)
 from snowiki.storage.zones import StoragePaths
+
+_LEGACY_PATCHABLE_NAMES = {
+    "CompilerEngine",
+    "build_retrieval_snapshot",
+    "current_index_identity",
+}
 
 
 class RebuildFreshnessError(RuntimeError):
@@ -33,51 +22,22 @@ class RebuildFreshnessError(RuntimeError):
 
 
 def run_rebuild_with_integrity(root: Path) -> dict[str, Any]:
-    engine = CompilerEngine(root)
-    compiled_paths = engine.rebuild()
-    clear_query_search_index_cache()
-    storage_paths = StoragePaths(root)
-    tokenizer_name = current_runtime_tokenizer_name()
-    retrieval_identity = retrieval_identity_for_tokenizer(tokenizer_name)
-    search_document_format, lexical_index_format = current_runtime_index_formats()
-    snapshot_identity = current_index_identity(
-        storage_paths,
-        retrieval_identity,
-        search_document_format=search_document_format,
-        lexical_index_format=lexical_index_format,
+    from snowiki.mutation import RebuildMutation
+    from snowiki.mutation.finalizer import (
+        RebuildFinalizationFreshnessError,
+        RebuildFinalizer,
     )
-    snapshot = build_retrieval_snapshot(root)
-    current_identity = current_index_identity(
-        storage_paths,
-        retrieval_identity,
-        search_document_format=search_document_format,
-        lexical_index_format=lexical_index_format,
-    )
-    manifest_path = index_manifest_path(storage_paths)
-    manifest = IndexManifest(
-        schema_version=1,
-        records_indexed=snapshot.records_indexed,
-        pages_indexed=snapshot.pages_indexed,
-        search_documents=snapshot.index.size,
-        compiled_paths=tuple(compiled_paths),
-        identity=snapshot_identity,
-    )
-    snapshot_content_identity = status_identity_payload(snapshot_identity)
-    current_content_identity = status_identity_payload(current_identity)
-    result = {
-        "compiled_count": len(compiled_paths),
-        "compiled_paths": compiled_paths,
-        "index_manifest": manifest_path.relative_to(root).as_posix(),
-        "pages_indexed": snapshot.pages_indexed,
-        "records_indexed": snapshot.records_indexed,
-        "content_identity": snapshot_content_identity,
-        "current_content_identity": current_content_identity,
-        "tokenizer_name": tokenizer_name,
-    }
-    if snapshot_identity != current_identity:
-        raise RebuildFreshnessError(result)
-    write_index_manifest(storage_paths, manifest)
-    return result
+    from snowiki.mutation.service import rebuild_outcome_payload
+
+    finalizer = RebuildFinalizer.from_root(root)
+    mutation = RebuildMutation(root=root, reason="legacy")
+    with _LegacyMonkeypatchBridge():
+        try:
+            outcome = finalizer.finalize(mutation)
+        except RebuildFinalizationFreshnessError as exc:
+            result = cast("dict[str, Any]", rebuild_outcome_payload(exc.outcome))
+            raise RebuildFreshnessError(result) from exc
+    return cast("dict[str, Any]", rebuild_outcome_payload(outcome))
 
 
 def verify_rebuild_integrity(root: str | Path) -> dict[str, Any]:
@@ -112,3 +72,38 @@ def verify_rebuild_integrity(root: str | Path) -> dict[str, Any]:
         ),
         "result": rebuilt,
     }
+
+
+class _LegacyMonkeypatchBridge:
+    def __init__(self) -> None:
+        self._originals: dict[str, object] = {}
+
+    def __enter__(self) -> None:
+        from snowiki.mutation import adapters
+
+        for name in _LEGACY_PATCHABLE_NAMES:
+            if name in globals():
+                self._originals[name] = getattr(adapters, name)
+                setattr(adapters, name, globals()[name])
+
+    def __exit__(self, *_exc_info: object) -> None:
+        from snowiki.mutation import adapters
+
+        for name, value in self._originals.items():
+            setattr(adapters, name, value)
+
+
+def __getattr__(name: str) -> Any:
+    if name == "CompilerEngine":
+        from snowiki.compiler.engine import CompilerEngine
+
+        return CompilerEngine
+    if name == "build_retrieval_snapshot":
+        from snowiki.search.runtime_retrieval import build_retrieval_snapshot
+
+        return build_retrieval_snapshot
+    if name == "current_index_identity":
+        from snowiki.storage.index_manifest import current_index_identity
+
+        return current_index_identity
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
