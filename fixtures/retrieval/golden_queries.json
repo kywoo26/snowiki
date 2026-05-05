@@ -35,7 +35,7 @@
     {
       "id": "code_api_symbol",
       "slice": "code/API/symbol query",
-      "query": "RuntimeCorpusDocument to_bm25_document",
+      "query": "SearchDocument corpus conversion",
       "expected_paths": ["src/snowiki/search/corpus.py"]
     },
     {

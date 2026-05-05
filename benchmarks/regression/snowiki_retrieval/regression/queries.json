@@ -86,7 +86,7 @@
       "id": "en_runtime_corpus_conversion",
       "group": "en",
       "kind": "known-item",
-      "text": "BM25 retrieval engine architecture guide RuntimeCorpusDocument to_bm25_document conversion source_type provenance",
+      "text": "BM25 retrieval engine architecture guide SearchDocument corpus conversion source_type provenance",
       "tags": ["identifier-path-code-heavy"]
     },
     {

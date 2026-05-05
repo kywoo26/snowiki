@@ -33,7 +33,7 @@ CLI / MCP / benchmark
     -> RuntimeSearchRequest
       -> RuntimeSearchIndex.search(request)
         -> BM25RuntimeIndex
-          -> RuntimeCorpusDocument records/pages
+          -> SearchDocument records/pages
           -> BM25SearchIndex candidate generation (policy-free raw BM25)
           -> RuntimeScoringPolicy (numeric scoring / ranking)
           -> SearchHit / SearchDocument result adapter
