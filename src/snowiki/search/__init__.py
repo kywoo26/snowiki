@@ -13,11 +13,6 @@ from .contract import (
     normalize_recall_result,
     run_authoritative_recall,
 )
-from .corpus import (
-    runtime_corpus_from_mappings,
-    runtime_document_from_compiled_page,
-    runtime_document_from_normalized_mapping,
-)
 from .engine import BM25RuntimeIndex
 from .kiwi_tokenizer import BilingualTokenizer, KoreanTokenizer
 from .mecab_tokenizer import MecabSearchTokenizer
@@ -78,9 +73,6 @@ __all__ = [
     "normalize_recall_hits",
     "normalize_recall_result",
     "register",
-    "runtime_corpus_from_mappings",
-    "runtime_document_from_compiled_page",
-    "runtime_document_from_normalized_mapping",
     "run_authoritative_recall",
     "temporal_recall",
     "tokenize_text",
