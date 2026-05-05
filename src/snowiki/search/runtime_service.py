@@ -48,6 +48,14 @@ class RetrievalService:
         pages: list[CompiledPage],
         tokenizer: SearchTokenizer | None = None,
     ) -> RetrievalSnapshot:
+        if records and not all(isinstance(r, NormalizedRecord) for r in records):
+            raise TypeError(
+                "records must be typed NormalizedRecord instances, not dict/mappings"
+            )
+        if pages and not all(isinstance(p, CompiledPage) for p in pages):
+            raise TypeError(
+                "pages must be typed CompiledPage instances, not dict/mappings"
+            )
         resolved_tokenizer = tokenizer or create_tokenizer(default().name)
         runtime_tokenizer_name = getattr(resolved_tokenizer, "name", default().name)
         if not isinstance(runtime_tokenizer_name, str):
