@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from .models import SearchHit
-from .registry import SearchTokenizer
 from .requests import (  # pyright: ignore[reportMissingImports]
     RuntimeSearchRequest,  # pyright: ignore[reportUnknownVariableType]
 )
@@ -15,9 +14,6 @@ class RuntimeSearchIndex(Protocol):
 
     @property
     def size(self) -> int: ...
-
-    @property
-    def tokenizer(self) -> SearchTokenizer: ...
 
     def search(
         self,

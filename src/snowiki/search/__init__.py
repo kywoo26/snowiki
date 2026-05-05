@@ -20,7 +20,7 @@ from .models import SearchDocument, SearchHit
 from .protocols import RuntimeSearchIndex
 from .queries.known_item import known_item_lookup
 from .queries.temporal import temporal_recall
-from .queries.topical import topical_recall
+from .queries.topical import execute_topical_search, topical_recall
 from .registry import (
     DEFAULT_TOKENIZER_NAME,
     SearchTokenizer,
@@ -32,9 +32,7 @@ from .registry import (
     is_tokenizer_compatible,
     register,
 )
-from .rerank import NoOpReranker
 from .runtime_service import RetrievalService, RetrievalSnapshot
-from .semantic_abstraction import DisabledSemanticBackend, SemanticBackend
 from .subword_tokenizer import WordPieceSearchTokenizer
 from .tokenizer import tokenize_text
 
@@ -42,11 +40,9 @@ __all__ = [
     "BM25RuntimeIndex",
     "BM25SearchIndex",
     "BilingualTokenizer",
-    "DisabledSemanticBackend",
     "KoreanTokenizer",
     "MecabSearchTokenizer",
     "MixedLanguageAnalyzer",
-    "NoOpReranker",
     "TEMPORAL_KEYWORDS",
     "DEFAULT_TOKENIZER_NAME",
     "RetrievalService",
@@ -55,13 +51,13 @@ __all__ = [
     "SearchTokenizer",
     "SearchDocument",
     "SearchHit",
-    "SemanticBackend",
     "TokenizerSpec",
     "WordPieceSearchTokenizer",
     "all_candidates",
     "build_mixed_language_analyzer",
     "create",
     "default",
+    "execute_topical_search",
     "get",
     "is_temporal_query",
     "is_tokenizer_compatible",

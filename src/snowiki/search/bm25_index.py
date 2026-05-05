@@ -10,10 +10,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import bm25s
 
-from .kiwi_tokenizer import (
-    KIWI_LEXICAL_CANDIDATE_MODES,
-    KiwiLexicalCandidateMode,
-)
+from .kiwi_tokenizer import KiwiLexicalCandidateMode
 from .models import LEXICAL_INDEX_FORMAT_VERSION, SearchDocument, SearchHit
 from .registry import SearchTokenizer, all_candidates, create, default, get
 from .subword_tokenizer import WordPieceSearchTokenizer
@@ -70,28 +67,16 @@ class BM25SearchIndex:
         delta: float = 0.5,
         tokenizer_name: str | None = None,
         tokenizer: SearchTokenizer | None = None,
-        use_kiwi_tokenizer: bool = True,
-        kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode = DEFAULT_KIWI_LEXICAL_CANDIDATE_MODE,
     ) -> None:
         if method not in self.BM25_METHODS:
             raise ValueError(
                 f"Invalid method: {method}. Must be one of {self.BM25_METHODS}"
             )
-        if kiwi_lexical_candidate_mode not in KIWI_LEXICAL_CANDIDATE_MODES:
-            raise ValueError(
-                "Invalid Kiwi lexical candidate mode: "
-                + f"{kiwi_lexical_candidate_mode}. Must be one of "
-                + f"{sorted(KIWI_LEXICAL_CANDIDATE_MODES)}"
-            )
 
         resolved_tokenizer_name = (
             tokenizer_name or default().name
             if tokenizer is not None
-            else self._resolve_tokenizer_name(
-                tokenizer_name=tokenizer_name,
-                use_kiwi_tokenizer=use_kiwi_tokenizer,
-                kiwi_lexical_candidate_mode=kiwi_lexical_candidate_mode,
-            )
+            else self._resolve_tokenizer_name(tokenizer_name=tokenizer_name)
         )
         legacy_flags = self._legacy_tokenizer_flags(resolved_tokenizer_name)
 
@@ -125,8 +110,6 @@ class BM25SearchIndex:
             "b": self.b,
             "delta": self.delta,
             "tokenizer_name": self.tokenizer_name,
-            "use_kiwi_tokenizer": self.use_kiwi_tokenizer,
-            "kiwi_lexical_candidate_mode": self.kiwi_lexical_candidate_mode,
             "bm25s_version": self._bm25s_version(),
             "index_format_version": self._INDEX_FORMAT_VERSION,
         }
@@ -163,20 +146,15 @@ class BM25SearchIndex:
         cls,
         *,
         tokenizer_name: str | None,
-        use_kiwi_tokenizer: bool,
-        kiwi_lexical_candidate_mode: KiwiLexicalCandidateMode,
     ) -> str:
-        resolved = tokenizer_name or cls._resolve_tokenizer_name_from_flags(
-            use_kiwi_tokenizer=use_kiwi_tokenizer,
-            kiwi_lexical_candidate_mode=kiwi_lexical_candidate_mode,
-        )
+        resolved = tokenizer_name or default().name
 
-        spec = get(resolved)
         if resolved not in cls._TOKENIZER_NAMES:
             supported = ", ".join(sorted(cls._TOKENIZER_NAMES))
             raise ValueError(
                 f"Invalid BM25 tokenizer: {resolved}. Must be one of {supported}"
             )
+        spec = get(resolved)
         return spec.name
 
     @classmethod

@@ -22,6 +22,11 @@ The shipped runtime remains lexical-only. Hybrid retrieval, vector retrieval,
 semantic reranking, and Reciprocal Rank Fusion (RRF) are not active runtime
 layers today.
 
+The canonical topical lexical executor is `execute_topical_search()` in
+`src/snowiki/search/queries/topical.py`. CLI query, read-only MCP search, and
+the benchmark runtime all route through that executor so request construction,
+candidate limits, blending, and final truncation stay in one place.
+
 Primary modules:
 
 - `src/snowiki/search/engine.py`
@@ -56,6 +61,10 @@ forward as a second runtime contract.
 
 `RetrievalSnapshot.index` is the primary runtime search surface and implements
 `RuntimeSearchIndex` through `BM25RuntimeIndex`.
+
+`RuntimeSearchIndex` exposes only `size` and `search(request)`. Tokenizer access
+is a concrete backend diagnostic on `BM25SearchIndex`, not a protocol-level
+requirement.
 
 `src/snowiki/storage/index_manifest.py` owns the typed index manifest domain,
 including `LayerIdentity`, `RetrievalIdentity`, `IndexIdentity`, `IndexManifest`,
@@ -103,11 +112,11 @@ Boundary responsibilities:
 | :--- | :--- | :--- |
 | Intent policy | `src/snowiki/search/queries/policies.py` | Named presets (`KNOWN_ITEM_POLICY`, `TOPICAL_POLICY`, `TEMPORAL_POLICY`), candidate-limit expansion, kind-weight defaults, exact-path bias, blending flags. |
 | Request object | `src/snowiki/search/requests.py` | Frozen `RuntimeSearchRequest` with `query`, `candidate_limit`, temporal filters, `exact_path_bias`, `kind_weights`, and optional `scoring_policy`. |
-| Protocol | `src/snowiki/search/protocols.py` | `RuntimeSearchIndex.search(request: RuntimeSearchRequest) -> Sequence[SearchHit]`. |
+| Protocol | `src/snowiki/search/protocols.py` | `RuntimeSearchIndex` exposes `size` and `search(request: RuntimeSearchRequest) -> Sequence[SearchHit]`. |
 | Raw candidate generation | `src/snowiki/search/bm25_index.py` | Policy-free BM25 candidate retrieval. No scoring constants, multipliers, or blending logic lives here. |
-| Runtime scoring | `src/snowiki/search/scoring.py` | `RuntimeScoringPolicy` owns matched-term derivation, zero-score rejection, exact-path/token boosts, kind-weight multiplication, recency tie-break, and deterministic sort key. |
-| Runtime orchestration | `src/snowiki/search/engine.py` | `BM25RuntimeIndex` translates `RuntimeSearchRequest` into raw BM25 calls, applies `RuntimeScoringPolicy`, and returns scored `SearchHit`s. |
-| Post-scoring blend | `src/snowiki/search/rerank.py` | `blend_hits_by_kind` is a query-policy-controlled topical behavior, not a numeric scoring layer. |
+| Runtime scoring | `src/snowiki/search/scoring.py` | `HitScorer.rank_candidates()` owns matched-term derivation, zero-score rejection, exact-path/token boosts, kind-weight multiplication, recency tie-break, and deterministic sort key. |
+| Runtime orchestration | `src/snowiki/search/engine.py` | `BM25RuntimeIndex` translates `RuntimeSearchRequest` into raw BM25 calls, then delegates ranking to `HitScorer`. |
+| Canonical topical executor | `src/snowiki/search/queries/topical.py` | `execute_topical_search()` builds the request, applies topical policy, handles blending, and performs the final truncation used by CLI, MCP search, and benchmark. |
 | Strategy wrappers | `src/snowiki/search/queries/known_item.py`, `topical.py`, `temporal.py` | Own final truncation, optional reranking, and routing to the runtime index via `RuntimeSearchRequest`. |
 | Index manifest and freshness | `src/snowiki/storage/index_manifest.py` | Owns typed identity, manifest persistence, legacy normalization, current identity computation, comparison, and freshness explanations. |
 
@@ -116,6 +125,7 @@ Key invariants:
 - `candidate_limit` is the pre-truncation candidate count requested from the runtime index. Final display limits stay in query-policy functions.
 - `BM25SearchIndex` remains policy-free. It does not know about request objects, intent multipliers, kind weights, or scoring profiles.
 - Scoring constants and policy literals live only in `scoring.py` and `queries/policies.py`, not in `engine.py` or individual query modules.
+- `RuntimeSearchIndex` keeps a minimal contract, `size` plus `search(request)`, so backend diagnostics do not become required runtime behavior.
 - CLI, MCP, and benchmark payloads remain stable; only internal routing changed.
 - Manifest identity and freshness are storage concerns, not runtime query concerns. Runtime surfaces should consume the manifest explanation produced by `storage/index_manifest.py` instead of re-deriving identity from cache state or command-specific heuristics.
 
@@ -164,7 +174,13 @@ These remain extension seams, not active runtime layers.
 - `src/snowiki/search/semantic_abstraction.py`
 - `src/snowiki/search/rerank.py`
 
-Hybrid/vector search and semantic reranking are deferred non-goals for the current runtime. See `bm25-retrieval-engine.md` for the deferred work list.
+The active runtime no longer carries placeholder semantic APIs such as
+`semantic_backend`, `NoOpReranker`, or a `Reranker` protocol. Phase 7 PR3 and
+PR4 are the boundary for redesigning semantic and hybrid retrieval after the
+current lexical consolidation lands.
+
+Hybrid/vector search and semantic reranking are deferred non-goals for the
+current runtime. See `bm25-retrieval-engine.md` for the deferred work list.
 
 ## Phase 7 PR 1 boundaries
 

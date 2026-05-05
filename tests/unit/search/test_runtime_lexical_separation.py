@@ -188,7 +188,6 @@ def test_retrieval_service_threads_explicit_tokenizer_through_runtime_indexes() 
     request = RuntimeSearchRequest(query="alpha", candidate_limit=10)
     hits = snapshot.index.search(request)
 
-    assert snapshot.index.tokenizer is tokenizer
     assert {hit.document.id for hit in hits} == {pages[0].path, "session-1"}
     assert ("tokenize", "alpha") in tokenizer.calls
     assert ("normalize", "alpha") in tokenizer.calls

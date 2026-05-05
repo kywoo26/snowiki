@@ -7,7 +7,7 @@ from snowiki.search.contract import run_authoritative_recall
 from snowiki.search.models import SearchHit
 from snowiki.search.queries.known_item import known_item_lookup
 from snowiki.search.queries.temporal import temporal_recall
-from snowiki.search.queries.topical import topical_recall
+from snowiki.search.queries.topical import execute_topical_search, topical_recall
 from snowiki.search.runtime_retrieval import build_retrieval_snapshot
 
 
@@ -40,7 +40,6 @@ class QueryResult(TypedDict):
 
     query: str
     mode: str
-    semantic_backend: str | None
     records_indexed: int
     pages_indexed: int
     hits: list[QueryHitPayload]
@@ -82,11 +81,10 @@ def recall_hit_to_payload(hit: SearchHit) -> RecallHitPayload:
 def run_query(root: Path, query: str, *, mode: str, top_k: int) -> QueryResult:
     """Execute a topical query against normalized and compiled content."""
     snapshot = build_retrieval_snapshot(root)
-    hits = topical_recall(snapshot.index, query, limit=top_k)
+    hits = execute_topical_search(snapshot.index, query, limit=top_k)
     return {
         "query": query,
         "mode": mode,
-        "semantic_backend": None,
         "records_indexed": snapshot.records_indexed,
         "pages_indexed": snapshot.pages_indexed,
         "hits": [query_hit_to_payload(hit) for hit in hits],

@@ -25,15 +25,23 @@ def _document(
     )
 
 
+class _Tokenizer:
+    def tokenize(self, text: str) -> tuple[str, ...]:
+        return tuple(text.lower().split())
+
+    def normalize(self, text: str) -> str:
+        return " ".join(self.tokenize(text))
+
+
 def test_score_candidate_derives_sorted_matched_terms_from_token_evidence() -> None:
     policy = RuntimeScoringPolicy()
     hit = policy.score_candidate(
         document=_document("runtime-policy"),
         raw_score=1.25,
-        query_terms={"runtime", "policy", "missing"},
-        document_terms={"policy", "runtime", "snowiki"},
-        normalized_query="runtime policy",
-        normalized_path="docs/runtime-policy.md",
+        query_tokens=("runtime", "policy", "missing"),
+        document_tokens=("policy", "runtime", "snowiki"),
+        tokenizer=_Tokenizer(),
+        query="runtime policy",
     )
 
     assert hit == SearchHit(
@@ -48,10 +56,26 @@ def test_score_candidate_rejects_zero_score_candidates_without_match_evidence() 
     hit = policy.score_candidate(
         document=_document("unmatched"),
         raw_score=0.0,
-        query_terms={"runtime"},
-        document_terms={"snowiki"},
-        normalized_query="runtime",
-        normalized_path="docs/unmatched.md",
+        query_tokens=("runtime",),
+        document_tokens=("snowiki",),
+        tokenizer=_Tokenizer(),
+        query="runtime",
+    )
+
+    assert hit is None
+
+
+def test_score_candidate_rejects_zero_score_candidates_with_boosts_only() -> None:
+    policy = RuntimeScoringPolicy()
+    hit = policy.score_candidate(
+        document=_document("runtime-note", path="sessions/runtime-note.json", kind="session"),
+        raw_score=0.0,
+        query_tokens=("runtime", "missing"),
+        document_tokens=("snowiki",),
+        tokenizer=_Tokenizer(),
+        query="runtime missing",
+        exact_path_bias=True,
+        kind_weights={"session": 1.15},
     )
 
     assert hit is None
@@ -70,10 +94,10 @@ def test_score_candidate_applies_path_boosts_kind_weight_and_recency_tie_break()
     hit = policy.score_candidate(
         document=document,
         raw_score=1.0,
-        query_terms={"runtime", "policy"},
-        document_terms={"runtime"},
-        normalized_query="runtime policy",
-        normalized_path="sessions/runtime policy.md",
+        query_tokens=("runtime", "policy"),
+        document_tokens=("runtime",),
+        tokenizer=_Tokenizer(),
+        query="runtime policy",
         exact_path_bias=True,
         kind_weights={"session": 1.15, "page": 0.85},
     )
@@ -90,10 +114,10 @@ def test_score_candidate_uses_default_kind_weight_when_kind_is_not_named() -> No
     hit = policy.score_candidate(
         document=_document("kiwi-note", kind="note"),
         raw_score=2.0,
-        query_terms={"kiwi"},
-        document_terms={"kiwi"},
-        normalized_query="kiwi intent",
-        normalized_path="notes/other-note.md",
+        query_tokens=("kiwi",),
+        document_tokens=("kiwi",),
+        tokenizer=_Tokenizer(),
+        query="kiwi intent",
         kind_weights={"session": 1.15, "page": 0.85},
     )
 
@@ -106,10 +130,10 @@ def test_score_candidate_keeps_path_phrase_boost_independent_from_exact_path_bia
     hit = policy.score_candidate(
         document=_document("runtime-policy", path="docs/runtime policy.md"),
         raw_score=0.0,
-        query_terms={"unmatched"},
-        document_terms=set(),
-        normalized_query="runtime policy",
-        normalized_path="docs/runtime policy.md",
+        query_tokens=("unmatched",),
+        document_tokens=(),
+        tokenizer=_Tokenizer(),
+        query="runtime policy",
         exact_path_bias=False,
     )
 
@@ -130,3 +154,85 @@ def test_sort_key_is_deterministic_for_score_path_and_document_id_ties() -> None
     ranked = sorted(hits, key=policy.sort_key)
 
     assert [hit.document.id for hit in ranked] == ["top", "z", "a", "b"]
+
+
+def test_sort_key_breaks_tied_scores_by_recency_before_path_and_id() -> None:
+    policy = RuntimeScoringPolicy()
+    older = SearchHit(
+        document=_document(
+            "older",
+            path="docs/shared.md",
+            recorded_at=datetime(2026, 4, 1, tzinfo=UTC),
+        ),
+        score=2.0,
+        matched_terms=("x",),
+    )
+    newer = SearchHit(
+        document=_document(
+            "newer",
+            path="docs/zzz.md",
+            recorded_at=datetime(2026, 4, 2, tzinfo=UTC),
+        ),
+        score=2.0,
+        matched_terms=("x",),
+    )
+
+    ranked = sorted([older, newer], key=policy.sort_key)
+
+    assert [hit.document.id for hit in ranked] == ["newer", "older"]
+
+
+def test_rank_candidates_orders_ties_by_recency_path_then_id() -> None:
+    policy = RuntimeScoringPolicy(recency_divisor=1_000_000_000_000_000_000.0)
+    candidates = [
+        SearchHit(
+            document=_document(
+                "path-b",
+                path="docs/b.md",
+                recorded_at=datetime(2026, 4, 1, tzinfo=UTC),
+            ),
+            score=1.0,
+            matched_terms=(),
+        ),
+        SearchHit(
+            document=_document(
+                "path-a",
+                path="docs/a.md",
+                recorded_at=datetime(2026, 4, 1, tzinfo=UTC),
+            ),
+            score=1.0,
+            matched_terms=(),
+        ),
+        SearchHit(
+            document=_document(
+                "newer",
+                path="docs/z.md",
+                recorded_at=datetime(2026, 4, 2, tzinfo=UTC),
+            ),
+            score=1.0,
+            matched_terms=(),
+        ),
+        SearchHit(
+            document=_document(
+                "path-a-2",
+                path="docs/a.md",
+                recorded_at=datetime(2026, 4, 1, tzinfo=UTC),
+            ),
+            score=1.0,
+            matched_terms=(),
+        ),
+    ]
+
+    ranked = policy.rank_candidates(
+        candidates,
+        query="contract",
+        tokenizer=_Tokenizer(),
+        document_tokens=lambda _document_id: ("contract",),
+    )
+
+    assert [hit.document.id for hit in ranked] == [
+        "newer",
+        "path-a",
+        "path-a-2",
+        "path-b",
+    ]

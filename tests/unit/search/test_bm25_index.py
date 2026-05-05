@@ -482,11 +482,11 @@ class TestBM25SearchIndex:
 
         morphology_index = BM25SearchIndex(
             docs,
-            kiwi_lexical_candidate_mode="morphology",
+            tokenizer_name="kiwi_morphology_v1",
         )
         nouns_index = BM25SearchIndex(
             docs,
-            kiwi_lexical_candidate_mode="nouns",
+            tokenizer_name="kiwi_nouns_v1",
         )
 
         morphology_results = morphology_index.search("재미있다")
@@ -519,7 +519,7 @@ class TestBM25SearchIndex:
         ]
         path = tmp_path / "bm25-index"
 
-        index = BM25SearchIndex(docs, kiwi_lexical_candidate_mode="nouns")
+        index = BM25SearchIndex(docs, tokenizer_name="kiwi_nouns_v1")
         index.save(str(path))
         loaded = BM25SearchIndex.load(str(path), docs)
         metadata = json.loads(
@@ -529,6 +529,8 @@ class TestBM25SearchIndex:
         assert fake_bm25_backend["save"] == [{"path": str(path)}]
         assert fake_bm25_backend["load"] == [{"path": str(path), "load_corpus": True}]
         assert metadata["tokenizer_name"] == "kiwi_nouns_v1"
+        assert "use_kiwi_tokenizer" not in metadata
+        assert "kiwi_lexical_candidate_mode" not in metadata
         assert loaded.use_kiwi_tokenizer is True
         assert loaded.kiwi_lexical_candidate_mode == "nouns"
         assert loaded.tokenizer_name == "kiwi_nouns_v1"
@@ -554,7 +556,7 @@ class TestBM25SearchIndex:
         assert index.use_kiwi_tokenizer is True
         assert index.kiwi_lexical_candidate_mode == "nouns"
 
-    def test_init_legacy_false_flag_still_selects_regex(
+    def test_init_regex_tokenizer_sets_legacy_identity_fields(
         self, fake_bm25_backend: dict[str, list[dict[str, object]]]
     ) -> None:
         docs = [
@@ -567,7 +569,7 @@ class TestBM25SearchIndex:
             )
         ]
 
-        index = BM25SearchIndex(docs, use_kiwi_tokenizer=False)
+        index = BM25SearchIndex(docs, tokenizer_name="regex_v1")
 
         assert index.tokenizer_name == "regex_v1"
         assert index.use_kiwi_tokenizer is False
@@ -748,9 +750,9 @@ class TestBM25SearchIndex:
         with pytest.raises(ValueError, match="Invalid method"):
             BM25SearchIndex([], method="invalid")
 
-    def test_invalid_kiwi_candidate_mode(self) -> None:
-        with pytest.raises(ValueError, match="Invalid Kiwi lexical candidate mode"):
-            BM25SearchIndex([], kiwi_lexical_candidate_mode=cast(Any, "verbs"))
+    def test_invalid_tokenizer_name(self) -> None:
+        with pytest.raises(ValueError, match="Invalid BM25 tokenizer"):
+            BM25SearchIndex([], tokenizer_name=cast(Any, "verbs_v1"))
 
     @pytest.mark.parametrize(
         "method", ["robertson", "atire", "bm25l", "bm25+", "lucene"]
