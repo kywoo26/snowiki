@@ -75,7 +75,7 @@ def test_load_matrix_reads_snowiki_regression_contract() -> None:
     assert matrix.matrix_id == "snowiki_regression"
     assert matrix.datasets == ("snowiki_retrieval_regression",)
     assert tuple(matrix.levels) == ("regression",)
-    assert matrix.levels["regression"].query_cap == 23
+    assert matrix.levels["regression"].query_cap == 28
     assert matrix.levels["regression"].corpus_cap is None
 
 

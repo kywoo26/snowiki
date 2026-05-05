@@ -26,6 +26,11 @@
     "source_provenance": ["docs/architecture/source-vault-compiled-taxonomy.md"],
     "cli_tool_command": ["benchmarks/README.md"],
     "session_history": ["fixtures/claude/resumed.jsonl", "fixtures/opencode/with_compaction.db"],
-    "hard_negative_secret_fixture": ["fixtures/secrets/test_api_keys.jsonl"]
+    "hard_negative_secret_fixture": ["fixtures/secrets/test_api_keys.jsonl"],
+    "ko_spacing_personal_wiki_compounding": ["fixtures/claude/basic.jsonl"],
+    "ko_spacing_source_layer_contract": ["docs/architecture/source-vault-compiled-taxonomy.md"],
+    "cjk_mixed_code_bm25_cache": ["src/snowiki/search/bm25_index.py"],
+    "ko_long_privacy_secret_redaction": ["docs/reference/korean-privacy-redaction.md"],
+    "ko_long_source_provenance_contract": ["docs/architecture/source-vault-compiled-taxonomy.md"]
   }
 }

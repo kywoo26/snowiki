@@ -3,5 +3,5 @@ datasets:
   - snowiki_retrieval_regression
 levels:
   regression:
-    query_cap: 23
+    query_cap: 28
     note: Reviewable Snowiki-owned product retrieval regression evidence.

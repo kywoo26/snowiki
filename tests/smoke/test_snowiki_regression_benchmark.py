@@ -12,21 +12,45 @@ from snowiki.cli.main import app
 
 pytestmark = pytest.mark.smoke
 
-REQUIRED_QUERY_IDS = {
-    "cli_tool_command",
-    "session_history",
-    "source_provenance",
-}
-REQUIRED_SLICE_IDS = {
-    "group:ko",
-    "group:en",
-    "group:mixed",
-    "kind:known-item",
-    "kind:topical",
-    "kind:temporal",
-    "tag:hard-negative",
-    "tag:identifier-path-code-heavy",
-}
+REQUIRED_QUERY_IDS = frozenset(
+    {
+        "cjk_mixed_code_bm25_cache",
+        "cli_tool_command",
+        "ko_long_privacy_secret_redaction",
+        "ko_long_source_provenance_contract",
+        "ko_spacing_personal_wiki_compounding",
+        "ko_spacing_source_layer_contract",
+        "session_history",
+        "source_provenance",
+    }
+)
+REQUIRED_SLICE_IDS = frozenset(
+    {
+        "group:ko",
+        "group:en",
+        "group:mixed",
+        "kind:known-item",
+        "kind:topical",
+        "kind:temporal",
+        "tag:cjk-mixed-code",
+        "tag:hard-negative",
+        "tag:identifier-path-code-heavy",
+        "tag:ko-inflection",
+        "tag:ko-spacing",
+        "tag:long-natural-question",
+    }
+)
+REQUIRED_SLICE_METRIC_IDS = frozenset(
+    {
+        "group:ko",
+        "group:en",
+        "group:mixed",
+        "kind:known-item",
+        "kind:topical",
+        "kind:temporal",
+        "tag:identifier-path-code-heavy",
+    }
+)
 FIRST_SCREEN_METRICS = {
     "recall_at_5",
     "hit_rate_at_5",
@@ -128,7 +152,7 @@ def test_snowiki_regression_matrix_smoke_contract(
 
     per_query = cell["per_query"]
     assert isinstance(per_query, dict)
-    assert len(per_query) == 23
+    assert len(per_query) == 28
     assert set(per_query) >= REQUIRED_QUERY_IDS
     for query_id in REQUIRED_QUERY_IDS:
         evidence = per_query[query_id]
@@ -140,7 +164,7 @@ def test_snowiki_regression_matrix_smoke_contract(
     slices = cell["slices"]
     assert isinstance(slices, dict)
     assert set(slices) >= REQUIRED_SLICE_IDS
-    for slice_id in REQUIRED_SLICE_IDS:
+    for slice_id in REQUIRED_SLICE_METRIC_IDS:
         slice_evidence = slices[slice_id]
         assert isinstance(slice_evidence, dict)
         slice_metrics = slice_evidence["metrics"]
