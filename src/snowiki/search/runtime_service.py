@@ -14,18 +14,6 @@ from .registry import SearchTokenizer, default
 from .registry import create as create_tokenizer
 
 
-def _primary_text(value: object) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, str):
-        return value
-    if isinstance(value, bool | int | float):
-        return str(value)
-    if isinstance(value, list | tuple):
-        return "\n".join(text for item in value if (text := _primary_text(item)))
-    return ""
-
-
 @dataclass(frozen=True, slots=True)
 class RetrievalSnapshot:
     index: RuntimeSearchIndex
