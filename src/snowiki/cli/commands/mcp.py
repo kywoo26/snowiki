@@ -7,11 +7,14 @@ from typing import Any, BinaryIO
 
 import click
 
+from snowiki.schema.compiled import CompiledPage
+from snowiki.schema.normalized import NormalizedRecord
+
 
 def serve_stdio_command(
     *,
-    session_records: Sequence[Mapping[str, Any]] = (),
-    compiled_pages: Sequence[Mapping[str, Any]] = (),
+    session_records: Sequence[NormalizedRecord | Mapping[str, Any]] = (),
+    compiled_pages: Sequence[CompiledPage | Mapping[str, Any]] = (),
     reference_time: datetime | None = None,
     input_stream: BinaryIO | None = None,
     output_stream: BinaryIO | None = None,

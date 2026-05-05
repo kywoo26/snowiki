@@ -7,6 +7,8 @@ from typing import Any, cast
 
 from snowiki.cli.commands.mcp import serve_stdio_command
 from snowiki.mcp.server import SnowikiReadOnlyFacade
+from snowiki.schema.compiled import CompiledPage, PageSection, PageType
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.requests import RuntimeSearchRequest
 
@@ -33,21 +35,27 @@ def decode_messages(buffer: bytes) -> list[dict[str, Any]]:
 
 def test_stdio_smoke_search_recall_and_resource_reads_match_core(
     search_api_module,
-    normalized_records_data,
-    compiled_pages_data,
+    normalized_records_data: tuple[NormalizedRecord, ...],
+    compiled_pages_data: tuple[CompiledPage, ...],
 ) -> None:
     search = search_api_module
     records = normalized_records_data
     pages = compiled_pages_data + (
-        {
-            "id": "topic-korean-retrieval",
-            "path": "compiled/topics/korean-retrieval.md",
-            "title": "Korean retrieval",
-            "summary": "Topic page for Korean retrieval work.",
-            "body": "See [[Mixed-language lexical retrieval overview]] for the blended search design.",
-            "related": ["compiled/wiki/search/mixed-language-overview.md"],
-            "updated_at": "2026-04-08T12:00:00Z",
-        },
+        CompiledPage(
+            page_type=PageType.TOPIC,
+            slug="korean-retrieval",
+            title="Korean retrieval",
+            created="2026-04-08T12:00:00Z",
+            updated="2026-04-08T12:00:00Z",
+            summary="Topic page for Korean retrieval work.",
+            related=["compiled/topics/mixed-language-overview.md"],
+            sections=[
+                PageSection(
+                    title="Overview",
+                    body="See [[Mixed-language lexical retrieval overview]] for the blended search design.",
+                )
+            ],
+        ),
     )
     reference_time = datetime(2026, 4, 8, 12, 0, tzinfo=UTC)
 
@@ -237,7 +245,7 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
     )
     resolved_links = responses[6]["result"]["structuredContent"]["links"]
     assert any(
-        link["resolved_path"] == "compiled/wiki/search/mixed-language-overview.md"
+        link["resolved_path"] == "compiled/topics/mixed-language-overview.md"
         for link in resolved_links
     )
     assert (
@@ -344,12 +352,18 @@ def test_stdio_bridge_without_injected_project_data_stays_read_only_but_empty() 
 def test_mcp_search_preserves_empty_zero_term_and_no_match_output_shape() -> None:
     facade = SnowikiReadOnlyFacade(
         session_records=(
-            {
-                "id": "session-runtime",
-                "path": "normalized/session-runtime.json",
-                "title": "Runtime lexical session",
-                "content": "searchable runtime content",
-            },
+            NormalizedRecord(
+                id="session-runtime",
+                path="normalized/session-runtime.json",
+                source_type="claude",
+                record_type="session",
+                recorded_at="2026-04-08T12:00:00Z",
+                payload={
+                    "title": "Runtime lexical session",
+                    "content": "searchable runtime content",
+                },
+                raw_refs=[],
+            ),
         ),
         compiled_pages=(),
     )

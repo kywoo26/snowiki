@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from .cache import (
     build_retrieval_snapshot as _build_retrieval_snapshot,
@@ -17,7 +16,6 @@ from .registry import create as create_tokenizer
 from .runtime_identity import current_runtime_retrieval_identity
 from .runtime_manifest import _validate_runtime_manifest_retrieval_identity
 from .runtime_service import RetrievalService, RetrievalSnapshot
-from .runtime_service import load_normalized_records as _load_normalized_records
 
 
 def clear_query_search_index_cache() -> None:
@@ -46,13 +44,8 @@ def build_search_index(root: Path) -> tuple[RuntimeSearchIndex, int, int]:
     )
 
 
-def load_normalized_records(root: Path) -> list[dict[str, Any]]:
-    return _load_normalized_records(root)
-
-
 __all__ = [
     "build_retrieval_snapshot",
     "build_search_index",
     "clear_query_search_index_cache",
-    "load_normalized_records",
 ]

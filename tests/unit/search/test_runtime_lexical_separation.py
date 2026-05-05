@@ -5,6 +5,8 @@ from types import SimpleNamespace
 from pytest_mock import MockerFixture
 
 from snowiki.mcp.server import SnowikiReadOnlyFacade
+from snowiki.schema.compiled import CompiledPage, PageSection, PageType
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search.engine import BM25RuntimeIndex
 from snowiki.search.models import SearchDocument
 from snowiki.search.requests import RuntimeSearchRequest
@@ -32,23 +34,50 @@ def _search_document(
     )
 
 
+def _normalized_record(
+    record_id: str = "session-1",
+    *,
+    path: str = "normalized/session-1.json",
+    title: str = "Runtime lexical record",
+    content: str = "lexical runtime path",
+    summary: str = "",
+) -> NormalizedRecord:
+    payload: dict[str, object] = {"title": title, "content": content}
+    if summary:
+        payload["summary"] = summary
+    return NormalizedRecord(
+        id=record_id,
+        path=path,
+        source_type="claude",
+        record_type="session",
+        recorded_at="2026-04-07T12:00:00Z",
+        payload=payload,
+        raw_refs=[],
+    )
+
+
+def _compiled_page(
+    slug: str = "page-1",
+    *,
+    title: str = "Runtime lexical page",
+    body: str = "page body",
+    summary: str = "",
+) -> CompiledPage:
+    return CompiledPage(
+        page_type=PageType.TOPIC,
+        slug=slug,
+        title=title,
+        created="2026-04-07T12:00:00Z",
+        updated="2026-04-08T09:00:00Z",
+        summary=summary,
+        sections=[PageSection(title="Body", body=body)],
+    )
+
+
 def test_retrieval_service_builds_primary_bm25_runtime_index() -> None:
-    records: list[dict[str, object]] = [
-        {
-            "id": "session-1",
-            "path": "normalized/session-1.json",
-            "title": "Runtime lexical record",
-            "content": "lexical runtime path",
-        }
-    ]
-    pages: list[dict[str, object]] = [
-        {
-            "id": "page-1",
-            "path": "compiled/topic/page-1.md",
-            "title": "Runtime lexical page",
-            "body": "page body",
-        }
-    ]
+    records = [_normalized_record()]
+    pages = [_compiled_page()]
+
     snapshot = RetrievalService.from_records_and_pages(records=records, pages=pages)
 
     assert isinstance(snapshot.index, BM25RuntimeIndex)
@@ -57,25 +86,36 @@ def test_retrieval_service_builds_primary_bm25_runtime_index() -> None:
     assert snapshot.pages_indexed == 1
 
 
+def test_retrieval_service_from_empty_typed_inputs_returns_empty_index() -> None:
+    records: list[NormalizedRecord] = []
+    pages: list[CompiledPage] = []
+
+    snapshot = RetrievalService.from_records_and_pages(records=records, pages=pages)
+
+    assert isinstance(snapshot.index, BM25RuntimeIndex)
+    assert snapshot.index.size == 0
+    assert snapshot.records_indexed == 0
+    assert snapshot.pages_indexed == 0
+
+
 def test_mcp_facade_uses_same_runtime_snapshot_index(
     mocker: MockerFixture,
 ) -> None:
-    session_records: list[dict[str, object]] = [
-        {
-            "id": "session-1",
-            "path": "sessions/session-1.json",
-            "title": "Session 1",
-            "content": "runtime lexical session",
-        }
+    session_records = [
+        _normalized_record(
+            path="sessions/session-1.json",
+            title="Session 1",
+            content="runtime lexical session",
+        )
     ]
-    compiled_pages: list[dict[str, object]] = [
-        {
-            "id": "page-1",
-            "path": "compiled/topics/runtime.md",
-            "title": "Runtime topic",
-            "body": "runtime page",
-        }
+    compiled_pages = [
+        _compiled_page(
+            slug="runtime",
+            title="Runtime topic",
+            body="runtime page",
+        )
     ]
+
     def search_index(query: str, limit: int = 5) -> list[object]:
         del query, limit
         return []
@@ -89,12 +129,12 @@ def test_mcp_facade_uses_same_runtime_snapshot_index(
     calls: list[dict[str, object]] = []
 
     def fake_from_records_and_pages(
-        *, records: list[dict[str, object]], pages: list[dict[str, object]]
+        *, records: list[NormalizedRecord], pages: list[CompiledPage]
     ) -> object:
         calls.append({"records": records, "pages": pages})
         return snapshot
 
-    mocker.patch(
+    _ = mocker.patch(
         "snowiki.mcp.server.RetrievalService.from_records_and_pages",
         side_effect=fake_from_records_and_pages,
     )
@@ -124,23 +164,20 @@ def test_retrieval_service_threads_explicit_tokenizer_through_runtime_indexes() 
             return text.casefold()
 
     tokenizer = RecordingTokenizer()
-    records: list[dict[str, object]] = [
-        {
-            "id": "session-1",
-            "path": "normalized/session-1.json",
-            "title": "Runtime Tokenizer",
-            "content": "alpha beta",
-            "summary": "custom runtime seam",
-        }
+    records = [
+        _normalized_record(
+            title="Runtime Tokenizer",
+            content="alpha beta",
+            summary="custom runtime seam",
+        )
     ]
-    pages: list[dict[str, object]] = [
-        {
-            "id": "page-1",
-            "path": "compiled/runtime/page-1.md",
-            "title": "Runtime Tokenizer Page",
-            "body": "alpha gamma",
-            "summary": "compiled runtime seam",
-        }
+    pages = [
+        _compiled_page(
+            slug="runtime-tokenizer-page",
+            title="Runtime Tokenizer Page",
+            body="alpha gamma",
+            summary="compiled runtime seam",
+        )
     ]
 
     snapshot = RetrievalService.from_records_and_pages(
@@ -152,7 +189,7 @@ def test_retrieval_service_threads_explicit_tokenizer_through_runtime_indexes() 
     hits = snapshot.index.search(request)
 
     assert snapshot.index.tokenizer is tokenizer
-    assert {hit.document.id for hit in hits} == {"page-1", "session-1"}
+    assert {hit.document.id for hit in hits} == {pages[0].path, "session-1"}
     assert ("tokenize", "alpha") in tokenizer.calls
     assert ("normalize", "alpha") in tokenizer.calls
 
@@ -175,12 +212,12 @@ def test_runtime_index_uses_injected_tokenizer_for_indexing_and_query_time() -> 
     tokenizer = ExactTokenizer()
     snapshot = RetrievalService.from_records_and_pages(
         records=[
-            {
-                "id": "session-special",
-                "path": "normalized/session-special.json",
-                "title": "special token",
-                "content": "special-token",
-            }
+            _normalized_record(
+                "session-special",
+                path="normalized/session-special.json",
+                title="special token",
+                content="special-token",
+            )
         ],
         pages=[],
         tokenizer=tokenizer,

@@ -58,19 +58,19 @@ def test_known_item_lookup_supports_mixed_language_queries(
     [
         (
             "mixed language retrieval 한국어 영어",
-            "compiled/wiki/search/mixed-language-overview.md",
+            "compiled/topics/mixed-language-overview.md",
         ),
         (
             "한국어와 영어 혼합 질의를 위해 session/page blended results를 제공한다",
-            "compiled/wiki/search/mixed-language-overview.md",
+            "compiled/topics/mixed-language-overview.md",
         ),
         (
             "MIXED-language retrieval!!! 한국어; English?",
-            "compiled/wiki/search/mixed-language-overview.md",
+            "compiled/topics/mixed-language-overview.md",
         ),
         (
             "benchmark coverage, query inventory, evaluation planning",
-            "compiled/wiki/benchmarks/overview.md",
+            "compiled/topics/overview.md",
         ),
     ],
 )

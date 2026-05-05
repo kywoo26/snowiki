@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import fields
 from datetime import UTC, datetime
-from typing import Any, cast
+
+import pytest
 
 from snowiki.schema.compiled import (
     CompiledPage,
@@ -10,18 +12,27 @@ from snowiki.schema.compiled import (
 )
 from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search.corpus import (
-    runtime_corpus_from_mappings,
     runtime_corpus_from_records_and_pages,
-    runtime_document_from_compiled_page,
-    runtime_document_from_normalized_mapping,
     search_document_from_compiled_page,
     search_document_from_normalized_record,
 )
 from snowiki.search.models import SearchDocument
-from snowiki.search.runtime_service import (
-    RetrievalService,
-    normalized_record_to_search_mapping,
-)
+from snowiki.search.runtime_service import RetrievalService
+
+
+def test_search_document_fields_match_typed_corpus_contract() -> None:
+    assert [field.name for field in fields(SearchDocument)] == [
+        "id",
+        "path",
+        "kind",
+        "title",
+        "content",
+        "summary",
+        "aliases",
+        "recorded_at",
+        "source_type",
+        "metadata",
+    ]
 
 
 def _normalized_record(**payload_overrides: object) -> NormalizedRecord:
@@ -97,69 +108,28 @@ def test_search_document_from_compiled_page_preserves_page_fields() -> None:
     assert document.source_type == "compiled"
     assert document.aliases == ("retrieval", "bm25")
     assert document.metadata["record_ids"] == ["session-1"]
-    assert document.content == "Overview\nSearchDocument keeps path and source_type fields."
-    assert "session-1" not in document.content
-
-
-def test_runtime_document_from_normalized_mapping_preserves_identity() -> None:
-    record = {
-        "id": "session-1",
-        "path": "sessions/2026/session-1.json",
-        "title": "한국어 retrieval session",
-        "record_type": "session",
-        "recorded_at": "2026-04-07T12:00:00Z",
-        "text": "BM25SearchIndex and 한국어 mixed retrieval work",
-        "aliases": ["BM25SearchIndex", "한국어 검색"],
-        "raw_ref": "raw/session-1.json",
-    }
-
-    document = runtime_document_from_normalized_mapping(record)
-
-    assert document == SearchDocument(
-        id="session-1",
-        path="sessions/2026/session-1.json",
-        kind="session",
-        title="한국어 retrieval session",
-        content=document.content,
-        summary="session",
-        aliases=("BM25SearchIndex", "한국어 검색"),
-        recorded_at=datetime(2026, 4, 7, 12, 0, tzinfo=UTC),
-        source_type="normalized",
-        metadata=document.metadata,
+    assert (
+        document.content
+        == "Overview\nSearchDocument keeps path and source_type fields."
     )
-    assert document.content == "BM25SearchIndex and 한국어 mixed retrieval work"
-    assert "raw/session-1.json" not in document.content
-    assert document.metadata["raw_ref"] == "raw/session-1.json"
-
-
-def test_runtime_document_from_compiled_page_preserves_page_fields() -> None:
-    page = {
-        "id": "compiled/wiki/search/runtime.md",
-        "path": "compiled/wiki/search/runtime.md",
-        "title": "Runtime retrieval architecture",
-        "summary": "BM25 runtime corpus",
-        "body": "SearchDocument keeps path and source_type fields.",
-        "tags": ["retrieval", "bm25"],
-        "updated_at": "2026-04-08T09:00:00Z",
-        "record_ids": ["session-1"],
-    }
-
-    document = runtime_document_from_compiled_page(page)
-
-    assert document.kind == "page"
-    assert document.source_type == "compiled"
-    assert document.aliases == ("retrieval", "bm25")
-    assert document.metadata["record_ids"] == ["session-1"]
-    assert document.content == "SearchDocument keeps path and source_type fields."
     assert "session-1" not in document.content
 
 
-def test_runtime_corpus_from_records_and_pages_returns_search_documents_directly() -> None:
+def test_runtime_corpus_from_records_and_pages_returns_search_documents_directly() -> (
+    None
+):
+    record = _normalized_record()
+    page = _compiled_page()
+
     corpus = runtime_corpus_from_records_and_pages(
-        records=[_normalized_record()],
-        pages=[_compiled_page()],
+        records=[record],
+        pages=[page],
     )
 
+    assert corpus == (
+        search_document_from_normalized_record(record),
+        search_document_from_compiled_page(page),
+    )
     assert len(corpus) == 2
     assert all(isinstance(document, SearchDocument) for document in corpus)
     assert [document.kind for document in corpus] == ["session", "page"]
@@ -167,53 +137,11 @@ def test_runtime_corpus_from_records_and_pages_returns_search_documents_directly
     assert corpus[1].source_type == "compiled"
 
 
-def test_runtime_corpus_returns_search_documents_directly() -> None:
-    corpus = runtime_corpus_from_mappings(
-        records=[{"id": "record-1", "path": "normalized/record-1.json"}],
-        pages=[{"id": "page-1", "path": "compiled/page-1.md"}],
-    )
+def test_runtime_corpus_from_empty_typed_inputs_returns_empty_tuple() -> None:
+    records: list[NormalizedRecord] = []
+    pages: list[CompiledPage] = []
 
-    assert len(corpus) == 2
-    assert all(isinstance(document, SearchDocument) for document in corpus)
-    assert [document.kind for document in corpus] == ["session", "page"]
-    assert corpus[0].metadata["id"] == "record-1"
-    assert corpus[1].source_type == "compiled"
-
-
-def test_runtime_corpus_search_documents_preserve_source_identity() -> None:
-    record_doc = runtime_document_from_normalized_mapping(
-        {"id": "record-1", "path": "normalized/record-1.json", "text": "hello"}
-    )
-    page_doc = runtime_document_from_compiled_page(
-        {"id": "page-1", "path": "compiled/page-1.md", "body": "world"}
-    )
-
-    assert record_doc.kind == "session"
-    assert record_doc.source_type == "normalized"
-    assert record_doc.metadata["text"] == "hello"
-    assert page_doc.kind == "page"
-    assert page_doc.source_type == "compiled"
-    assert page_doc.metadata["body"] == "world"
-
-
-def test_runtime_corpus_metadata_includes_synthesized_defaults() -> None:
-    record_doc = runtime_document_from_normalized_mapping(
-        {"id": "record-1", "path": "normalized/record-1.json"}
-    )
-    page_doc = runtime_document_from_compiled_page(
-        {"id": "page-1", "path": "compiled/page-1.md"}
-    )
-
-    assert record_doc.title == "record-1"
-    assert record_doc.summary == "normalized record"
-    assert record_doc.metadata["id"] == "record-1"
-    assert record_doc.metadata["title"] == "record-1"
-    assert record_doc.metadata["summary"] == "normalized record"
-    assert page_doc.title == "compiled/page-1.md"
-    assert page_doc.summary == "compiled wiki page"
-    assert page_doc.metadata["path"] == "compiled/page-1.md"
-    assert page_doc.metadata["title"] == "compiled/page-1.md"
-    assert page_doc.metadata["summary"] == "compiled wiki page"
+    assert runtime_corpus_from_records_and_pages(records=records, pages=pages) == ()
 
 
 def test_search_document_searchable_texts_are_ordered_and_exclude_metadata() -> None:
@@ -237,29 +165,30 @@ def test_search_document_searchable_texts_are_ordered_and_exclude_metadata() -> 
     )
 
 
-def test_normalized_record_search_mapping_uses_only_primary_body_text() -> None:
-    class _Record:
-        def __init__(self) -> None:
-            self.id = "record-1"
-            self.path = "normalized/record-1.json"
-            self.payload = {
-                "title": "Record 1",
-                "content": {"hidden": "metadata-only structure"},
-                "body": ["Paragraph 1", "Paragraph 2"],
-                "metadata": {"topic": "runtime"},
-            }
-            self.raw_refs = []
-            self.record_type = "session"
-            self.recorded_at = None
+def test_retrieval_service_rejects_dict_records() -> None:
+    with pytest.raises(TypeError, match="typed NormalizedRecord instances"):
+        RetrievalService.from_records_and_pages(
+            records=[{"id": "test"}], pages=[]  # type: ignore
+        )
 
-    mapping = normalized_record_to_search_mapping(cast(Any, _Record()))
 
-    assert mapping["content"] == ""
-    assert mapping["text"] == ""
+def test_retrieval_service_rejects_dict_pages() -> None:
+    with pytest.raises(TypeError, match="typed CompiledPage instances"):
+        RetrievalService.from_records_and_pages(
+            records=[], pages=[{"id": "test"}]  # type: ignore
+        )
+
+
+def test_retrieval_service_rejects_mixed_typed_and_dict_records() -> None:
+    record = _normalized_record()
+    with pytest.raises(TypeError, match="typed NormalizedRecord instances"):
+        RetrievalService.from_records_and_pages(
+            records=[record, {"id": "test"}], pages=[]  # type: ignore
+        )
 
 
 def test_retrieval_service_uses_direct_typed_corpus_builder(
-    monkeypatch: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[int, int]] = []
 
@@ -286,16 +215,9 @@ def test_retrieval_service_uses_direct_typed_corpus_builder(
             ),
         )
 
-    def fail_mapping_builder(**_: object) -> tuple[SearchDocument, ...]:
-        raise AssertionError("typed inputs should not use mapping corpus builder")
-
     monkeypatch.setattr(
         "snowiki.search.runtime_service.runtime_corpus_from_records_and_pages",
         fake_direct_builder,
-    )
-    monkeypatch.setattr(
-        "snowiki.search.runtime_service.runtime_corpus_from_mappings",
-        fail_mapping_builder,
     )
 
     snapshot = RetrievalService.from_records_and_pages(

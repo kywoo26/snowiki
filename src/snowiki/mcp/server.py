@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import cast
+from typing import Any, cast
 from urllib.parse import unquote, urlparse
 
-from snowiki.schema.compiled import slugify
+from snowiki.schema.compiled import CompiledPage, PageSection, PageType, slugify
+from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search import (
     known_item_lookup,
     run_authoritative_recall,
@@ -46,23 +47,190 @@ def serialize_hit(hit: SearchHit) -> MCPObject:
     }
 
 
+def _string_list(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [
+            item.strip() for item in value if isinstance(item, str) and item.strip()
+        ]
+    return []
+
+
+def _raw_refs_list(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, Iterable) or isinstance(value, (str, bytes, bytearray)):
+        return []
+    return cast(list[dict[str, Any]], list(value))
+
+
+def _current_utc_timestamp() -> str:
+    return datetime.now(tz=UTC).isoformat().replace("+00:00", "Z")
+
+
+def _mapping_extras(
+    value: Mapping[str, object], *, excluded_keys: set[str]
+) -> dict[str, Any]:
+    return {
+        str(key): extra_value
+        for key, extra_value in value.items()
+        if str(key) not in excluded_keys
+    }
+
+
+def _session_mapping(record: NormalizedRecord | MCPMapping) -> MCPObject:
+    if isinstance(record, NormalizedRecord):
+        payload = record.payload
+        title = str(payload.get("title") or record.id)
+        return {
+            "aliases": _string_list(payload.get("aliases")),
+            "content": str(payload.get("content") or payload.get("text") or ""),
+            "id": record.id,
+            "path": record.path,
+            "raw_refs": list(record.raw_refs),
+            "record_type": record.record_type,
+            "recorded_at": record.recorded_at,
+            "source_type": record.source_type,
+            "summary": str(payload.get("summary") or ""),
+            "title": title,
+        }
+    return dict(record)
+
+
+def _page_body_from_mapping(page: MCPMapping) -> str:
+    body = page.get("body") or page.get("content")
+    return str(body or "")
+
+
+def _page_mapping(page: CompiledPage | MCPMapping) -> MCPObject:
+    if isinstance(page, CompiledPage):
+        body = "\n\n".join(
+            section.body if not section.title else f"{section.title}\n{section.body}"
+            for section in page.sections
+        )
+        return {
+            "body": body,
+            "id": page.slug,
+            "path": page.path,
+            "raw_refs": list(page.raw_refs),
+            "record_ids": list(page.record_ids),
+            "related": list(page.related),
+            "summary": page.summary,
+            "tags": list(page.tags),
+            "title": page.title,
+            "updated_at": page.updated,
+        }
+    return dict(page)
+
+
+def _normalized_record_from_input(
+    record: NormalizedRecord | MCPMapping,
+) -> NormalizedRecord:
+    if isinstance(record, NormalizedRecord):
+        return record
+    title = str(record.get("title") or record.get("id") or "session")
+    content = str(record.get("content") or record.get("text") or "")
+    payload: dict[str, Any] = {
+        "aliases": _string_list(record.get("aliases")),
+        "content": content,
+        "summary": str(record.get("summary") or ""),
+        "title": title,
+    }
+    extra = _mapping_extras(
+        record,
+        excluded_keys={
+            "aliases",
+            "content",
+            "id",
+            "path",
+            "raw_refs",
+            "record_type",
+            "recorded_at",
+            "source_type",
+            "summary",
+            "text",
+            "title",
+        },
+    )
+    if extra:
+        payload["extra"] = extra
+    return NormalizedRecord(
+        id=str(record.get("id") or record.get("path") or title),
+        path=str(record.get("path") or record.get("id") or title),
+        source_type=str(record.get("source_type") or "mcp"),
+        record_type=str(record.get("record_type") or "session"),
+        recorded_at=str(record.get("recorded_at") or _current_utc_timestamp()),
+        payload=payload,
+        raw_refs=_raw_refs_list(record.get("raw_refs")),
+    )
+
+
+def _compiled_page_from_input(page: CompiledPage | MCPMapping) -> CompiledPage:
+    if isinstance(page, CompiledPage):
+        return page
+    page_path = str(page.get("path") or page.get("id") or "").strip()
+    title = str(page.get("title") or page_path or "page").strip()
+    slug = slugify(PurePosixPath(page_path).stem) if page_path else slugify(title)
+    updated_at = str(
+        page.get("updated") or page.get("updated_at") or _current_utc_timestamp()
+    )
+    return CompiledPage(
+        page_type=PageType.TOPIC,
+        slug=slug,
+        title=title,
+        created=updated_at,
+        updated=updated_at,
+        summary=str(page.get("summary") or ""),
+        related=_string_list(page.get("related")),
+        tags=_string_list(page.get("tags") or page.get("aliases")),
+        sections=[PageSection(title="Body", body=_page_body_from_mapping(page))],
+        raw_refs=_raw_refs_list(page.get("raw_refs")),
+        record_ids=_string_list(page.get("record_ids")),
+        extra_frontmatter=_mapping_extras(
+            page,
+            excluded_keys={
+                "aliases",
+                "body",
+                "content",
+                "id",
+                "path",
+                "raw_refs",
+                "record_ids",
+                "related",
+                "summary",
+                "tags",
+                "title",
+                "updated",
+                "updated_at",
+            },
+        ),
+    )
+
+
 class SnowikiReadOnlyFacade:
     """Read-only facade used by the MCP server and tools."""
 
     def __init__(
         self,
         *,
-        session_records: Sequence[MCPMapping] = (),
-        compiled_pages: Sequence[MCPMapping] = (),
+        session_records: Sequence[NormalizedRecord | MCPMapping] = (),
+        compiled_pages: Sequence[CompiledPage | MCPMapping] = (),
         reference_time: datetime | None = None,
     ) -> None:
-        self.session_records = tuple(dict(record) for record in session_records)
-        self.compiled_pages = tuple(dict(page) for page in compiled_pages)
+        typed_session_records = tuple(
+            _normalized_record_from_input(record) for record in session_records
+        )
+        typed_compiled_pages = tuple(
+            _compiled_page_from_input(page) for page in compiled_pages
+        )
+        self.session_records = tuple(
+            _session_mapping(record) for record in typed_session_records
+        )
+        self.compiled_pages = tuple(
+            _page_mapping(page) for page in typed_compiled_pages
+        )
         self.reference_time = reference_time or datetime.now(tz=UTC)
 
         snapshot = RetrievalService.from_records_and_pages(
-            records=list(self.session_records),
-            pages=list(self.compiled_pages),
+            records=list(typed_session_records),
+            pages=list(typed_compiled_pages),
         )
         self.index = snapshot.index
 
@@ -260,14 +428,19 @@ class SnowikiReadOnlyFacade:
         }
 
     def session_resource(self, session_id: str) -> MCPObject:
-        """Return a normalized session payload by id or path."""
+        """Return summary metadata for a session record by id or path."""
         key = session_id.strip().strip("/")
         if not key:
             raise KeyError("Session resource requires a session id.")
         session = self.session_by_id.get(key) or self.session_by_path.get(key)
         if session is None:
             raise KeyError(f"Unknown session resource: {session_id}")
-        return dict(session)
+        session_path = str(session.get("path") or session.get("id") or "").strip()
+        return {
+            "id": str(session.get("id") or session_path),
+            "path": session_path,
+            "title": str(session.get("title") or session_path),
+        }
 
     def page_slug(self, page: MCPMapping) -> str:
         """Build a stable slug for a compiled page mapping."""
@@ -484,8 +657,8 @@ class ReadOnlyMCPServer:
 
 def create_server(
     *,
-    session_records: Sequence[MCPMapping] = (),
-    compiled_pages: Sequence[MCPMapping] = (),
+    session_records: Sequence[NormalizedRecord | MCPMapping] = (),
+    compiled_pages: Sequence[CompiledPage | MCPMapping] = (),
     reference_time: datetime | None = None,
 ) -> ReadOnlyMCPServer:
     """Create a read-only Snowiki MCP server instance."""

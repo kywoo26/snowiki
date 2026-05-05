@@ -143,7 +143,7 @@
     },
     {
       "docid": "docs/architecture/bm25-retrieval-engine.md",
-      "text": "BM25 retrieval engine architecture. It describes RuntimeCorpusDocument, BM25SearchIndex, to_bm25_document conversion, query versus recall separation, and source_type fields used to preserve provenance."
+      "text": "BM25 retrieval engine architecture. It describes SearchDocument records and pages, BM25SearchIndex candidate generation, query versus recall separation, and source_type fields used to preserve provenance."
     },
     {
       "docid": "docs/architecture/source-vault-compiled-taxonomy.md",
@@ -163,7 +163,7 @@
     },
     {
       "docid": "src/snowiki/search/corpus.py",
-      "text": "RuntimeCorpusDocument definitions and corpus conversion helpers. The to_bm25_document path converts runtime documents into BM25 searchable documents while preserving id, path, title, kind, source_type, and content."
+      "text": "SearchDocument definitions and corpus conversion helpers. The search_document_from_normalized_record and search_document_from_compiled_page builders preserve id, path, title, kind, source_type, and content for runtime retrieval."
     },
     {
       "docid": "src/snowiki/search/workspace.py",
