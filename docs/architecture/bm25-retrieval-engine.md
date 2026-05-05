@@ -12,6 +12,10 @@ runtime contract.
 
 BM25 is the primary runtime retrieval substrate.
 
+The shipped runtime remains BM25/Kiwi lexical retrieval. Snowiki does not ship
+hybrid retrieval, vector retrieval, semantic reranking, or Reciprocal Rank
+Fusion in the current runtime.
+
 The compatibility seam is the external result contract, not an internal dual
 engine path. CLI and MCP payloads continue to expose stable result fields:
 
@@ -59,6 +63,10 @@ and tokenizer diagnostics. It does not own scoring constants, query multipliers,
 kind weights, or request routing. Those responsibilities sit in the policy and
 scoring layers above it.
 
+Phase 7 PR 1 preserved this runtime while tightening the corpus contract around
+typed-only `SearchDocument` construction. The runtime no longer keeps mapping
+compatibility builders or conversion branches alongside the active lexical path.
+
 `storage/index_manifest.py` owns the typed manifest and freshness explanation
 domain for retrieval identities. BM25 runtime code may consume those explanations,
 but it should not parse legacy manifest shapes or infer identity from cache
@@ -90,12 +98,55 @@ checks. New tokenizer behavior should flow through the shared tokenizer helpers
 and registry driven validation in `search/token_util.py`, so the stored index
 identity and the active runtime tokenizer stay aligned.
 
+## PR 1 boundaries
+
+Phase 7 PR 1 was a retrieval-contract cleanup, not a semantic retrieval launch.
+
+Completed:
+
+- canonical runtime corpus assembly now uses typed-only `SearchDocument`
+  builders
+- mapping compatibility paths were removed from the runtime retrieval seam
+- BM25/Kiwi lexical candidate generation remained the shipped baseline
+
+Deferred:
+
+- semantic or vector retrieval execution
+- ANN backend selection or embedding-model default selection
+- Reciprocal Rank Fusion runtime behavior
+- chunk-level fields added directly to `SearchDocument`
+
+Any documentation that treats PR 1 as shipped hybrid search would therefore be
+incorrect.
+
 ## Deferred work
 
 - Deterministic graph/taxonomy prefilters.
-- Optional vector recall and Reciprocal Rank Fusion.
+- Scoring and query-policy extraction that keeps lexical scoring policy cleanly
+  separable from future fusion policy.
+- Manifest and vector identity design for future embedding-backed artifacts.
+- Retrieval workspace split refinement for future lexical plus hybrid
+  orchestration.
+- Hybrid benchmark gates that must validate any future semantic or fusion lane
+  against the lexical baseline before shipping.
+- Optional vector recall and Reciprocal Rank Fusion. If RRF is introduced in a
+  future experiment, use the standard rank-based form such as `1 / (rank + k)`
+  with a documented constant choice instead of implying the behavior already
+  exists in the runtime.
 - Optional analyzer follow-ups for non-default lanes described in
   [`analyzer-promotion-gates.md`](analyzer-promotion-gates.md).
 
 Hybrid/vector search and semantic reranking remain deferred non-goals for the
 current shipped runtime.
+
+## Chunk identity guidance
+
+Future semantic or chunked retrieval work should use a QMD-style chunk identity
+pattern such as `(hash, seq, pos)` for stable chunk provenance and ordering.
+
+That guidance is intentionally design-only here:
+
+- do not add chunk or source-span fields to `SearchDocument` yet
+- do not treat chunk identity as a settled part of the shipped lexical runtime
+- do preserve a clean path for later mapping chunk evidence back to document and
+  source provenance

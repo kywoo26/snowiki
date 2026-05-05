@@ -18,6 +18,10 @@ Snowiki's retrieval stack shows up through three surfaces:
 
 The current active retrieval backbone is BM25 lexical candidate generation with deterministic result adaptation.
 
+The shipped runtime remains lexical-only. Hybrid retrieval, vector retrieval,
+semantic reranking, and Reciprocal Rank Fusion (RRF) are not active runtime
+layers today.
+
 Primary modules:
 
 - `src/snowiki/search/engine.py`
@@ -38,10 +42,17 @@ The shared retrieval seam is centered on `src/snowiki/search/workspace.py`.
 
 Its role is to:
 
-1. turn normalized records into search ready structures
-2. turn compiled pages into search ready structures
+1. turn typed normalized records into `SearchDocument` values
+2. turn typed compiled pages into `SearchDocument` values
 3. build a BM25 runtime retrieval snapshot
 4. provide the common retrieval contract used across runtime surfaces
+
+PR 1 of Phase 7 narrowed this seam to a typed-only corpus contract. Runtime
+corpus construction now flows through `search_document_from_normalized_record`,
+`search_document_from_compiled_page`, and
+`runtime_corpus_from_records_and_pages` in `src/snowiki/search/corpus.py`.
+The older mapping-compatibility path was removed instead of being carried
+forward as a second runtime contract.
 
 `RetrievalSnapshot.index` is the primary runtime search surface and implements
 `RuntimeSearchIndex` through `BM25RuntimeIndex`.
@@ -59,6 +70,10 @@ The retrieval workspace split is:
 - `src/snowiki/search/runtime_service.py`, `RetrievalService` runtime orchestration
 - `src/snowiki/search/workspace.py`, thin facade that bridges normalized data,
   compiled pages, cache state, and runtime snapshot construction
+
+This means the current runtime no longer maintains a parallel dict or mapping
+corpus builder inside the retrieval path. Typed schema objects are the only
+supported inputs for runtime corpus assembly.
 
 Legacy on-disk manifest shapes remain supported only through the compatibility
 parser boundary in `storage/index_manifest.py`. `parse_index_manifest` and
@@ -150,6 +165,65 @@ These remain extension seams, not active runtime layers.
 - `src/snowiki/search/rerank.py`
 
 Hybrid/vector search and semantic reranking are deferred non-goals for the current runtime. See `bm25-retrieval-engine.md` for the deferred work list.
+
+## Phase 7 PR 1 boundaries
+
+Phase 7 PR 1 completed the contract cleanup required before any future
+hybrid-search work can be evaluated safely.
+
+Done in PR 1:
+
+- runtime corpus construction is typed-only and produces `SearchDocument`
+  directly
+- mapping compatibility paths were deleted from the runtime retrieval seam
+- ghost terminology from the old dual-contract model was removed from the
+  active runtime description
+- BM25 with the Kiwi lexical analyzer remained the shipped runtime baseline
+
+Not done in PR 1:
+
+- no semantic retrieval implementation
+- no vector index, embedding pipeline, or ANN backend commitment
+- no Reciprocal Rank Fusion runtime layer
+- no chunk fields or vector identity fields added to `SearchDocument`
+
+PR 1 should therefore be read as a boundary-cleanup change, not as a shipped
+hybrid retrieval milestone.
+
+## Hybrid-readiness roadmap
+
+The next architecture steps remain explicitly deferred until follow-up PRs:
+
+1. scoring and query-policy extraction so lexical ranking policy stays
+   isolated from any later fusion policy
+2. manifest and vector identity design so vector artifacts can be tracked
+   without weakening the current typed manifest contract
+3. retrieval workspace split refinement so corpus assembly, runtime search,
+   and future hybrid orchestration can evolve independently
+4. hybrid benchmark gates so any semantic or fusion experiment must earn its
+   place against the lexical baseline before it can ship
+
+None of those roadmap items change the current runtime claim: the shipped
+engine is BM25/Kiwi lexical retrieval.
+
+## Chunk And Source-Span Guidance
+
+Future chunked or semantic retrieval work should follow the QMD-style identity
+pattern of `(hash, seq, pos)` for chunk provenance and ordering.
+
+The important current constraint is architectural, not schema-driven:
+
+- keep `SearchDocument` as the current lexical runtime contract
+- treat chunk identity and source-span metadata as a future companion layer,
+  not as fields to add prematurely to `SearchDocument`
+- preserve the ability to map chunk-level evidence back to stable document and
+  source identities without making the lexical runtime depend on chunk-aware
+  storage today
+
+If chunk retrieval is introduced later, source-span design should preserve
+stable document provenance first and treat chunk coordinates as an additional
+indexing identity rather than as a replacement for the current document-level
+contract.
 
 ## Main current risk
 
