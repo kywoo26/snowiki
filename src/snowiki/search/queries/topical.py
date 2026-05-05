@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 from ..models import SearchHit
 from ..protocols import RuntimeSearchIndex
@@ -42,12 +42,9 @@ def topical_recall(
     *,
     limit: int = 10,
     blend_kinds: bool = True,
-    rerank_hits: Callable[[str, list[SearchHit]], list[SearchHit]] | None = None,
 ) -> list[SearchHit]:
     hits = _search_topical_candidates(index, query, limit=limit)
     ranked = list(hits)
-    if rerank_hits is not None:
-        ranked = rerank_hits(query, ranked)
     if blend_kinds and TOPICAL_POLICY.use_kind_blending:
         ranked = blend_hits_by_kind(ranked, limit=limit)
     return ranked[:limit]

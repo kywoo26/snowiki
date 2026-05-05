@@ -111,7 +111,7 @@ Boundary responsibilities:
 | Layer | Module | Responsibility |
 | :--- | :--- | :--- |
 | Intent policy | `src/snowiki/search/queries/policies.py` | Named presets (`KNOWN_ITEM_POLICY`, `TOPICAL_POLICY`, `TEMPORAL_POLICY`), candidate-limit expansion, kind-weight defaults, exact-path bias, blending flags. |
-| Request object | `src/snowiki/search/requests.py` | Frozen `RuntimeSearchRequest` with `query`, `candidate_limit`, temporal filters, `exact_path_bias`, `kind_weights`, and optional `scoring_policy`. |
+| Request object | `src/snowiki/search/requests.py` | Frozen `RuntimeSearchRequest` with `query`, `candidate_limit`, temporal filters, `exact_path_bias`, and `kind_weights`. |
 | Protocol | `src/snowiki/search/protocols.py` | `RuntimeSearchIndex` exposes `size` and `search(request: RuntimeSearchRequest) -> Sequence[SearchHit]`. |
 | Raw candidate generation | `src/snowiki/search/bm25_index.py` | Policy-free BM25 candidate retrieval. No scoring constants, multipliers, or blending logic lives here. |
 | Runtime scoring | `src/snowiki/search/scoring.py` | `HitScorer.rank_candidates()` owns matched-term derivation, zero-score rejection, exact-path/token boosts, kind-weight multiplication, recency tie-break, and deterministic sort key. |
@@ -171,13 +171,14 @@ These are strategy layers over the same BM25 runtime search substrate, not separ
 
 These remain extension seams, not active runtime layers.
 
-- `src/snowiki/search/semantic_abstraction.py`
-- `src/snowiki/search/rerank.py`
+- `src/snowiki/search/rerank.py` (deterministic hit blending only; placeholder
+  reranker protocols were removed in PR2)
 
 The active runtime no longer carries placeholder semantic APIs such as
-`semantic_backend`, `NoOpReranker`, or a `Reranker` protocol. Phase 7 PR3 and
-PR4 are the boundary for redesigning semantic and hybrid retrieval after the
-current lexical consolidation lands.
+`semantic_backend`, `NoOpReranker`, or a `Reranker` protocol. The deferred
+`semantic_abstraction.py` module was removed in PR2. Phase 7 PR3 and PR4 are
+the boundary for redesigning semantic and hybrid retrieval after the current
+lexical consolidation lands.
 
 Hybrid/vector search and semantic reranking are deferred non-goals for the
 current runtime. See `bm25-retrieval-engine.md` for the deferred work list.

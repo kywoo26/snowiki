@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 from ..models import SearchHit
 from ..protocols import RuntimeSearchIndex
@@ -13,7 +13,6 @@ def known_item_lookup(
     query: str,
     *,
     limit: int = 10,
-    rerank_hits: Callable[[str, list[SearchHit]], list[SearchHit]] | None = None,
 ) -> list[SearchHit]:
     request = RuntimeSearchRequest(
         query=query,
@@ -22,7 +21,4 @@ def known_item_lookup(
         kind_weights=KNOWN_ITEM_POLICY.kind_weights,
     )
     hits: Sequence[SearchHit] = index.search(request)
-    ranked = list(hits)
-    if rerank_hits is not None:
-        ranked = rerank_hits(query, ranked)
-    return ranked[:limit]
+    return list(hits)[:limit]

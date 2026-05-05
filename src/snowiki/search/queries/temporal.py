@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
@@ -44,7 +43,6 @@ def temporal_recall(
     *,
     limit: int = 10,
     reference_time: datetime | None = None,
-    rerank_hits: Callable[[str, list[SearchHit]], list[SearchHit]] | None = None,
 ) -> list[SearchHit]:
     reference_time = reference_time or datetime.now(tz=UTC)
     window = _detect_temporal_window(query, reference_time=reference_time)
@@ -57,7 +55,4 @@ def temporal_recall(
         kind_weights=TEMPORAL_POLICY.kind_weights,
     )
     hits = index.search(request)
-    ranked = list(hits)
-    if rerank_hits is not None:
-        ranked = rerank_hits(query, ranked)
-    return ranked[:limit]
+    return list(hits)[:limit]
