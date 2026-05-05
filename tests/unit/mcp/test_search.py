@@ -10,6 +10,7 @@ from snowiki.mcp.server import SnowikiReadOnlyFacade
 from snowiki.schema.compiled import CompiledPage, PageSection, PageType
 from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search.models import SearchDocument, SearchHit
+from snowiki.search.queries.topical import execute_topical_search
 from snowiki.search.requests import RuntimeSearchRequest
 
 
@@ -194,10 +195,10 @@ def test_stdio_smoke_search_recall_and_resource_reads_match_core(
     )
     expected_search_paths = [
         hit.document.path
-        for hit in runtime_snapshot.index.search(
-            RuntimeSearchRequest(
-                query="basic Claude fixture 위치 알려줘.", candidate_limit=3
-            )
+        for hit in search.execute_topical_search(
+            runtime_snapshot.index,
+            "basic Claude fixture 위치 알려줘.",
+            limit=3,
         )
     ]
     returned_search_paths = [
@@ -349,7 +350,7 @@ def test_stdio_bridge_without_injected_project_data_stays_read_only_but_empty() 
     }
 
 
-def test_mcp_search_preserves_empty_zero_term_and_no_match_output_shape() -> None:
+def test_mcp_search_preserves_canonical_topical_empty_and_no_match_output_shape() -> None:
     facade = SnowikiReadOnlyFacade(
         session_records=(
             NormalizedRecord(
@@ -379,6 +380,49 @@ def test_mcp_search_preserves_empty_zero_term_and_no_match_output_shape() -> Non
         "limit": 2,
         "query": "missing",
     }
+
+
+def test_mcp_search_matches_canonical_topical_order_by_id_path_and_kind() -> None:
+    facade = SnowikiReadOnlyFacade(
+        session_records=(
+            NormalizedRecord(
+                id="session-runtime",
+                path="normalized/session-runtime.json",
+                source_type="claude",
+                record_type="session",
+                recorded_at="2026-04-08T12:00:00Z",
+                payload={
+                    "title": "Runtime lexical session",
+                    "content": "needle alpha retrieval session",
+                },
+                raw_refs=[],
+            ),
+        ),
+        compiled_pages=(
+            CompiledPage(
+                page_type=PageType.TOPIC,
+                slug="runtime-lexical-page",
+                title="Runtime lexical page",
+                created="2026-04-08T12:00:00Z",
+                updated="2026-04-08T12:00:00Z",
+                summary="needle alpha retrieval page",
+                related=[],
+                sections=[PageSection(title="Overview", body="needle alpha retrieval")],
+            ),
+        ),
+    )
+
+    expected = [
+        (hit.document.id, hit.document.path, hit.document.kind)
+        for hit in execute_topical_search(facade.index, "needle alpha", limit=10)
+    ]
+    result = facade.search("needle alpha", limit=10)
+    returned_hits = cast(list[dict[str, object]], result["hits"])
+
+    assert [
+        (hit["id"], hit["path"], hit["kind"]) for hit in returned_hits
+    ] == expected
+    assert result["limit"] == 10
 
 
 def test_mcp_recall_auto_prefers_known_item_and_reports_cli_strategy(
@@ -497,7 +541,7 @@ def test_mcp_recall_auto_routes_iso_dates_to_date_strategy() -> None:
     assert call_log[0]["candidate_limit"] == 6
 
 
-def test_mcp_search_stays_direct_and_does_not_apply_recall_auto_routing(
+def test_mcp_search_uses_canonical_topical_executor_without_recall_auto_routing(
     monkeypatch: Any,
 ) -> None:
     facade = cast(Any, SnowikiReadOnlyFacade())
@@ -523,19 +567,22 @@ def test_mcp_search_stays_direct_and_does_not_apply_recall_auto_routing(
         raise AssertionError("MCP search should remain a direct search tool")
 
     def fail_topical_recall(*_args: object, **_kwargs: object) -> list[SearchHit]:
-        raise AssertionError("MCP search should not reuse topic recall")
+        raise AssertionError("MCP search should not route through recall helpers")
 
-    class FakeIndex:
-        def search(self, request: RuntimeSearchRequest) -> list[SearchHit]:
-            call_log.append(
-                {"query": request.query, "candidate_limit": request.candidate_limit}
-            )
-            return [hit]
+    def fake_execute_topical_search(
+        index: object, query: str, limit: int = 5
+    ) -> list[SearchHit]:
+        call_log.append({"index": index, "query": query, "limit": limit})
+        return [hit]
 
-    facade.index = FakeIndex()
+    runtime_index = object()
+    facade.index = runtime_index
     monkeypatch.setattr("snowiki.mcp.server.known_item_lookup", fail_known_item_lookup)
     monkeypatch.setattr("snowiki.mcp.server.temporal_recall", fail_temporal_recall)
     monkeypatch.setattr("snowiki.mcp.server.topical_recall", fail_topical_recall)
+    monkeypatch.setattr(
+        "snowiki.mcp.server.execute_topical_search", fake_execute_topical_search
+    )
 
     result = facade.search("yesterday", limit=3)
 
@@ -557,4 +604,4 @@ def test_mcp_search_stays_direct_and_does_not_apply_recall_auto_routing(
         "limit": 3,
         "query": "yesterday",
     }
-    assert call_log == [{"query": "yesterday", "candidate_limit": 3}]
+    assert call_log == [{"index": runtime_index, "query": "yesterday", "limit": 3}]

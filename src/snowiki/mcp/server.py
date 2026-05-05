@@ -11,6 +11,7 @@ from urllib.parse import unquote, urlparse
 from snowiki.schema.compiled import CompiledPage, PageSection, PageType, slugify
 from snowiki.schema.normalized import NormalizedRecord
 from snowiki.search import (
+    execute_topical_search,
     known_item_lookup,
     run_authoritative_recall,
     temporal_recall,
@@ -18,7 +19,6 @@ from snowiki.search import (
 )
 from snowiki.search.contract import RecallMode
 from snowiki.search.models import SearchHit
-from snowiki.search.requests import RuntimeSearchRequest
 from snowiki.search.runtime_service import RetrievalService
 
 from .types import MCPMapping, MCPObject, ResourceSpec
@@ -260,9 +260,7 @@ class SnowikiReadOnlyFacade:
 
     def search(self, query: str, *, limit: int = 5) -> MCPObject:
         """Search normalized sessions and compiled pages."""
-        hits = self.index.search(
-            RuntimeSearchRequest(query=query, candidate_limit=limit)
-        )
+        hits = execute_topical_search(self.index, query, limit=limit)
         return {
             "hits": [serialize_hit(hit) for hit in hits],
             "limit": limit,

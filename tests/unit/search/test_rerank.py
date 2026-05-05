@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from snowiki.search.models import SearchDocument, SearchHit
-from snowiki.search.rerank import NoOpReranker, blend_hits_by_kind
+from snowiki.search.rerank import blend_hits_by_kind
 
 
 def _hit(document_id: str, *, kind: str, score: float = 1.0) -> SearchHit:
@@ -16,15 +16,6 @@ def _hit(document_id: str, *, kind: str, score: float = 1.0) -> SearchHit:
         score=score,
         matched_terms=(document_id,),
     )
-
-
-def test_noop_reranker_preserves_hit_order_and_identity() -> None:
-    hits = [_hit("first", kind="page"), _hit("second", kind="session")]
-
-    reranked = NoOpReranker().rerank("query", hits)
-
-    assert reranked is hits
-    assert [hit.document.id for hit in reranked] == ["first", "second"]
 
 
 def test_blend_hits_by_kind_round_robins_sorted_kinds() -> None:

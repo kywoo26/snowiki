@@ -1,19 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import Protocol
 
 from .models import SearchHit
-
-
-class Reranker(Protocol):
-    def rerank(self, query: str, hits: list[SearchHit]) -> list[SearchHit]: ...
-
-
-class NoOpReranker:
-    def rerank(self, query: str, hits: list[SearchHit]) -> list[SearchHit]:
-        del query
-        return hits
 
 
 def blend_hits_by_kind(hits: list[SearchHit], *, limit: int) -> list[SearchHit]:

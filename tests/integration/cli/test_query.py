@@ -13,7 +13,7 @@ from tests.helpers.markdown_ingest import ingest_markdown_fixture
 from snowiki.cli.main import app
 from snowiki.rebuild.integrity import run_rebuild_with_integrity
 from snowiki.search.models import SearchDocument, SearchHit
-from snowiki.search.queries import run_query, run_recall
+from snowiki.search.queries import execute_topical_search, run_query, run_recall
 from snowiki.search.requests import RuntimeSearchRequest
 from snowiki.search.workspace import (
     build_retrieval_snapshot,
@@ -54,7 +54,6 @@ def test_query_returns_hits_after_cold_start_ingest(
     assert payload["command"] == "query"
     assert payload["result"]["query"] == "claude-basic"
     assert payload["result"]["mode"] == "lexical"
-    assert payload["result"]["semantic_backend"] is None
     assert payload["result"]["hits"]
     assert any(
         "claude-basic" in hit["path"] or "claude-basic" in hit["id"]
@@ -346,7 +345,7 @@ def test_run_recall_routes_iso_dates_to_date_window_search(
     assert call_log[1]["limit"] == 30
 
 
-def test_query_lexical_mode_uses_topical_recall(
+def test_query_lexical_mode_uses_canonical_topical_executor(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     runner = CliRunner()
@@ -370,11 +369,16 @@ def test_query_lexical_mode_uses_topical_recall(
         call_log.append({"fn": "build_retrieval_snapshot", "root": root})
         return SimpleNamespace(index=runtime_index, records_indexed=7, pages_indexed=4)
 
-    def fake_topical_recall(
-        index: object, query: str, *, limit: int
+    def fake_execute_topical_search(
+        index: object, query: str, limit: int = 5
     ) -> list[SearchHit]:
         call_log.append(
-            {"fn": "topical_recall", "index": index, "query": query, "limit": limit}
+            {
+                "fn": "execute_topical_search",
+                "index": index,
+                "query": query,
+                "limit": limit,
+            }
         )
         return [hit]
 
@@ -383,7 +387,8 @@ def test_query_lexical_mode_uses_topical_recall(
         fake_build_retrieval_snapshot,
     )
     monkeypatch.setattr(
-        "snowiki.search.queries.runtime.topical_recall", fake_topical_recall
+        "snowiki.search.queries.runtime.execute_topical_search",
+        fake_execute_topical_search,
     )
 
     result = runner.invoke(
@@ -409,7 +414,6 @@ def test_query_lexical_mode_uses_topical_recall(
         "result": {
             "query": "lexical query",
             "mode": "lexical",
-            "semantic_backend": None,
             "records_indexed": 7,
             "pages_indexed": 4,
             "hits": [
@@ -429,12 +433,47 @@ def test_query_lexical_mode_uses_topical_recall(
     assert call_log == [
         {"fn": "build_retrieval_snapshot", "root": tmp_path},
         {
-            "fn": "topical_recall",
+            "fn": "execute_topical_search",
             "index": runtime_index,
             "query": "lexical query",
             "limit": 2,
         },
     ]
+
+
+def test_query_json_matches_canonical_topical_order_by_id_path_and_kind(
+    tmp_path: Path,
+) -> None:
+    runner = CliRunner()
+    _ = ingest_markdown_fixture(tmp_path, name="basic", title="claude-basic")
+    snapshot = build_retrieval_snapshot(tmp_path)
+    expected = [
+        (hit.document.id, hit.document.path, hit.document.kind)
+        for hit in execute_topical_search(snapshot.index, "claude basic", limit=20)
+    ]
+
+    result = runner.invoke(
+        app,
+        [
+            "query",
+            "claude basic",
+            "--mode",
+            "lexical",
+            "--top-k",
+            "20",
+            "--output",
+            "json",
+        ],
+        env={"SNOWIKI_ROOT": str(tmp_path)},
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is True
+    returned_hits = cast(list[dict[str, object]], payload["result"]["hits"])
+    assert [
+        (hit["id"], hit["path"], hit["kind"]) for hit in returned_hits
+    ] == expected
 
 
 def test_query_cache_invalidates_after_ingest(tmp_path: Path) -> None:
@@ -594,7 +633,7 @@ def test_query_cache_invalidates_when_content_changes_without_mtime_change(
     assert build_log == [1, 2]
 
 
-def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexes(
+def test_run_query_uses_runtime_snapshot_and_canonical_topical_executor_not_benchmark_indexes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     call_log: list[dict[str, object]] = []
@@ -617,12 +656,12 @@ def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexe
         call_log.append({"fn": "build_retrieval_snapshot", "root": root})
         return snapshot
 
-    def fake_topical_recall(
-        index: object, query: str, *, limit: int
+    def fake_execute_topical_search(
+        index: object, query: str, limit: int = 5
     ) -> list[SearchHit]:
         call_log.append(
             {
-                "fn": "topical_recall",
+                "fn": "execute_topical_search",
                 "index": index,
                 "query": query,
                 "limit": limit,
@@ -638,8 +677,8 @@ def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexe
         fake_build_retrieval_snapshot,
     )
     monkeypatch.setattr(
-        "snowiki.search.queries.runtime.topical_recall",
-        fake_topical_recall,
+        "snowiki.search.queries.runtime.execute_topical_search",
+        fake_execute_topical_search,
     )
     monkeypatch.setattr("snowiki.search.bm25_index.BM25SearchIndex", fail_bm25)
 
@@ -648,7 +687,6 @@ def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexe
     assert result == {
         "query": "runtime lexical",
         "mode": "lexical",
-        "semantic_backend": None,
         "records_indexed": 3,
         "pages_indexed": 2,
         "hits": [
@@ -667,7 +705,7 @@ def test_run_query_uses_runtime_snapshot_and_topical_recall_not_benchmark_indexe
     assert call_log == [
         {"fn": "build_retrieval_snapshot", "root": tmp_path},
         {
-            "fn": "topical_recall",
+            "fn": "execute_topical_search",
             "index": runtime_index,
             "query": "runtime lexical",
             "limit": 4,

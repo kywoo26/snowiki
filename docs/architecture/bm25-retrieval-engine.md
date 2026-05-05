@@ -33,16 +33,17 @@ engine path. CLI and MCP payloads continue to expose stable result fields:
 ```text
 CLI / MCP / benchmark
   -> query and recall orchestration
-  -> query intent policy (SearchIntentPolicy preset)
+  -> canonical topical executor (execute_topical_search)
+    -> query intent policy (SearchIntentPolicy preset)
     -> RuntimeSearchRequest
-      -> RuntimeSearchIndex.search(request)
+      -> RuntimeSearchIndex.size + search(request)
         -> BM25RuntimeIndex
           -> SearchDocument records/pages
           -> BM25SearchIndex candidate generation (policy-free raw BM25)
-          -> RuntimeScoringPolicy (numeric scoring / ranking)
-          -> SearchHit / SearchDocument result adapter
-      -> optional post-scoring blend (topical policy, blend_hits_by_kind)
-      -> final truncation to user-facing limit
+          -> HitScorer.rank_candidates()
+          -> SearchHit result adapter
+    -> optional post-scoring blend (topical policy)
+    -> final truncation to user-facing limit
   -> serializer (CLI JSON / MCP payload / benchmark hit)
 ```
 
@@ -60,8 +61,20 @@ The active implementation lives in:
 
 `BM25SearchIndex` is the raw backend. It handles persistence, cache artifacts,
 and tokenizer diagnostics. It does not own scoring constants, query multipliers,
-kind weights, or request routing. Those responsibilities sit in the policy and
-scoring layers above it.
+kind weights, request routing, or any semantic fallback policy. Those
+responsibilities sit in the policy and scoring layers above it.
+
+`BM25RuntimeIndex` is the lexical runtime adapter. It keeps the protocol surface
+minimal, forwards raw BM25 candidates into `HitScorer.rank_candidates()`, and
+returns scored hits with deterministic ordering.
+
+`RuntimeSearchIndex` exposes only `size` and `search(request)`. The tokenizer is
+still available as a concrete backend diagnostic on `BM25SearchIndex`, but it is
+not part of the runtime protocol.
+
+The canonical topical lexical executor, `execute_topical_search()`, is shared by
+CLI query, read-only MCP search, and the benchmark runtime so request assembly,
+blending, and truncation stay aligned.
 
 Phase 7 PR 1 preserved this runtime while tightening the corpus contract around
 typed-only `SearchDocument` construction. The runtime no longer keeps mapping
@@ -85,6 +98,11 @@ Both use BM25 for candidate generation, while recall keeps first-class routing
 for date, temporal, known-item, and topical strategies. All strategies now
 construct a `RuntimeSearchRequest` through a `SearchIntentPolicy` preset before
 calling the runtime index.
+
+Topical query execution is centralized in `execute_topical_search()`, which is
+the shared executor for CLI, MCP, and benchmark entry points. That executor owns
+the request shape and final user-facing limit, while the backend stays policy
+free.
 
 ## Analyzer status
 
@@ -115,6 +133,8 @@ Deferred:
 - ANN backend selection or embedding-model default selection
 - Reciprocal Rank Fusion runtime behavior
 - chunk-level fields added directly to `SearchDocument`
+- the removed placeholder APIs, including `semantic_backend`, `NoOpReranker`,
+  and the `Reranker` protocol
 
 Any documentation that treats PR 1 as shipped hybrid search would therefore be
 incorrect.
@@ -129,15 +149,17 @@ incorrect.
   orchestration.
 - Hybrid benchmark gates that must validate any future semantic or fusion lane
   against the lexical baseline before shipping.
-- Optional vector recall and Reciprocal Rank Fusion. If RRF is introduced in a
-  future experiment, use the standard rank-based form such as `1 / (rank + k)`
-  with a documented constant choice instead of implying the behavior already
-  exists in the runtime.
 - Optional analyzer follow-ups for non-default lanes described in
   [`analyzer-promotion-gates.md`](analyzer-promotion-gates.md).
 
 Hybrid/vector search and semantic reranking remain deferred non-goals for the
-current shipped runtime.
+current shipped runtime. Phase 7 PR3 and PR4 are the redesign boundary for any
+future semantic or hybrid runtime, so no placeholder API should be treated as
+shipped today.
+
+Ordered top-N outputs are preserved, but exact score float values are not a
+stability promise. Deterministic tie-breaking follows score descending, then
+recency, then path, then id.
 
 ## Chunk identity guidance
 

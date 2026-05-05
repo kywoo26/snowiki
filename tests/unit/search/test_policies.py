@@ -96,3 +96,15 @@ def test_policy_presets_are_immutable_named_constants() -> None:
         setattr(KNOWN_ITEM_POLICY, "exact_path_bias", False)  # noqa: B010
     with pytest.raises(TypeError):
         cast(MutableMapping[str, float], KNOWN_ITEM_POLICY.kind_weights)["session"] = 1.0
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [KNOWN_ITEM_POLICY, TOPICAL_POLICY, TEMPORAL_POLICY, DATE_POLICY],
+)
+def test_policy_presets_do_not_expose_legacy_semantic_or_reranker_fields(
+    policy: SearchIntentPolicy,
+) -> None:
+    assert not hasattr(policy, "semantic_backend")
+    assert not hasattr(policy, "reranker")
+    assert not hasattr(policy, "use_reranker")

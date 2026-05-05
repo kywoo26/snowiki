@@ -9,7 +9,6 @@ import pytest
 
 from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.requests import RuntimeSearchRequest
-from snowiki.search.scoring import RuntimeScoringPolicy
 
 
 def _call_with_legacy_keywords(call: Any) -> None:
@@ -49,7 +48,6 @@ def test_runtime_search_request_has_expected_fields_and_defaults() -> None:
     assert request.recorded_before is None
     assert request.exact_path_bias is False
     assert request.kind_weights is None
-    assert request.scoring_policy is None
 
 
 def test_runtime_search_request_is_immutable_after_construction() -> None:
@@ -70,8 +68,7 @@ def test_runtime_search_request_rejects_negative_candidate_limit() -> None:
         RuntimeSearchRequest(query="snowiki", candidate_limit=-1)
 
 
-def test_runtime_search_request_carries_filter_bias_weight_and_policy_fields() -> None:
-    scoring_policy = RuntimeScoringPolicy()
+def test_runtime_search_request_carries_filter_bias_and_weight_fields() -> None:
     recorded_after = datetime(2026, 4, 1, tzinfo=UTC)
     recorded_before = datetime(2026, 4, 30, tzinfo=UTC)
 
@@ -82,7 +79,6 @@ def test_runtime_search_request_carries_filter_bias_weight_and_policy_fields() -
         recorded_before=recorded_before,
         exact_path_bias=True,
         kind_weights={"session": 1.15, "page": 0.85},
-        scoring_policy=scoring_policy,
     )
 
     assert request.query == "runtime contract"
@@ -91,7 +87,6 @@ def test_runtime_search_request_carries_filter_bias_weight_and_policy_fields() -
     assert request.recorded_before == recorded_before
     assert request.exact_path_bias is True
     assert request.kind_weights == {"session": 1.15, "page": 0.85}
-    assert request.scoring_policy is scoring_policy
 
 
 def test_runtime_search_index_accepts_request_and_returns_sequence_of_hits() -> None:
