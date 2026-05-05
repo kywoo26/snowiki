@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+from dataclasses import fields
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import cast
+
+import pytest
 
 from snowiki.schema.compiled import (
     CompiledPage,
@@ -22,6 +26,21 @@ from snowiki.search.runtime_service import (
     RetrievalService,
     normalized_record_to_search_mapping,
 )
+
+
+def test_search_document_fields_match_typed_corpus_contract() -> None:
+    assert [field.name for field in fields(SearchDocument)] == [
+        "id",
+        "path",
+        "kind",
+        "title",
+        "content",
+        "summary",
+        "aliases",
+        "recorded_at",
+        "source_type",
+        "metadata",
+    ]
 
 
 def _normalized_record(**payload_overrides: object) -> NormalizedRecord:
@@ -155,16 +174,48 @@ def test_runtime_document_from_compiled_page_preserves_page_fields() -> None:
 
 
 def test_runtime_corpus_from_records_and_pages_returns_search_documents_directly() -> None:
+    record = _normalized_record()
+    page = _compiled_page()
+
     corpus = runtime_corpus_from_records_and_pages(
-        records=[_normalized_record()],
-        pages=[_compiled_page()],
+        records=[record],
+        pages=[page],
     )
 
+    assert corpus == (
+        search_document_from_normalized_record(record),
+        search_document_from_compiled_page(page),
+    )
     assert len(corpus) == 2
     assert all(isinstance(document, SearchDocument) for document in corpus)
     assert [document.kind for document in corpus] == ["session", "page"]
     assert corpus[0].metadata["id"] == "session-1"
     assert corpus[1].source_type == "compiled"
+
+
+def test_runtime_corpus_from_empty_typed_inputs_returns_empty_tuple() -> None:
+    records: list[NormalizedRecord] = []
+    pages: list[CompiledPage] = []
+
+    assert runtime_corpus_from_records_and_pages(records=records, pages=pages) == ()
+
+
+@pytest.mark.parametrize(
+    ("records", "pages"),
+    [
+        ([{"id": "record-1", "path": "normalized/record-1.json"}], []),
+        ([], [{"id": "page-1", "path": "compiled/page-1.md"}]),
+    ],
+)
+def test_runtime_corpus_from_records_and_pages_rejects_mapping_inputs(
+    records: list[object],
+    pages: list[object],
+) -> None:
+    with pytest.raises(TypeError):
+        _ = runtime_corpus_from_records_and_pages(
+            records=cast(Iterable[NormalizedRecord], records),
+            pages=cast(Iterable[CompiledPage], pages),
+        )
 
 
 def test_runtime_corpus_returns_search_documents_directly() -> None:
@@ -252,14 +303,16 @@ def test_normalized_record_search_mapping_uses_only_primary_body_text() -> None:
             self.record_type = "session"
             self.recorded_at = None
 
-    mapping = normalized_record_to_search_mapping(cast(Any, _Record()))
+    mapping = normalized_record_to_search_mapping(
+        cast(NormalizedRecord, cast(object, _Record()))
+    )
 
     assert mapping["content"] == ""
     assert mapping["text"] == ""
 
 
 def test_retrieval_service_uses_direct_typed_corpus_builder(
-    monkeypatch: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[tuple[int, int]] = []
 
