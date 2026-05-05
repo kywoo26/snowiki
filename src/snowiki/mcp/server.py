@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import Any, cast
@@ -53,6 +53,12 @@ def _string_list(value: object) -> list[str]:
             item.strip() for item in value if isinstance(item, str) and item.strip()
         ]
     return []
+
+
+def _raw_refs_list(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, Iterable) or isinstance(value, (str, bytes, bytearray)):
+        return []
+    return cast(list[dict[str, Any]], list(value))
 
 
 def _session_mapping(record: NormalizedRecord | MCPMapping) -> MCPObject:
@@ -119,7 +125,7 @@ def _normalized_record_from_input(
             "summary": str(record.get("summary") or ""),
             "title": title,
         },
-        raw_refs=cast(list[dict[str, Any]], list(record.get("raw_refs") or [])),
+        raw_refs=_raw_refs_list(record.get("raw_refs")),
     )
 
 
@@ -142,7 +148,7 @@ def _compiled_page_from_input(page: CompiledPage | MCPMapping) -> CompiledPage:
         related=_string_list(page.get("related")),
         tags=_string_list(page.get("tags") or page.get("aliases")),
         sections=[PageSection(title="Body", body=_page_body_from_mapping(page))],
-        raw_refs=cast(list[dict[str, Any]], list(page.get("raw_refs") or [])),
+        raw_refs=_raw_refs_list(page.get("raw_refs")),
         record_ids=_string_list(page.get("record_ids")),
     )
 
@@ -593,8 +599,8 @@ class ReadOnlyMCPServer:
 
 def create_server(
     *,
-    session_records: Sequence[MCPMapping] = (),
-    compiled_pages: Sequence[MCPMapping] = (),
+    session_records: Sequence[NormalizedRecord | MCPMapping] = (),
+    compiled_pages: Sequence[CompiledPage | MCPMapping] = (),
     reference_time: datetime | None = None,
 ) -> ReadOnlyMCPServer:
     """Create a read-only Snowiki MCP server instance."""
