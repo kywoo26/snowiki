@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import cast
 
-import pytest
 from pytest_mock import MockerFixture
 
 from snowiki.mcp.server import SnowikiReadOnlyFacade
@@ -100,44 +98,22 @@ def test_retrieval_service_from_empty_typed_inputs_returns_empty_index() -> None
     assert snapshot.pages_indexed == 0
 
 
-@pytest.mark.parametrize(
-    ("records", "pages"),
-    [
-        ([{"id": "session-1", "path": "normalized/session-1.json"}], []),
-        ([], [{"id": "page-1", "path": "compiled/page-1.md"}]),
-        ([{"id": "session-1", "path": "normalized/session-1.json"}], [_compiled_page()]),
-        ([_normalized_record()], [{"id": "page-1", "path": "compiled/page-1.md"}]),
-    ],
-)
-def test_retrieval_service_from_records_and_pages_rejects_mapping_inputs(
-    records: list[object],
-    pages: list[object],
-) -> None:
-    with pytest.raises(TypeError):
-        _ = RetrievalService.from_records_and_pages(
-            records=cast(list[NormalizedRecord], records),
-            pages=cast(list[CompiledPage], pages),
-        )
-
-
 def test_mcp_facade_uses_same_runtime_snapshot_index(
     mocker: MockerFixture,
 ) -> None:
-    session_records: list[dict[str, object]] = [
-        {
-            "id": "session-1",
-            "path": "sessions/session-1.json",
-            "title": "Session 1",
-            "content": "runtime lexical session",
-        }
+    session_records = [
+        _normalized_record(
+            path="sessions/session-1.json",
+            title="Session 1",
+            content="runtime lexical session",
+        )
     ]
-    compiled_pages: list[dict[str, object]] = [
-        {
-            "id": "page-1",
-            "path": "compiled/topics/runtime.md",
-            "title": "Runtime topic",
-            "body": "runtime page",
-        }
+    compiled_pages = [
+        _compiled_page(
+            slug="runtime",
+            title="Runtime topic",
+            body="runtime page",
+        )
     ]
 
     def search_index(query: str, limit: int = 5) -> list[object]:
@@ -153,7 +129,7 @@ def test_mcp_facade_uses_same_runtime_snapshot_index(
     calls: list[dict[str, object]] = []
 
     def fake_from_records_and_pages(
-        *, records: list[dict[str, object]], pages: list[dict[str, object]]
+        *, records: list[NormalizedRecord], pages: list[CompiledPage]
     ) -> object:
         calls.append({"records": records, "pages": pages})
         return snapshot

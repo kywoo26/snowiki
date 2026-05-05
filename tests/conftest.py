@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from snowiki.schema.compiled import CompiledPage
+from snowiki.schema.normalized import NormalizedRecord
+
 
 def _load_retrieval_helpers():
     return importlib.import_module("tests.helpers.retrieval_data")
@@ -87,13 +90,13 @@ def search_api_module():
 
 
 @pytest.fixture(scope="session")
-def normalized_records_data() -> tuple[dict[str, object], ...]:
+def normalized_records_data() -> tuple[NormalizedRecord, ...]:
     retrieval_helpers = _load_retrieval_helpers()
     return retrieval_helpers.normalized_records()
 
 
 @pytest.fixture(scope="session")
-def compiled_pages_data() -> tuple[dict[str, object], ...]:
+def compiled_pages_data() -> tuple[CompiledPage, ...]:
     retrieval_helpers = _load_retrieval_helpers()
     return retrieval_helpers.compiled_pages()
 
@@ -104,9 +107,8 @@ def pytest_collection_modifyitems(
     del config
     for item in items:
         path = Path(str(item.path)).as_posix()
-        if (
-            path.endswith("/tests/integration/cli/test_benchmark.py")
-            or path.endswith("/tests/integration/cli/test_benchmark_contract.py")
+        if path.endswith("/tests/integration/cli/test_benchmark.py") or path.endswith(
+            "/tests/integration/cli/test_benchmark_contract.py"
         ):
             continue
         if "/tests/integration/" in path:
