@@ -1,0 +1,83 @@
+[
+  {
+    "query_id": "ko_analyzer_inflection_quality",
+    "doc_id": "docs/reference/korean-analyzer-quality.md",
+    "relevance": 1,
+    "source_file": "docs/reference/korean-analyzer-quality.md",
+    "excerpt": "한국어 analyzer 품질 근거 문서. 형태소 analyzer는 검색 품질을 높인다. 높이는 방식은 조사와 어미가 붙은 활용형을 원형 단위로 분석하는 것이며, 높이 원형 토큰을 통해 analyzer promotion에서 한국어 검색 품질 개선 근거로 사용된다.",
+    "rationale": "Exact corpus evidence supports the Korean inflection and analyzer quality judgment.",
+    "tags": ["ko-inflection"]
+  },
+  {
+    "query_id": "ko_privacy_redaction_inflection",
+    "doc_id": "docs/reference/korean-privacy-redaction.md",
+    "relevance": 1,
+    "source_file": "docs/reference/korean-privacy-redaction.md",
+    "excerpt": "privacy redaction 정책 문서. Snowiki는 synthetic secret을 거부하고 민감정보를 차단하는 판단 근거를 기록한다. 거부 판단과 secret redaction 판단은 durable memory와 benchmark evidence에 민감정보가 남지 않도록 보호한다.",
+    "rationale": "Exact corpus evidence supports the privacy redaction judgment for the inflected Korean query.",
+    "tags": ["ko-inflection"]
+  },
+  {
+    "query_id": "ko_source_provenance_inflection",
+    "doc_id": "docs/reference/korean-source-provenance.md",
+    "relevance": 1,
+    "source_file": "docs/reference/korean-source-provenance.md",
+    "excerpt": "출처 provenance 계층 근거 문서. Snowiki는 source root, raw snapshot, normalized record, compiled page 계층을 무너뜨리지 않고 보존한다. provenance 계층 보존은 source taxonomy와 retrieval evidence의 핵심이다.",
+    "rationale": "Exact corpus evidence supports the provenance-layer judgment for the Korean inflected query.",
+    "tags": ["ko-inflection"]
+  },
+  {
+    "query_id": "ko_tool_session_qmd",
+    "doc_id": "fixtures/claude/with_tools.jsonl",
+    "relevance": 1,
+    "source_file": "fixtures/claude/with_tools.jsonl",
+    "excerpt": "Claude session with tool calls and tool results. It records a Bash tool_use that runs qmd search during a Snowiki workflow on 2026-04-02. The session is about using command output as evidence, not about benchmark scores.",
+    "rationale": "Exact corpus evidence supports the existing tool-session qrel and the added CJK mixed-code slice tag.",
+    "tags": ["cjk-mixed-code", "identifier-path-code-heavy"]
+  },
+  {
+    "query_id": "ko_spacing_personal_wiki_compounding",
+    "doc_id": "fixtures/claude/basic.jsonl",
+    "relevance": 1,
+    "source_file": "fixtures/claude/basic.jsonl",
+    "excerpt": "Basic Claude session export for Snowiki. The conversation describes Snowiki as a personal wiki that compounds knowledge over time. It explains the durable memory model in both English and Korean: 개인 위키, 지식 축적, knowledge compounding, and source-to-compiled wiki flow.",
+    "rationale": "Exact corpus evidence supports the Korean spacing query about personal wiki and knowledge compounding.",
+    "tags": ["ko-spacing"]
+  },
+  {
+    "query_id": "ko_spacing_source_layer_contract",
+    "doc_id": "docs/architecture/source-vault-compiled-taxonomy.md",
+    "relevance": 1,
+    "source_file": "docs/architecture/source-vault-compiled-taxonomy.md",
+    "excerpt": "Source, vault, compiled taxonomy. Source roots, raw provenance snapshots, normalized records, compiled pages, index cache, and fileback queues are separate layers. Retrieval must preserve source provenance rather than collapse every layer into one answer.",
+    "rationale": "Exact corpus evidence supports the Korean spacing query about source layer separation.",
+    "tags": ["ko-spacing"]
+  },
+  {
+    "query_id": "cjk_mixed_code_bm25_cache",
+    "doc_id": "src/snowiki/search/bm25_index.py",
+    "relevance": 1,
+    "source_file": "src/snowiki/search/bm25_index.py",
+    "excerpt": "BM25SearchIndex implementation for lexical retrieval. The module handles document indexing, tokenizer selection, cache serialization, and search results. It is code-heavy and must remain discoverable through API and symbol-oriented queries.",
+    "rationale": "Exact corpus evidence supports the mixed CJK and code-heavy BM25 cache query.",
+    "tags": ["cjk-mixed-code", "identifier-path-code-heavy"]
+  },
+  {
+    "query_id": "ko_long_privacy_secret_redaction",
+    "doc_id": "docs/reference/korean-privacy-redaction.md",
+    "relevance": 1,
+    "source_file": "docs/reference/korean-privacy-redaction.md",
+    "excerpt": "privacy redaction 정책 문서. Snowiki는 synthetic secret을 거부하고 민감정보를 차단하는 판단 근거를 기록한다. 거부 판단과 secret redaction 판단은 durable memory와 benchmark evidence에 민감정보가 남지 않도록 보호한다.",
+    "rationale": "Exact corpus evidence supports the long Korean privacy query and the redaction policy constraint.",
+    "tags": ["long-natural-question"]
+  },
+  {
+    "query_id": "ko_long_source_provenance_contract",
+    "doc_id": "docs/architecture/source-vault-compiled-taxonomy.md",
+    "relevance": 1,
+    "source_file": "docs/architecture/source-vault-compiled-taxonomy.md",
+    "excerpt": "Source, vault, compiled taxonomy. Source roots, raw provenance snapshots, normalized records, compiled pages, index cache, and fileback queues are separate layers. Retrieval must preserve source provenance rather than collapse every layer into one answer.",
+    "rationale": "Exact corpus evidence supports the long Korean provenance query and the layer contract.",
+    "tags": ["long-natural-question"]
+  }
+]

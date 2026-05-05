@@ -147,6 +147,7 @@ def run_cell(
         "eligible_query_count": eligible_query_count,
         "effective_query_count": len(selected_queries),
         "per_query": _build_per_query_evidence(
+            selected_queries,
             query_results,
             qrels,
             metrics,
@@ -550,6 +551,7 @@ def _first_value(
 
 
 def _build_per_query_evidence(
+    queries: Sequence[BenchmarkQuery],
     query_results: Sequence[QueryResult],
     qrels: Mapping[str, set[str]],
     metrics: Sequence[MetricResult],
@@ -563,10 +565,17 @@ def _build_per_query_evidence(
             metric_lookup[metric.metric_id] = cast(Mapping[str, object], per_query)
     query_ids = {result.query_id for result in query_results} | set(qrels)
     evidence: dict[str, dict[str, object]] = {}
+    query_by_id = {query.query_id: query for query in queries}
     query_results_by_id = {result.query_id: result for result in query_results}
     for query_id in sorted(query_ids):
+        query = query_by_id.get(query_id)
         query_result = query_results_by_id.get(query_id)
         evidence[query_id] = {
+            "query": {
+                "group": query.group if query and query.group else None,
+                "kind": query.kind if query and query.kind else None,
+                "tags": list(query.tags) if query else [],
+            },
             "ranked_doc_ids": list(query_result.ranked_doc_ids) if query_result else [],
             "relevant_doc_ids": sorted(qrels.get(query_id, set())),
             "latency_ms": query_result.latency_ms if query_result else None,

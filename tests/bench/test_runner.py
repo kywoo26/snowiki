@@ -549,7 +549,7 @@ def test_run_cell_reports_slice_metrics_from_query_metadata(
     matrix = EvaluationMatrix(
         matrix_id="test_matrix",
         datasets=("beir_nq",),
-        levels={"quick": LevelConfig(level_id="quick", query_cap=3)},
+        levels={"quick": LevelConfig(level_id="quick", query_cap=4)},
     )
 
     class _Adapter:
@@ -561,11 +561,24 @@ def test_run_cell_reports_slice_metrics_from_query_metadata(
             queries: tuple[BenchmarkQuery, ...],
         ) -> dict[str, object]:
             del manifest, level
+            ranked_doc_ids_by_query_id = {
+                "q1": ("doc-a", "miss", "doc-extra"),
+                "q2": ("miss", "doc-b"),
+                "q3": ("miss", "doc-c"),
+                "q4": ("doc-d",),
+            }
+            latency_by_query_id = {
+                "q1": 1.0,
+                "q2": 10.0,
+                "q3": 100.0,
+                "q4": 1000.0,
+            }
             return {
                 "results": tuple(
                     QueryResult(
                         query_id=query.query_id,
-                        ranked_doc_ids=("doc-a",) if query.query_id != "q2" else ("miss",),
+                        ranked_doc_ids=ranked_doc_ids_by_query_id[query.query_id],
+                        latency_ms=latency_by_query_id[query.query_id],
                     )
                     for query in queries
                 )
@@ -583,13 +596,12 @@ def test_run_cell_reports_slice_metrics_from_query_metadata(
                 query_text="한국어 known item",
                 group="ko",
                 kind="known-item",
-                tags=("identifier-path-code-heavy",),
+                tags=("identifier-path-code-heavy", "hard-negative"),
             ),
             BenchmarkQuery(
                 query_id="q2",
                 query_text="mixed query",
                 group="mixed",
-                kind="topical",
             ),
             BenchmarkQuery(
                 query_id="q3",
@@ -598,14 +610,21 @@ def test_run_cell_reports_slice_metrics_from_query_metadata(
                 kind="known-item",
                 tags=("identifier-path-code-heavy",),
             ),
+            BenchmarkQuery(
+                query_id="q4",
+                query_text="query without group",
+                kind="topical",
+                tags=(),
+            ),
         ),
     )
     monkeypatch.setattr(
         "snowiki.bench.runner._load_qrels",
         lambda manifest, **kwargs: {
-            "q1": {"doc-a"},
+            "q1": {"doc-a", "doc-extra"},
             "q2": {"doc-b"},
-            "q3": {"doc-a"},
+            "q3": {"doc-c", "doc-missing"},
+            "q4": {"doc-d"},
         },
     )
 
@@ -614,20 +633,113 @@ def test_run_cell_reports_slice_metrics_from_query_metadata(
         dataset_id="beir_nq",
         level_id="quick",
         target_id="test_target",
-        metric_ids=("hit_rate_at_1", "mrr_at_10"),
+        metric_ids=(
+            "recall_at_10",
+            "hit_rate_at_1",
+            "mrr_at_10",
+            "ndcg_at_10",
+            "latency_p50_ms",
+            "latency_p95_ms",
+        ),
     )
 
     slices = cast(dict[str, dict[str, object]], result.details["slices"])
+    metrics_by_id = {metric.metric_id: metric for metric in result.metrics}
+    per_query_scores = {
+        metric_id: cast(dict[str, float], metric.details["per_query"])
+        for metric_id, metric in metrics_by_id.items()
+    }
     group_ko = slices["group:ko"]
     group_mixed = slices["group:mixed"]
+    group_en = slices["group:en"]
     known_item = slices["kind:known-item"]
+    topical = slices["kind:topical"]
     identifier_slice = slices["tag:identifier-path-code-heavy"]
+    hard_negative_slice = slices["tag:hard-negative"]
+    quality_metric_ids = (
+        "recall_at_10",
+        "hit_rate_at_1",
+        "mrr_at_10",
+        "ndcg_at_10",
+    )
+    expected_query_ids_by_slice = {
+        "all": ("q1", "q2", "q3", "q4"),
+        "group:ko": ("q1",),
+        "group:mixed": ("q2",),
+        "group:en": ("q3",),
+        "kind:known-item": ("q1", "q3"),
+        "kind:topical": ("q4",),
+        "tag:identifier-path-code-heavy": ("q1", "q3"),
+        "tag:hard-negative": ("q1",),
+    }
 
+    assert result.status == "success"
+    assert "unknown" not in slices
+    assert "group:unknown" not in slices
+    assert "kind:unknown" not in slices
+    assert "tag:unknown" not in slices
     assert group_ko["query_count"] == 1
-    assert cast(dict[str, object], group_ko["metrics"])["hit_rate_at_1"] == 1.0
-    assert cast(dict[str, object], group_mixed["metrics"])["hit_rate_at_1"] == 0.0
-    assert cast(dict[str, object], known_item["metrics"])["mrr_at_10"] == 1.0
+    assert group_mixed["query_count"] == 1
+    assert group_en["query_count"] == 1
+    assert topical["query_count"] == 1
     assert identifier_slice["query_count"] == 2
+    assert hard_negative_slice["query_count"] == 1
+    assert known_item["query_count"] == 2
+
+    for metric_id in quality_metric_ids:
+        all_metrics = cast(dict[str, object], slices["all"]["metrics"])
+        assert all_metrics[metric_id] == pytest.approx(metrics_by_id[metric_id].value)
+
+    for slice_id, query_ids in expected_query_ids_by_slice.items():
+        slice_metrics = cast(dict[str, object], slices[slice_id]["metrics"])
+        evaluated_queries = cast(dict[str, object], slices[slice_id]["evaluated_queries"])
+        for metric_id in quality_metric_ids:
+            expected_value = sum(
+                per_query_scores[metric_id][query_id] for query_id in query_ids
+            ) / len(query_ids)
+            assert slice_metrics[metric_id] == pytest.approx(expected_value)
+            assert evaluated_queries[metric_id] == len(query_ids)
+
+    for one_query_slice_id, query_id in {
+        "group:ko": "q1",
+        "group:mixed": "q2",
+        "group:en": "q3",
+        "kind:topical": "q4",
+        "tag:hard-negative": "q1",
+    }.items():
+        slice_metrics = cast(dict[str, object], slices[one_query_slice_id]["metrics"])
+        for metric_id in quality_metric_ids:
+            assert slice_metrics[metric_id] == pytest.approx(
+                per_query_scores[metric_id][query_id]
+            )
+
+    for slice_evidence in slices.values():
+        slice_metrics = cast(dict[str, object], slice_evidence["metrics"])
+        assert "latency_p50_ms" not in slice_metrics
+        assert "latency_p95_ms" not in slice_metrics
+
+    per_query = cast(dict[str, dict[str, object]], result.details["per_query"])
+    assert set(per_query) == {"q1", "q2", "q3", "q4"}
+    q1_evidence = per_query["q1"]
+    assert q1_evidence["query"] == {
+        "group": "ko",
+        "kind": "known-item",
+        "tags": ["identifier-path-code-heavy", "hard-negative"],
+    }
+    assert per_query["q2"]["query"] == {
+        "group": "mixed",
+        "kind": None,
+        "tags": [],
+    }
+    assert per_query["q4"]["query"] == {
+        "group": None,
+        "kind": "topical",
+        "tags": [],
+    }
+    assert q1_evidence["ranked_doc_ids"] == ["doc-a", "miss", "doc-extra"]
+    assert q1_evidence["relevant_doc_ids"] == ["doc-a", "doc-extra"]
+    assert q1_evidence["latency_ms"] == 1.0
+    assert "hit_rate_at_1" in cast(dict[str, object], q1_evidence["metrics"])
 
 
 def test_run_cell_preserves_query_diagnostics(

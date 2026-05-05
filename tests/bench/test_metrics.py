@@ -196,6 +196,40 @@ def test_ndcg_at_10_computes_expected_average() -> None:
     )
 
 
+def test_global_quality_metrics_average_their_per_query_scores() -> None:
+    results = (
+        QueryResult(query_id="q1", ranked_doc_ids=("d1", "x", "d2")),
+        QueryResult(query_id="q2", ranked_doc_ids=("x", "y", "d4")),
+        QueryResult(query_id="q3", ranked_doc_ids=("z1", "z2", "z3")),
+    )
+    qrels = {
+        "q1": {"d1", "d2"},
+        "q2": {"d3", "d4"},
+        "q3": {"z9"},
+    }
+    expected_q1_ndcg = (1.0 + (1.0 / math.log2(4))) / (
+        1.0 + (1.0 / math.log2(3))
+    )
+    expected_q2_ndcg = (1.0 / math.log2(4)) / (
+        1.0 + (1.0 / math.log2(3))
+    )
+    expected_per_query = {
+        "recall_at_10": {"q1": 1.0, "q2": 0.5, "q3": 0.0},
+        "hit_rate_at_1": {"q1": 1.0, "q2": 0.0, "q3": 0.0},
+        "mrr_at_10": {"q1": 1.0, "q2": 1.0 / 3.0, "q3": 0.0},
+        "ndcg_at_10": {"q1": expected_q1_ndcg, "q2": expected_q2_ndcg, "q3": 0.0},
+    }
+
+    for metric_id, per_query_scores in expected_per_query.items():
+        metric = DEFAULT_METRIC_REGISTRY.compute(metric_id, results, qrels)
+
+        assert metric.metric_id == metric_id
+        assert metric.details["per_query"] == pytest.approx(per_query_scores)
+        assert metric.value == pytest.approx(
+            sum(per_query_scores.values()) / len(per_query_scores)
+        )
+
+
 def test_latency_p50_ms_computes_expected_percentile() -> None:
     results = (
         QueryResult(query_id="q1", ranked_doc_ids=("d1",), latency_ms=10.0),
@@ -363,6 +397,11 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
     assert result.details["sampling_seed"] == 1729
     assert result.details["per_query"] == {
         "q1": {
+            "query": {
+                "group": None,
+                "kind": None,
+                "tags": [],
+            },
             "ranked_doc_ids": ["d1", "d9"],
             "relevant_doc_ids": ["d1"],
             "latency_ms": 10.0,
@@ -383,6 +422,11 @@ def test_run_cell_executes_adapter_and_computes_all_metrics(
             },
         },
         "q2": {
+            "query": {
+                "group": None,
+                "kind": None,
+                "tags": [],
+            },
             "ranked_doc_ids": ["x1", "x2", "x3"],
             "relevant_doc_ids": ["x3"],
             "latency_ms": 20.0,
@@ -512,6 +556,11 @@ def test_graded_qrels_binary_contract(
     assert result.details["effective_query_count"] == 1
     assert result.details["per_query"] == {
         "q1": {
+            "query": {
+                "group": None,
+                "kind": None,
+                "tags": [],
+            },
             "ranked_doc_ids": ["d-zero", "d-positive-2", "d-positive-1", "d-negative"],
             "relevant_doc_ids": ["d-positive-1", "d-positive-2"],
             "latency_ms": 5.0,
