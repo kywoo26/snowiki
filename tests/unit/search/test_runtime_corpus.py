@@ -165,6 +165,28 @@ def test_search_document_searchable_texts_are_ordered_and_exclude_metadata() -> 
     )
 
 
+def test_retrieval_service_rejects_dict_records() -> None:
+    with pytest.raises(TypeError, match="typed NormalizedRecord instances"):
+        RetrievalService.from_records_and_pages(
+            records=[{"id": "test"}], pages=[]  # type: ignore
+        )
+
+
+def test_retrieval_service_rejects_dict_pages() -> None:
+    with pytest.raises(TypeError, match="typed CompiledPage instances"):
+        RetrievalService.from_records_and_pages(
+            records=[], pages=[{"id": "test"}]  # type: ignore
+        )
+
+
+def test_retrieval_service_rejects_mixed_typed_and_dict_records() -> None:
+    record = _normalized_record()
+    with pytest.raises(TypeError, match="typed NormalizedRecord instances"):
+        RetrievalService.from_records_and_pages(
+            records=[record, {"id": "test"}], pages=[]  # type: ignore
+        )
+
+
 def test_retrieval_service_uses_direct_typed_corpus_builder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
