@@ -585,7 +585,17 @@ def _build_per_query_evidence(
             },
         }
         if include_diagnostics and query_result and query_result.diagnostics:
-            evidence[query_id]["diagnostics"] = query_result.diagnostics
+            diagnostics = query_result.diagnostics
+            token_explain_trace = diagnostics.get("token_explain_trace")
+            if isinstance(token_explain_trace, Mapping):
+                evidence[query_id]["token_explain_trace"] = token_explain_trace
+                evidence[query_id]["diagnostics"] = {
+                    key: value
+                    for key, value in diagnostics.items()
+                    if key != "token_explain_trace"
+                }
+            else:
+                evidence[query_id]["diagnostics"] = diagnostics
     return evidence
 
 
