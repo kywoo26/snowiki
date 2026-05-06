@@ -24,6 +24,7 @@ from snowiki.bench.specs import (
 from snowiki.config import get_snowiki_root
 from snowiki.search.bm25_index import BM25SearchIndex
 from snowiki.search.engine import BM25RuntimeIndex
+from snowiki.search.explain_trace import build_token_explain_trace
 from snowiki.search.models import SearchDocument, SearchHit
 from snowiki.search.protocols import RuntimeSearchIndex
 from snowiki.search.queries.topical import execute_topical_search
@@ -374,6 +375,13 @@ def _bm25_query_diagnostics(
     query: BenchmarkQuery,
     hits: Sequence[SearchHit],
 ) -> dict[str, object]:
+    tokenizer_spec = get_tokenizer_spec(index.tokenizer_name)
+    tokenizer_config: dict[str, object] = {
+        "family": tokenizer_spec.family,
+        "runtime_supported": tokenizer_spec.runtime_supported,
+    }
+    if tokenizer_spec.name == "hf_wordpiece_v1":
+        tokenizer_config.update(wordpiece_tokenizer_config())
     query_tokens = index.tokenize_query(query.query_text)
     top_hits: list[dict[str, object]] = []
     for rank, hit in enumerate(hits[:BENCHMARK_DIAGNOSTIC_HIT_LIMIT], start=1):
@@ -405,6 +413,13 @@ def _bm25_query_diagnostics(
         "query_text": query.query_text,
         "query_tokens": list(query_tokens),
         "top_hits": top_hits,
+        "token_explain_trace": build_token_explain_trace(
+            index=index,
+            query_text=query.query_text,
+            hits=hits,
+            tokenizer_spec=tokenizer_spec,
+            tokenizer_config=tokenizer_config,
+        ),
     }
 
 
